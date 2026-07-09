@@ -1,0 +1,138 @@
+# Formula term metadata (Formula Term Specification - Sprint 3 + Engine Scoring
+# Model v0.1). Contract: "Claude Code must not implement formula terms as
+# anonymous variables." Every weighted component in a decision score resolves to
+# an entry here. scientific_status uses the ScientificStatus enum.
+version: "0.1.0"
+
+terms:
+  # --- Transition Window Score components (γ) ---
+  structural:
+    formula_symbol: S_struct
+    name: structural suitability
+    scientific_status: source          # source-backed components + candidate application
+    source_basis: ["onset / novelty / segmentation methods"]
+    normalization_method: distance to nearest segment boundary (exp decay)
+    missing_data_policy: neutral 0.5 + warning if no segment map
+    validation_required: segment annotations
+    cannot_claim: structure is correctly segmented without segment validation
+
+  rhythm:
+    formula_symbol: S_rhythm
+    name: rhythmic stability
+    scientific_status: inferred
+    source_basis: ["beat / pulse / onset methods"]
+    normalization_method: 1 - minmax(rolling std of spectral flux)
+    missing_data_policy: spectral-flux proxy if no beatgrid; neutral if no flux
+    validation_required: beatgrid + DJ transition windows
+    cannot_claim: rhythmic stability equals danceability
+
+  energy:
+    formula_symbol: S_energy
+    name: energy continuity
+    scientific_status: inferred
+    source_basis: ["RMS loudness"]
+    normalization_method: 1 - minmax(|d RMS/dt|)
+    missing_data_policy: neutral 0.5 + warning if no rms
+    validation_required: DJ transition ratings
+    cannot_claim: controlled energy equals good transition
+
+  phrase:
+    formula_symbol: S_phrase
+    name: phrase alignment
+    scientific_status: candidate
+    source_basis: ["beatgrid phrase anchors", "segment-boundary snapping fallback"]
+    normalization_method: distance to nearest phrase anchor + window-length fit
+    missing_data_policy: segment-boundary fallback if no beatgrid; neutral 0.5 + warning only if no phrase anchors at all
+    validation_required: phrase boundary annotations + DJ transition window ratings
+    cannot_claim: phrase alignment is correct without phrase validation
+
+  bass:
+    formula_symbol: S_bass
+    name: bass conflict freedom
+    scientific_status: candidate       # bass conflict risk — candidate-model
+    source_basis: ["low-frequency energy (LFER)"]
+    normalization_method: 1 - robust_percentile(bass energy)
+    missing_data_policy: neutral 0.5 + warning if no LFER
+    validation_required: pair ratings with bass-overlap cases
+    cannot_claim: low bass conflict proves no clash without pair validation
+
+  vocal_risk:
+    formula_symbol: R_vocal
+    name: vocal clash risk
+    scientific_status: candidate
+    source_basis: ["vocal density proxy from stems or HPSS fallback"]
+    normalization_method: clip vocal density to [0,1]
+    missing_data_policy: no penalty applied + warning if vocal proxy unavailable
+    validation_required: vocal annotations + DJ false-positive review
+    cannot_claim: low vocal risk proves no vocal conflict without vocal detection
+
+  tension_conflict:
+    formula_symbol: R_tension
+    name: tension conflict risk
+    scientific_status: candidate
+    source_basis: ["candidate tension proxy from energy/spectral/instability cues"]
+    normalization_method: robust_percentile(tension proxy)
+    missing_data_policy: no penalty applied + warning if tension proxy unavailable
+    validation_required: transition ratings across tension states
+    cannot_claim: tension conflict equals listener emotion
+
+  # --- Mixability-only components (λ) ---
+  tempo:
+    formula_symbol: S_tempo
+    name: tempo fit
+    scientific_status: source
+    source_basis: ["tempo / beat tracking"]
+    normalization_method: 1 - min BPM distance (incl. half/double time) / range
+    missing_data_policy: neutral 0.5 + warning if BPM unknown
+    validation_required: DJ pair ratings
+    cannot_claim: tempo fit guarantees a beatmatch will work
+
+  vocal:
+    formula_symbol: S_vocal
+    name: vocal compatibility
+    scientific_status: candidate
+    source_basis: ["pairwise vocal density proxy"]
+    normalization_method: 1 - min(mean vocal density_a, mean vocal density_b)
+    missing_data_policy: neutral 0.5 + warning if vocal proxy missing on either track
+    validation_required: vocal annotations + DJ pair ratings
+    cannot_claim: vocal compatibility proves no clash without vocal detection
+
+  tension:
+    formula_symbol: S_tension
+    name: tension compatibility
+    scientific_status: candidate
+    source_basis: ["candidate tension proxy", "candidate release proxy"]
+    normalization_method: window-level tension continuity + release handoff
+    missing_data_policy: neutral 0.5 + warning if tension/release curves are unavailable
+    validation_required: transition ratings across tension states
+    cannot_claim: tension compatibility equals listener emotion
+
+  harmonic:
+    formula_symbol: S_harmonic
+    name: harmonic compatibility
+    scientific_status: source          # Camelot practice is source-backed rule-of-thumb
+    source_basis: ["Mixed In Key Camelot wheel (S049)", "Serato Camelot notation (S050)"]
+    normalization_method: relation score × key confidence (exact 1.0 … risky 0.15)
+    missing_data_policy: neutral 0.5 + warning if key missing; damp toward 0.5 if low key confidence
+    validation_required: DJ annotation of harmonic transitions (EXP024)
+    cannot_claim: key match proves a good mix (C011) or predicts crowd reaction
+
+  style:
+    formula_symbol: S_style
+    name: style fit
+    scientific_status: hypothesis
+    source_basis: ["genre-DNA inference (candidate)"]
+    normalization_method: exact match 1.0, cross-style 0.5
+    missing_data_policy: neutral 0.5 + warning if style labels missing
+    validation_required: genre labels + DJ pair ratings
+    cannot_claim: cross-style pairing is bad
+
+  context:
+    formula_symbol: C_fit
+    name: context fit
+    scientific_status: hypothesis      # hypothesis + candidate
+    source_basis: ["performance-context inference"]
+    normalization_method: role-conditioned heuristic track_context_score
+    missing_data_policy: neutral 0.5 + warning if no context profile supplied
+    validation_required: context-specific DJ ratings
+    cannot_claim: context fit predicts crowd response

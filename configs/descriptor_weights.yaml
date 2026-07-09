@@ -1,0 +1,106 @@
+# Descriptor weight configuration — versioned (Sprint Zero: "jak wersjonować konfiguracje wag")
+# Statuses follow ADR-005: candidate / planned formulas are experimental, not production truth.
+# Initial values are uniform-ish priors; they MUST be tuned against the annotated dataset
+# (Validation Plan / Real Data Sources and Dataset Plan) before any claim of correctness.
+version: "0.1.0"
+
+groove_density:
+  # G_audio(t) = w1*C_pulse + w2*S_sync + w3*D_onset + w4*B_sal + w5*M_micro  (spec 2.4)
+  status: candidate
+  weights:
+    pulse_clarity: 0.25    # w1
+    syncopation: 0.20      # w2
+    onset_density: 0.20    # w3
+    bass_salience: 0.20    # w4
+    microtiming: 0.15      # w5
+
+bass_salience:
+  # B_sal(t) = a1*B_energy_norm + a2*A_kick_align + a3*C_rhythm - a4*C_mask  (spec 3.2)
+  status: candidate
+  weights:
+    bass_energy_norm: 0.40   # alpha1
+    kick_alignment: 0.30     # alpha2
+    rhythm_clarity: 0.20     # alpha3
+    masking_penalty: 0.10    # alpha4 (subtracted)
+
+tension:
+  # T_audio(t) = b1*Z_rise + b2*Z_delay + b3*Z_spectral + b4*Z_instability + b5*Z_expect  (spec 5.1)
+  status: candidate
+  weights:
+    rise: 0.25             # beta1
+    delay: 0.15            # beta2
+    spectral: 0.25         # beta3
+    instability: 0.15      # beta4
+    expectation: 0.20      # beta5
+
+transition_window:
+  # Transition Windows Model v0.1 (Sprint 2) — supersedes spec §7 five-component form:
+  # W(t) = g1*S_struct + g2*S_rhythm + g3*S_energy + g4*S_phrase + g5*S_bass
+  #        - g6*S_vocal_risk - g7*S_tension_conflict
+  # Windows = TopK(localmax(W))
+  status: candidate
+  model_version: transition_windows_v0.1
+  weights:
+    structural: 0.25         # gamma1
+    rhythm: 0.15             # gamma2
+    energy: 0.20             # gamma3
+    phrase: 0.15             # gamma4
+    bass: 0.25               # gamma5
+    vocal_risk: 0.50         # gamma6 (subtracted)
+    tension_conflict: 0.30   # gamma7 (subtracted)
+
+mixability:
+  # Mixability Model v0.1 + Harmonic Hotfix (Sprint 5.1):
+  # M_ix = l1*S_tempo + l2*S_phrase + l3*S_energy + l4*S_bass + l5*S_vocal
+  #        + l6*S_tension + l7*S_style + l8*S_context + l9*S_harmonic
+  # Weights sum to 1.0; S_harmonic important but does not dominate (R&D rule).
+  status: candidate
+  model_version: mixability_v0.1_harmonic
+  weights:
+    tempo: 0.17            # lambda1
+    phrase: 0.13           # lambda2
+    energy: 0.13           # lambda3
+    bass: 0.13             # lambda4
+    vocal: 0.08            # lambda5
+    tension: 0.08          # lambda6
+    style: 0.08            # lambda7
+    context: 0.05          # lambda8
+    harmonic: 0.15         # lambda9 (Sprint 5.1 hotfix)
+
+mixability_conflict:
+  # R_conflict = rho1*R_bass + rho2*R_vocal + rho3*R_phrase + rho4*R_tension
+  status: candidate
+  model_version: mixability_v0.1
+  weights:
+    bass: 0.35             # rho1
+    vocal: 0.30            # rho2
+    phrase: 0.20           # rho3
+    tension: 0.15          # rho4
+
+set_builder:
+  # transition_score = harmonic*h + bpm*b + energy*e + mixability*m (Set Builder v0.1)
+  # harmonic weighted highest: key clash is the most audible set-flow error.
+  status: candidate
+  model_version: set_builder_v0.1
+  weights:
+    harmonic: 0.35
+    bpm: 0.25
+    energy: 0.20
+    mixability: 0.20
+
+sequence:
+  # sequence_score = pair_score + local_arc + global_arc + lookahead + terminal
+  #                + set_memory + transition_quality - risk_penalty
+  # Phase 3: beam search scores branch candidates against both per-step and full
+  # target arc fit, while still respecting pair quality plus bounded set-memory.
+  status: candidate
+  model_version: sequence_v0.1
+  weights:
+    pair_score: 0.45
+    local_arc: 0.20
+    global_arc: 0.25
+    lookahead_arc: 0.10
+    terminal_arc: 0.06
+    set_memory: 0.08
+    transition_quality: 0.10
+    risk_penalty: 0.15

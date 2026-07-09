@@ -1,0 +1,112 @@
+{
+  "generated_at": "2026-07-08T09:26:46.944221+00:00",
+  "analysis_root": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed",
+  "track_count": 15,
+  "tracks": [
+    {
+      "track_id": "06987e170b8722e1",
+      "title": "BRUX (AUS) - Pull The Trigger (Original Mix)",
+      "artist": null,
+      "source_path": "data/raw/BRUX (AUS) - Pull The Trigger (Original Mix).mp3",
+      "json_path": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed/06987e170b8722e1.json"
+    },
+    {
+      "track_id": "0b6db038bbd47b93",
+      "title": "Fold, cu.rve - Business (Original Mix)",
+      "artist": null,
+      "source_path": "data/raw/Fold, cu.rve - Business (Original Mix).mp3",
+      "json_path": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed/0b6db038bbd47b93.json"
+    },
+    {
+      "track_id": "0d74f481c29d23c7",
+      "title": "Butch - Schlecker (Original Mix)",
+      "artist": null,
+      "source_path": "data/raw/Butch - Schlecker (Original Mix).mp3",
+      "json_path": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed/0d74f481c29d23c7.json"
+    },
+    {
+      "track_id": "4056c8ee53cfb090",
+      "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix)",
+      "artist": null,
+      "source_path": "data/raw/Oscar Farrell, Mount XLR - Mod Break (Original Mix).mp3",
+      "json_path": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed/4056c8ee53cfb090.json"
+    },
+    {
+      "track_id": "48c18f8c79fc588e",
+      "title": "Mala, Magugu - Militant Don (Vocal)",
+      "artist": null,
+      "source_path": "data/raw/Mala, Magugu - Militant Don (Vocal).mp3",
+      "json_path": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed/48c18f8c79fc588e.json"
+    },
+    {
+      "track_id": "76609e489f01f9de",
+      "title": "Rohaan - Got No _3 (Original Mix)",
+      "artist": null,
+      "source_path": "data/raw/Rohaan - Got No _3 (Original Mix).mp3",
+      "json_path": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed/76609e489f01f9de.json"
+    },
+    {
+      "track_id": "79d93a2a256d0920",
+      "title": "Bodhi - Thirst (Original Mix)",
+      "artist": null,
+      "source_path": "data/raw/Bodhi - Thirst (Original Mix).mp3",
+      "json_path": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed/79d93a2a256d0920.json"
+    },
+    {
+      "track_id": "85d8116989ea2f32",
+      "title": "O_Flynn - Srekye (Extended Mix)",
+      "artist": null,
+      "source_path": "data/raw/O_Flynn - Srekye (Extended Mix).mp3",
+      "json_path": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed/85d8116989ea2f32.json"
+    },
+    {
+      "track_id": "a749c305f32f7d51",
+      "title": "AIROD - Rave Cycle (Original Mix)",
+      "artist": null,
+      "source_path": "data/raw/AIROD - Rave Cycle (Original Mix).mp3",
+      "json_path": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed/a749c305f32f7d51.json"
+    },
+    {
+      "track_id": "aaecfee7674ae3ed",
+      "title": "TSVI, Josi Devil - M.e.S (feat. TSVI) (feat. TSVI)",
+      "artist": null,
+      "source_path": "data/raw/TSVI, Josi Devil - M.e.S (feat. TSVI) (feat. TSVI).mp3",
+      "json_path": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed/aaecfee7674ae3ed.json"
+    },
+    {
+      "track_id": "b2d3c5c17b5e26ac",
+      "title": "Bodhi - 433Mhz (Original Mix)",
+      "artist": null,
+      "source_path": "data/raw/Bodhi - 433Mhz (Original Mix).mp3",
+      "json_path": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed/b2d3c5c17b5e26ac.json"
+    },
+    {
+      "track_id": "deb940c4a6052fed",
+      "title": "Jorg Kuning - Mercedes (Original Mix)",
+      "artist": null,
+      "source_path": "data/raw/Jorg Kuning - Mercedes (Original Mix).mp3",
+      "json_path": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed/deb940c4a6052fed.json"
+    },
+    {
+      "track_id": "e3b089eb3589fe94",
+      "title": "Muskila - YARAO (Original Mix)",
+      "artist": null,
+      "source_path": "data/raw/Muskila - YARAO (Original Mix).mp3",
+      "json_path": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed/e3b089eb3589fe94.json"
+    },
+    {
+      "track_id": "ecf64aa98ccd4467",
+      "title": "Bicep - CHROMA 004 ROLA (Original Mix)",
+      "artist": null,
+      "source_path": "data/raw/Bicep - CHROMA 004 ROLA (Original Mix).mp3",
+      "json_path": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed/ecf64aa98ccd4467.json"
+    },
+    {
+      "track_id": "fea8b371ffd2adc5",
+      "title": "Povoa - Hacked Lime (Original Mix)",
+      "artist": null,
+      "source_path": "data/raw/Povoa - Hacked Lime (Original Mix).mp3",
+      "json_path": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed/fea8b371ffd2adc5.json"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+# DanceLab Engine — default configuration
+engine:
+  version: "0.1.0"
+  # deterministic outputs are a hard requirement (Prompt Pack, Prompt 2)
+  random_seed: 42
+
+audio:
+  sample_rate: 44100
+  mono: true
+  frame_size: 2048
+  hop_size: 512
+  normalize: true
+
+stems:
+  enabled: false
+  method: auto
+  fallback_confidence_threshold: 0.45
+  max_artifact_flag: clear
+  min_required_stems: 4
+  export_stems: false
+
+bands:
+  # Hz; B_low used by Low-Frequency Energy Ratio (Engine Computation Spec 1.3)
+  bass: [20, 150]
+
+analysis:
+  onset_window_sec: 4.0        # Δ for onset density D_onset (spec 2.1)
+  segment_min_len_sec: 8.0
+  transition_top_n: 3          # top-N local maxima of W_transition (spec 7)
+  vocal_method: demucs     # pilot: accurate vocal separation
+  tempo_min: 90.0              # octave-fold beat tracker into [tempo_min, tempo_max)
+  tempo_max: 180.0             # 180 (not 160) so DnB ~174 stays, 88→176 folds up
+
+paths:
+  data_dir: data
+  raw_dir: data/raw
+  processed_dir: data/processed
+  examples_dir: data/examples
+
+weights_file: configs/descriptor_weights.yaml
+context_profiles_file: configs/context_profiles.yaml
+model_cards_file: configs/model_cards.yaml
+formula_terms_file: configs/formula_terms.yaml

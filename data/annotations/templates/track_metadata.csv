@@ -1,0 +1,2 @@
+track_id,title,artist,duration_sec,bpm,style,key,source
+demo_001,Example Track,Example Artist,372.5,128,techno,8A,data/raw/example.wav

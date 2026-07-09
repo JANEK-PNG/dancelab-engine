@@ -1,0 +1,32 @@
+# Example context profiles (ContextProfile entity — Data Model and Schemas)
+# Used by context conditioning: X_eff(t|s,c) = X_audio(t|s) * C_fit(t|c)
+version: "0.1.0"
+
+profiles:
+  club_peak:
+    venue_type: club
+    set_role: peak
+    time_of_night: "01:00-03:00"
+    crowd_energy: high
+    style_focus: [techno, hard-house]
+
+  club_opening:
+    venue_type: club
+    set_role: opener
+    time_of_night: "22:00-00:00"
+    crowd_energy: low
+    style_focus: [deep-house, minimal]
+
+  club_closing:
+    venue_type: club
+    set_role: closer
+    time_of_night: "04:00-06:00"
+    crowd_energy: descending
+    style_focus: [melodic-techno, progressive]
+
+  festival_daytime:
+    venue_type: festival
+    set_role: builder
+    time_of_night: "14:00-18:00"
+    crowd_energy: medium
+    style_focus: [house, tech-house]

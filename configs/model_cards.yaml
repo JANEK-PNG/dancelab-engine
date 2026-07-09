@@ -1,0 +1,333 @@
+# Engine model cards (Sprint 3 — R&D Model Card Handoff Requirements).
+# Each decision output MUST be traceable to a card here (traceability rule).
+# evidence_grade capped at E4 (validation-ready) — Sprint 3 cannot honestly
+# claim E5/E6 without a real pilot (Evidence Grading Standard).
+version: "0.1.0"
+
+cards:
+  transition_windows:
+    model_card_id: transition_window_model_card_v0.1
+    model_version: transition_windows_v0.1
+    intended_use: "Suggest candidate mix-in and mix-out windows."
+    scientific_status: candidate          # dancelab-hypothesis / candidate-model
+    evidence_grade: E4                     # annotation protocol / validation-ready
+    validation_status: to_validate
+    source_basis:
+      - "onset / novelty detection methods (Bello 2005, Böck & Widmer 2013)"
+      - "tension modelling literature"
+      - "groove / rhythmic movement literature"
+    dance_lab_inference: >-
+      Useful DJ transition windows depend on a combination of structure, rhythm,
+      phrase, bass, vocal, tension and context — not low energy alone.
+    limitations:
+      - "does not prove the best transition window"
+      - "does not predict crowd reaction"
+      - "phrase alignment may be wrong without phrase/beatgrid validation"
+    cannot_claim:
+      - "best transition point"
+      - "this transition will work"
+      - "crowd will react well"
+    required_validation:
+      - "EXP016 - Transition Window Interval Validation Pilot"
+      - "EXP009 - Transition Windows Pilot"
+    allowed_ui_wording: "Suggested candidate mix-out window."
+
+  mixability:
+    model_card_id: mixability_model_card_v0.1
+    model_version: mixability_v0.1
+    intended_use: "Rank or score candidate track pairs for DJ transition usefulness."
+    scientific_status: candidate
+    evidence_grade: E4
+    validation_status: to_validate
+    source_basis:
+      - "MIR feature extraction"
+      - "onset / tempo-related analysis"
+      - "rank-correlation validation methods"
+    dance_lab_inference: >-
+      DJ mixability is contextual compatibility, not simple audio similarity,
+      and should be read together with explicit pair-rule hard blocks for BPM,
+      harmonic exposure, vocal clash, and bass conflict.
+    limitations:
+      - "does not predict crowd response"
+      - "does not prove objective compatibility"
+      - "may fail on creative contrast transitions"
+      - "rule thresholds are heuristic and not DJ-calibrated yet"
+    cannot_claim:
+      - "this transition will work"
+      - "crowd will react well"
+      - "objectively compatible"
+    required_validation:
+      - "EXP015 - Mixability Ranking Validation Pilot"
+      - "EXP010 - Mixability Pair Pilot"
+    allowed_ui_wording: "High-scoring candidate pair under current model."
+
+  set_function:
+    model_card_id: set_function_model_card_v0.1
+    model_version: set_function_v0.1
+    intended_use: "Suggest context-dependent set roles (opener/builder/peak/...)."
+    scientific_status: candidate
+    evidence_grade: E4
+    validation_status: to_validate
+    source_basis:
+      - "groove / movement tendency literature"
+      - "tension / prediction literature"
+      - "audio feature extraction methods"
+    dance_lab_inference: >-
+      Track role is context-dependent and must not be treated as a fixed
+      objective property.
+    limitations:
+      - "does not define an objective role of the track"
+      - "needs context"
+      - "may fail when DJ intent is creative/disruptive"
+      - "v0.1 role priors are hand-set and uncalibrated (see EXP011)"
+    cannot_claim:
+      - "this track is a builder"
+      - "objectively a peak track"
+    required_validation:
+      - "EXP017 - Set Function Context Sensitivity Pilot"
+      - "EXP011 - Set Function Labeling Pilot"
+    allowed_ui_wording: "Suggested role in current context."
+
+  context_evaluation:
+    model_card_id: context_evaluation_model_card_v0.1
+    model_version: context_evaluation_v0.1
+    intended_use: "Estimate whether a track fits a requested performance context."
+    scientific_status: candidate
+    evidence_grade: E4
+    validation_status: to_validate
+    source_basis:
+      - "performance-context model (DanceLab synthesis)"
+      - "time-of-day / time-of-night music preference literature"
+      - "set-role heuristics derived from DJ practice"
+    dance_lab_inference: >-
+      Context fit is modelled as agreement between a track's available energy,
+      bass and vocal-shape descriptors and a role-conditioned target profile,
+      with optional style-focus bonus.
+    limitations:
+      - "does not predict crowd response"
+      - "uses heuristic target curves, not learned context labels"
+      - "venue and crowd state are only weakly represented"
+      - "style fit depends on coarse manual style labels"
+    cannot_claim:
+      - "this track will work for this crowd"
+      - "context fit predicts crowd reaction"
+      - "the requested set role is objectively correct"
+    required_validation:
+      - "EXP017 - Set Function Context Sensitivity Pilot"
+      - "context-specific DJ suitability annotations"
+    allowed_ui_wording: "Candidate context-fit estimate."
+
+  harmonic:
+    model_card_id: harmonic_compatibility_model_card_v0.1
+    model_version: harmonic_compatibility_v0.1
+    intended_use: "Score Camelot-key compatibility as one candidate mixability/transition signal."
+    scientific_status: candidate
+    evidence_grade: E4
+    validation_status: to_validate
+    source_basis:
+      - "Mixed In Key Camelot wheel and harmonic mixing (S049)"
+      - "Serato Camelot key notation (S050)"
+    dance_lab_inference: >-
+      Camelot compatibility (exact / relative / adjacent) supports a transition
+      decision, and its risk depends on how much harmonic material is exposed in
+      the overlap window — but it does not validate the mix (C011).
+    limitations:
+      - "key detection is unreliable on atonal/percussive tracks"
+      - "Camelot rules are rules-of-thumb, not guarantees"
+      - "risk exposure uses a vocal-density proxy, not full harmonic analysis"
+      - "no DJ harmonic-transition validation yet"
+    cannot_claim:
+      - "key match proves a good mix"
+      - "Camelot match predicts crowd reaction"
+      - "detected key is always correct"
+    required_validation:
+      - "EXP024 - Harmonic Compatibility Annotation Pilot"
+    allowed_ui_wording: "Candidate harmonic-compatibility signal. Verify key."
+
+  transition_strategy:
+    model_card_id: transition_strategy_model_card_v0.1
+    model_version: transition_strategy_v0.1
+    intended_use: "Suggest whether a pair should use a standard or non-standard transition strategy."
+    scientific_status: candidate
+    evidence_grade: E4
+    validation_status: to_validate
+    source_basis:
+      - "tempo compatibility hotfix notes"
+      - "half-time / double-time compatibility model"
+      - "DJ transition-strategy heuristics"
+    dance_lab_inference: >-
+      Strategy choice depends on BPM relation, pair risk, harmonic exposure and
+      the selected overlap windows; a low pair score alone is not enough.
+    limitations:
+      - "strategy thresholds are heuristic"
+      - "does not prove a strategy will work live"
+      - "creative transitions may violate the suggested strategy safely"
+    cannot_claim:
+      - "this is the only correct transition strategy"
+      - "this strategy will work live"
+      - "tempo gating proves transition quality"
+    required_validation:
+      - "EXP025 - Tempo Compatibility and BPM Delta Annotation Pilot"
+      - "transition-strategy annotation review"
+    allowed_ui_wording: "Suggested transition strategy under the current model."
+
+  set_builder:
+    model_card_id: set_builder_model_card_v0.1
+    model_version: set_builder_v0.1
+    intended_use: "Propose a candidate ordered DJ set from analyzed tracks."
+    scientific_status: candidate
+    evidence_grade: E4
+    validation_status: to_validate
+    source_basis:
+      - "Camelot harmonic-mixing practice (DJ domain)"
+      - "tempo / beat tracking"
+      - "mixability engine v0.1"
+    dance_lab_inference: >-
+      A good set order balances harmonic compatibility, tempo proximity, an
+      energy arc and pairwise mixability — but the weighting and arc model are
+      candidate and must be validated against DJ-built sets.
+    limitations:
+      - "greedy ordering is not globally optimal"
+      - "energy arc is a coarse RMS proxy"
+      - "key detection is unreliable on atonal/percussive tracks"
+      - "does not account for track familiarity, crowd, or narrative intent"
+    cannot_claim:
+      - "this is the best possible set order"
+      - "this set will work live"
+      - "crowd will react well"
+    required_validation:
+      - "EXP021 - Set Ordering vs DJ-built Sets"
+    allowed_ui_wording: "Suggested set order. Reorder freely."
+
+  edge_decision:
+    model_card_id: edge_decision_model_card_v0.1
+    model_version: edge_decision_v0.1
+    intended_use: "Produce one unified candidate pair decision for DJ transitions."
+    scientific_status: candidate
+    evidence_grade: E4
+    validation_status: to_validate
+    source_basis:
+      - "mixability engine v0.1"
+      - "harmonic compatibility v0.1"
+      - "transition strategy v0.1"
+      - "context evaluation v0.1"
+    dance_lab_inference: >-
+      A usable pair decision must combine pair score, windows, risk gates,
+      context fit and suggested strategy rather than flatten everything into one
+      number.
+    limitations:
+      - "combined decision is still heuristic and validation-ready only"
+      - "depends on incomplete descriptor coverage"
+      - "does not predict crowd reaction"
+      - "does not prove a transition will work live"
+    cannot_claim:
+      - "this transition will work live"
+      - "this is the objectively best way to mix the pair"
+      - "crowd will react well"
+    required_validation:
+      - "EXP026 - Core DJ Compatibility Integration Annotation Pilot"
+    allowed_ui_wording: "Candidate pair decision with explanation and warnings."
+
+  next_track:
+    model_card_id: next_track_model_card_v0.1
+    model_version: next_track_v0.1
+    intended_use: "Rank candidate next tracks for a current track and set context."
+    scientific_status: candidate
+    evidence_grade: E4
+    validation_status: to_validate
+    source_basis:
+      - "mixability engine v0.1"
+      - "context evaluation v0.1"
+      - "set-function engine v0.1"
+      - "transition windows engine v0.1"
+    dance_lab_inference: >-
+      Next-track utility is approximated from pairwise mixability, candidate
+      context fit, role fit, an energy-step heuristic relative to the current
+      track, groove continuity from the available descriptor proxies, and
+      short recent-history modelling over energy, tempo and role progression,
+      plus shared pair-rule penalties / hard blocks and a confidence-floor
+      policy that can downgrade or suppress weak candidates.
+    limitations:
+      - "history modelling is still shallow and short-memory"
+      - "does not use a full long-range sequence/global-arc model yet"
+      - "ranking is heuristic and context dependent"
+      - "creative contrast transitions may score poorly"
+      - "does not predict crowd reaction"
+    cannot_claim:
+      - "this is the best next track"
+      - "this transition will work live"
+      - "crowd will react well"
+    required_validation:
+      - "EXP015 - Mixability Ranking Validation Pilot"
+      - "next-track ranking annotation pilot"
+    allowed_ui_wording: "Top candidate under the current model."
+
+  sequence:
+    model_card_id: sequence_model_card_v0.1
+    model_version: sequence_v0.1
+    intended_use: "Propose a short candidate continuation sequence from the current track."
+    scientific_status: candidate
+    evidence_grade: E4
+    validation_status: to_validate
+    source_basis:
+      - "next-track engine v0.1"
+      - "edge decision engine v0.1"
+      - "set-builder v0.1"
+      - "set-function engine v0.1"
+      - "tension / release descriptor layer v0.1"
+    dance_lab_inference: >-
+      Short sequence planning is approximated by beam-searching a few candidate
+      continuations, combining pair-level edge quality with explicit local and
+      global energy-arc fit under a requested arc such as build, flat, peak or
+      closing, while carrying a short recent-history model of energy, tempo,
+      role/function progression and coarse tension/release state, a
+      remaining-pool lookahead for continuation viability, terminal arc
+      reachability, hard sequence guardrails for cumulative risk, BPM drift,
+      and energy-region plateau, plus a confidence-floor policy that can
+      downgrade or suppress weak continuations.
+    limitations:
+      - "beam search is still heuristic and not a full set optimizer"
+      - "history usage is still short-memory and heuristic"
+      - "global arc fit uses a hand-shaped target profile, not DJ labels"
+      - "lookahead/terminal scoring uses remaining-pool heuristics, not DJ annotations"
+      - "role/tension set-memory scoring is coarse and not DJ-calibrated yet"
+      - "guardrail thresholds are heuristic and not DJ-calibrated yet"
+      - "does not predict crowd reaction"
+    cannot_claim:
+      - "this is the best sequence"
+      - "this sequence will work live"
+      - "crowd will react well"
+    required_validation:
+      - "sequence continuation annotation pilot"
+      - "EXP021 - Set Ordering vs DJ-built Sets"
+    allowed_ui_wording: "Suggested short continuation under the current model."
+
+  stem_aware_layer:
+    model_card_id: stem_aware_layer_model_card_v0.1
+    model_version: stem_aware_layer_v0.1
+    intended_use: "Optional stem-aware preprocessing and candidate risk descriptors."
+    scientific_status: candidate
+    evidence_grade: E4
+    validation_status: to_validate
+    source_basis:
+      - "Demucs / HTDemucs source separation"
+      - "DSD100 feasibility data"
+      - "DanceLab Sprint 4 stem-aware descriptor cards"
+    dance_lab_inference: >-
+      Stem-aware preprocessing can expose candidate vocals, bass, drums, and
+      other-channel signals for downstream DJ decision research, but does not
+      validate transition quality by itself.
+    limitations:
+      - "source separation artifacts can distort downstream features"
+      - "stem categories are broad and not instrument-complete"
+      - "no DJ pilot validation yet"
+      - "fallback to full-mix descriptors may hide stem-specific risks"
+    cannot_claim:
+      - "this transition will work live"
+      - "stems prove mixability"
+      - "crowd will react well"
+      - "source separation is production-ready"
+    required_validation:
+      - "EXP019 - Stem Separation Descriptor Feasibility Review"
+      - "EXP020 - Vocal and Bass Clash Annotation Pilot"
+    allowed_ui_wording: "Candidate stem-aware risk estimate. Requires validation."

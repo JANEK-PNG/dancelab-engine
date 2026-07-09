@@ -1,0 +1,5 @@
+context_profile_id,venue_type,set_role,time_of_night,crowd_energy,style_focus
+club_peak,club,peak,01:00-03:00,high,techno;hard-house
+club_opening,club,opener,22:00-00:00,low,deep-house;minimal
+club_closing,club,closer,04:00-06:00,descending,melodic-techno;progressive
+festival_daytime,festival,builder,14:00-18:00,medium,house;tech-house
