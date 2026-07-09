@@ -1,0 +1,2242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DanceLab Signal Graph</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #141517;
+      --panel: #1b1c1f;
+      --panel-2: #17181a;
+      --panel-3: #232428;
+      --panel-4: #2a2c30;
+      --border: #2b2d31;
+      --border-strong: #35373c;
+      --text: #d6d7d9;
+      --text-soft: #989ba1;
+      --text-dim: #72757b;
+      --accent: #d99a4e;
+      --accent-soft: rgba(217, 154, 78, 0.14);
+      --input: #45b0a0;
+      --engine_ops: #d99a4e;
+      --sensors: #a08bd0;
+      --screens: #5aa7d6;
+      --utility: #8b8f96;
+      --output: #6ea44d;
+      --system: #d99a4e;
+      --danger: #d66b6b;
+      --ok: #7ecf8b;
+      --warn: #d8bf61;
+      --shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+      --grid-dot: rgba(255, 255, 255, 0.05);
+      --grid-major: rgba(255, 255, 255, 0.035);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); }
+    body { font-family: "IBM Plex Sans", sans-serif; overflow: hidden; }
+    button, input, textarea, select { font: inherit; color: inherit; }
+    a { color: inherit; }
+    code { font-family: "IBM Plex Mono", monospace; }
+    .app { display: flex; flex-direction: column; width: 100vw; height: 100vh; background: var(--bg); }
+    .topbar {
+      height: 46px;
+      flex: 0 0 46px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 14px;
+      background: var(--panel);
+      border-bottom: 1px solid #0d0d0f;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      letter-spacing: 0.25px;
+      font-size: 13px;
+    }
+    .brand-mark {
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      border: 1.5px solid var(--accent);
+      color: var(--accent);
+      display: grid;
+      place-items: center;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+    }
+    .divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+      flex: 0 0 1px;
+    }
+    .top-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: #1f2124;
+      font-size: 11px;
+      color: var(--text-soft);
+      font-family: "IBM Plex Mono", monospace;
+      white-space: nowrap;
+    }
+    .top-chip.accent {
+      border-color: #4b3d29;
+      background: #231f18;
+      color: #f0d0a0;
+    }
+    .top-chip.ok { color: #cde9d2; border-color: #35533c; background: #18211a; }
+    .top-chip.warn { color: #f0dfab; border-color: #554a25; background: #232015; }
+    .top-chip.error { color: #f0c0c0; border-color: #623434; background: #2a1818; }
+    .top-grow { flex: 1; }
+    .top-actions { display: flex; align-items: center; gap: 8px; }
+    .toolbar-button {
+      border: 1px solid var(--border);
+      background: #1f2124;
+      border-radius: 4px;
+      padding: 5px 9px;
+      cursor: pointer;
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+    .toolbar-button:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+    .toolbar-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+    .toolbar-button.primary {
+      border-color: #4b3d29;
+      background: #231f18;
+      color: #f0d0a0;
+    }
+    .main { min-height: 0; flex: 1; display: flex; }
+    .sidebar {
+      width: 292px;
+      flex: 0 0 292px;
+      background: var(--panel);
+      border-right: 1px solid #0d0d0f;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .inspector {
+      width: 360px;
+      flex: 0 0 360px;
+      background: var(--panel);
+      border-left: 1px solid #0d0d0f;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .panel-head {
+      padding: 12px 14px 10px;
+      border-bottom: 1px solid #26272b;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .panel-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.15px;
+      color: var(--text-soft);
+      text-transform: uppercase;
+    }
+    .panel-body {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 12px 14px 16px;
+    }
+    .search-wrap {
+      padding: 12px 14px;
+      border-bottom: 1px solid #26272b;
+    }
+    .search,
+    .text-area,
+    .select-field {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: #17181a;
+      border-radius: 5px;
+      padding: 9px 10px;
+      color: var(--text);
+      outline: none;
+    }
+    .text-area {
+      min-height: 122px;
+      resize: vertical;
+      line-height: 1.5;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+    }
+    .search:focus,
+    .text-area:focus,
+    .select-field:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(217, 154, 78, 0.35);
+    }
+    .node-groups {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 8px 0 14px;
+    }
+    .group { padding: 0 0 10px; }
+    .group-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px 6px;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .group-head::after {
+      content: "";
+      height: 1px;
+      flex: 1;
+      background: #26272b;
+    }
+    .group-count {
+      color: #5a5c61;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+    }
+    .group-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .library-item {
+      display: grid;
+      grid-template-columns: 10px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      border-left: 2px solid transparent;
+      cursor: pointer;
+      transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+    }
+    .library-item:hover { background: #232529; }
+    .library-item.active {
+      background: #23251f;
+      border-left-color: var(--accent);
+    }
+    .library-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      background: currentColor;
+      color: inherit;
+    }
+    .library-item.system .library-dot,
+    .library-item.sensors .library-dot { border-radius: 50%; }
+    .library-item.screens .library-dot {
+      border: 1.5px solid currentColor;
+      background: transparent;
+      border-radius: 2px;
+    }
+    .library-main {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .library-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .library-meta {
+      font-size: 10.5px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .library-status {
+      font-size: 10px;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      padding: 2px 5px;
+      border-radius: 999px;
+      font-family: "IBM Plex Mono", monospace;
+      text-transform: lowercase;
+    }
+    .canvas-wrap {
+      position: relative;
+      flex: 1;
+      overflow: hidden;
+      background-color: var(--panel-2);
+      background-image:
+        radial-gradient(circle, var(--grid-dot) 1px, transparent 1px),
+        linear-gradient(var(--grid-major) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-major) 1px, transparent 1px);
+      background-size: 24px 24px, 120px 120px, 120px 120px;
+      user-select: none;
+      cursor: grab;
+    }
+    .canvas-wrap.panning { cursor: grabbing; }
+    .canvas-hud {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+      pointer-events: none;
+      max-width: 68%;
+    }
+    .canvas-chip {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 5px;
+      background: rgba(23, 24, 26, 0.92);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+    .canvas-chip strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+    .world {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
+    .edge-layer {
+      position: absolute;
+      inset: 0;
+      overflow: visible;
+      pointer-events: none;
+    }
+    .edge-path {
+      fill: none;
+      stroke-width: 2;
+      opacity: 0.72;
+    }
+    .edge-path.active {
+      opacity: 0.95;
+      stroke-width: 2.4;
+      filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.1));
+    }
+    .edge-path.pending {
+      opacity: 0.55;
+      stroke-dasharray: 7 5;
+    }
+    .node-instance {
+      position: absolute;
+      width: 196px;
+      background: var(--panel-3);
+      border: 1px solid var(--border-strong);
+      border-radius: 7px;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+      cursor: default;
+    }
+    .node-instance.selected {
+      box-shadow: 0 0 0 1px rgba(217, 154, 78, 0.52), 0 18px 36px rgba(0, 0, 0, 0.35);
+      border-color: rgba(217, 154, 78, 0.55);
+    }
+    .node-instance.pinned {
+      width: 260px;
+      background: #211f1a;
+      border-color: rgba(217, 154, 78, 0.55);
+    }
+    .node-head {
+      height: 28px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 10px;
+      border-bottom: 1px solid #1a1b1e;
+      border-radius: 7px 7px 0 0;
+      background: var(--panel-4);
+      border-top: 2px solid currentColor;
+      color: inherit;
+      cursor: move;
+    }
+    .node-instance.pinned .node-head {
+      height: 30px;
+      background: linear-gradient(#2b2820, #262319);
+      border-bottom-color: rgba(217, 154, 78, 0.3);
+    }
+    .node-icon {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      background: currentColor;
+      flex: 0 0 12px;
+    }
+    .node-instance.sensors .node-icon,
+    .node-instance.system .node-icon { border-radius: 50%; }
+    .node-instance.screens .node-icon {
+      background: transparent;
+      border: 1.5px solid currentColor;
+    }
+    .node-label {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: 0.1px;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .node-tag {
+      margin-left: auto;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: lowercase;
+      white-space: nowrap;
+    }
+    .node-body { padding: 7px 0 10px; }
+    .node-summary {
+      padding: 0 12px 8px;
+      color: var(--text-soft);
+      font-size: 10.5px;
+      line-height: 1.45;
+    }
+    .node-runtime {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 0 12px 8px;
+    }
+    .runtime-badge {
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #17181a;
+      color: var(--text-dim);
+      font-size: 10px;
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .runtime-badge.ok {
+      border-color: #35533c;
+      color: #cde9d2;
+      background: #18211a;
+    }
+    .runtime-badge.run {
+      border-color: #544526;
+      color: #f0dfab;
+      background: #252114;
+    }
+    .runtime-badge.error {
+      border-color: #6d3434;
+      color: #f0c0c0;
+      background: #2a1818;
+    }
+    .runtime-badge.pending {
+      border-color: #403b2b;
+      color: #d3ccb1;
+      background: #201d15;
+    }
+    .ports {
+      display: grid;
+      gap: 3px;
+    }
+    .port {
+      position: relative;
+      min-height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 0 14px;
+      color: var(--text-soft);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10.5px;
+    }
+    .port.in { justify-content: flex-start; padding-left: 18px; }
+    .port.out { justify-content: flex-end; padding-right: 18px; }
+    .port-name {
+      max-width: 72%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .port-type {
+      color: var(--text-dim);
+      font-size: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 88px;
+    }
+    .port-dot {
+      position: absolute;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid var(--bg);
+      transform: translateY(-50%);
+      background: currentColor;
+      padding: 0;
+      cursor: pointer;
+    }
+    .port.in .port-dot { left: -6px; }
+    .port.out .port-dot { right: -6px; }
+    .port-dot.active {
+      box-shadow: 0 0 0 3px rgba(217, 154, 78, 0.28);
+    }
+    .port-dot.compatible {
+      box-shadow: 0 0 0 3px rgba(126, 207, 139, 0.18);
+    }
+    .empty-state {
+      padding: 30px 20px;
+      color: var(--text-dim);
+      line-height: 1.6;
+      font-size: 12px;
+    }
+    .section { display: grid; gap: 10px; margin-bottom: 16px; }
+    .section:last-child { margin-bottom: 0; }
+    .section-title {
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-soft);
+    }
+    .hero {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .hero-title {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+    .hero-text {
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--text-soft);
+    }
+    .meta-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .meta-pill {
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #17181a;
+      color: var(--text-soft);
+      font-size: 10.5px;
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .meta-pill.accent {
+      border-color: #4b3d29;
+      background: var(--accent-soft);
+      color: #f1cf9c;
+    }
+    .kv {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #17181a;
+    }
+    .kv-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 11px;
+    }
+    .kv-key {
+      color: var(--text-dim);
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .kv-value {
+      color: var(--text);
+      text-align: right;
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .list {
+      display: grid;
+      gap: 8px;
+    }
+    .list-card {
+      border: 1px solid var(--border);
+      background: #17181a;
+      border-radius: 8px;
+      padding: 10px;
+      display: grid;
+      gap: 6px;
+    }
+    .list-card.inline {
+      grid-template-columns: 1fr auto;
+      align-items: center;
+    }
+    .list-card-title {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .list-card-meta {
+      font-size: 10.5px;
+      color: var(--text-dim);
+      font-family: "IBM Plex Mono", monospace;
+      line-height: 1.5;
+    }
+    .tiny {
+      font-size: 10.5px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+    .hint {
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      background: #17181a;
+      color: var(--text-soft);
+      line-height: 1.6;
+      font-size: 11px;
+    }
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--ok);
+    }
+    .library-footer, .inspector-footer {
+      padding: 10px 14px;
+      border-top: 1px solid #26272b;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10.5px;
+      color: #5a5c61;
+      line-height: 1.55;
+    }
+    .form-grid {
+      display: grid;
+      gap: 10px;
+    }
+    .form-help {
+      font-size: 11px;
+      line-height: 1.55;
+      color: var(--text-soft);
+    }
+    .field-label {
+      font-size: 10.5px;
+      letter-spacing: 0.9px;
+      text-transform: uppercase;
+      color: var(--text-soft);
+      font-weight: 600;
+    }
+    .inline-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .json-preview {
+      margin: 0;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #17181a;
+      overflow: auto;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10.5px;
+      line-height: 1.55;
+      color: var(--text-soft);
+      max-height: 260px;
+    }
+    .telemetry-grid {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .telemetry-card {
+      border: 1px solid var(--border);
+      background: #17181a;
+      border-radius: 8px;
+      padding: 10px;
+      display: grid;
+      gap: 6px;
+    }
+    .telemetry-key {
+      color: var(--text-dim);
+      font-size: 10px;
+      font-family: "IBM Plex Mono", monospace;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+    }
+    .telemetry-value {
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 600;
+    }
+    @media (max-width: 1280px) {
+      .sidebar { width: 248px; flex-basis: 248px; }
+      .inspector { width: 316px; flex-basis: 316px; }
+      .telemetry-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-mark">◆</div>
+        <span>SIGNAL GRAPH</span>
+      </div>
+      <div class="divider"></div>
+      <div id="topStatusChip" class="top-chip accent">
+        <span class="status"><span class="status-dot"></span><span id="topStatusLabel">Loading registry</span></span>
+      </div>
+      <div class="top-chip" id="topPatchLabel">node_host_patch_v1</div>
+      <div class="top-grow"></div>
+      <div class="top-actions">
+        <button class="toolbar-button" id="buildFlowButton" type="button">Build First Flow</button>
+        <button class="toolbar-button primary" id="runFlowButton" type="button">Run Flow</button>
+        <button class="toolbar-button" id="removeSelectedButton" type="button">Remove Selected</button>
+      </div>
+      <div class="divider"></div>
+      <div class="top-chip" id="topRegistryVersion">registry --</div>
+      <div class="top-chip" id="topNodeCount">nodes --</div>
+      <div class="top-chip" id="topVisibleCount">canvas --</div>
+    </div>
+
+    <div class="main">
+      <aside class="sidebar">
+        <div class="panel-head">
+          <div class="panel-title">Node Library</div>
+          <button class="toolbar-button" id="resetCanvasButton" type="button">Reset Canvas</button>
+        </div>
+        <div class="search-wrap">
+          <input id="nodeSearch" class="search" type="search" placeholder="Search nodes, ports, routes">
+        </div>
+        <div id="nodeGroups" class="node-groups"></div>
+        <div id="libraryFooter" class="library-footer">
+          registry source · /contracts/node-host
+          <br>
+          connect mode · click output dot, then compatible input dot
+        </div>
+      </aside>
+
+      <main id="canvas" class="canvas-wrap">
+        <div class="canvas-hud">
+          <div class="canvas-chip" id="zoomChip">zoom 100%</div>
+          <div class="canvas-chip" id="pendingChip">connect none</div>
+          <div class="canvas-chip">
+            <button id="fitViewButton" type="button">fit engine</button>
+          </div>
+        </div>
+        <div id="world" class="world"></div>
+      </main>
+
+      <aside class="inspector">
+        <div class="panel-head">
+          <div class="panel-title">Inspector</div>
+          <div id="inspectorMode" class="top-chip">node --</div>
+        </div>
+        <div id="inspector" class="panel-body"></div>
+        <div class="inspector-footer">host shell · registry-backed · session-only graph state</div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const CATEGORY_META = {
+      system: { label: "System", color: "var(--system)" },
+      input: { label: "Input", color: "var(--input)" },
+      engine_ops: { label: "Engine Ops", color: "var(--engine_ops)" },
+      sensors: { label: "Sensors", color: "var(--sensors)" },
+      screens: { label: "Screens", color: "var(--screens)" },
+      utility: { label: "Utility", color: "var(--utility)" },
+      output: { label: "Output", color: "var(--output)" },
+    };
+
+    const STATUS_META = {
+      implemented: "implemented",
+      adapter_needed: "adapter needed",
+      host_only: "host only",
+      planned: "planned",
+    };
+
+    const RUNTIME_META = {
+      idle: { label: "idle", klass: "pending" },
+      running: { label: "running", klass: "run" },
+      done: { label: "done", klass: "ok" },
+      error: { label: "error", klass: "error" },
+    };
+
+    const state = {
+      registry: null,
+      search: "",
+      selectedNodeId: null,
+      selectedInstanceId: null,
+      canvasNodes: [],
+      connections: [],
+      viewport: { x: 220, y: 140, scale: 1 },
+      drag: null,
+      pan: null,
+      pendingConnection: null,
+      nextSequence: 1,
+      runtime: {
+        nodeStatus: {},
+        outputs: {},
+        errors: {},
+        configs: {},
+        analysisIndex: {},
+        sessionState: "idle",
+        sessionMessage: "registry not loaded yet",
+      },
+    };
+
+    const refs = {
+      groups: document.getElementById("nodeGroups"),
+      search: document.getElementById("nodeSearch"),
+      world: document.getElementById("world"),
+      canvas: document.getElementById("canvas"),
+      inspector: document.getElementById("inspector"),
+      resetCanvasButton: document.getElementById("resetCanvasButton"),
+      fitViewButton: document.getElementById("fitViewButton"),
+      buildFlowButton: document.getElementById("buildFlowButton"),
+      runFlowButton: document.getElementById("runFlowButton"),
+      removeSelectedButton: document.getElementById("removeSelectedButton"),
+      topStatusLabel: document.getElementById("topStatusLabel"),
+      topStatusChip: document.getElementById("topStatusChip"),
+      topRegistryVersion: document.getElementById("topRegistryVersion"),
+      topNodeCount: document.getElementById("topNodeCount"),
+      topVisibleCount: document.getElementById("topVisibleCount"),
+      topPatchLabel: document.getElementById("topPatchLabel"),
+      inspectorMode: document.getElementById("inspectorMode"),
+      zoomChip: document.getElementById("zoomChip"),
+      pendingChip: document.getElementById("pendingChip"),
+      libraryFooter: document.getElementById("libraryFooter"),
+    };
+
+    function registryNodes() {
+      return state.registry?.nodes || [];
+    }
+
+    function nodeById(nodeId) {
+      return registryNodes().find((node) => node.node_id === nodeId) || null;
+    }
+
+    function categoryLabel(category) {
+      return CATEGORY_META[category]?.label || category;
+    }
+
+    function colorForCategory(category) {
+      return CATEGORY_META[category]?.color || "var(--utility)";
+    }
+
+    function selectedInstance() {
+      return state.canvasNodes.find((item) => item.instance_id === state.selectedInstanceId) || null;
+    }
+
+    function instanceById(instanceId) {
+      return state.canvasNodes.find((item) => item.instance_id === instanceId) || null;
+    }
+
+    function ensureNodeConfig(instanceId) {
+      if (!state.runtime.configs[instanceId]) {
+        state.runtime.configs[instanceId] = {};
+      }
+      return state.runtime.configs[instanceId];
+    }
+
+    function runtimeStatus(instanceId) {
+      return state.runtime.nodeStatus[instanceId] || "idle";
+    }
+
+    function setRuntimeStatus(instanceId, status, message = "") {
+      state.runtime.nodeStatus[instanceId] = status;
+      if (message) {
+        state.runtime.errors[instanceId] = message;
+      } else if (status !== "error") {
+        delete state.runtime.errors[instanceId];
+      }
+    }
+
+    function clearExecutionState() {
+      state.runtime.nodeStatus = {};
+      state.runtime.outputs = {};
+      state.runtime.errors = {};
+      state.runtime.analysisIndex = {};
+    }
+
+    function resetGraphState() {
+      state.connections = [];
+      state.pendingConnection = null;
+      state.nextSequence = 1;
+      clearExecutionState();
+      state.runtime.configs = {};
+    }
+
+    function defaultCanvasNodes() {
+      return registryNodes()
+        .filter((node) => node.default_visible)
+        .map((node, index) => ({
+          instance_id: `instance_${node.node_id}_${index + 1}`,
+          node_id: node.node_id,
+          x: 520 + (index * 30),
+          y: 230 + (index * 30),
+        }));
+    }
+
+    function resetCanvas() {
+      resetGraphState();
+      state.canvasNodes = defaultCanvasNodes();
+      state.selectedInstanceId = state.canvasNodes[0]?.instance_id || null;
+      state.selectedNodeId = state.canvasNodes[0]?.node_id || registryNodes()[0]?.node_id || null;
+      state.viewport = { x: 220, y: 140, scale: 1 };
+      updateSessionState("idle", "empty shell · engine only");
+      render();
+    }
+
+    function updateSessionState(kind, message) {
+      state.runtime.sessionState = kind;
+      state.runtime.sessionMessage = message;
+      refs.topStatusLabel.textContent = message;
+      refs.topStatusChip.className = "top-chip";
+      if (kind === "running") {
+        refs.topStatusChip.classList.add("warn");
+      } else if (kind === "error") {
+        refs.topStatusChip.classList.add("error");
+      } else if (kind === "done") {
+        refs.topStatusChip.classList.add("ok");
+      } else {
+        refs.topStatusChip.classList.add("accent");
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function filterNodes(nodes) {
+      const query = state.search.trim().toLowerCase();
+      if (!query) {
+        return nodes;
+      }
+      return nodes.filter((node) => {
+        const haystack = [
+          node.label,
+          node.node_id,
+          node.summary,
+          node.status,
+          node.runtime_side,
+          node.execution_mode,
+          ...(node.api_routes || []),
+          ...(node.backed_by || []),
+          ...(node.inputs || []).map((port) => `${port.key} ${(port.port_types || []).join(" ")}`),
+          ...(node.outputs || []).map((port) => `${port.key} ${(port.port_types || []).join(" ")}`),
+        ]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(query);
+      });
+    }
+
+    function worldBounds() {
+      const width = Math.max(
+        1800,
+        ...state.canvasNodes.map((item) => item.x + nodeWidth(item.node_id) + 320),
+      );
+      const height = Math.max(
+        1200,
+        ...state.canvasNodes.map((item) => item.y + nodeEstimatedHeight(item.node_id) + 260),
+      );
+      return { width, height };
+    }
+
+    function nodeWidth(nodeId) {
+      const spec = nodeById(nodeId);
+      return spec?.pinned ? 260 : 196;
+    }
+
+    function nodeEstimatedHeight(nodeId) {
+      const spec = nodeById(nodeId);
+      if (!spec) {
+        return 130;
+      }
+      const ports = (spec.inputs || []).length + (spec.outputs || []).length;
+      return (spec.pinned ? 132 : 112) + (ports * 22);
+    }
+
+    function viewportCenterWorld() {
+      const rect = refs.canvas.getBoundingClientRect();
+      return {
+        x: (rect.width / 2 - state.viewport.x) / state.viewport.scale,
+        y: (rect.height / 2 - state.viewport.y) / state.viewport.scale,
+      };
+    }
+
+    function selectNode(nodeId, instanceId = null) {
+      state.selectedNodeId = nodeId;
+      state.selectedInstanceId = instanceId;
+      render();
+    }
+
+    function spawnNode(nodeId, x, y) {
+      const item = {
+        instance_id: `instance_${nodeId}_${state.nextSequence++}`,
+        node_id: nodeId,
+        x,
+        y,
+      };
+      state.canvasNodes.push(item);
+      return item;
+    }
+
+    function addNodeNearCenter(nodeId) {
+      const center = viewportCenterWorld();
+      const next = spawnNode(nodeId, center.x - 98, center.y - 56);
+      selectNode(nodeId, next.instance_id);
+    }
+
+    function removeSelectedNode() {
+      const instance = selectedInstance();
+      const spec = instance ? nodeById(instance.node_id) : null;
+      if (!instance || !spec || spec.deletable === false) {
+        return;
+      }
+      state.canvasNodes = state.canvasNodes.filter((item) => item.instance_id !== instance.instance_id);
+      state.connections = state.connections.filter(
+        (edge) => edge.from_instance_id !== instance.instance_id && edge.to_instance_id !== instance.instance_id
+      );
+      delete state.runtime.outputs[instance.instance_id];
+      delete state.runtime.errors[instance.instance_id];
+      delete state.runtime.nodeStatus[instance.instance_id];
+      delete state.runtime.configs[instance.instance_id];
+      const fallback = state.canvasNodes[0] || null;
+      state.selectedInstanceId = fallback?.instance_id || null;
+      state.selectedNodeId = fallback?.node_id || registryNodes()[0]?.node_id || null;
+      render();
+    }
+
+    function portSpec(nodeId, portKey, direction) {
+      const spec = nodeById(nodeId);
+      if (!spec) {
+        return null;
+      }
+      const bucket = direction === "output" ? spec.outputs || [] : spec.inputs || [];
+      return bucket.find((port) => port.key === portKey) || null;
+    }
+
+    function portsCompatible(outputPort, inputPort) {
+      const outputTypes = new Set(outputPort?.port_types || []);
+      return (inputPort?.port_types || []).some((type) => outputTypes.has(type));
+    }
+
+    function connectionId(connection) {
+      return [
+        connection.from_instance_id,
+        connection.from_port_key,
+        connection.to_instance_id,
+        connection.to_port_key,
+      ].join("::");
+    }
+
+    function addConnection(connection) {
+      const fromInstance = instanceById(connection.from_instance_id);
+      const toInstance = instanceById(connection.to_instance_id);
+      if (!fromInstance || !toInstance) {
+        return false;
+      }
+      const fromPort = portSpec(fromInstance.node_id, connection.from_port_key, "output");
+      const toPort = portSpec(toInstance.node_id, connection.to_port_key, "input");
+      if (!fromPort || !toPort || !portsCompatible(fromPort, toPort)) {
+        return false;
+      }
+      state.connections = state.connections.filter(
+        (edge) =>
+          !(edge.to_instance_id === connection.to_instance_id && edge.to_port_key === connection.to_port_key)
+      );
+      const id = connectionId(connection);
+      if (state.connections.some((edge) => connectionId(edge) === id)) {
+        return true;
+      }
+      state.connections.push({ ...connection, edge_id: id });
+      return true;
+    }
+
+    function clearPendingConnection() {
+      state.pendingConnection = null;
+    }
+
+    function connectedInto(instanceId, inputPortKey = null) {
+      return state.connections.filter((edge) =>
+        edge.to_instance_id === instanceId && (!inputPortKey || edge.to_port_key === inputPortKey)
+      );
+    }
+
+    function connectedOutOf(instanceId, outputPortKey = null) {
+      return state.connections.filter((edge) =>
+        edge.from_instance_id === instanceId && (!outputPortKey || edge.from_port_key === outputPortKey)
+      );
+    }
+
+    function beginConnection(instanceId, portKey) {
+      state.pendingConnection = { instance_id: instanceId, port_key: portKey };
+      updatePendingChip();
+      render();
+    }
+
+    function completeConnection(targetInstanceId, targetPortKey) {
+      if (!state.pendingConnection) {
+        return;
+      }
+      const success = addConnection({
+        from_instance_id: state.pendingConnection.instance_id,
+        from_port_key: state.pendingConnection.port_key,
+        to_instance_id: targetInstanceId,
+        to_port_key: targetPortKey,
+      });
+      if (success) {
+        updateSessionState("idle", "connection added");
+      } else {
+        updateSessionState("error", "connection rejected · incompatible port types");
+      }
+      clearPendingConnection();
+      render();
+    }
+
+    function updatePendingChip() {
+      if (!state.pendingConnection) {
+        refs.pendingChip.innerHTML = "connect none";
+        return;
+      }
+      const instance = instanceById(state.pendingConnection.instance_id);
+      const spec = instance ? nodeById(instance.node_id) : null;
+      refs.pendingChip.innerHTML = `connect <strong>${escapeHtml(spec?.label || "node")}</strong> · ${escapeHtml(state.pendingConnection.port_key)}`;
+    }
+
+    function buildFirstFlow() {
+      resetCanvas();
+      const engine = state.canvasNodes.find((item) => item.node_id === "engine");
+      if (engine) {
+        engine.x = 620;
+        engine.y = 120;
+      }
+      const upload = spawnNode("upload_tracks", 120, 390);
+      const analyze = spawnNode("analyze_tracks", 380, 390);
+      const selectPair = spawnNode("select_pair", 640, 390);
+      const edgeDecision = spawnNode("edge_decision", 900, 390);
+      const telemetry = spawnNode("telemetry_screen", 1160, 390);
+
+      addConnection({
+        from_instance_id: upload.instance_id,
+        from_port_key: "tracks",
+        to_instance_id: analyze.instance_id,
+        to_port_key: "tracks",
+      });
+      addConnection({
+        from_instance_id: analyze.instance_id,
+        from_port_key: "analysis",
+        to_instance_id: selectPair.instance_id,
+        to_port_key: "source",
+      });
+      addConnection({
+        from_instance_id: selectPair.instance_id,
+        from_port_key: "pair",
+        to_instance_id: edgeDecision.instance_id,
+        to_port_key: "pair",
+      });
+      addConnection({
+        from_instance_id: edgeDecision.instance_id,
+        from_port_key: "decision",
+        to_instance_id: telemetry.instance_id,
+        to_port_key: "source",
+      });
+
+      selectNode(upload.node_id, upload.instance_id);
+      updateSessionState("idle", "first runnable flow built");
+      fitEngine();
+    }
+
+    function compatibleNodes(spec) {
+      if (!spec) {
+        return [];
+      }
+      const outputs = spec.outputs || [];
+      const outputTypes = new Set(outputs.flatMap((port) => port.port_types || []));
+      if (!outputTypes.size) {
+        return [];
+      }
+      return registryNodes()
+        .filter((candidate) => candidate.node_id !== spec.node_id)
+        .map((candidate) => {
+          const matches = (candidate.inputs || []).filter((port) =>
+            (port.port_types || []).some((type) => outputTypes.has(type))
+          );
+          return { candidate, matches };
+        })
+        .filter((row) => row.matches.length > 0)
+        .sort((left, right) => {
+          const leftRecommended = (spec.recommended_next || []).includes(left.candidate.node_id) ? 1 : 0;
+          const rightRecommended = (spec.recommended_next || []).includes(right.candidate.node_id) ? 1 : 0;
+          if (leftRecommended !== rightRecommended) {
+            return rightRecommended - leftRecommended;
+          }
+          if (left.matches.length !== right.matches.length) {
+            return right.matches.length - left.matches.length;
+          }
+          return left.candidate.label.localeCompare(right.candidate.label);
+        });
+    }
+
+    function renderLibrary() {
+      const nodes = filterNodes(registryNodes());
+      const orderedCategories = ["system", "input", "engine_ops", "sensors", "screens", "utility", "output"];
+      refs.groups.innerHTML = "";
+
+      if (!nodes.length) {
+        refs.groups.innerHTML = '<div class="empty-state">No nodes match this search. Try a broader query or clear the filter.</div>';
+        return;
+      }
+
+      orderedCategories.forEach((category) => {
+        const groupNodes = nodes.filter((node) => node.category === category);
+        if (!groupNodes.length) {
+          return;
+        }
+        const group = document.createElement("section");
+        group.className = "group";
+        const head = document.createElement("div");
+        head.className = "group-head";
+        head.style.color = colorForCategory(category);
+        head.innerHTML = `<span>${categoryLabel(category)}</span><span class="group-count">${groupNodes.length}</span>`;
+        const list = document.createElement("div");
+        list.className = "group-list";
+
+        groupNodes.forEach((node) => {
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = `library-item ${node.category}`;
+          item.style.color = colorForCategory(node.category);
+          if (state.selectedNodeId === node.node_id) {
+            item.classList.add("active");
+          }
+          item.innerHTML = `
+            <span class="library-dot"></span>
+            <span class="library-main">
+              <span class="library-label">${escapeHtml(node.label)}</span>
+              <span class="library-meta">${escapeHtml(node.runtime_side)} · ${escapeHtml(node.execution_mode)}</span>
+            </span>
+            <span class="library-status">${escapeHtml(STATUS_META[node.status] || node.status)}</span>
+          `;
+          item.addEventListener("click", () => addNodeNearCenter(node.node_id));
+          list.appendChild(item);
+        });
+
+        group.appendChild(head);
+        group.appendChild(list);
+        refs.groups.appendChild(group);
+      });
+    }
+
+    function renderPortHtml(port, direction, instance, spec) {
+      const handleId = `${instance.instance_id}:${port.key}:${direction}`;
+      const isPending = state.pendingConnection
+        && state.pendingConnection.instance_id === instance.instance_id
+        && state.pendingConnection.port_key === port.key
+        && direction === "out";
+
+      let compatible = false;
+      if (direction === "in" && state.pendingConnection) {
+        const pendingInstance = instanceById(state.pendingConnection.instance_id);
+        const pendingSpec = pendingInstance ? nodeById(pendingInstance.node_id) : null;
+        const pendingPort = pendingSpec ? portSpec(pendingSpec.node_id, state.pendingConnection.port_key, "output") : null;
+        compatible = Boolean(pendingPort && portsCompatible(pendingPort, port));
+      }
+
+      const dotClass = [
+        "port-dot",
+        isPending ? "active" : "",
+        compatible ? "compatible" : "",
+      ].filter(Boolean).join(" ");
+
+      return `
+        <div class="port ${direction}">
+          <button
+            type="button"
+            class="${dotClass}"
+            data-port-handle="${escapeHtml(handleId)}"
+            data-instance-id="${escapeHtml(instance.instance_id)}"
+            data-node-id="${escapeHtml(spec.node_id)}"
+            data-port-key="${escapeHtml(port.key)}"
+            data-port-direction="${escapeHtml(direction)}"
+          ></button>
+          <span class="port-name">${escapeHtml(port.key)}</span>
+          <span class="port-type">${escapeHtml((port.port_types || []).join(", "))}</span>
+        </div>
+      `;
+    }
+
+    function runtimeBadgeHtml(instanceId) {
+      const status = runtimeStatus(instanceId);
+      const meta = RUNTIME_META[status] || RUNTIME_META.idle;
+      const output = state.runtime.outputs[instanceId];
+      const payloadNote = output ? Object.keys(output.ports || {}).join(", ") : "no output";
+      return `
+        <div class="runtime-badge ${meta.klass}">${escapeHtml(meta.label)}</div>
+        <div class="runtime-badge">${escapeHtml(payloadNote)}</div>
+      `;
+    }
+
+    function renderCanvas() {
+      const bounds = worldBounds();
+      refs.world.innerHTML = "";
+      refs.world.style.width = `${bounds.width}px`;
+      refs.world.style.height = `${bounds.height}px`;
+      refs.world.style.transform = `translate(${state.viewport.x}px, ${state.viewport.y}px) scale(${state.viewport.scale})`;
+      refs.zoomChip.textContent = `zoom ${Math.round(state.viewport.scale * 100)}%`;
+      updatePendingChip();
+
+      const edgeLayer = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      edgeLayer.setAttribute("class", "edge-layer");
+      edgeLayer.setAttribute("width", String(bounds.width));
+      edgeLayer.setAttribute("height", String(bounds.height));
+      edgeLayer.setAttribute("viewBox", `0 0 ${bounds.width} ${bounds.height}`);
+      refs.world.appendChild(edgeLayer);
+
+      const nodes = [...state.canvasNodes].sort((left, right) => {
+        if (left.instance_id === state.selectedInstanceId) {
+          return 1;
+        }
+        if (right.instance_id === state.selectedInstanceId) {
+          return -1;
+        }
+        return 0;
+      });
+
+      nodes.forEach((instance) => {
+        const spec = nodeById(instance.node_id);
+        if (!spec) {
+          return;
+        }
+        const el = document.createElement("article");
+        el.className = `node-instance ${spec.category}`;
+        if (spec.pinned) {
+          el.classList.add("pinned");
+        }
+        if (instance.instance_id === state.selectedInstanceId) {
+          el.classList.add("selected");
+        }
+        el.style.left = `${instance.x}px`;
+        el.style.top = `${instance.y}px`;
+        el.style.color = colorForCategory(spec.category);
+        el.innerHTML = `
+          <div class="node-head" data-drag-handle="1">
+            <span class="node-icon"></span>
+            <span class="node-label">${escapeHtml(spec.label)}</span>
+            <span class="node-tag">${escapeHtml(STATUS_META[spec.status] || spec.status)}</span>
+          </div>
+          <div class="node-body">
+            <div class="node-summary">${escapeHtml(spec.summary || "")}</div>
+            <div class="node-runtime">${runtimeBadgeHtml(instance.instance_id)}</div>
+            <div class="ports">
+              ${(spec.inputs || []).map((port) => renderPortHtml(port, "in", instance, spec)).join("")}
+              ${(spec.outputs || []).map((port) => renderPortHtml(port, "out", instance, spec)).join("")}
+            </div>
+          </div>
+        `;
+
+        el.addEventListener("pointerdown", (event) => {
+          if (event.target && event.target.closest("[data-drag-handle='1']")) {
+            beginNodeDrag(event, instance.instance_id);
+          } else {
+            selectNode(spec.node_id, instance.instance_id);
+          }
+        });
+        el.addEventListener("click", () => selectNode(spec.node_id, instance.instance_id));
+        refs.world.appendChild(el);
+      });
+
+      refs.world.querySelectorAll(".port-dot").forEach((button) => {
+        button.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const instanceId = button.getAttribute("data-instance-id");
+          const portKey = button.getAttribute("data-port-key");
+          const direction = button.getAttribute("data-port-direction");
+          const instance = instanceById(instanceId);
+          if (!instance) {
+            return;
+          }
+          selectNode(instance.node_id, instanceId);
+          if (direction === "out") {
+            if (
+              state.pendingConnection
+              && state.pendingConnection.instance_id === instanceId
+              && state.pendingConnection.port_key === portKey
+            ) {
+              clearPendingConnection();
+            } else {
+              beginConnection(instanceId, portKey);
+            }
+            render();
+            return;
+          }
+          if (state.pendingConnection) {
+            completeConnection(instanceId, portKey);
+          }
+        });
+      });
+
+      requestAnimationFrame(renderEdges);
+      refs.topVisibleCount.textContent = `canvas ${state.canvasNodes.length}`;
+      refs.removeSelectedButton.disabled = !selectedInstance() || nodeById(selectedInstance()?.node_id)?.deletable === false;
+    }
+
+    function renderEdges() {
+      const svg = refs.world.querySelector(".edge-layer");
+      if (!svg) {
+        return;
+      }
+      svg.innerHTML = "";
+      const worldRect = refs.world.getBoundingClientRect();
+      const scale = state.viewport.scale || 1;
+
+      state.connections.forEach((edge) => {
+        const sourceHandle = refs.world.querySelector(`[data-port-handle="${edge.from_instance_id}:${edge.from_port_key}:out"]`);
+        const targetHandle = refs.world.querySelector(`[data-port-handle="${edge.to_instance_id}:${edge.to_port_key}:in"]`);
+        if (!sourceHandle || !targetHandle) {
+          return;
+        }
+        const fromRect = sourceHandle.getBoundingClientRect();
+        const toRect = targetHandle.getBoundingClientRect();
+        const x1 = (fromRect.left + fromRect.width / 2 - worldRect.left) / scale;
+        const y1 = (fromRect.top + fromRect.height / 2 - worldRect.top) / scale;
+        const x2 = (toRect.left + toRect.width / 2 - worldRect.left) / scale;
+        const y2 = (toRect.top + toRect.height / 2 - worldRect.top) / scale;
+        const spread = Math.max(80, Math.abs(x2 - x1) * 0.55);
+        const d = `M ${x1} ${y1} C ${x1 + spread} ${y1}, ${x2 - spread} ${y2}, ${x2} ${y2}`;
+
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", d);
+        path.setAttribute("class", [
+          "edge-path",
+          edge.from_instance_id === state.selectedInstanceId || edge.to_instance_id === state.selectedInstanceId ? "active" : "",
+        ].filter(Boolean).join(" "));
+        const sourceInstance = instanceById(edge.from_instance_id);
+        const sourceSpec = sourceInstance ? nodeById(sourceInstance.node_id) : null;
+        path.setAttribute("stroke", cssVar(colorForCategory(sourceSpec?.category || "utility")));
+        svg.appendChild(path);
+      });
+    }
+
+    function cssVar(token) {
+      if (!token.startsWith("var(")) {
+        return token;
+      }
+      const name = token.slice(4, -1).trim();
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
+
+    function previewJson(value) {
+      return escapeHtml(JSON.stringify(value, null, 2));
+    }
+
+    function renderPortListSection(title, ports, emptyMessage) {
+      return `
+        <section class="section">
+          <div class="section-title">${escapeHtml(title)}</div>
+          ${ports.length ? `
+            <div class="list">
+              ${ports.map((port) => `
+                <div class="list-card">
+                  <div class="list-card-title">${escapeHtml(port.key)}</div>
+                  <div class="list-card-meta">${escapeHtml((port.port_types || []).join(", "))}</div>
+                  <div class="tiny">${escapeHtml(port.description || "")}</div>
+                </div>
+              `).join("")}
+            </div>
+          ` : `<div class="hint">${escapeHtml(emptyMessage)}</div>`}
+        </section>
+      `;
+    }
+
+    function renderStringListSection(title, values, emptyMessage) {
+      return `
+        <section class="section">
+          <div class="section-title">${escapeHtml(title)}</div>
+          ${values.length ? `
+            <div class="list">
+              ${values.map((value) => `
+                <div class="list-card">
+                  <div class="tiny">${escapeHtml(value)}</div>
+                </div>
+              `).join("")}
+            </div>
+          ` : `<div class="hint">${escapeHtml(emptyMessage)}</div>`}
+        </section>
+      `;
+    }
+
+    function analysesKnown() {
+      return Object.values(state.runtime.analysisIndex || {});
+    }
+
+    function connectionCards(instanceId) {
+      const edges = state.connections.filter(
+        (edge) => edge.from_instance_id === instanceId || edge.to_instance_id === instanceId
+      );
+      if (!edges.length) {
+        return '<div class="hint">No live connections yet. Click an output dot and then a compatible input dot.</div>';
+      }
+      return `
+        <div class="list">
+          ${edges.map((edge) => `
+            <div class="list-card inline">
+              <div>
+                <div class="list-card-title">${escapeHtml(labelForEdge(edge))}</div>
+                <div class="list-card-meta">${escapeHtml(edge.edge_id)}</div>
+              </div>
+              <button class="toolbar-button" type="button" data-remove-edge="${escapeHtml(edge.edge_id)}">disconnect</button>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function labelForEdge(edge) {
+      const fromInstance = instanceById(edge.from_instance_id);
+      const toInstance = instanceById(edge.to_instance_id);
+      const fromNode = fromInstance ? nodeById(fromInstance.node_id) : null;
+      const toNode = toInstance ? nodeById(toInstance.node_id) : null;
+      return `${fromNode?.label || edge.from_instance_id}.${edge.from_port_key} -> ${toNode?.label || edge.to_instance_id}.${edge.to_port_key}`;
+    }
+
+    function summaryPreview(instanceId) {
+      const output = state.runtime.outputs[instanceId];
+      if (!output) {
+        return '<div class="hint">No runtime output yet. Build the first flow, fill <code>Upload Tracks</code>, and run the graph.</div>';
+      }
+
+      if (output.node_id === "telemetry_screen" && output.ports.snapshot) {
+        const snapshot = output.ports.snapshot;
+        return `
+          <section class="section">
+            <div class="section-title">Telemetry Snapshot</div>
+            <div class="telemetry-grid">
+              <div class="telemetry-card">
+                <div class="telemetry-key">Pair</div>
+                <div class="telemetry-value">${escapeHtml(snapshot.pair_label || "--")}</div>
+              </div>
+              <div class="telemetry-card">
+                <div class="telemetry-key">Score</div>
+                <div class="telemetry-value">${escapeHtml(snapshot.score_text || "--")}</div>
+              </div>
+              <div class="telemetry-card">
+                <div class="telemetry-key">Strategy</div>
+                <div class="telemetry-value">${escapeHtml(snapshot.strategy || "--")}</div>
+              </div>
+              <div class="telemetry-card">
+                <div class="telemetry-key">Blend Profile</div>
+                <div class="telemetry-value">${escapeHtml(snapshot.profile || "--")}</div>
+              </div>
+            </div>
+          </section>
+          ${renderStringListSection("Risks", snapshot.risks || [], "No risks reported.")}
+          ${renderStringListSection("Warnings", snapshot.warnings || [], "No warnings reported.")}
+        `;
+      }
+
+      if (output.node_id === "edge_decision" && output.ports.decision) {
+        const decision = output.ports.decision;
+        const score = decision.core_dj_compatibility_score?.value;
+        return `
+          <section class="section">
+            <div class="section-title">Decision Snapshot</div>
+            <div class="kv">
+              <div class="kv-row"><span class="kv-key">pair</span><span class="kv-value">${escapeHtml(`${decision.track_id_a} -> ${decision.track_id_b}`)}</span></div>
+              <div class="kv-row"><span class="kv-key">class</span><span class="kv-value">${escapeHtml(decision.decision_class || "--")}</span></div>
+              <div class="kv-row"><span class="kv-key">score</span><span class="kv-value">${score == null ? "--" : Number(score).toFixed(3)}</span></div>
+              <div class="kv-row"><span class="kv-key">strategy</span><span class="kv-value">${escapeHtml(decision.recommended_transition_strategy || "--")}</span></div>
+              <div class="kv-row"><span class="kv-key">profile</span><span class="kv-value">${escapeHtml(decision.blend_profile_auto || "--")}</span></div>
+            </div>
+          </section>
+        `;
+      }
+
+      return `
+        <section class="section">
+          <div class="section-title">Latest Output</div>
+          <pre class="json-preview">${previewJson(output.ports)}</pre>
+        </section>
+      `;
+    }
+
+    function renderUploadConfig(instanceId) {
+      const config = ensureNodeConfig(instanceId);
+      return `
+        <section class="section">
+          <div class="section-title">Upload Tracks Config</div>
+          <div class="form-grid">
+            <div class="field-label">Server-visible paths</div>
+            <textarea class="text-area" id="uploadPathsField" placeholder="/Users/name/Music/track-a.mp3&#10;/Users/name/Music/track-b.mp3">${escapeHtml(config.paths_text || "")}</textarea>
+            <div class="form-help">One path per line. These paths are sent to <code>POST /tracks/analyze</code>, so they must be visible from the local API process.</div>
+          </div>
+        </section>
+      `;
+    }
+
+    function renderSelectPairConfig(instanceId) {
+      const config = ensureNodeConfig(instanceId);
+      const analyses = analysesKnown();
+      if (!analyses.length) {
+        return `
+          <section class="section">
+            <div class="section-title">Select Pair Config</div>
+            <div class="hint">No analyzed tracks are in session yet. Run the upstream <code>Analyze Tracks</code> node first.</div>
+          </section>
+        `;
+      }
+      const options = analyses.map((analysis) => {
+        const track = analysis.track || {};
+        const label = track.title || track.track_id || "track";
+        const value = track.track_id || "";
+        return `<option value="${escapeHtml(value)}">${escapeHtml(label)} · ${escapeHtml(value)}</option>`;
+      }).join("");
+      return `
+        <section class="section">
+          <div class="section-title">Select Pair Config</div>
+          <div class="form-grid">
+            <div>
+              <div class="field-label">Track A</div>
+              <select class="select-field" id="pairTrackA">${options}</select>
+            </div>
+            <div>
+              <div class="field-label">Track B</div>
+              <select class="select-field" id="pairTrackB">${options}</select>
+            </div>
+            <div class="form-help">If you leave this untouched, the host uses the first two analyzed tracks that arrive from the upstream connection.</div>
+          </div>
+        </section>
+      `;
+    }
+
+    function renderInspector() {
+      const spec = nodeById(state.selectedNodeId);
+      const instance = selectedInstance();
+      refs.inspectorMode.textContent = spec ? `node ${spec.node_id}` : "node --";
+
+      if (!spec) {
+        refs.inspector.innerHTML = `
+          <div class="empty-state">
+            Select a node from the library or canvas.
+            <br>
+            The inspector is fully driven by the registry contract and live host session state.
+          </div>
+        `;
+        return;
+      }
+
+      const compatible = compatibleNodes(spec).slice(0, 8);
+      const recommended = (spec.recommended_next || []).map((nodeId) => nodeById(nodeId)).filter(Boolean);
+      const pendingHint = state.pendingConnection
+        ? `<div class="hint">Pending connect from <code>${escapeHtml(labelForPending())}</code>. Click a compatible input dot to complete the edge.</div>`
+        : "";
+      const runtimeError = instance && state.runtime.errors[instance.instance_id]
+        ? `<div class="hint">Last runtime error: ${escapeHtml(state.runtime.errors[instance.instance_id])}</div>`
+        : "";
+
+      refs.inspector.innerHTML = `
+        <div class="hero">
+          <div class="hero-title">${escapeHtml(spec.label)}</div>
+          <div class="hero-text">${escapeHtml(spec.summary)}</div>
+          <div class="meta-grid">
+            <span class="meta-pill accent">${escapeHtml(STATUS_META[spec.status] || spec.status)}</span>
+            <span class="meta-pill">${escapeHtml(categoryLabel(spec.category))}</span>
+            <span class="meta-pill">${escapeHtml(spec.runtime_side)}</span>
+            <span class="meta-pill">${escapeHtml(spec.execution_mode)}</span>
+            ${spec.pinned ? '<span class="meta-pill">pinned</span>' : ""}
+            ${spec.default_visible ? '<span class="meta-pill">default visible</span>' : ""}
+          </div>
+        </div>
+
+        <section class="section">
+          <div class="section-title">Shell State</div>
+          <div class="kv">
+            <div class="kv-row"><span class="kv-key">instance</span><span class="kv-value">${escapeHtml(instance?.instance_id || "library-only")}</span></div>
+            <div class="kv-row"><span class="kv-key">runtime</span><span class="kv-value">${escapeHtml(runtimeStatus(instance?.instance_id || ""))}</span></div>
+            <div class="kv-row"><span class="kv-key">position</span><span class="kv-value">${instance ? `${Math.round(instance.x)} , ${Math.round(instance.y)}` : "--"}</span></div>
+            <div class="kv-row"><span class="kv-key">source</span><span class="kv-value">/contracts/node-host</span></div>
+          </div>
+          ${pendingHint}
+          ${runtimeError}
+        </section>
+
+        ${instance && spec.node_id === "upload_tracks" ? renderUploadConfig(instance.instance_id) : ""}
+        ${instance && spec.node_id === "select_pair" ? renderSelectPairConfig(instance.instance_id) : ""}
+        ${instance ? summaryPreview(instance.instance_id) : ""}
+
+        ${renderPortListSection("Inputs", spec.inputs || [], "No input ports.")}
+        ${renderPortListSection("Outputs", spec.outputs || [], "No output ports.")}
+
+        <section class="section">
+          <div class="section-title">Connections</div>
+          ${instance ? connectionCards(instance.instance_id) : '<div class="hint">Place the node on the canvas to manage live connections.</div>'}
+        </section>
+
+        <section class="section">
+          <div class="section-title">Recommended Next</div>
+          ${recommended.length ? `
+            <div class="list">
+              ${recommended.map((node) => `
+                <div class="list-card">
+                  <div class="list-card-title">${escapeHtml(node.label)}</div>
+                  <div class="list-card-meta">${escapeHtml(node.node_id)} · ${escapeHtml(categoryLabel(node.category))} · ${escapeHtml(node.status)}</div>
+                </div>
+              `).join("")}
+            </div>
+          ` : '<div class="hint">This node does not yet declare explicit next-node guidance.</div>'}
+        </section>
+
+        <section class="section">
+          <div class="section-title">Compatible Connections</div>
+          ${compatible.length ? `
+            <div class="list">
+              ${compatible.map(({ candidate, matches }) => `
+                <div class="list-card">
+                  <div class="list-card-title">${escapeHtml(candidate.label)}</div>
+                  <div class="list-card-meta">${escapeHtml(candidate.node_id)} · matches ${escapeHtml(matches.map((port) => port.key).join(", "))}</div>
+                </div>
+              `).join("")}
+            </div>
+          ` : '<div class="hint">No compatible downstream input ports are declared yet for this node.</div>'}
+        </section>
+
+        ${renderStringListSection("Backed By", spec.backed_by || [], "No backing implementation declared.")}
+        ${renderStringListSection("API Routes", spec.api_routes || [], "No public API route is attached to this node.")}
+        ${renderStringListSection("Notes", spec.notes || [], "No extra notes.")}
+
+        <section class="section">
+          <div class="section-title">Quick Actions</div>
+          <div class="inline-actions">
+            <button class="toolbar-button" type="button" id="inspectorAddNode">add near center</button>
+            <button class="toolbar-button" type="button" id="inspectorRunNode" ${instance ? "" : "disabled"}>run selected</button>
+            <button class="toolbar-button" type="button" id="inspectorRemoveNode" ${instance && spec.deletable !== false ? "" : "disabled"}>remove instance</button>
+          </div>
+        </section>
+      `;
+
+      bindInspectorInteractions(spec, instance);
+    }
+
+    function bindInspectorInteractions(spec, instance) {
+      const addButton = document.getElementById("inspectorAddNode");
+      const runButton = document.getElementById("inspectorRunNode");
+      const removeButton = document.getElementById("inspectorRemoveNode");
+      if (addButton) {
+        addButton.addEventListener("click", () => addNodeNearCenter(spec.node_id));
+      }
+      if (runButton && instance) {
+        runButton.addEventListener("click", () => runTarget(instance.instance_id));
+      }
+      if (removeButton) {
+        removeButton.addEventListener("click", () => removeSelectedNode());
+      }
+
+      document.querySelectorAll("[data-remove-edge]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const edgeId = button.getAttribute("data-remove-edge");
+          state.connections = state.connections.filter((edge) => edge.edge_id !== edgeId);
+          render();
+        });
+      });
+
+      if (instance && spec.node_id === "upload_tracks") {
+        const field = document.getElementById("uploadPathsField");
+        if (field) {
+          const config = ensureNodeConfig(instance.instance_id);
+          field.addEventListener("input", () => {
+            config.paths_text = field.value;
+          });
+        }
+      }
+
+      if (instance && spec.node_id === "select_pair") {
+        const config = ensureNodeConfig(instance.instance_id);
+        const analyses = analysesKnown();
+        const fallbackA = config.track_id_a || analyses[0]?.track?.track_id || "";
+        const fallbackB = config.track_id_b || analyses[1]?.track?.track_id || analyses[0]?.track?.track_id || "";
+        const selectA = document.getElementById("pairTrackA");
+        const selectB = document.getElementById("pairTrackB");
+        if (selectA) {
+          selectA.value = fallbackA;
+          config.track_id_a = selectA.value;
+          selectA.addEventListener("change", () => {
+            config.track_id_a = selectA.value;
+          });
+        }
+        if (selectB) {
+          selectB.value = fallbackB;
+          config.track_id_b = selectB.value;
+          selectB.addEventListener("change", () => {
+            config.track_id_b = selectB.value;
+          });
+        }
+      }
+    }
+
+    function labelForPending() {
+      if (!state.pendingConnection) {
+        return "none";
+      }
+      const instance = instanceById(state.pendingConnection.instance_id);
+      const spec = instance ? nodeById(instance.node_id) : null;
+      return `${spec?.label || state.pendingConnection.instance_id}.${state.pendingConnection.port_key}`;
+    }
+
+    function beginNodeDrag(event, instanceId) {
+      const instance = instanceById(instanceId);
+      if (!instance) {
+        return;
+      }
+      selectNode(instance.node_id, instanceId);
+      state.drag = {
+        pointerId: event.pointerId,
+        instanceId,
+        startX: event.clientX,
+        startY: event.clientY,
+        originalX: instance.x,
+        originalY: instance.y,
+      };
+      event.currentTarget.setPointerCapture(event.pointerId);
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", onPointerUp);
+      event.stopPropagation();
+    }
+
+    function beginPan(event) {
+      if (event.target && event.target.closest(".node-instance")) {
+        return;
+      }
+      state.pan = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        originX: state.viewport.x,
+        originY: state.viewport.y,
+      };
+      refs.canvas.classList.add("panning");
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", onPointerUp);
+    }
+
+    function onPointerMove(event) {
+      if (state.drag && event.pointerId === state.drag.pointerId) {
+        const dx = (event.clientX - state.drag.startX) / state.viewport.scale;
+        const dy = (event.clientY - state.drag.startY) / state.viewport.scale;
+        const instance = instanceById(state.drag.instanceId);
+        if (instance) {
+          instance.x = state.drag.originalX + dx;
+          instance.y = state.drag.originalY + dy;
+          render();
+        }
+      }
+      if (state.pan && event.pointerId === state.pan.pointerId) {
+        state.viewport.x = state.pan.originX + (event.clientX - state.pan.startX);
+        state.viewport.y = state.pan.originY + (event.clientY - state.pan.startY);
+        renderCanvas();
+      }
+    }
+
+    function onPointerUp(event) {
+      if (state.drag && event.pointerId === state.drag.pointerId) {
+        state.drag = null;
+      }
+      if (state.pan && event.pointerId === state.pan.pointerId) {
+        state.pan = null;
+        refs.canvas.classList.remove("panning");
+      }
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+    }
+
+    function zoomAt(delta, clientX, clientY) {
+      const rect = refs.canvas.getBoundingClientRect();
+      const pointerX = clientX - rect.left;
+      const pointerY = clientY - rect.top;
+      const nextScale = clamp(state.viewport.scale * delta, 0.55, 1.75);
+      const worldX = (pointerX - state.viewport.x) / state.viewport.scale;
+      const worldY = (pointerY - state.viewport.y) / state.viewport.scale;
+      state.viewport.scale = nextScale;
+      state.viewport.x = pointerX - (worldX * nextScale);
+      state.viewport.y = pointerY - (worldY * nextScale);
+      renderCanvas();
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function fitEngine() {
+      const engine = state.canvasNodes.find((item) => item.node_id === "engine") || state.canvasNodes[0];
+      if (!engine) {
+        return;
+      }
+      const rect = refs.canvas.getBoundingClientRect();
+      state.viewport.scale = 1;
+      state.viewport.x = rect.width / 2 - engine.x - 140;
+      state.viewport.y = rect.height / 2 - engine.y - 110;
+      renderCanvas();
+    }
+
+    async function postJson(url, body) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        let detail = `${response.status} ${response.statusText}`;
+        try {
+          const payload = await response.json();
+          detail = payload.detail || payload.error || JSON.stringify(payload);
+        } catch (error) {
+          detail = await response.text();
+        }
+        throw new Error(detail);
+      }
+      return response.json();
+    }
+
+    function outputFor(instanceId) {
+      return state.runtime.outputs[instanceId] || null;
+    }
+
+    async function resolveConnectedValue(instanceId, inputPortKey, stack) {
+      const edge = connectedInto(instanceId, inputPortKey)[0];
+      if (!edge) {
+        return null;
+      }
+      const upstream = await resolveNode(edge.from_instance_id, stack);
+      return upstream?.ports?.[edge.from_port_key] ?? null;
+    }
+
+    async function resolveNode(instanceId, stack = []) {
+      if (stack.includes(instanceId)) {
+        throw new Error(`cycle detected at ${instanceId}`);
+      }
+      if (state.runtime.outputs[instanceId]) {
+        return state.runtime.outputs[instanceId];
+      }
+
+      const instance = instanceById(instanceId);
+      const spec = instance ? nodeById(instance.node_id) : null;
+      if (!instance || !spec) {
+        throw new Error(`missing node instance ${instanceId}`);
+      }
+
+      setRuntimeStatus(instanceId, "running");
+      renderCanvas();
+      const nextStack = [...stack, instanceId];
+
+      try {
+        let output;
+        if (spec.node_id === "upload_tracks") {
+          output = await runUploadTracks(instanceId, spec);
+        } else if (spec.node_id === "analyze_tracks") {
+          output = await runAnalyzeTracks(instanceId, spec, nextStack);
+        } else if (spec.node_id === "select_pair") {
+          output = await runSelectPair(instanceId, spec, nextStack);
+        } else if (spec.node_id === "edge_decision") {
+          output = await runEdgeDecision(instanceId, spec, nextStack);
+        } else if (spec.node_id === "telemetry_screen") {
+          output = await runTelemetryScreen(instanceId, spec, nextStack);
+        } else {
+          throw new Error(`node ${spec.label} is not executable yet in the first runnable flow`);
+        }
+
+        state.runtime.outputs[instanceId] = output;
+        setRuntimeStatus(instanceId, "done");
+        return output;
+      } catch (error) {
+        setRuntimeStatus(instanceId, "error", error.message || String(error));
+        throw error;
+      } finally {
+        renderCanvas();
+      }
+    }
+
+    async function runUploadTracks(instanceId, spec) {
+      const config = ensureNodeConfig(instanceId);
+      const paths = String(config.paths_text || "")
+        .split(/\r?\n/)
+        .map((value) => value.trim())
+        .filter(Boolean);
+      if (!paths.length) {
+        throw new Error("Upload Tracks is empty · add one server-visible audio path per line");
+      }
+      return {
+        node_id: spec.node_id,
+        ports: {
+          tracks: paths,
+        },
+      };
+    }
+
+    async function runAnalyzeTracks(instanceId, spec, stack) {
+      const trackFiles = await resolveConnectedValue(instanceId, "tracks", stack);
+      if (!Array.isArray(trackFiles) || !trackFiles.length) {
+        throw new Error("Analyze Tracks needs upstream track files");
+      }
+      const analyses = [];
+      for (const sourcePath of trackFiles) {
+        const analysis = await postJson("/tracks/analyze", { source_path: sourcePath });
+        analyses.push(analysis);
+        if (analysis?.track?.track_id) {
+          state.runtime.analysisIndex[analysis.track.track_id] = analysis;
+        }
+      }
+      return {
+        node_id: spec.node_id,
+        ports: {
+          analysis: analyses,
+          track_ids: analyses.map((analysis) => analysis?.track?.track_id).filter(Boolean),
+        },
+      };
+    }
+
+    async function runSelectPair(instanceId, spec, stack) {
+      const source = await resolveConnectedValue(instanceId, "source", stack);
+      let analyses = [];
+      if (Array.isArray(source)) {
+        analyses = source;
+      } else if (source && Array.isArray(source.analysis)) {
+        analyses = source.analysis;
+      }
+      if (!analyses.length) {
+        analyses = analysesKnown();
+      }
+      const trackIds = analyses.map((analysis) => analysis?.track?.track_id).filter(Boolean);
+      if (trackIds.length < 2) {
+        throw new Error("Select Pair needs at least two analyzed tracks");
+      }
+
+      const config = ensureNodeConfig(instanceId);
+      const trackIdA = trackIds.includes(config.track_id_a) ? config.track_id_a : trackIds[0];
+      let trackIdB = trackIds.includes(config.track_id_b) ? config.track_id_b : trackIds[1];
+      if (!trackIdB || trackIdB === trackIdA) {
+        trackIdB = trackIds.find((value) => value !== trackIdA) || "";
+      }
+      if (!trackIdB || trackIdA === trackIdB) {
+        throw new Error("Select Pair must resolve two distinct tracks");
+      }
+      config.track_id_a = trackIdA;
+      config.track_id_b = trackIdB;
+
+      return {
+        node_id: spec.node_id,
+        ports: {
+          pair: {
+            track_id_a: trackIdA,
+            track_id_b: trackIdB,
+          },
+        },
+      };
+    }
+
+    async function runEdgeDecision(instanceId, spec, stack) {
+      const pair = await resolveConnectedValue(instanceId, "pair", stack);
+      if (!pair || !pair.track_id_a || !pair.track_id_b) {
+        throw new Error("Edge Decision needs an upstream ordered pair");
+      }
+      const decision = await postJson("/pairs/edge-decision", {
+        track_id_a: pair.track_id_a,
+        track_id_b: pair.track_id_b,
+      });
+      return {
+        node_id: spec.node_id,
+        ports: {
+          decision,
+          warnings: {
+            risks: decision.risks || [],
+            warnings: decision.warnings || [],
+          },
+        },
+      };
+    }
+
+    async function runTelemetryScreen(instanceId, spec, stack) {
+      const decision = await resolveConnectedValue(instanceId, "source", stack);
+      if (!decision || !decision.track_id_a || !decision.track_id_b) {
+        throw new Error("Telemetry Screen currently expects an upstream edge decision");
+      }
+      const score = decision.core_dj_compatibility_score?.value;
+      const snapshot = {
+        pair_label: `${decision.track_id_a} -> ${decision.track_id_b}`,
+        score_text: score == null ? "--" : Number(score).toFixed(3),
+        strategy: decision.recommended_transition_strategy || "--",
+        profile: decision.blend_profile_auto || "--",
+        decision_class: decision.decision_class || "--",
+        risks: decision.risks || [],
+        warnings: decision.warnings || [],
+        reasoning: decision.reasoning || [],
+      };
+      return {
+        node_id: spec.node_id,
+        ports: {
+          snapshot,
+          source: decision,
+        },
+      };
+    }
+
+    function resolveRunTarget() {
+      if (state.selectedInstanceId) {
+        const selected = instanceById(state.selectedInstanceId);
+        if (selected && selected.node_id !== "engine") {
+          return selected.instance_id;
+        }
+      }
+      const telemetry = state.canvasNodes.find((item) => item.node_id === "telemetry_screen");
+      if (telemetry) {
+        return telemetry.instance_id;
+      }
+      const firstExecutable = state.canvasNodes.find((item) => item.node_id !== "engine");
+      return firstExecutable?.instance_id || null;
+    }
+
+    async function runTarget(instanceId = null) {
+      const targetId = instanceId || resolveRunTarget();
+      if (!targetId) {
+        updateSessionState("error", "nothing to run · add executable nodes first");
+        render();
+        return;
+      }
+      const targetInstance = instanceById(targetId);
+      updateSessionState("running", `running ${nodeById(targetInstance.node_id)?.label || targetId}`);
+      clearExecutionState();
+      refs.runFlowButton.disabled = true;
+
+      try {
+        await resolveNode(targetId, []);
+        state.selectedInstanceId = targetId;
+        state.selectedNodeId = targetInstance?.node_id || state.selectedNodeId;
+        updateSessionState("done", `flow complete · ${nodeById(targetInstance.node_id)?.label || targetId}`);
+      } catch (error) {
+        updateSessionState("error", error.message || String(error));
+      } finally {
+        refs.runFlowButton.disabled = false;
+        render();
+      }
+    }
+
+    function render() {
+      renderLibrary();
+      renderCanvas();
+      renderInspector();
+    }
+
+    async function loadRegistry() {
+      updateSessionState("running", "loading node registry");
+      try {
+        const response = await fetch("/contracts/node-host", { headers: { Accept: "application/json" } });
+        if (!response.ok) {
+          throw new Error(`registry request failed (${response.status})`);
+        }
+        const registry = await response.json();
+        state.registry = registry;
+        refs.topRegistryVersion.textContent = `registry ${registry.version}`;
+        refs.topNodeCount.textContent = `nodes ${registry.nodes.length}`;
+        refs.topPatchLabel.textContent = registry.dictionary_doc || "node dictionary";
+        refs.libraryFooter.innerHTML = [
+          `registry source · /contracts/node-host · ${registry.nodes.length} nodes`,
+          "connect mode · click output dot, then compatible input dot",
+        ].join("<br>");
+        resetCanvas();
+        updateSessionState("done", "registry backed · engine ready");
+      } catch (error) {
+        updateSessionState("error", error.message || String(error));
+        refs.groups.innerHTML = `<div class="empty-state">Could not load <code>/contracts/node-host</code>.<br>${escapeHtml(error.message || String(error))}</div>`;
+        refs.inspector.innerHTML = '<div class="empty-state">The shell needs the node-host registry to render the library and inspector.</div>';
+      }
+    }
+
+    refs.search.addEventListener("input", (event) => {
+      state.search = event.target.value || "";
+      renderLibrary();
+    });
+    refs.resetCanvasButton.addEventListener("click", () => resetCanvas());
+    refs.fitViewButton.addEventListener("click", () => fitEngine());
+    refs.buildFlowButton.addEventListener("click", () => buildFirstFlow());
+    refs.runFlowButton.addEventListener("click", () => runTarget());
+    refs.removeSelectedButton.addEventListener("click", () => removeSelectedNode());
+    refs.canvas.addEventListener("pointerdown", (event) => beginPan(event));
+    refs.canvas.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      const delta = event.deltaY < 0 ? 1.08 : 0.92;
+      zoomAt(delta, event.clientX, event.clientY);
+    }, { passive: false });
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "Delete" || event.key === "Backspace") {
+        removeSelectedNode();
+      }
+      if ((event.key === "0" && (event.metaKey || event.ctrlKey))) {
+        event.preventDefault();
+        fitEngine();
+      }
+      if (event.key.toLowerCase() === "f" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        fitEngine();
+      }
+      if (event.key.toLowerCase() === "r" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        runTarget();
+      }
+      if (event.key === "Escape") {
+        clearPendingConnection();
+        render();
+      }
+    });
+
+    loadRegistry();
+  </script>
+</body>
+</html>

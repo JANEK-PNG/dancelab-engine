@@ -1,0 +1,2 @@
+window_id,track_id,window_type,start_sec,end_sec,dj_rating,engine_candidate,reason_good,risk_notes
+demo_001_tw1,demo_001,mix_out,300.0,332.0,4,true,"phrase aligned, low vocals",bass swells at 320s

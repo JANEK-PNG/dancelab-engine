@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>DanceLab Window Swipe Review</title>
+  <style>
+body{
+  margin:0;
+  min-height:100vh;
+  color:#17212b;
+  background:
+    radial-gradient(circle at top left, rgba(251,146,60,.16), transparent 32%),
+    radial-gradient(circle at top right, rgba(20,184,166,.14), transparent 28%),
+    linear-gradient(180deg, #f8f1e8 0%, #efe2d2 100%);
+  font-family:'Avenir Next','Futura','Trebuchet MS',sans-serif;
+}
+.wrap{
+  max-width:1080px;
+  margin:0 auto;
+  padding:24px 18px 48px;
+}
+.hero{
+  background:rgba(255,249,239,.82);
+  border:1px solid rgba(120,82,49,.14);
+  border-radius:28px;
+  box-shadow:0 24px 60px rgba(23,33,43,.10);
+  padding:22px 22px 18px;
+  backdrop-filter:blur(12px);
+}
+.eyebrow{
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:#935f27;
+}
+h1{
+  margin:8px 0 10px;
+  font-size:44px;
+  line-height:1.02;
+}
+.hero p{
+  margin:0;
+  max-width:760px;
+  color:#586373;
+  font-size:17px;
+  line-height:1.5;
+}
+.hud{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:18px;
+}
+.pill{
+  padding:10px 14px;
+  border-radius:999px;
+  background:rgba(255,255,255,.72);
+  border:1px solid rgba(120,82,49,.14);
+  font-size:13px;
+  color:#374151;
+}
+.deck{
+  position:relative;
+  min-height:720px;
+  margin-top:22px;
+}
+.empty{
+  background:rgba(255,249,239,.76);
+  border:1px dashed rgba(120,82,49,.24);
+  border-radius:24px;
+  padding:34px 22px;
+  color:#586373;
+}
+.card-shell{
+  position:relative;
+  max-width:920px;
+  margin:0 auto;
+  touch-action:pan-y;
+}
+.card{
+  background:rgba(255,249,239,.94);
+  border:1px solid rgba(120,82,49,.14);
+  border-radius:34px;
+  box-shadow:0 30px 80px rgba(23,33,43,.16);
+  overflow:hidden;
+  transform-origin:center center;
+  transition:transform .18s ease, opacity .18s ease;
+}
+.card.dragging{
+  transition:none;
+}
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:20px 22px 0;
+}
+.tag{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:9px 12px;
+  border-radius:999px;
+  background:rgba(20,184,166,.08);
+  color:#0f766e;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.tag.warn{
+  background:rgba(245,158,11,.12);
+  color:#9a6700;
+}
+.title{
+  padding:10px 22px 0;
+}
+.title h2{
+  margin:0;
+  font-size:34px;
+  line-height:1.06;
+}
+.subtitle{
+  margin-top:8px;
+  color:#586373;
+  font-size:16px;
+}
+.metrics{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  padding:18px 22px 0;
+}
+.metric{
+  min-width:120px;
+  padding:10px 12px;
+  border-radius:18px;
+  background:#fff;
+  border:1px solid rgba(120,82,49,.14);
+}
+.metric b{
+  display:block;
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#7b8794;
+  margin-bottom:4px;
+}
+.metric span{
+  font-size:19px;
+  font-weight:800;
+}
+.visual{
+  padding:18px 22px 0;
+}
+.visual img{
+  width:100%;
+  height:auto;
+  border-radius:24px;
+  border:1px solid rgba(120,82,49,.12);
+  background:#fff;
+  display:block;
+}
+.listen-grid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:12px;
+  padding:18px 22px 0;
+}
+.listen-card{
+  background:#fffdf8;
+  border:1px solid rgba(120,82,49,.14);
+  border-radius:22px;
+  padding:14px;
+}
+.listen-card b{
+  display:block;
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#7b8794;
+}
+.listen-card strong{
+  display:block;
+  margin-top:6px;
+  font-size:16px;
+  line-height:1.35;
+}
+.listen-card .mini{
+  display:block;
+  margin-top:6px;
+}
+.listen-card audio{
+  width:100%;
+  margin-top:12px;
+}
+.listen-controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  padding:14px 22px 0;
+}
+.listen-controls label{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  color:#374151;
+  font-size:13px;
+  font-weight:700;
+}
+.listen-controls a{
+  display:inline-flex;
+  align-items:center;
+  text-decoration:none;
+}
+.listen-select{
+  border-radius:999px;
+  border:1px solid rgba(120,82,49,.18);
+  background:#fffdf8;
+  color:#17212b;
+  padding:11px 14px;
+  font:inherit;
+  font-weight:700;
+}
+.listen-action{
+  border:none;
+  border-radius:999px;
+  padding:12px 16px;
+  background:#17212b;
+  color:#fff9ef;
+  font:inherit;
+  font-weight:800;
+  letter-spacing:.03em;
+  cursor:pointer;
+}
+.listen-action.alt{
+  background:rgba(255,255,255,.84);
+  color:#374151;
+  border:1px solid rgba(120,82,49,.14);
+}
+.listen-note{
+  padding:10px 22px 0;
+  color:#586373;
+  font-size:14px;
+  line-height:1.45;
+}
+.copy{
+  padding:18px 22px 0;
+  color:#2e3a46;
+  line-height:1.55;
+  font-size:16px;
+}
+.chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  padding:14px 22px 0;
+}
+.chip{
+  padding:8px 10px;
+  border-radius:999px;
+  border:1px solid rgba(120,82,49,.14);
+  background:rgba(255,255,255,.84);
+  color:#374151;
+  font-size:13px;
+}
+.comment-wrap{
+  padding:16px 22px 0;
+}
+.comment-wrap label{
+  display:block;
+  margin-bottom:8px;
+  color:#7b8794;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.comment-wrap textarea{
+  width:100%;
+  min-height:84px;
+  resize:vertical;
+  border-radius:18px;
+  border:1px solid rgba(120,82,49,.16);
+  padding:12px 14px;
+  font:inherit;
+  background:rgba(255,255,255,.92);
+  color:#17212b;
+  box-sizing:border-box;
+}
+.picker{
+  display:none;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:18px 22px 4px;
+}
+.picker.active{
+  display:flex;
+}
+.pick{
+  border:none;
+  border-radius:999px;
+  padding:12px 14px;
+  background:#17212b;
+  color:#fff9ef;
+  font:inherit;
+  font-weight:700;
+  cursor:pointer;
+}
+.controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  justify-content:center;
+  margin-top:18px;
+}
+.action{
+  border:none;
+  border-radius:999px;
+  padding:16px 20px;
+  min-width:160px;
+  font:inherit;
+  font-size:15px;
+  font-weight:800;
+  letter-spacing:.04em;
+  cursor:pointer;
+  box-shadow:0 10px 30px rgba(23,33,43,.10);
+}
+.action.bad{
+  background:#fff;
+  color:#b91c1c;
+}
+.action.mid{
+  background:#fff7ed;
+  color:#9a6700;
+}
+.action.good{
+  background:#0f766e;
+  color:#f8fffd;
+}
+.action.ghost{
+  background:rgba(255,255,255,.74);
+  color:#374151;
+}
+.footer{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  justify-content:center;
+  margin-top:14px;
+}
+.status{
+  text-align:center;
+  margin-top:16px;
+  color:#586373;
+  font-size:15px;
+}
+.mini{
+  font-size:13px;
+  color:#7b8794;
+}
+.nav{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:18px;
+}
+.nav a{
+  text-decoration:none;
+  color:#17212b;
+  background:rgba(255,255,255,.72);
+  border:1px solid rgba(120,82,49,.14);
+  border-radius:999px;
+  padding:10px 14px;
+  font-weight:700;
+}
+@media (max-width: 760px){
+  h1{font-size:34px;}
+  .title h2{font-size:28px;}
+  .action{min-width:140px;flex:1 1 40%;}
+  .listen-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div class="eyebrow">Swipe Review</div>
+      <h1>Transition Window Deck</h1>
+      <p>One strongest engine window per track. Right means you would actually use it. Left means no. This pass is intentionally lightweight and binary so you can move fast.</p>
+      <div class="hud">
+        <div class="pill">Arrow keys: left bad, right good</div>
+        <div class="pill">8 cards, one per track</div>
+      </div>
+      <div class="nav"><a href="index.html">Back to review launcher</a></div>
+    </section>
+    <section id="deck" class="deck"></section>
+    <div class="controls">
+      <button id="badBtn" class="action bad" type="button">Left / Bad</button>
+      <button id="goodBtn" class="action good" type="button">Right / Good</button>
+    </div>
+    <div class="footer">
+      <button id="skipBtn" class="action ghost" type="button">Skip</button>
+      <button id="undoBtn" class="action ghost" type="button">Undo</button>
+      <button id="exportBtn" class="action ghost" type="button">Export CSV</button>
+      <button id="resetBtn" class="action ghost" type="button">Reset Progress</button>
+    </div>
+    <div id="status" class="status"></div>
+  </main>
+  <script>
+    const APP = {"items": [{"id": "48c18f8c79fc588e_tw1", "row": {"title": "Mala, Magugu - Militant Don (Vocal)", "track_id": "48c18f8c79fc588e", "window_id": "48c18f8c79fc588e_tw1", "engine_window_type": "mix_in", "engine_window(mm:ss)": "0:06-0:22", "engine_score": "0.9575", "engine_risk": "0.2", "dj_verdict(good/bad)": "", "dj_own_window(mm:ss-mm:ss)": "", "dj_comment": ""}, "title": "Mala, Magugu - Militant Don (Vocal)", "subtitle": "Fast yes/no pass for whether this engine-picked window is actually useful", "window_type": "mix in", "window_time": "0:06-0:22", "score": "0.9575", "risk": "0.2", "copy": "You are only judging the engine suggestion itself here. No need to type your own replacement window unless you want to leave a note."}, {"id": "0d74f481c29d23c7_tw1", "row": {"title": "Butch - Schlecker (Original Mix)", "track_id": "0d74f481c29d23c7", "window_id": "0d74f481c29d23c7_tw1", "engine_window_type": "bridge", "engine_window(mm:ss)": "2:25-2:41", "engine_score": "0.9387", "engine_risk": "0.2", "dj_verdict(good/bad)": "", "dj_own_window(mm:ss-mm:ss)": "", "dj_comment": ""}, "title": "Butch - Schlecker (Original Mix)", "subtitle": "Fast yes/no pass for whether this engine-picked window is actually useful", "window_type": "bridge", "window_time": "2:25-2:41", "score": "0.9387", "risk": "0.2", "copy": "You are only judging the engine suggestion itself here. No need to type your own replacement window unless you want to leave a note."}, {"id": "0b6db038bbd47b93_tw1", "row": {"title": "Fold, cu.rve - Business (Original Mix)", "track_id": "0b6db038bbd47b93", "window_id": "0b6db038bbd47b93_tw1", "engine_window_type": "mix_in", "engine_window(mm:ss)": "0:00-0:09", "engine_score": "0.9148", "engine_risk": "0.2", "dj_verdict(good/bad)": "", "dj_own_window(mm:ss-mm:ss)": "", "dj_comment": ""}, "title": "Fold, cu.rve - Business (Original Mix)", "subtitle": "Fast yes/no pass for whether this engine-picked window is actually useful", "window_type": "mix in", "window_time": "0:00-0:09", "score": "0.9148", "risk": "0.2", "copy": "You are only judging the engine suggestion itself here. No need to type your own replacement window unless you want to leave a note."}, {"id": "fea8b371ffd2adc5_tw1", "row": {"title": "Povoa - Hacked Lime (Original Mix)", "track_id": "fea8b371ffd2adc5", "window_id": "fea8b371ffd2adc5_tw1", "engine_window_type": "mix_in", "engine_window(mm:ss)": "0:08-0:24", "engine_score": "0.9143", "engine_risk": "0.2", "dj_verdict(good/bad)": "", "dj_own_window(mm:ss-mm:ss)": "", "dj_comment": ""}, "title": "Povoa - Hacked Lime (Original Mix)", "subtitle": "Fast yes/no pass for whether this engine-picked window is actually useful", "window_type": "mix in", "window_time": "0:08-0:24", "score": "0.9143", "risk": "0.2", "copy": "You are only judging the engine suggestion itself here. No need to type your own replacement window unless you want to leave a note."}, {"id": "4056c8ee53cfb090_tw1", "row": {"title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix)", "track_id": "4056c8ee53cfb090", "window_id": "4056c8ee53cfb090_tw1", "engine_window_type": "mix_in", "engine_window(mm:ss)": "1:34-1:50", "engine_score": "0.9127", "engine_risk": "0.2", "dj_verdict(good/bad)": "", "dj_own_window(mm:ss-mm:ss)": "", "dj_comment": ""}, "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix)", "subtitle": "Fast yes/no pass for whether this engine-picked window is actually useful", "window_type": "mix in", "window_time": "1:34-1:50", "score": "0.9127", "risk": "0.2", "copy": "You are only judging the engine suggestion itself here. No need to type your own replacement window unless you want to leave a note."}, {"id": "a749c305f32f7d51_tw1", "row": {"title": "AIROD - Rave Cycle (Original Mix)", "track_id": "a749c305f32f7d51", "window_id": "a749c305f32f7d51_tw1", "engine_window_type": "mix_in", "engine_window(mm:ss)": "0:22-0:38", "engine_score": "0.9081", "engine_risk": "0.2", "dj_verdict(good/bad)": "", "dj_own_window(mm:ss-mm:ss)": "", "dj_comment": ""}, "title": "AIROD - Rave Cycle (Original Mix)", "subtitle": "Fast yes/no pass for whether this engine-picked window is actually useful", "window_type": "mix in", "window_time": "0:22-0:38", "score": "0.9081", "risk": "0.2", "copy": "You are only judging the engine suggestion itself here. No need to type your own replacement window unless you want to leave a note."}, {"id": "85d8116989ea2f32_tw1", "row": {"title": "O_Flynn - Srekye (Extended Mix)", "track_id": "85d8116989ea2f32", "window_id": "85d8116989ea2f32_tw1", "engine_window_type": "bridge", "engine_window(mm:ss)": "2:04-2:20", "engine_score": "0.8947", "engine_risk": "0.2", "dj_verdict(good/bad)": "", "dj_own_window(mm:ss-mm:ss)": "", "dj_comment": ""}, "title": "O_Flynn - Srekye (Extended Mix)", "subtitle": "Fast yes/no pass for whether this engine-picked window is actually useful", "window_type": "bridge", "window_time": "2:04-2:20", "score": "0.8947", "risk": "0.2", "copy": "You are only judging the engine suggestion itself here. No need to type your own replacement window unless you want to leave a note."}, {"id": "aaecfee7674ae3ed_tw1", "row": {"title": "TSVI, Josi Devil - M.e.S (feat. TSVI) (feat. TSVI)", "track_id": "aaecfee7674ae3ed", "window_id": "aaecfee7674ae3ed_tw1", "engine_window_type": "mix_in", "engine_window(mm:ss)": "0:33-0:49", "engine_score": "0.894", "engine_risk": "0.2", "dj_verdict(good/bad)": "", "dj_own_window(mm:ss-mm:ss)": "", "dj_comment": ""}, "title": "TSVI, Josi Devil - M.e.S (feat. TSVI) (feat. TSVI)", "subtitle": "Fast yes/no pass for whether this engine-picked window is actually useful", "window_type": "mix in", "window_time": "0:33-0:49", "score": "0.894", "risk": "0.2", "copy": "You are only judging the engine suggestion itself here. No need to type your own replacement window unless you want to leave a note."}], "headers": ["title", "track_id", "window_id", "engine_window_type", "engine_window(mm:ss)", "engine_score", "engine_risk", "dj_verdict(good/bad)", "dj_own_window(mm:ss-mm:ss)", "dj_comment"]};
+    const STORAGE_KEY = 'dancelab-window-swipe-review-v1';
+    
+function csvEscape(value) {
+  const raw = value == null ? '' : String(value);
+  if (/[",\n]/.test(raw)) {
+    return '"' + raw.replace(/"/g, '""') + '"';
+  }
+  return raw;
+}
+
+function downloadCsv(filename, headers, rows) {
+  const lines = [headers.map(csvEscape).join(',')];
+  for (const row of rows) {
+    lines.push(headers.map((header) => csvEscape(row[header] ?? '')).join(','));
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+
+    const deckEl = document.getElementById('deck');
+    const statusEl = document.getElementById('status');
+    const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const history = [];
+    let currentIndex = 0;
+    let drag = null;
+
+    function nextIndex(start) {
+      for (let i = start; i < APP.items.length; i += 1) {
+        if (!state[APP.items[i].id]) return i;
+      }
+      return -1;
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function setResult(item, verdict, comment) {
+      history.push({ id: item.id, previous: state[item.id] || null });
+      const row = { ...item.row };
+      row['dj_verdict(good/bad)'] = verdict;
+      row['dj_comment'] = comment || '';
+      state[item.id] = row;
+      save();
+      currentIndex = nextIndex(currentIndex + 1);
+      render();
+    }
+
+    function skipCurrent() {
+      currentIndex = nextIndex(currentIndex + 1);
+      render();
+    }
+
+    function undo() {
+      const last = history.pop();
+      if (!last) return;
+      if (last.previous) state[last.id] = last.previous;
+      else delete state[last.id];
+      save();
+      currentIndex = APP.items.findIndex((item) => item.id === last.id);
+      render();
+    }
+
+    function exportRows() {
+      const rows = APP.items.map((item) => state[item.id] || item.row);
+      downloadCsv('exp009_window_swipe.csv', APP.headers, rows);
+    }
+
+    function resetAll() {
+      localStorage.removeItem(STORAGE_KEY);
+      Object.keys(state).forEach((key) => delete state[key]);
+      history.length = 0;
+      currentIndex = 0;
+      render();
+    }
+
+    function renderCard(item) {
+      return `
+        <div id="cardShell" class="card-shell">
+          <article id="card" class="card">
+            <div class="topbar">
+              <div class="tag">${item.window_type}</div>
+              <div class="tag warn">Score ${item.score}</div>
+            </div>
+            <div class="title">
+              <h2>${item.title}</h2>
+              <div class="subtitle">${item.subtitle}</div>
+            </div>
+            <div class="metrics">
+              <div class="metric"><b>Window</b><span>${item.window_time}</span></div>
+              <div class="metric"><b>Type</b><span>${item.window_type}</span></div>
+              <div class="metric"><b>Risk</b><span>${item.risk}</span></div>
+            </div>
+            <div class="copy">${item.copy}</div>
+            <div class="comment-wrap">
+              <label for="commentBox">Quick note (optional)</label>
+              <textarea id="commentBox" placeholder="Why would you keep or reject this window?"></textarea>
+            </div>
+          </article>
+        </div>`;
+    }
+
+    function bindDrag() {
+      const shell = document.getElementById('cardShell');
+      const card = document.getElementById('card');
+      if (!shell || !card) return;
+      shell.addEventListener('pointerdown', (event) => {
+        drag = { startX: event.clientX };
+        card.classList.add('dragging');
+      });
+      shell.addEventListener('pointermove', (event) => {
+        if (!drag) return;
+        const dx = event.clientX - drag.startX;
+        card.style.transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
+        card.style.opacity = String(Math.max(0.55, 1 - Math.abs(dx) / 320));
+      });
+      function finish(event) {
+        if (!drag) return;
+        const dx = event.clientX - drag.startX;
+        card.classList.remove('dragging');
+        card.style.transform = '';
+        card.style.opacity = '';
+        drag = null;
+        const item = APP.items[currentIndex];
+        const comment = document.getElementById('commentBox')?.value?.trim() || '';
+        if (dx > 96) setResult(item, 'good', comment);
+        else if (dx < -96) setResult(item, 'bad', comment);
+      }
+      shell.addEventListener('pointerup', finish);
+      shell.addEventListener('pointercancel', finish);
+      shell.addEventListener('pointerleave', (event) => {
+        if (!drag) return;
+        finish(event);
+      });
+    }
+
+    function render() {
+      if (currentIndex < 0 || currentIndex >= APP.items.length || state[APP.items[currentIndex]?.id]) {
+        currentIndex = nextIndex(0);
+      }
+      const decided = Object.keys(state).length;
+      if (currentIndex === -1) {
+        deckEl.innerHTML = `
+          <div class="empty">
+            <h2>Window deck complete.</h2>
+            <p>Export the CSV when you want to turn this pass into a validation artifact.</p>
+          </div>`;
+      } else {
+        deckEl.innerHTML = renderCard(APP.items[currentIndex]);
+        bindDrag();
+      }
+      statusEl.innerHTML = `${decided} / ${APP.items.length} reviewed`;
+    }
+
+    document.getElementById('badBtn').addEventListener('click', () => {
+      const comment = document.getElementById('commentBox')?.value?.trim() || '';
+      setResult(APP.items[currentIndex], 'bad', comment);
+    });
+    document.getElementById('goodBtn').addEventListener('click', () => {
+      const comment = document.getElementById('commentBox')?.value?.trim() || '';
+      setResult(APP.items[currentIndex], 'good', comment);
+    });
+    document.getElementById('skipBtn').addEventListener('click', skipCurrent);
+    document.getElementById('undoBtn').addEventListener('click', undo);
+    document.getElementById('exportBtn').addEventListener('click', exportRows);
+    document.getElementById('resetBtn').addEventListener('click', resetAll);
+    window.addEventListener('keydown', (event) => {
+      if (['TEXTAREA', 'INPUT'].includes(document.activeElement?.tagName)) return;
+      const comment = document.getElementById('commentBox')?.value?.trim() || '';
+      if (event.key === 'ArrowLeft') { event.preventDefault(); setResult(APP.items[currentIndex], 'bad', comment); }
+      if (event.key === 'ArrowRight') { event.preventDefault(); setResult(APP.items[currentIndex], 'good', comment); }
+    });
+    render();
+  </script>
+</body>
+</html>

@@ -1,0 +1,961 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>DanceLab Control Center</title>
+  <style>
+body{
+  margin:0;
+  min-height:100vh;
+  color:#17212b;
+  background:
+    radial-gradient(circle at top left, rgba(251,146,60,.16), transparent 32%),
+    radial-gradient(circle at top right, rgba(20,184,166,.14), transparent 28%),
+    linear-gradient(180deg, #f8f1e8 0%, #efe2d2 100%);
+  font-family:'Avenir Next','Futura','Trebuchet MS',sans-serif;
+}
+.wrap{
+  max-width:1080px;
+  margin:0 auto;
+  padding:24px 18px 48px;
+}
+.hero{
+  background:rgba(255,249,239,.82);
+  border:1px solid rgba(120,82,49,.14);
+  border-radius:28px;
+  box-shadow:0 24px 60px rgba(23,33,43,.10);
+  padding:22px 22px 18px;
+  backdrop-filter:blur(12px);
+}
+.eyebrow{
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:#935f27;
+}
+h1{
+  margin:8px 0 10px;
+  font-size:44px;
+  line-height:1.02;
+}
+.hero p{
+  margin:0;
+  max-width:760px;
+  color:#586373;
+  font-size:17px;
+  line-height:1.5;
+}
+.hud{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:18px;
+}
+.pill{
+  padding:10px 14px;
+  border-radius:999px;
+  background:rgba(255,255,255,.72);
+  border:1px solid rgba(120,82,49,.14);
+  font-size:13px;
+  color:#374151;
+}
+.deck{
+  position:relative;
+  min-height:720px;
+  margin-top:22px;
+}
+.empty{
+  background:rgba(255,249,239,.76);
+  border:1px dashed rgba(120,82,49,.24);
+  border-radius:24px;
+  padding:34px 22px;
+  color:#586373;
+}
+.card-shell{
+  position:relative;
+  max-width:920px;
+  margin:0 auto;
+  touch-action:pan-y;
+}
+.card{
+  background:rgba(255,249,239,.94);
+  border:1px solid rgba(120,82,49,.14);
+  border-radius:34px;
+  box-shadow:0 30px 80px rgba(23,33,43,.16);
+  overflow:hidden;
+  transform-origin:center center;
+  transition:transform .18s ease, opacity .18s ease;
+}
+.card.dragging{
+  transition:none;
+}
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:20px 22px 0;
+}
+.tag{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:9px 12px;
+  border-radius:999px;
+  background:rgba(20,184,166,.08);
+  color:#0f766e;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.tag.warn{
+  background:rgba(245,158,11,.12);
+  color:#9a6700;
+}
+.title{
+  padding:10px 22px 0;
+}
+.title h2{
+  margin:0;
+  font-size:34px;
+  line-height:1.06;
+}
+.subtitle{
+  margin-top:8px;
+  color:#586373;
+  font-size:16px;
+}
+.metrics{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  padding:18px 22px 0;
+}
+.metric{
+  min-width:120px;
+  padding:10px 12px;
+  border-radius:18px;
+  background:#fff;
+  border:1px solid rgba(120,82,49,.14);
+}
+.metric b{
+  display:block;
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#7b8794;
+  margin-bottom:4px;
+}
+.metric span{
+  font-size:19px;
+  font-weight:800;
+}
+.visual{
+  padding:18px 22px 0;
+}
+.visual img{
+  width:100%;
+  height:auto;
+  border-radius:24px;
+  border:1px solid rgba(120,82,49,.12);
+  background:#fff;
+  display:block;
+}
+.listen-grid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:12px;
+  padding:18px 22px 0;
+}
+.listen-card{
+  background:#fffdf8;
+  border:1px solid rgba(120,82,49,.14);
+  border-radius:22px;
+  padding:14px;
+}
+.listen-card b{
+  display:block;
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#7b8794;
+}
+.listen-card strong{
+  display:block;
+  margin-top:6px;
+  font-size:16px;
+  line-height:1.35;
+}
+.listen-card .mini{
+  display:block;
+  margin-top:6px;
+}
+.listen-card audio{
+  width:100%;
+  margin-top:12px;
+}
+.listen-controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  padding:14px 22px 0;
+}
+.listen-controls label{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  color:#374151;
+  font-size:13px;
+  font-weight:700;
+}
+.listen-controls a{
+  display:inline-flex;
+  align-items:center;
+  text-decoration:none;
+}
+.listen-select{
+  border-radius:999px;
+  border:1px solid rgba(120,82,49,.18);
+  background:#fffdf8;
+  color:#17212b;
+  padding:11px 14px;
+  font:inherit;
+  font-weight:700;
+}
+.listen-action{
+  border:none;
+  border-radius:999px;
+  padding:12px 16px;
+  background:#17212b;
+  color:#fff9ef;
+  font:inherit;
+  font-weight:800;
+  letter-spacing:.03em;
+  cursor:pointer;
+}
+.listen-action.alt{
+  background:rgba(255,255,255,.84);
+  color:#374151;
+  border:1px solid rgba(120,82,49,.14);
+}
+.listen-note{
+  padding:10px 22px 0;
+  color:#586373;
+  font-size:14px;
+  line-height:1.45;
+}
+.copy{
+  padding:18px 22px 0;
+  color:#2e3a46;
+  line-height:1.55;
+  font-size:16px;
+}
+.chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  padding:14px 22px 0;
+}
+.chip{
+  padding:8px 10px;
+  border-radius:999px;
+  border:1px solid rgba(120,82,49,.14);
+  background:rgba(255,255,255,.84);
+  color:#374151;
+  font-size:13px;
+}
+.comment-wrap{
+  padding:16px 22px 0;
+}
+.comment-wrap label{
+  display:block;
+  margin-bottom:8px;
+  color:#7b8794;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.comment-wrap textarea{
+  width:100%;
+  min-height:84px;
+  resize:vertical;
+  border-radius:18px;
+  border:1px solid rgba(120,82,49,.16);
+  padding:12px 14px;
+  font:inherit;
+  background:rgba(255,255,255,.92);
+  color:#17212b;
+  box-sizing:border-box;
+}
+.picker{
+  display:none;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:18px 22px 4px;
+}
+.picker.active{
+  display:flex;
+}
+.pick{
+  border:none;
+  border-radius:999px;
+  padding:12px 14px;
+  background:#17212b;
+  color:#fff9ef;
+  font:inherit;
+  font-weight:700;
+  cursor:pointer;
+}
+.controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  justify-content:center;
+  margin-top:18px;
+}
+.action{
+  border:none;
+  border-radius:999px;
+  padding:16px 20px;
+  min-width:160px;
+  font:inherit;
+  font-size:15px;
+  font-weight:800;
+  letter-spacing:.04em;
+  cursor:pointer;
+  box-shadow:0 10px 30px rgba(23,33,43,.10);
+}
+.action.bad{
+  background:#fff;
+  color:#b91c1c;
+}
+.action.mid{
+  background:#fff7ed;
+  color:#9a6700;
+}
+.action.good{
+  background:#0f766e;
+  color:#f8fffd;
+}
+.action.ghost{
+  background:rgba(255,255,255,.74);
+  color:#374151;
+}
+.footer{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  justify-content:center;
+  margin-top:14px;
+}
+.status{
+  text-align:center;
+  margin-top:16px;
+  color:#586373;
+  font-size:15px;
+}
+.mini{
+  font-size:13px;
+  color:#7b8794;
+}
+.nav{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:18px;
+}
+.nav a{
+  text-decoration:none;
+  color:#17212b;
+  background:rgba(255,255,255,.72);
+  border:1px solid rgba(120,82,49,.14);
+  border-radius:999px;
+  padding:10px 14px;
+  font-weight:700;
+}
+@media (max-width: 760px){
+  h1{font-size:34px;}
+  .title h2{font-size:28px;}
+  .action{min-width:140px;flex:1 1 40%;}
+  .listen-grid{grid-template-columns:1fr;}
+}
+
+.toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:20px;}
+.toolbar .listen-action{text-decoration:none;}
+.control-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-top:22px;}
+.dash-card{background:rgba(255,249,239,.94);border:1px solid rgba(120,82,49,.14);border-radius:24px;padding:16px 18px;box-shadow:0 16px 44px rgba(23,33,43,.10);}
+.dash-card b{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#7b8794;margin-bottom:6px;}
+.dash-card strong{display:block;font-size:30px;line-height:1.05;}
+.dash-card span{display:block;margin-top:8px;color:#586373;font-size:13px;line-height:1.45;}
+.dash-layout{display:grid;grid-template-columns:1.3fr .9fr;gap:18px;margin-top:22px;}
+.dash-stack{display:grid;gap:18px;}
+.panel{background:rgba(255,249,239,.94);border:1px solid rgba(120,82,49,.14);border-radius:28px;padding:18px;box-shadow:0 16px 44px rgba(23,33,43,.10);}
+.panel h2{margin:0;font-size:24px;}
+.panel p{margin:10px 0 0;color:#586373;font-size:14px;line-height:1.5;}
+.panel-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:12px;}
+.spark-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;}
+.spark-card{border-radius:20px;background:#fffdf8;border:1px solid rgba(120,82,49,.12);padding:12px;}
+.spark-card b{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#7b8794;}
+.spark-card span{display:block;margin-top:8px;font-weight:800;font-size:20px;}
+.spark-card small{display:block;margin-top:4px;color:#586373;font-size:12px;}
+.sparkline{display:block;width:100%;height:68px;margin-top:10px;}
+.bar-list{display:grid;gap:10px;}
+.bar-row{display:grid;grid-template-columns:140px 1fr 44px;gap:10px;align-items:center;}
+.bar-row label{font-size:13px;color:#374151;font-weight:700;}
+.bar-track{height:10px;border-radius:999px;background:rgba(23,33,43,.08);overflow:hidden;}
+.bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,#0f766e,#14b8a6);}
+.bar-row output{font-size:12px;color:#586373;text-align:right;}
+.pair-list{display:grid;gap:10px;}
+.pair-item{border-radius:20px;background:#fffdf8;border:1px solid rgba(120,82,49,.12);padding:12px 14px;}
+.pair-item strong{display:block;font-size:15px;line-height:1.35;}
+.pair-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.pair-meta .chip{padding:6px 9px;font-size:12px;}
+.warning-list{display:grid;gap:8px;}
+.warning-item{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:18px;background:#fffdf8;border:1px solid rgba(120,82,49,.12);font-size:13px;color:#374151;}
+.warning-item b{margin:0;color:#17212b;font-size:13px;letter-spacing:normal;text-transform:none;}
+.scatter-wrap{margin-top:10px;border-radius:24px;background:#fffdf8;border:1px solid rgba(120,82,49,.12);padding:12px;}
+.scatter-svg{display:block;width:100%;height:280px;}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.legend .chip{display:inline-flex;align-items:center;gap:8px;}
+.legend-swatch{width:10px;height:10px;border-radius:999px;display:inline-block;}
+.source-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}
+.source-card{border-radius:20px;background:#fffdf8;border:1px solid rgba(120,82,49,.12);padding:12px 14px;}
+.source-card b{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#7b8794;}
+.source-card strong{display:block;margin-top:8px;font-size:16px;}
+.source-card span{display:block;margin-top:6px;color:#586373;font-size:13px;line-height:1.45;}
+.status-note{margin-top:14px;color:#586373;font-size:14px;line-height:1.5;}
+@media (max-width: 980px){.dash-layout{grid-template-columns:1fr;}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div class="eyebrow">Live Diagnostics</div>
+      <h1>Engine Control Center</h1>
+      <p>This is the external dashboard layer. The engine emits sensors and telemetry; this board only reads them, refreshes live, and shows what the system is doing right now.</p>
+      <div class="hud" id="heroHud"></div>
+      <div class="toolbar">
+        <button id="refreshBtn" class="listen-action" type="button">Refresh Now</button>
+        <button id="autoBtn" class="listen-action alt" type="button">Auto Refresh: On</button>
+        <a class="listen-action alt" href="index.html">Back to launcher</a>
+        <a class="listen-action alt" href="listen_board.html">Open listen board</a>
+        <a class="listen-action alt" href="pairs.html">Open waveform board</a>
+      </div>
+      <div id="pollStatus" class="status-note"></div>
+    </section>
+    <section id="sourceStrip" class="source-strip"></section>
+    <section id="metricStrip" class="control-grid"></section>
+    <section class="dash-layout">
+      <div class="dash-stack">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Live Trends</h2>
+              <p>Recent polling history for the core engine sensors.</p>
+            </div>
+          </div>
+          <div id="sparkGrid" class="spark-grid"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Pair Risk Surface</h2>
+              <p>Compatibility score on one axis, aggregate risk on the other, colored by auto blend profile.</p>
+            </div>
+          </div>
+          <div class="scatter-wrap">
+            <div id="scatterMount"></div>
+          </div>
+          <div id="scatterLegend" class="legend"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Best Candidates</h2>
+              <p>Top engine pairs by score and confidence.</p>
+            </div>
+          </div>
+          <div id="topPairs" class="pair-list"></div>
+        </article>
+      </div>
+      <div class="dash-stack">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Decision Traffic</h2>
+              <p>How the engine is classifying current pair traffic.</p>
+            </div>
+          </div>
+          <div id="decisionCounts" class="bar-list"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Blend Profiles</h2>
+              <p>Auto overlap styles suggested by the engine sensors.</p>
+            </div>
+          </div>
+          <div id="blendCounts" class="bar-list"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Strategies And Tempo</h2>
+              <p>Transition families and how feasible the tempo handling looks.</p>
+            </div>
+          </div>
+          <div id="strategyCounts" class="bar-list"></div>
+          <div style="height:14px"></div>
+          <div id="tempoCounts" class="bar-list"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Watch List</h2>
+              <p>Pairs with the biggest current sensor pressure.</p>
+            </div>
+          </div>
+          <div id="watchPairs" class="pair-list"></div>
+        </article>
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Warning Bus</h2>
+              <p>Most repeated warning and risk terms across telemetry.</p>
+            </div>
+          </div>
+          <div id="warningList" class="warning-list"></div>
+        </article>
+      </div>
+    </section>
+  </main>
+  <script>
+    const APP = {"refresh_ms": 4000, "sources": {"validation_summary": "../validation_pack_summary.json", "decision_summary": "../../phase2_refresh_lekcja5/decision_summary.json", "edge_decisions": "../../phase2_refresh_lekcja5/edge_decisions.json", "mixability_pairs": "../../phase2_refresh_lekcja5/mixability_pairs.json", "analysis_summary": "../../phase2_refresh_lekcja5/analysis_summary.json"}, "bootstrap": {"track_count": 15, "pair_count": 210, "rated_pair_count": 0, "rated_pair_ratio": 0.0, "window_review_ratio": 0.0, "set_function_ratio": 0.0, "pair_review_ratio": 0.0, "mean_score": 0.6339, "mean_confidence": 0.6807, "mean_risk": 0.7118, "mean_bass_risk": 0.4642, "mean_vocal_risk": 0.2263, "mean_harmonic_risk": 0.6081, "standard_blend_ratio": 0.5571, "hard_block_count": 59, "decision_counts": [{"label": "review required", "count": 117}, {"label": "reject standard blend", "count": 59}, {"label": "non standard strategy required", "count": 34}], "policy_counts": [{"label": "review only", "count": 151}, {"label": "suppress", "count": 59}], "blend_profile_counts": [{"label": "plain blend", "count": 97}, {"label": "bass swap", "count": 59}, {"label": "contour blend", "count": 42}, {"label": "tops swap", "count": 12}], "strategy_counts": [{"label": "short blend", "count": 52}, {"label": "phrase aligned blend", "count": 41}, {"label": "tempo ramp", "count": 34}, {"label": "echo out", "count": 29}, {"label": "standard blend", "count": 24}, {"label": "hard cut", "count": 24}, {"label": "reset", "count": 4}, {"label": "break transition", "count": 2}], "tempo_feasibility_counts": [{"label": "high", "count": 92}, {"label": "medium", "count": 82}, {"label": "low", "count": 36}], "tempo_relation_counts": [{"label": "direct", "count": 195}, {"label": "half time of b", "count": 14}, {"label": "double time of b", "count": 1}], "alert_terms": [{"label": "style fit unavailable (missing style labels) \u2014 neutral", "count": 210}, {"label": "context fit unavailable (no context profile) \u2014 neutral", "count": 210}, {"label": "no context profile \u2014 role/fit is context-free", "count": 210}, {"label": "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "count": 210}, {"label": "conflicting descriptors \u2014 interpretation is unstable", "count": 210}, {"label": "low key confidence \u2014 verify key before trusting harmonic result", "count": 135}, {"label": "risky key relation, but low harmonic exposure may mask it", "count": 69}, {"label": "shared pair rules triggered a hard block for standard blending", "count": 59}, {"label": "tempo relation requires a non-standard transition strategy", "count": 42}, {"label": "tempo gap is above easy-blend range \u2014 keep the overlap disciplined", "count": 41}], "top_pairs": [{"pair_id": "48c18f8c79fc588e__aaecfee7674ae3ed", "title": "Mala, Magugu - Militant Don (Vocal) -> TSVI, Josi Devil - M.e.S (feat. TSVI) (feat. TSVI)", "score": 0.7281, "confidence": 0.69, "risk": 0.5185, "profile": "bass_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.5185, "vocal_risk": 0.1082, "harmonic_risk": 0.2655, "risks": ["moderate bass conflict (0.52)"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "fea8b371ffd2adc5__a749c305f32f7d51", "title": "Povoa - Hacked Lime (Original Mix) -> AIROD - Rave Cycle (Original Mix)", "score": 0.7273, "confidence": 0.69, "risk": 0.5323, "profile": "bass_swap", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4808, "vocal_risk": 0.0959, "harmonic_risk": 0.5323, "risks": ["moderate bass conflict (0.48)", "harmonic risk 0.53 \u2014 unknown key move", "harmonic risk 0.53 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "a749c305f32f7d51__fea8b371ffd2adc5", "title": "AIROD - Rave Cycle (Original Mix) -> Povoa - Hacked Lime (Original Mix)", "score": 0.726, "confidence": 0.69, "risk": 0.5323, "profile": "bass_swap", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4808, "vocal_risk": 0.0959, "harmonic_risk": 0.5323, "risks": ["moderate bass conflict (0.48)", "harmonic risk 0.53 \u2014 unknown key move", "harmonic risk 0.53 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "79d93a2a256d0920__e3b089eb3589fe94", "title": "Bodhi - Thirst (Original Mix) -> Muskila - YARAO (Original Mix)", "score": 0.7259, "confidence": 0.69, "risk": 0.4016, "profile": "plain_blend", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.1605, "harmonic_risk": 0.2389, "risks": ["moderate bass conflict (0.40)"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "4056c8ee53cfb090__a749c305f32f7d51", "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix) -> AIROD - Rave Cycle (Original Mix)", "score": 0.723, "confidence": 0.69, "risk": 0.5433, "profile": "bass_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4923, "vocal_risk": 0.0959, "harmonic_risk": 0.5433, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.54 \u2014 unknown key move", "harmonic risk 0.54 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "e3b089eb3589fe94__79d93a2a256d0920", "title": "Muskila - YARAO (Original Mix) -> Bodhi - Thirst (Original Mix)", "score": 0.7183, "confidence": 0.69, "risk": 0.4016, "profile": "plain_blend", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.1605, "harmonic_risk": 0.2389, "risks": ["moderate bass conflict (0.40)"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "aaecfee7674ae3ed__48c18f8c79fc588e", "title": "TSVI, Josi Devil - M.e.S (feat. TSVI) (feat. TSVI) -> Mala, Magugu - Militant Don (Vocal)", "score": 0.7154, "confidence": 0.69, "risk": 0.5185, "profile": "bass_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.5185, "vocal_risk": 0.1082, "harmonic_risk": 0.2655, "risks": ["moderate bass conflict (0.52)"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "a749c305f32f7d51__4056c8ee53cfb090", "title": "AIROD - Rave Cycle (Original Mix) -> Oscar Farrell, Mount XLR - Mod Break (Original Mix)", "score": 0.7142, "confidence": 0.69, "risk": 0.5433, "profile": "bass_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4923, "vocal_risk": 0.0959, "harmonic_risk": 0.5433, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.54 \u2014 unknown key move", "harmonic risk 0.54 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}], "watch_pairs": [{"pair_id": "deb940c4a6052fed__ecf64aa98ccd4467", "title": "Jorg Kuning - Mercedes (Original Mix) -> Bicep - CHROMA 004 ROLA (Original Mix)", "score": 0.4987, "confidence": 0.62, "risk": 1.0, "profile": "plain_blend", "strategy": "hard_cut", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.5903, "vocal_risk": 0.2477, "harmonic_risk": 0.7279, "risks": ["moderate bass conflict (0.59)", "harmonic risk 0.73 \u2014 risky key move", "extreme BPM jump 29.1% breaches the shared hard limit", "harmonic risk 0.73 needs masking or careful transition timing", "bass conflict risk 0.59 is elevated", "tempo gate failed \u2014 reject standard blend", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "extreme BPM jump \u2014 reject standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "ecf64aa98ccd4467__48c18f8c79fc588e", "title": "Bicep - CHROMA 004 ROLA (Original Mix) -> Mala, Magugu - Militant Don (Vocal)", "score": 0.5004, "confidence": 0.62, "risk": 1.0, "profile": "plain_blend", "strategy": "hard_cut", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "half_time_of_b", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.5185, "vocal_risk": 0.2477, "harmonic_risk": 0.6668, "risks": ["moderate bass conflict (0.52)", "harmonic risk 0.67 \u2014 risky key move", "extreme BPM jump 25.7% breaches the shared hard limit", "harmonic risk 0.67 needs masking or careful transition timing", "tempo gate failed \u2014 reject standard blend", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "extreme BPM jump \u2014 reject standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "ecf64aa98ccd4467__85d8116989ea2f32", "title": "Bicep - CHROMA 004 ROLA (Original Mix) -> O_Flynn - Srekye (Extended Mix)", "score": 0.5057, "confidence": 0.62, "risk": 1.0, "profile": "plain_blend", "strategy": "hard_cut", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "half_time_of_b", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.418, "vocal_risk": 0.2477, "harmonic_risk": 0.6127, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.61 \u2014 unknown key move", "extreme BPM jump 29.5% breaches the shared hard limit", "harmonic risk 0.61 needs masking or careful transition timing", "tempo gate failed \u2014 reject standard blend", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "extreme BPM jump \u2014 reject standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "ecf64aa98ccd4467__0b6db038bbd47b93", "title": "Bicep - CHROMA 004 ROLA (Original Mix) -> Fold, cu.rve - Business (Original Mix)", "score": 0.5073, "confidence": 0.62, "risk": 1.0, "profile": "plain_blend", "strategy": "hard_cut", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "half_time_of_b", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4893, "vocal_risk": 0.2477, "harmonic_risk": 0.7959, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.80 \u2014 risky key move", "extreme BPM jump 25.7% breaches the shared hard limit", "harmonic clash risk 0.80 breaches the shared hard limit", "tempo gate failed \u2014 reject standard blend", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "extreme BPM jump \u2014 reject standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "ecf64aa98ccd4467__deb940c4a6052fed", "title": "Bicep - CHROMA 004 ROLA (Original Mix) -> Jorg Kuning - Mercedes (Original Mix)", "score": 0.5113, "confidence": 0.62, "risk": 1.0, "profile": "plain_blend", "strategy": "hard_cut", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "half_time_of_b", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.5903, "vocal_risk": 0.2477, "harmonic_risk": 0.7279, "risks": ["moderate bass conflict (0.59)", "harmonic risk 0.73 \u2014 risky key move", "extreme BPM jump 29.5% breaches the shared hard limit", "harmonic risk 0.73 needs masking or careful transition timing", "bass conflict risk 0.59 is elevated", "tempo gate failed \u2014 reject standard blend", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "extreme BPM jump \u2014 reject standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "0d74f481c29d23c7__0b6db038bbd47b93", "title": "Butch - Schlecker (Original Mix) -> Fold, cu.rve - Business (Original Mix)", "score": 0.5122, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.398, "vocal_risk": 0.348, "harmonic_risk": 0.8406, "risks": ["weak phrase alignment (0.43)", "harmonic risk 0.84 \u2014 risky key move", "large BPM jump 10.8% rejects a standard blend", "harmonic clash risk 0.84 breaches the shared hard limit", "phrase alignment 0.43 needs review", "tempo relation requires a non-standard transition strategy", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "large BPM jump \u2014 treat as a transition move, not a standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "48c18f8c79fc588e__ecf64aa98ccd4467", "title": "Mala, Magugu - Militant Don (Vocal) -> Bicep - CHROMA 004 ROLA (Original Mix)", "score": 0.5193, "confidence": 0.62, "risk": 1.0, "profile": "plain_blend", "strategy": "hard_cut", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.5185, "vocal_risk": 0.2477, "harmonic_risk": 0.6668, "risks": ["moderate bass conflict (0.52)", "harmonic risk 0.67 \u2014 risky key move", "extreme BPM jump 32.7% breaches the shared hard limit", "harmonic risk 0.67 needs masking or careful transition timing", "tempo gate failed \u2014 reject standard blend", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "extreme BPM jump \u2014 reject standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "0d74f481c29d23c7__ecf64aa98ccd4467", "title": "Butch - Schlecker (Original Mix) -> Bicep - CHROMA 004 ROLA (Original Mix)", "score": 0.5237, "confidence": 0.62, "risk": 1.0, "profile": "plain_blend", "strategy": "hard_cut", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.398, "vocal_risk": 0.2477, "harmonic_risk": 0.7849, "risks": ["harmonic risk 0.78 \u2014 risky key move", "extreme BPM jump 25.5% breaches the shared hard limit", "harmonic clash risk 0.78 breaches the shared hard limit", "tempo gate failed \u2014 reject standard blend", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "extreme BPM jump \u2014 reject standard blend; shared rules suggest a non-standard exit"]}], "scatter_points": [{"pair_id": "06987e170b8722e1__0b6db038bbd47b93", "title": "BRUX (AUS) - Pull The Trigger (Original Mix) -> Fold, cu.rve - Business (Original Mix)", "score": 0.6664, "confidence": 0.69, "risk": 0.6017, "profile": "bass_swap", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4893, "vocal_risk": 0.3348, "harmonic_risk": 0.6017, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.60 \u2014 unknown key move", "harmonic risk 0.60 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "06987e170b8722e1__0d74f481c29d23c7", "title": "BRUX (AUS) - Pull The Trigger (Original Mix) -> Butch - Schlecker (Original Mix)", "score": 0.5904, "confidence": 0.69, "risk": 0.6046, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.398, "vocal_risk": 0.3348, "harmonic_risk": 0.6046, "risks": ["harmonic risk 0.60 \u2014 unknown key move", "effective BPM gap 9.8% needs a non-standard tempo strategy", "harmonic risk 0.60 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "06987e170b8722e1__4056c8ee53cfb090", "title": "BRUX (AUS) - Pull The Trigger (Original Mix) -> Oscar Farrell, Mount XLR - Mod Break (Original Mix)", "score": 0.6227, "confidence": 0.69, "risk": 0.5864, "profile": "bass_swap", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4923, "vocal_risk": 0.2867, "harmonic_risk": 0.5864, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.59 \u2014 unknown key move", "harmonic risk 0.59 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "06987e170b8722e1__48c18f8c79fc588e", "title": "BRUX (AUS) - Pull The Trigger (Original Mix) -> Mala, Magugu - Militant Don (Vocal)", "score": 0.675, "confidence": 0.69, "risk": 0.5828, "profile": "bass_swap", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.509, "vocal_risk": 0.2722, "harmonic_risk": 0.5828, "risks": ["moderate bass conflict (0.51)", "harmonic risk 0.58 \u2014 unknown key move", "harmonic risk 0.58 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "06987e170b8722e1__76609e489f01f9de", "title": "BRUX (AUS) - Pull The Trigger (Original Mix) -> Rohaan - Got No _3 (Original Mix)", "score": 0.6766, "confidence": 0.69, "risk": 0.6311, "profile": "bass_swap", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4604, "vocal_risk": 0.3348, "harmonic_risk": 0.6311, "risks": ["moderate bass conflict (0.46)", "harmonic risk 0.63 \u2014 unknown key move", "harmonic risk 0.63 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "06987e170b8722e1__79d93a2a256d0920", "title": "BRUX (AUS) - Pull The Trigger (Original Mix) -> Bodhi - Thirst (Original Mix)", "score": 0.6598, "confidence": 0.69, "risk": 0.6015, "profile": "contour_blend", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.3348, "harmonic_risk": 0.6015, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.60 \u2014 unknown key move", "harmonic risk 0.60 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "06987e170b8722e1__85d8116989ea2f32", "title": "BRUX (AUS) - Pull The Trigger (Original Mix) -> O_Flynn - Srekye (Extended Mix)", "score": 0.5854, "confidence": 0.69, "risk": 0.6344, "profile": "contour_blend", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.3348, "harmonic_risk": 0.6344, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.63 \u2014 unknown key move", "harmonic risk 0.63 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "06987e170b8722e1__a749c305f32f7d51", "title": "BRUX (AUS) - Pull The Trigger (Original Mix) -> AIROD - Rave Cycle (Original Mix)", "score": 0.6272, "confidence": 0.69, "risk": 0.5553, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.509, "vocal_risk": 0.0959, "harmonic_risk": 0.5553, "risks": ["moderate bass conflict (0.51)", "harmonic risk 0.56 \u2014 unknown key move", "effective BPM gap 7.5% needs a non-standard tempo strategy", "harmonic risk 0.56 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "06987e170b8722e1__aaecfee7674ae3ed", "title": "BRUX (AUS) - Pull The Trigger (Original Mix) -> TSVI, Josi Devil - M.e.S (feat. TSVI) (feat. TSVI)", "score": 0.6859, "confidence": 0.69, "risk": 0.5418, "profile": "bass_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.509, "vocal_risk": 0.1082, "harmonic_risk": 0.5418, "risks": ["moderate bass conflict (0.51)", "harmonic risk 0.54 \u2014 unknown key move", "harmonic risk 0.54 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "06987e170b8722e1__b2d3c5c17b5e26ac", "title": "BRUX (AUS) - Pull The Trigger (Original Mix) -> Bodhi - 433Mhz (Original Mix)", "score": 0.65, "confidence": 0.69, "risk": 0.6071, "profile": "contour_blend", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4354, "vocal_risk": 0.3348, "harmonic_risk": 0.6071, "risks": ["moderate bass conflict (0.44)", "harmonic risk 0.61 \u2014 unknown key move", "harmonic risk 0.61 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "06987e170b8722e1__deb940c4a6052fed", "title": "BRUX (AUS) - Pull The Trigger (Original Mix) -> Jorg Kuning - Mercedes (Original Mix)", "score": 0.6188, "confidence": 0.69, "risk": 0.5807, "profile": "bass_swap", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.509, "vocal_risk": 0.2641, "harmonic_risk": 0.5807, "risks": ["moderate bass conflict (0.51)", "harmonic risk 0.58 \u2014 unknown key move", "harmonic risk 0.58 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "06987e170b8722e1__e3b089eb3589fe94", "title": "BRUX (AUS) - Pull The Trigger (Original Mix) -> Muskila - YARAO (Original Mix)", "score": 0.6757, "confidence": 0.69, "risk": 0.5548, "profile": "bass_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.509, "vocal_risk": 0.1605, "harmonic_risk": 0.5548, "risks": ["moderate bass conflict (0.51)", "harmonic risk 0.55 \u2014 unknown key move", "harmonic risk 0.55 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "06987e170b8722e1__ecf64aa98ccd4467", "title": "BRUX (AUS) - Pull The Trigger (Original Mix) -> Bicep - CHROMA 004 ROLA (Original Mix)", "score": 0.5273, "confidence": 0.62, "risk": 1.0, "profile": "plain_blend", "strategy": "hard_cut", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.509, "vocal_risk": 0.2477, "harmonic_risk": 0.5766, "risks": ["moderate bass conflict (0.51)", "harmonic risk 0.58 \u2014 unknown key move", "extreme BPM jump 32.7% breaches the shared hard limit", "harmonic risk 0.58 needs masking or careful transition timing", "tempo gate failed \u2014 reject standard blend", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "extreme BPM jump \u2014 reject standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "06987e170b8722e1__fea8b371ffd2adc5", "title": "BRUX (AUS) - Pull The Trigger (Original Mix) -> Povoa - Hacked Lime (Original Mix)", "score": 0.6098, "confidence": 0.69, "risk": 0.5865, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.4808, "vocal_risk": 0.2431, "harmonic_risk": 0.5865, "risks": ["moderate bass conflict (0.48)", "harmonic risk 0.59 \u2014 unknown key move", "effective BPM gap 7.5% needs a non-standard tempo strategy", "harmonic risk 0.59 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "0b6db038bbd47b93__06987e170b8722e1", "title": "Fold, cu.rve - Business (Original Mix) -> BRUX (AUS) - Pull The Trigger (Original Mix)", "score": 0.7037, "confidence": 0.69, "risk": 0.6017, "profile": "bass_swap", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4893, "vocal_risk": 0.3348, "harmonic_risk": 0.6017, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.60 \u2014 unknown key move", "harmonic risk 0.60 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "0b6db038bbd47b93__0d74f481c29d23c7", "title": "Fold, cu.rve - Business (Original Mix) -> Butch - Schlecker (Original Mix)", "score": 0.5997, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "reject_standard_blend", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.398, "vocal_risk": 0.348, "harmonic_risk": 0.8406, "risks": ["harmonic risk 0.84 \u2014 risky key move", "effective BPM gap 9.8% needs a non-standard tempo strategy", "harmonic clash risk 0.84 breaches the shared hard limit", "tempo relation requires a non-standard transition strategy", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "0b6db038bbd47b93__4056c8ee53cfb090", "title": "Fold, cu.rve - Business (Original Mix) -> Oscar Farrell, Mount XLR - Mod Break (Original Mix)", "score": 0.632, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "reject_standard_blend", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4893, "vocal_risk": 0.2867, "harmonic_risk": 0.8115, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.81 \u2014 risky key move", "harmonic clash risk 0.81 breaches the shared hard limit", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined; shared rules suggest a non-standard exit"]}, {"pair_id": "0b6db038bbd47b93__48c18f8c79fc588e", "title": "Fold, cu.rve - Business (Original Mix) -> Mala, Magugu - Militant Don (Vocal)", "score": 0.6844, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "reject_standard_blend", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4893, "vocal_risk": 0.2722, "harmonic_risk": 0.8057, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.81 \u2014 risky key move", "harmonic clash risk 0.81 breaches the shared hard limit", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "shared rules suggest a non-standard exit instead of a standard blend"]}, {"pair_id": "0b6db038bbd47b93__76609e489f01f9de", "title": "Fold, cu.rve - Business (Original Mix) -> Rohaan - Got No _3 (Original Mix)", "score": 0.6951, "confidence": 0.69, "risk": 0.6344, "profile": "bass_swap", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4604, "vocal_risk": 0.348, "harmonic_risk": 0.6344, "risks": ["moderate bass conflict (0.46)", "harmonic risk 0.63 \u2014 unknown key move", "harmonic risk 0.63 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "0b6db038bbd47b93__79d93a2a256d0920", "title": "Fold, cu.rve - Business (Original Mix) -> Bodhi - Thirst (Original Mix)", "score": 0.6675, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "reject_standard_blend", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4016, "vocal_risk": 0.3472, "harmonic_risk": 0.8357, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.84 \u2014 risky key move", "harmonic clash risk 0.84 breaches the shared hard limit", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "shared rules suggest a non-standard exit instead of a standard blend"]}, {"pair_id": "0b6db038bbd47b93__85d8116989ea2f32", "title": "Fold, cu.rve - Business (Original Mix) -> O_Flynn - Srekye (Extended Mix)", "score": 0.6061, "confidence": 0.69, "risk": 0.6377, "profile": "contour_blend", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.348, "harmonic_risk": 0.6377, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.64 \u2014 unknown key move", "harmonic risk 0.64 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "0b6db038bbd47b93__a749c305f32f7d51", "title": "Fold, cu.rve - Business (Original Mix) -> AIROD - Rave Cycle (Original Mix)", "score": 0.6495, "confidence": 0.69, "risk": 0.5586, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.4893, "vocal_risk": 0.0959, "harmonic_risk": 0.5586, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.56 \u2014 unknown key move", "effective BPM gap 7.5% needs a non-standard tempo strategy", "harmonic risk 0.56 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "0b6db038bbd47b93__aaecfee7674ae3ed", "title": "Fold, cu.rve - Business (Original Mix) -> TSVI, Josi Devil - M.e.S (feat. TSVI) (feat. TSVI)", "score": 0.6993, "confidence": 0.69, "risk": 0.7445, "profile": "bass_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4893, "vocal_risk": 0.1082, "harmonic_risk": 0.7445, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.74 \u2014 risky key move", "harmonic risk 0.74 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "0b6db038bbd47b93__b2d3c5c17b5e26ac", "title": "Fold, cu.rve - Business (Original Mix) -> Bodhi - 433Mhz (Original Mix)", "score": 0.6587, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "reject_standard_blend", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4354, "vocal_risk": 0.348, "harmonic_risk": 0.8502, "risks": ["moderate bass conflict (0.44)", "harmonic risk 0.85 \u2014 risky key move", "harmonic clash risk 0.85 breaches the shared hard limit", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "shared rules suggest a non-standard exit instead of a standard blend"]}, {"pair_id": "0b6db038bbd47b93__deb940c4a6052fed", "title": "Fold, cu.rve - Business (Original Mix) -> Jorg Kuning - Mercedes (Original Mix)", "score": 0.6335, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "reject_standard_blend", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4893, "vocal_risk": 0.2641, "harmonic_risk": 0.8024, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.80 \u2014 risky key move", "harmonic clash risk 0.80 breaches the shared hard limit", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined; shared rules suggest a non-standard exit"]}, {"pair_id": "0b6db038bbd47b93__e3b089eb3589fe94", "title": "Fold, cu.rve - Business (Original Mix) -> Muskila - YARAO (Original Mix)", "score": 0.6866, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "reject_standard_blend", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4893, "vocal_risk": 0.1605, "harmonic_risk": 0.761, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.76 \u2014 risky key move", "harmonic clash risk 0.76 breaches the shared hard limit", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "shared rules suggest a non-standard exit instead of a standard blend"]}, {"pair_id": "0b6db038bbd47b93__ecf64aa98ccd4467", "title": "Fold, cu.rve - Business (Original Mix) -> Bicep - CHROMA 004 ROLA (Original Mix)", "score": 0.5378, "confidence": 0.62, "risk": 1.0, "profile": "plain_blend", "strategy": "reset", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4893, "vocal_risk": 0.2477, "harmonic_risk": 0.7959, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.80 \u2014 risky key move", "extreme BPM jump 32.7% breaches the shared hard limit", "harmonic clash risk 0.80 breaches the shared hard limit", "tempo gate failed \u2014 reject standard blend", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "extreme BPM jump \u2014 reject standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "0b6db038bbd47b93__fea8b371ffd2adc5", "title": "Fold, cu.rve - Business (Original Mix) -> Povoa - Hacked Lime (Original Mix)", "score": 0.6305, "confidence": 0.69, "risk": 0.5898, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.4808, "vocal_risk": 0.2431, "harmonic_risk": 0.5898, "risks": ["moderate bass conflict (0.48)", "harmonic risk 0.59 \u2014 unknown key move", "effective BPM gap 7.5% needs a non-standard tempo strategy", "harmonic risk 0.59 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "0d74f481c29d23c7__06987e170b8722e1", "title": "Butch - Schlecker (Original Mix) -> BRUX (AUS) - Pull The Trigger (Original Mix)", "score": 0.5494, "confidence": 0.69, "risk": 0.6046, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.398, "vocal_risk": 0.3348, "harmonic_risk": 0.6046, "risks": ["harmonic risk 0.60 \u2014 unknown key move", "large BPM jump 10.8% rejects a standard blend", "harmonic risk 0.60 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "large BPM jump \u2014 treat as a transition move, not a standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "0d74f481c29d23c7__0b6db038bbd47b93", "title": "Butch - Schlecker (Original Mix) -> Fold, cu.rve - Business (Original Mix)", "score": 0.5122, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.398, "vocal_risk": 0.348, "harmonic_risk": 0.8406, "risks": ["weak phrase alignment (0.43)", "harmonic risk 0.84 \u2014 risky key move", "large BPM jump 10.8% rejects a standard blend", "harmonic clash risk 0.84 breaches the shared hard limit", "phrase alignment 0.43 needs review", "tempo relation requires a non-standard transition strategy", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "large BPM jump \u2014 treat as a transition move, not a standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "0d74f481c29d23c7__4056c8ee53cfb090", "title": "Butch - Schlecker (Original Mix) -> Oscar Farrell, Mount XLR - Mod Break (Original Mix)", "score": 0.6607, "confidence": 0.69, "risk": 0.398, "profile": "contour_blend", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.398, "vocal_risk": 0.2867, "harmonic_risk": 0.2655, "risks": [], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "0d74f481c29d23c7__48c18f8c79fc588e", "title": "Butch - Schlecker (Original Mix) -> Mala, Magugu - Militant Don (Vocal)", "score": 0.5645, "confidence": 0.69, "risk": 0.398, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.398, "vocal_risk": 0.2722, "harmonic_risk": 0.2644, "risks": ["large BPM jump 10.8% rejects a standard blend", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "large BPM jump \u2014 treat as a transition move, not a standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "0d74f481c29d23c7__76609e489f01f9de", "title": "Butch - Schlecker (Original Mix) -> Rohaan - Got No _3 (Original Mix)", "score": 0.5319, "confidence": 0.69, "risk": 0.6373, "profile": "plain_blend", "strategy": "break_transition", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.398, "vocal_risk": 0.3596, "harmonic_risk": 0.6373, "risks": ["harmonic risk 0.64 \u2014 unknown key move", "large BPM jump 10.8% rejects a standard blend", "harmonic risk 0.64 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "large BPM jump \u2014 treat as a transition move, not a standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "0d74f481c29d23c7__79d93a2a256d0920", "title": "Butch - Schlecker (Original Mix) -> Bodhi - Thirst (Original Mix)", "score": 0.6065, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "reject_standard_blend", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.398, "vocal_risk": 0.3472, "harmonic_risk": 0.8247, "risks": ["weak phrase alignment (0.43)", "harmonic risk 0.82 \u2014 risky key move", "effective BPM gap 7.9% needs a non-standard tempo strategy", "harmonic clash risk 0.82 breaches the shared hard limit", "phrase alignment 0.43 needs review", "tempo relation requires a non-standard transition strategy", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "0d74f481c29d23c7__85d8116989ea2f32", "title": "Butch - Schlecker (Original Mix) -> O_Flynn - Srekye (Extended Mix)", "score": 0.6068, "confidence": 0.69, "risk": 0.6406, "profile": "contour_blend", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.398, "vocal_risk": 0.3596, "harmonic_risk": 0.6406, "risks": ["weak phrase alignment (0.42)", "harmonic risk 0.64 \u2014 unknown key move", "harmonic risk 0.64 needs masking or careful transition timing", "phrase alignment 0.42 needs review"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "0d74f481c29d23c7__a749c305f32f7d51", "title": "Butch - Schlecker (Original Mix) -> AIROD - Rave Cycle (Original Mix)", "score": 0.7067, "confidence": 0.69, "risk": 0.5615, "profile": "tops_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.398, "vocal_risk": 0.0959, "harmonic_risk": 0.5615, "risks": ["harmonic risk 0.56 \u2014 unknown key move", "harmonic risk 0.56 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "0d74f481c29d23c7__aaecfee7674ae3ed", "title": "Butch - Schlecker (Original Mix) -> TSVI, Josi Devil - M.e.S (feat. TSVI) (feat. TSVI)", "score": 0.5731, "confidence": 0.69, "risk": 0.7491, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.398, "vocal_risk": 0.1082, "harmonic_risk": 0.7491, "risks": ["harmonic risk 0.75 \u2014 risky key move", "large BPM jump 13.9% rejects a standard blend", "harmonic risk 0.75 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "large BPM jump \u2014 treat as a transition move, not a standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "0d74f481c29d23c7__b2d3c5c17b5e26ac", "title": "Butch - Schlecker (Original Mix) -> Bodhi - 433Mhz (Original Mix)", "score": 0.5913, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "reject_standard_blend", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.398, "vocal_risk": 0.3596, "harmonic_risk": 0.8548, "risks": ["weak phrase alignment (0.41)", "harmonic risk 0.85 \u2014 risky key move", "effective BPM gap 7.9% needs a non-standard tempo strategy", "harmonic clash risk 0.85 breaches the shared hard limit", "phrase alignment 0.41 needs review", "tempo relation requires a non-standard transition strategy", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "0d74f481c29d23c7__deb940c4a6052fed", "title": "Butch - Schlecker (Original Mix) -> Jorg Kuning - Mercedes (Original Mix)", "score": 0.6084, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "reject_standard_blend", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.398, "vocal_risk": 0.2641, "harmonic_risk": 0.7915, "risks": ["weak phrase alignment (0.44)", "harmonic risk 0.79 \u2014 risky key move", "harmonic clash risk 0.79 breaches the shared hard limit", "phrase alignment 0.44 needs review", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined; shared rules suggest a non-standard exit"]}, {"pair_id": "0d74f481c29d23c7__e3b089eb3589fe94", "title": "Butch - Schlecker (Original Mix) -> Muskila - YARAO (Original Mix)", "score": 0.6044, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "reject_standard_blend", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.398, "vocal_risk": 0.1605, "harmonic_risk": 0.75, "risks": ["weak phrase alignment (0.40)", "harmonic risk 0.75 \u2014 risky key move", "effective BPM gap 7.9% needs a non-standard tempo strategy", "harmonic clash risk 0.75 breaches the shared hard limit", "phrase alignment 0.40 needs review", "tempo relation requires a non-standard transition strategy", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "0d74f481c29d23c7__ecf64aa98ccd4467", "title": "Butch - Schlecker (Original Mix) -> Bicep - CHROMA 004 ROLA (Original Mix)", "score": 0.5237, "confidence": 0.62, "risk": 1.0, "profile": "plain_blend", "strategy": "hard_cut", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.398, "vocal_risk": 0.2477, "harmonic_risk": 0.7849, "risks": ["harmonic risk 0.78 \u2014 risky key move", "extreme BPM jump 25.5% breaches the shared hard limit", "harmonic clash risk 0.78 breaches the shared hard limit", "tempo gate failed \u2014 reject standard blend", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "extreme BPM jump \u2014 reject standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "0d74f481c29d23c7__fea8b371ffd2adc5", "title": "Butch - Schlecker (Original Mix) -> Povoa - Hacked Lime (Original Mix)", "score": 0.6791, "confidence": 0.69, "risk": 0.5927, "profile": "contour_blend", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.398, "vocal_risk": 0.2431, "harmonic_risk": 0.5927, "risks": ["harmonic risk 0.59 \u2014 unknown key move", "harmonic risk 0.59 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "4056c8ee53cfb090__06987e170b8722e1", "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix) -> BRUX (AUS) - Pull The Trigger (Original Mix)", "score": 0.6397, "confidence": 0.69, "risk": 0.5864, "profile": "bass_swap", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4923, "vocal_risk": 0.2867, "harmonic_risk": 0.5864, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.59 \u2014 unknown key move", "harmonic risk 0.59 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "4056c8ee53cfb090__0b6db038bbd47b93", "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix) -> Fold, cu.rve - Business (Original Mix)", "score": 0.6055, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "reject_standard_blend", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4893, "vocal_risk": 0.2867, "harmonic_risk": 0.8115, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.81 \u2014 risky key move", "harmonic clash risk 0.81 breaches the shared hard limit", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined; shared rules suggest a non-standard exit"]}, {"pair_id": "4056c8ee53cfb090__0d74f481c29d23c7", "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix) -> Butch - Schlecker (Original Mix)", "score": 0.6649, "confidence": 0.69, "risk": 0.398, "profile": "contour_blend", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.398, "vocal_risk": 0.2867, "harmonic_risk": 0.2655, "risks": [], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "4056c8ee53cfb090__48c18f8c79fc588e", "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix) -> Mala, Magugu - Militant Don (Vocal)", "score": 0.6081, "confidence": 0.69, "risk": 0.6258, "profile": "bass_swap", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4923, "vocal_risk": 0.2722, "harmonic_risk": 0.6258, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.63 \u2014 risky key move", "harmonic risk 0.63 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "4056c8ee53cfb090__76609e489f01f9de", "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix) -> Rohaan - Got No _3 (Original Mix)", "score": 0.6287, "confidence": 0.69, "risk": 0.6191, "profile": "bass_swap", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4604, "vocal_risk": 0.2867, "harmonic_risk": 0.6191, "risks": ["moderate bass conflict (0.46)", "harmonic risk 0.62 \u2014 unknown key move", "harmonic risk 0.62 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "4056c8ee53cfb090__79d93a2a256d0920", "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix) -> Bodhi - Thirst (Original Mix)", "score": 0.6603, "confidence": 0.69, "risk": 0.6536, "profile": "contour_blend", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.2867, "harmonic_risk": 0.6536, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.65 \u2014 risky key move", "harmonic risk 0.65 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "4056c8ee53cfb090__85d8116989ea2f32", "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix) -> O_Flynn - Srekye (Extended Mix)", "score": 0.6786, "confidence": 0.69, "risk": 0.6224, "profile": "contour_blend", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.2867, "harmonic_risk": 0.6224, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.62 \u2014 unknown key move", "harmonic risk 0.62 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "4056c8ee53cfb090__a749c305f32f7d51", "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix) -> AIROD - Rave Cycle (Original Mix)", "score": 0.723, "confidence": 0.69, "risk": 0.5433, "profile": "bass_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4923, "vocal_risk": 0.0959, "harmonic_risk": 0.5433, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.54 \u2014 unknown key move", "harmonic risk 0.54 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "4056c8ee53cfb090__aaecfee7674ae3ed", "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix) -> TSVI, Josi Devil - M.e.S (feat. TSVI) (feat. TSVI)", "score": 0.6676, "confidence": 0.69, "risk": 0.4923, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.4923, "vocal_risk": 0.1082, "harmonic_risk": 0.2666, "risks": ["moderate bass conflict (0.49)", "effective BPM gap 8.3% needs a non-standard tempo strategy", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "4056c8ee53cfb090__b2d3c5c17b5e26ac", "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix) -> Bodhi - 433Mhz (Original Mix)", "score": 0.6705, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "reject_standard_blend", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4354, "vocal_risk": 0.2867, "harmonic_risk": 0.8257, "risks": ["moderate bass conflict (0.44)", "harmonic risk 0.83 \u2014 risky key move", "harmonic clash risk 0.83 breaches the shared hard limit", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "shared rules suggest a non-standard exit instead of a standard blend"]}, {"pair_id": "4056c8ee53cfb090__deb940c4a6052fed", "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix) -> Jorg Kuning - Mercedes (Original Mix)", "score": 0.6852, "confidence": 0.69, "risk": 0.7435, "profile": "bass_swap", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4923, "vocal_risk": 0.2641, "harmonic_risk": 0.7435, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.74 \u2014 risky key move", "harmonic risk 0.74 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "4056c8ee53cfb090__e3b089eb3589fe94", "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix) -> Muskila - YARAO (Original Mix)", "score": 0.6858, "confidence": 0.69, "risk": 0.7047, "profile": "bass_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4923, "vocal_risk": 0.1605, "harmonic_risk": 0.7047, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.70 \u2014 risky key move", "harmonic risk 0.70 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "4056c8ee53cfb090__ecf64aa98ccd4467", "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix) -> Bicep - CHROMA 004 ROLA (Original Mix)", "score": 0.5319, "confidence": 0.62, "risk": 1.0, "profile": "plain_blend", "strategy": "hard_cut", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4923, "vocal_risk": 0.2477, "harmonic_risk": 0.6726, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.67 \u2014 risky key move", "extreme BPM jump 29.1% breaches the shared hard limit", "harmonic risk 0.67 needs masking or careful transition timing", "tempo gate failed \u2014 reject standard blend", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "extreme BPM jump \u2014 reject standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "4056c8ee53cfb090__fea8b371ffd2adc5", "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix) -> Povoa - Hacked Lime (Original Mix)", "score": 0.6969, "confidence": 0.69, "risk": 0.5745, "profile": "bass_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4808, "vocal_risk": 0.2431, "harmonic_risk": 0.5745, "risks": ["moderate bass conflict (0.48)", "harmonic risk 0.57 \u2014 unknown key move", "harmonic risk 0.57 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "48c18f8c79fc588e__06987e170b8722e1", "title": "Mala, Magugu - Militant Don (Vocal) -> BRUX (AUS) - Pull The Trigger (Original Mix)", "score": 0.6988, "confidence": 0.69, "risk": 0.5828, "profile": "bass_swap", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.509, "vocal_risk": 0.2722, "harmonic_risk": 0.5828, "risks": ["moderate bass conflict (0.51)", "harmonic risk 0.58 \u2014 unknown key move", "harmonic risk 0.58 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "48c18f8c79fc588e__0b6db038bbd47b93", "title": "Mala, Magugu - Militant Don (Vocal) -> Fold, cu.rve - Business (Original Mix)", "score": 0.6683, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "reject_standard_blend", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4893, "vocal_risk": 0.2722, "harmonic_risk": 0.8057, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.81 \u2014 risky key move", "harmonic clash risk 0.81 breaches the shared hard limit", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "shared rules suggest a non-standard exit instead of a standard blend"]}, {"pair_id": "48c18f8c79fc588e__0d74f481c29d23c7", "title": "Mala, Magugu - Militant Don (Vocal) -> Butch - Schlecker (Original Mix)", "score": 0.6365, "confidence": 0.69, "risk": 0.398, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.398, "vocal_risk": 0.2722, "harmonic_risk": 0.2644, "risks": ["effective BPM gap 9.8% needs a non-standard tempo strategy", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "48c18f8c79fc588e__4056c8ee53cfb090", "title": "Mala, Magugu - Militant Don (Vocal) -> Oscar Farrell, Mount XLR - Mod Break (Original Mix)", "score": 0.6236, "confidence": 0.69, "risk": 0.6258, "profile": "bass_swap", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4923, "vocal_risk": 0.2722, "harmonic_risk": 0.6258, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.63 \u2014 risky key move", "harmonic risk 0.63 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "48c18f8c79fc588e__76609e489f01f9de", "title": "Mala, Magugu - Militant Don (Vocal) -> Rohaan - Got No _3 (Original Mix)", "score": 0.6911, "confidence": 0.69, "risk": 0.6154, "profile": "bass_swap", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4604, "vocal_risk": 0.2722, "harmonic_risk": 0.6154, "risks": ["moderate bass conflict (0.46)", "harmonic risk 0.62 \u2014 unknown key move", "harmonic risk 0.62 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "48c18f8c79fc588e__79d93a2a256d0920", "title": "Mala, Magugu - Militant Don (Vocal) -> Bodhi - Thirst (Original Mix)", "score": 0.6591, "confidence": 0.69, "risk": 0.65, "profile": "contour_blend", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.2722, "harmonic_risk": 0.65, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.65 \u2014 risky key move", "harmonic risk 0.65 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "48c18f8c79fc588e__85d8116989ea2f32", "title": "Mala, Magugu - Militant Don (Vocal) -> O_Flynn - Srekye (Extended Mix)", "score": 0.6129, "confidence": 0.69, "risk": 0.6188, "profile": "contour_blend", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.2722, "harmonic_risk": 0.6188, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.62 \u2014 unknown key move", "harmonic risk 0.62 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "48c18f8c79fc588e__a749c305f32f7d51", "title": "Mala, Magugu - Militant Don (Vocal) -> AIROD - Rave Cycle (Original Mix)", "score": 0.647, "confidence": 0.69, "risk": 0.5396, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.5185, "vocal_risk": 0.0959, "harmonic_risk": 0.5396, "risks": ["moderate bass conflict (0.52)", "harmonic risk 0.54 \u2014 unknown key move", "effective BPM gap 7.5% needs a non-standard tempo strategy", "harmonic risk 0.54 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "48c18f8c79fc588e__aaecfee7674ae3ed", "title": "Mala, Magugu - Militant Don (Vocal) -> TSVI, Josi Devil - M.e.S (feat. TSVI) (feat. TSVI)", "score": 0.7281, "confidence": 0.69, "risk": 0.5185, "profile": "bass_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.5185, "vocal_risk": 0.1082, "harmonic_risk": 0.2655, "risks": ["moderate bass conflict (0.52)"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "48c18f8c79fc588e__b2d3c5c17b5e26ac", "title": "Mala, Magugu - Militant Don (Vocal) -> Bodhi - 433Mhz (Original Mix)", "score": 0.6695, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "reject_standard_blend", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4354, "vocal_risk": 0.2722, "harmonic_risk": 0.8199, "risks": ["moderate bass conflict (0.44)", "harmonic risk 0.82 \u2014 risky key move", "harmonic clash risk 0.82 breaches the shared hard limit", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "shared rules suggest a non-standard exit instead of a standard blend"]}, {"pair_id": "48c18f8c79fc588e__deb940c4a6052fed", "title": "Mala, Magugu - Militant Don (Vocal) -> Jorg Kuning - Mercedes (Original Mix)", "score": 0.6146, "confidence": 0.69, "risk": 0.7377, "profile": "bass_swap", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.5185, "vocal_risk": 0.2641, "harmonic_risk": 0.7377, "risks": ["moderate bass conflict (0.52)", "harmonic risk 0.74 \u2014 risky key move", "harmonic risk 0.74 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "48c18f8c79fc588e__e3b089eb3589fe94", "title": "Mala, Magugu - Militant Don (Vocal) -> Muskila - YARAO (Original Mix)", "score": 0.6787, "confidence": 0.69, "risk": 0.6989, "profile": "bass_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.5185, "vocal_risk": 0.1605, "harmonic_risk": 0.6989, "risks": ["moderate bass conflict (0.52)", "harmonic risk 0.70 \u2014 risky key move", "harmonic risk 0.70 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "48c18f8c79fc588e__ecf64aa98ccd4467", "title": "Mala, Magugu - Militant Don (Vocal) -> Bicep - CHROMA 004 ROLA (Original Mix)", "score": 0.5193, "confidence": 0.62, "risk": 1.0, "profile": "plain_blend", "strategy": "hard_cut", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.5185, "vocal_risk": 0.2477, "harmonic_risk": 0.6668, "risks": ["moderate bass conflict (0.52)", "harmonic risk 0.67 \u2014 risky key move", "extreme BPM jump 32.7% breaches the shared hard limit", "harmonic risk 0.67 needs masking or careful transition timing", "tempo gate failed \u2014 reject standard blend", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "extreme BPM jump \u2014 reject standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "48c18f8c79fc588e__fea8b371ffd2adc5", "title": "Mala, Magugu - Militant Don (Vocal) -> Povoa - Hacked Lime (Original Mix)", "score": 0.6292, "confidence": 0.69, "risk": 0.5708, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.4808, "vocal_risk": 0.2431, "harmonic_risk": 0.5708, "risks": ["moderate bass conflict (0.48)", "harmonic risk 0.57 \u2014 unknown key move", "effective BPM gap 7.5% needs a non-standard tempo strategy", "harmonic risk 0.57 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "76609e489f01f9de__06987e170b8722e1", "title": "Rohaan - Got No _3 (Original Mix) -> BRUX (AUS) - Pull The Trigger (Original Mix)", "score": 0.6851, "confidence": 0.69, "risk": 0.6311, "profile": "bass_swap", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4604, "vocal_risk": 0.3348, "harmonic_risk": 0.6311, "risks": ["moderate bass conflict (0.46)", "harmonic risk 0.63 \u2014 unknown key move", "harmonic risk 0.63 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "76609e489f01f9de__0b6db038bbd47b93", "title": "Rohaan - Got No _3 (Original Mix) -> Fold, cu.rve - Business (Original Mix)", "score": 0.6667, "confidence": 0.69, "risk": 0.6344, "profile": "bass_swap", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4604, "vocal_risk": 0.348, "harmonic_risk": 0.6344, "risks": ["moderate bass conflict (0.46)", "harmonic risk 0.63 \u2014 unknown key move", "harmonic risk 0.63 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "76609e489f01f9de__0d74f481c29d23c7", "title": "Rohaan - Got No _3 (Original Mix) -> Butch - Schlecker (Original Mix)", "score": 0.5892, "confidence": 0.69, "risk": 0.6373, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.398, "vocal_risk": 0.3596, "harmonic_risk": 0.6373, "risks": ["harmonic risk 0.64 \u2014 unknown key move", "effective BPM gap 9.8% needs a non-standard tempo strategy", "harmonic risk 0.64 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "76609e489f01f9de__4056c8ee53cfb090", "title": "Rohaan - Got No _3 (Original Mix) -> Oscar Farrell, Mount XLR - Mod Break (Original Mix)", "score": 0.6257, "confidence": 0.69, "risk": 0.6191, "profile": "bass_swap", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4604, "vocal_risk": 0.2867, "harmonic_risk": 0.6191, "risks": ["moderate bass conflict (0.46)", "harmonic risk 0.62 \u2014 unknown key move", "harmonic risk 0.62 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "76609e489f01f9de__48c18f8c79fc588e", "title": "Rohaan - Got No _3 (Original Mix) -> Mala, Magugu - Militant Don (Vocal)", "score": 0.6787, "confidence": 0.69, "risk": 0.6154, "profile": "bass_swap", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4604, "vocal_risk": 0.2722, "harmonic_risk": 0.6154, "risks": ["moderate bass conflict (0.46)", "harmonic risk 0.62 \u2014 unknown key move", "harmonic risk 0.62 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "76609e489f01f9de__79d93a2a256d0920", "title": "Rohaan - Got No _3 (Original Mix) -> Bodhi - Thirst (Original Mix)", "score": 0.658, "confidence": 0.69, "risk": 0.6342, "profile": "contour_blend", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.3472, "harmonic_risk": 0.6342, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.63 \u2014 unknown key move", "harmonic risk 0.63 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "76609e489f01f9de__85d8116989ea2f32", "title": "Rohaan - Got No _3 (Original Mix) -> O_Flynn - Srekye (Extended Mix)", "score": 0.5802, "confidence": 0.69, "risk": 0.6549, "profile": "contour_blend", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.4168, "harmonic_risk": 0.6549, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.65 \u2014 unknown key move", "harmonic risk 0.65 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "76609e489f01f9de__a749c305f32f7d51", "title": "Rohaan - Got No _3 (Original Mix) -> AIROD - Rave Cycle (Original Mix)", "score": 0.6322, "confidence": 0.69, "risk": 0.5758, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.4604, "vocal_risk": 0.0959, "harmonic_risk": 0.5758, "risks": ["moderate bass conflict (0.46)", "harmonic risk 0.58 \u2014 unknown key move", "effective BPM gap 7.5% needs a non-standard tempo strategy", "harmonic risk 0.58 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "76609e489f01f9de__aaecfee7674ae3ed", "title": "Rohaan - Got No _3 (Original Mix) -> TSVI, Josi Devil - M.e.S (feat. TSVI) (feat. TSVI)", "score": 0.6911, "confidence": 0.69, "risk": 0.5744, "profile": "bass_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4604, "vocal_risk": 0.1082, "harmonic_risk": 0.5744, "risks": ["moderate bass conflict (0.46)", "harmonic risk 0.57 \u2014 unknown key move", "harmonic risk 0.57 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "76609e489f01f9de__b2d3c5c17b5e26ac", "title": "Rohaan - Got No _3 (Original Mix) -> Bodhi - 433Mhz (Original Mix)", "score": 0.6478, "confidence": 0.69, "risk": 0.6398, "profile": "contour_blend", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4354, "vocal_risk": 0.3695, "harmonic_risk": 0.6398, "risks": ["moderate bass conflict (0.44)", "harmonic risk 0.64 \u2014 unknown key move", "harmonic risk 0.64 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "76609e489f01f9de__deb940c4a6052fed", "title": "Rohaan - Got No _3 (Original Mix) -> Jorg Kuning - Mercedes (Original Mix)", "score": 0.6224, "confidence": 0.69, "risk": 0.6134, "profile": "bass_swap", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4604, "vocal_risk": 0.2641, "harmonic_risk": 0.6134, "risks": ["moderate bass conflict (0.46)", "harmonic risk 0.61 \u2014 unknown key move", "harmonic risk 0.61 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "76609e489f01f9de__e3b089eb3589fe94", "title": "Rohaan - Got No _3 (Original Mix) -> Muskila - YARAO (Original Mix)", "score": 0.6802, "confidence": 0.69, "risk": 0.5875, "profile": "bass_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4604, "vocal_risk": 0.1605, "harmonic_risk": 0.5875, "risks": ["moderate bass conflict (0.46)", "harmonic risk 0.59 \u2014 unknown key move", "harmonic risk 0.59 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "76609e489f01f9de__ecf64aa98ccd4467", "title": "Rohaan - Got No _3 (Original Mix) -> Bicep - CHROMA 004 ROLA (Original Mix)", "score": 0.5318, "confidence": 0.62, "risk": 1.0, "profile": "plain_blend", "strategy": "hard_cut", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4604, "vocal_risk": 0.2477, "harmonic_risk": 0.6093, "risks": ["moderate bass conflict (0.46)", "harmonic risk 0.61 \u2014 unknown key move", "extreme BPM jump 32.7% breaches the shared hard limit", "harmonic risk 0.61 needs masking or careful transition timing", "tempo gate failed \u2014 reject standard blend", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "extreme BPM jump \u2014 reject standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "76609e489f01f9de__fea8b371ffd2adc5", "title": "Rohaan - Got No _3 (Original Mix) -> Povoa - Hacked Lime (Original Mix)", "score": 0.6123, "confidence": 0.69, "risk": 0.6082, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.4604, "vocal_risk": 0.2431, "harmonic_risk": 0.6082, "risks": ["moderate bass conflict (0.46)", "harmonic risk 0.61 \u2014 unknown key move", "effective BPM gap 7.5% needs a non-standard tempo strategy", "harmonic risk 0.61 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "79d93a2a256d0920__06987e170b8722e1", "title": "Bodhi - Thirst (Original Mix) -> BRUX (AUS) - Pull The Trigger (Original Mix)", "score": 0.6772, "confidence": 0.69, "risk": 0.6015, "profile": "contour_blend", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.3348, "harmonic_risk": 0.6015, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.60 \u2014 unknown key move", "harmonic risk 0.60 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "79d93a2a256d0920__0b6db038bbd47b93", "title": "Bodhi - Thirst (Original Mix) -> Fold, cu.rve - Business (Original Mix)", "score": 0.6467, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "reject_standard_blend", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4016, "vocal_risk": 0.3472, "harmonic_risk": 0.8357, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.84 \u2014 risky key move", "harmonic clash risk 0.84 breaches the shared hard limit", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "shared rules suggest a non-standard exit instead of a standard blend"]}, {"pair_id": "79d93a2a256d0920__0d74f481c29d23c7", "title": "Bodhi - Thirst (Original Mix) -> Butch - Schlecker (Original Mix)", "score": 0.626, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "reject_standard_blend", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.398, "vocal_risk": 0.3472, "harmonic_risk": 0.8247, "risks": ["harmonic risk 0.82 \u2014 risky key move", "effective BPM gap 7.3% needs a non-standard tempo strategy", "harmonic clash risk 0.82 breaches the shared hard limit", "tempo relation requires a non-standard transition strategy", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "79d93a2a256d0920__4056c8ee53cfb090", "title": "Bodhi - Thirst (Original Mix) -> Oscar Farrell, Mount XLR - Mod Break (Original Mix)", "score": 0.6652, "confidence": 0.69, "risk": 0.6536, "profile": "contour_blend", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.2867, "harmonic_risk": 0.6536, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.65 \u2014 risky key move", "harmonic risk 0.65 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "79d93a2a256d0920__48c18f8c79fc588e", "title": "Bodhi - Thirst (Original Mix) -> Mala, Magugu - Militant Don (Vocal)", "score": 0.6539, "confidence": 0.69, "risk": 0.65, "profile": "contour_blend", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.2722, "harmonic_risk": 0.65, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.65 \u2014 risky key move", "harmonic risk 0.65 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "79d93a2a256d0920__76609e489f01f9de", "title": "Bodhi - Thirst (Original Mix) -> Rohaan - Got No _3 (Original Mix)", "score": 0.6668, "confidence": 0.69, "risk": 0.6342, "profile": "contour_blend", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.3472, "harmonic_risk": 0.6342, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.63 \u2014 unknown key move", "harmonic risk 0.63 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "79d93a2a256d0920__85d8116989ea2f32", "title": "Bodhi - Thirst (Original Mix) -> O_Flynn - Srekye (Extended Mix)", "score": 0.6725, "confidence": 0.69, "risk": 0.6376, "profile": "contour_blend", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.3472, "harmonic_risk": 0.6376, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.64 \u2014 unknown key move", "harmonic risk 0.64 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "79d93a2a256d0920__a749c305f32f7d51", "title": "Bodhi - Thirst (Original Mix) -> AIROD - Rave Cycle (Original Mix)", "score": 0.657, "confidence": 0.69, "risk": 0.5584, "profile": "tops_swap", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.0959, "harmonic_risk": 0.5584, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.56 \u2014 unknown key move", "harmonic risk 0.56 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "79d93a2a256d0920__aaecfee7674ae3ed", "title": "Bodhi - Thirst (Original Mix) -> TSVI, Josi Devil - M.e.S (feat. TSVI) (feat. TSVI)", "score": 0.6624, "confidence": 0.69, "risk": 0.7442, "profile": "tops_swap", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.1082, "harmonic_risk": 0.7442, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.74 \u2014 risky key move", "harmonic risk 0.74 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "79d93a2a256d0920__b2d3c5c17b5e26ac", "title": "Bodhi - Thirst (Original Mix) -> Bodhi - 433Mhz (Original Mix)", "score": 0.7098, "confidence": 0.69, "risk": 0.4016, "profile": "contour_blend", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.3472, "harmonic_risk": 0.2061, "risks": ["moderate bass conflict (0.40)"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "79d93a2a256d0920__deb940c4a6052fed", "title": "Bodhi - Thirst (Original Mix) -> Jorg Kuning - Mercedes (Original Mix)", "score": 0.666, "confidence": 0.69, "risk": 1.0, "profile": "plain_blend", "strategy": "echo_out", "decision_class": "reject_standard_blend", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4016, "vocal_risk": 0.2641, "harmonic_risk": 0.7677, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.77 \u2014 risky key move", "harmonic clash risk 0.77 breaches the shared hard limit", "harmonic gate failed \u2014 exposed key clash risk", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "risky key relation, but low harmonic exposure may mask it", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "shared rules suggest a non-standard exit instead of a standard blend"]}, {"pair_id": "79d93a2a256d0920__e3b089eb3589fe94", "title": "Bodhi - Thirst (Original Mix) -> Muskila - YARAO (Original Mix)", "score": 0.7259, "confidence": 0.69, "risk": 0.4016, "profile": "plain_blend", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.1605, "harmonic_risk": 0.2389, "risks": ["moderate bass conflict (0.40)"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "79d93a2a256d0920__ecf64aa98ccd4467", "title": "Bodhi - Thirst (Original Mix) -> Bicep - CHROMA 004 ROLA (Original Mix)", "score": 0.5779, "confidence": 0.62, "risk": 1.0, "profile": "plain_blend", "strategy": "hard_cut", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.4016, "vocal_risk": 0.2477, "harmonic_risk": 0.0987, "risks": ["moderate bass conflict (0.40)", "extreme BPM jump 30.9% breaches the shared hard limit", "tempo gate failed \u2014 reject standard blend", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "extreme BPM jump \u2014 reject standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "79d93a2a256d0920__fea8b371ffd2adc5", "title": "Bodhi - Thirst (Original Mix) -> Povoa - Hacked Lime (Original Mix)", "score": 0.6392, "confidence": 0.69, "risk": 0.5896, "profile": "contour_blend", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.2431, "harmonic_risk": 0.5896, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.59 \u2014 unknown key move", "harmonic risk 0.59 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "85d8116989ea2f32__06987e170b8722e1", "title": "O_Flynn - Srekye (Extended Mix) -> BRUX (AUS) - Pull The Trigger (Original Mix)", "score": 0.6138, "confidence": 0.69, "risk": 0.6344, "profile": "contour_blend", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.3348, "harmonic_risk": 0.6344, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.63 \u2014 unknown key move", "harmonic risk 0.63 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "85d8116989ea2f32__0b6db038bbd47b93", "title": "O_Flynn - Srekye (Extended Mix) -> Fold, cu.rve - Business (Original Mix)", "score": 0.5943, "confidence": 0.69, "risk": 0.6377, "profile": "contour_blend", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.348, "harmonic_risk": 0.6377, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.64 \u2014 unknown key move", "harmonic risk 0.64 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "85d8116989ea2f32__0d74f481c29d23c7", "title": "O_Flynn - Srekye (Extended Mix) -> Butch - Schlecker (Original Mix)", "score": 0.6371, "confidence": 0.69, "risk": 0.6406, "profile": "contour_blend", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.398, "vocal_risk": 0.3596, "harmonic_risk": 0.6406, "risks": ["harmonic risk 0.64 \u2014 unknown key move", "harmonic risk 0.64 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "85d8116989ea2f32__4056c8ee53cfb090", "title": "O_Flynn - Srekye (Extended Mix) -> Oscar Farrell, Mount XLR - Mod Break (Original Mix)", "score": 0.6946, "confidence": 0.69, "risk": 0.6224, "profile": "contour_blend", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.2867, "harmonic_risk": 0.6224, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.62 \u2014 unknown key move", "harmonic risk 0.62 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "85d8116989ea2f32__48c18f8c79fc588e", "title": "O_Flynn - Srekye (Extended Mix) -> Mala, Magugu - Militant Don (Vocal)", "score": 0.6163, "confidence": 0.69, "risk": 0.6188, "profile": "contour_blend", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.2722, "harmonic_risk": 0.6188, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.62 \u2014 unknown key move", "harmonic risk 0.62 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "85d8116989ea2f32__76609e489f01f9de", "title": "O_Flynn - Srekye (Extended Mix) -> Rohaan - Got No _3 (Original Mix)", "score": 0.5983, "confidence": 0.69, "risk": 0.6549, "profile": "contour_blend", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.4168, "harmonic_risk": 0.6549, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.65 \u2014 unknown key move", "harmonic risk 0.65 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "85d8116989ea2f32__79d93a2a256d0920", "title": "O_Flynn - Srekye (Extended Mix) -> Bodhi - Thirst (Original Mix)", "score": 0.6838, "confidence": 0.69, "risk": 0.6376, "profile": "contour_blend", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.3472, "harmonic_risk": 0.6376, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.64 \u2014 unknown key move", "harmonic risk 0.64 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "85d8116989ea2f32__a749c305f32f7d51", "title": "O_Flynn - Srekye (Extended Mix) -> AIROD - Rave Cycle (Original Mix)", "score": 0.6943, "confidence": 0.69, "risk": 0.5787, "profile": "tops_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.0959, "harmonic_risk": 0.5787, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.58 \u2014 unknown key move", "harmonic risk 0.58 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "85d8116989ea2f32__aaecfee7674ae3ed", "title": "O_Flynn - Srekye (Extended Mix) -> TSVI, Josi Devil - M.e.S (feat. TSVI) (feat. TSVI)", "score": 0.6422, "confidence": 0.69, "risk": 0.5778, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.1082, "harmonic_risk": 0.5778, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.58 \u2014 unknown key move", "effective BPM gap 8.3% needs a non-standard tempo strategy", "harmonic risk 0.58 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "85d8116989ea2f32__b2d3c5c17b5e26ac", "title": "O_Flynn - Srekye (Extended Mix) -> Bodhi - 433Mhz (Original Mix)", "score": 0.6605, "confidence": 0.69, "risk": 0.6431, "profile": "contour_blend", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.3695, "harmonic_risk": 0.6431, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.64 \u2014 unknown key move", "harmonic risk 0.64 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "85d8116989ea2f32__deb940c4a6052fed", "title": "O_Flynn - Srekye (Extended Mix) -> Jorg Kuning - Mercedes (Original Mix)", "score": 0.685, "confidence": 0.69, "risk": 0.6168, "profile": "contour_blend", "strategy": "standard_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.2641, "harmonic_risk": 0.6168, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.62 \u2014 unknown key move", "harmonic risk 0.62 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "85d8116989ea2f32__e3b089eb3589fe94", "title": "O_Flynn - Srekye (Extended Mix) -> Muskila - YARAO (Original Mix)", "score": 0.6791, "confidence": 0.69, "risk": 0.5909, "profile": "tops_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.1605, "harmonic_risk": 0.5909, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.59 \u2014 unknown key move", "harmonic risk 0.59 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "85d8116989ea2f32__ecf64aa98ccd4467", "title": "O_Flynn - Srekye (Extended Mix) -> Bicep - CHROMA 004 ROLA (Original Mix)", "score": 0.5251, "confidence": 0.62, "risk": 1.0, "profile": "plain_blend", "strategy": "reset", "decision_class": "reject_standard_blend", "tempo_feasibility": "low", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": true, "bass_risk": 0.418, "vocal_risk": 0.2477, "harmonic_risk": 0.6127, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.61 \u2014 unknown key move", "extreme BPM jump 29.1% breaches the shared hard limit", "harmonic risk 0.61 needs masking or careful transition timing", "tempo gate failed \u2014 reject standard blend", "shared pair rules triggered a hard block for standard blending"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "extreme BPM jump \u2014 reject standard blend; shared rules suggest a non-standard exit"]}, {"pair_id": "85d8116989ea2f32__fea8b371ffd2adc5", "title": "O_Flynn - Srekye (Extended Mix) -> Povoa - Hacked Lime (Original Mix)", "score": 0.676, "confidence": 0.69, "risk": 0.6115, "profile": "contour_blend", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.2431, "harmonic_risk": 0.6115, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.61 \u2014 unknown key move", "harmonic risk 0.61 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "a749c305f32f7d51__06987e170b8722e1", "title": "AIROD - Rave Cycle (Original Mix) -> BRUX (AUS) - Pull The Trigger (Original Mix)", "score": 0.6394, "confidence": 0.69, "risk": 0.5553, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.509, "vocal_risk": 0.0959, "harmonic_risk": 0.5553, "risks": ["moderate bass conflict (0.51)", "harmonic risk 0.56 \u2014 unknown key move", "effective BPM gap 8.1% needs a non-standard tempo strategy", "harmonic risk 0.56 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "a749c305f32f7d51__0b6db038bbd47b93", "title": "AIROD - Rave Cycle (Original Mix) -> Fold, cu.rve - Business (Original Mix)", "score": 0.6206, "confidence": 0.69, "risk": 0.5586, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.4893, "vocal_risk": 0.0959, "harmonic_risk": 0.5586, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.56 \u2014 unknown key move", "effective BPM gap 8.1% needs a non-standard tempo strategy", "harmonic risk 0.56 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "a749c305f32f7d51__0d74f481c29d23c7", "title": "AIROD - Rave Cycle (Original Mix) -> Butch - Schlecker (Original Mix)", "score": 0.7124, "confidence": 0.69, "risk": 0.5615, "profile": "tops_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.398, "vocal_risk": 0.0959, "harmonic_risk": 0.5615, "risks": ["harmonic risk 0.56 \u2014 unknown key move", "harmonic risk 0.56 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "a749c305f32f7d51__4056c8ee53cfb090", "title": "AIROD - Rave Cycle (Original Mix) -> Oscar Farrell, Mount XLR - Mod Break (Original Mix)", "score": 0.7142, "confidence": 0.69, "risk": 0.5433, "profile": "bass_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4923, "vocal_risk": 0.0959, "harmonic_risk": 0.5433, "risks": ["moderate bass conflict (0.49)", "harmonic risk 0.54 \u2014 unknown key move", "harmonic risk 0.54 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}, {"pair_id": "a749c305f32f7d51__48c18f8c79fc588e", "title": "AIROD - Rave Cycle (Original Mix) -> Mala, Magugu - Militant Don (Vocal)", "score": 0.6294, "confidence": 0.69, "risk": 0.5396, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.5185, "vocal_risk": 0.0959, "harmonic_risk": 0.5396, "risks": ["moderate bass conflict (0.52)", "harmonic risk 0.54 \u2014 unknown key move", "effective BPM gap 8.1% needs a non-standard tempo strategy", "harmonic risk 0.54 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "a749c305f32f7d51__76609e489f01f9de", "title": "AIROD - Rave Cycle (Original Mix) -> Rohaan - Got No _3 (Original Mix)", "score": 0.6329, "confidence": 0.69, "risk": 0.5758, "profile": "plain_blend", "strategy": "tempo_ramp", "decision_class": "non_standard_strategy_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": false, "hard_block": false, "bass_risk": 0.4604, "vocal_risk": 0.0959, "harmonic_risk": 0.5758, "risks": ["moderate bass conflict (0.46)", "harmonic risk 0.58 \u2014 unknown key move", "effective BPM gap 8.1% needs a non-standard tempo strategy", "harmonic risk 0.58 needs masking or careful transition timing", "tempo relation requires a non-standard transition strategy"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "standard blend is risky at this BPM gap \u2014 non-standard strategy preferred; shared rules suggest a non-standard exit"]}, {"pair_id": "a749c305f32f7d51__79d93a2a256d0920", "title": "AIROD - Rave Cycle (Original Mix) -> Bodhi - Thirst (Original Mix)", "score": 0.6527, "confidence": 0.69, "risk": 0.5584, "profile": "tops_swap", "strategy": "phrase_aligned_blend", "decision_class": "review_required", "tempo_feasibility": "medium", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.4016, "vocal_risk": 0.0959, "harmonic_risk": 0.5584, "risks": ["moderate bass conflict (0.40)", "harmonic risk 0.56 \u2014 unknown key move", "harmonic risk 0.56 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable", "tempo gap is above easy-blend range \u2014 keep the overlap disciplined"]}, {"pair_id": "a749c305f32f7d51__85d8116989ea2f32", "title": "AIROD - Rave Cycle (Original Mix) -> O_Flynn - Srekye (Extended Mix)", "score": 0.6794, "confidence": 0.69, "risk": 0.5787, "profile": "tops_swap", "strategy": "short_blend", "decision_class": "review_required", "tempo_feasibility": "high", "tempo_relation": "direct", "standard_blend_allowed": true, "hard_block": false, "bass_risk": 0.418, "vocal_risk": 0.0959, "harmonic_risk": 0.5787, "risks": ["moderate bass conflict (0.42)", "harmonic risk 0.58 \u2014 unknown key move", "harmonic risk 0.58 needs masking or careful transition timing"], "warnings": ["style fit unavailable (missing style labels) \u2014 neutral", "low key confidence \u2014 verify key before trusting harmonic result", "context fit unavailable (no context profile) \u2014 neutral", "no context profile \u2014 role/fit is context-free", "not DJ-validated \u2014 output is a candidate estimate, not ground truth", "conflicting descriptors \u2014 interpretation is unstable"]}], "times": {"validation_generated_at": "2026-07-08T09:41:33.999460+00:00", "decision_generated_at": "2026-07-08T09:26:47.161274+00:00", "analysis_generated_at": "2026-07-08T09:26:46.944221+00:00"}, "sources_available": {"validation": true, "decision": true, "edges": true, "pairs": true, "analysis": true}, "artifact_links": {"launcher": "index.html", "pair_deck": "pairs.html", "listen_board": "listen_board.html", "window_deck": "windows.html", "set_function_deck": "set_function.html"}, "warnings": ["no completed DJ own-window labels in exp009 review sheet", "no completed DJ set-function labels in exp011 review sheet", "fewer than 3 rated pair-review rows with engine scores"]}};
+    const PROFILE_COLORS = {
+      bass_swap: '#ef4444',
+      tops_swap: '#0ea5e9',
+      contour_blend: '#f59e0b',
+      plain_blend: '#10b981',
+    };
+    const state = {
+      snapshot: APP.bootstrap || {},
+      history: [],
+      autoRefresh: true,
+      timer: null,
+      lastRefreshAt: null,
+      liveMode: 'bootstrap',
+      liveNote: 'Showing the build-time snapshot until the first live poll returns.',
+    };
+
+    function numberValue(value, fallback = 0) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    function average(values) {
+      const nums = values.filter((value) => Number.isFinite(value));
+      if (!nums.length) return 0;
+      return nums.reduce((sum, value) => sum + value, 0) / nums.length;
+    }
+
+    function labelize(value) {
+      return String(value || 'unknown').replaceAll('_', ' ');
+    }
+
+    function countEntries(values, limit = 8) {
+      const counts = new Map();
+      values.forEach((value) => {
+        const label = String(value || '').trim();
+        if (!label) return;
+        counts.set(label, (counts.get(label) || 0) + 1);
+      });
+      return [...counts.entries()]
+        .sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0]))
+        .slice(0, limit)
+        .map(([label, count]) => ({ label: labelize(label), count }));
+    }
+
+    function edgePairId(edge) {
+      return String(edge?.annotation_payload?.pair_id || `${edge?.track_id_a || ''}__${edge?.track_id_b || ''}`);
+    }
+
+    function edgeRisk(edge) {
+      return Math.max(
+        numberValue(edge?.bass_conflict_risk, 0),
+        numberValue(edge?.vocal_clash_risk, 0),
+        numberValue(edge?.harmonic_risk, 0),
+        edge?.hard_block ? 1 : 0,
+      );
+    }
+
+    function buildSnapshot(payloads) {
+      const validation = payloads.validationSummary && typeof payloads.validationSummary === 'object' ? payloads.validationSummary : {};
+      const decision = payloads.decisionSummary && typeof payloads.decisionSummary === 'object' ? payloads.decisionSummary : {};
+      const edges = Array.isArray(payloads.edgeDecisions) ? payloads.edgeDecisions : [];
+      const pairs = Array.isArray(payloads.mixabilityPairs) ? payloads.mixabilityPairs : [];
+      const analysis = payloads.analysisSummary && typeof payloads.analysisSummary === 'object' ? payloads.analysisSummary : {};
+      const titleMap = new Map();
+      pairs.forEach((row) => {
+        const pairId = String(row?.pair_id || '').trim();
+        if (!pairId) return;
+        titleMap.set(
+          pairId,
+          `${row?.track_a_title || row?.track_a_id || 'Track A'} -> ${row?.track_b_title || row?.track_b_id || 'Track B'}`,
+        );
+      });
+      const sensorPairs = edges.map((edge) => {
+        const pairId = edgePairId(edge);
+        const score = numberValue(edge?.core_dj_compatibility_score?.value, 0);
+        const confidence = numberValue(edge?.core_dj_compatibility_score?.confidence, 0);
+        return {
+          pair_id: pairId,
+          title: titleMap.get(pairId) || `${edge?.track_id_a || 'Track A'} -> ${edge?.track_id_b || 'Track B'}`,
+          score,
+          confidence,
+          risk: edgeRisk(edge),
+          profile: String(edge?.blend_profile_auto || 'plain_blend'),
+          strategy: String(edge?.recommended_transition_strategy || 'n/a'),
+          decision_class: String(edge?.decision_class || 'unknown'),
+          tempo_feasibility: String(edge?.tempo_window_feasibility || 'unknown'),
+          tempo_relation: String(edge?.tempo_relation || 'unknown'),
+          standard_blend_allowed: Boolean(edge?.standard_blend_allowed),
+          hard_block: Boolean(edge?.hard_block),
+          bass_risk: numberValue(edge?.bass_conflict_risk, 0),
+          vocal_risk: numberValue(edge?.vocal_clash_risk, 0),
+          harmonic_risk: numberValue(edge?.harmonic_risk, 0),
+          risks: Array.isArray(edge?.risks) ? edge.risks : [],
+          warnings: Array.isArray(edge?.warnings) ? edge.warnings : [],
+        };
+      });
+      const topPairs = [...sensorPairs]
+        .sort((a, b) => (b.score - a.score) || (b.confidence - a.confidence) || (a.risk - b.risk))
+        .slice(0, 8);
+      const watchPairs = [...sensorPairs]
+        .sort((a, b) => (Number(b.hard_block) - Number(a.hard_block)) || (b.risk - a.risk) || (a.score - b.score))
+        .slice(0, 8);
+      const alertTerms = countEntries(
+        [
+          ...sensorPairs.flatMap((item) => item.risks),
+          ...sensorPairs.flatMap((item) => item.warnings),
+          ...(Array.isArray(validation?.warnings) ? validation.warnings : []),
+        ],
+        10,
+      );
+      return {
+        track_count: Number(validation?.analyzed_track_count || decision?.track_count || analysis?.track_count || 0),
+        pair_count: Number(decision?.ordered_pair_count || sensorPairs.length || 0),
+        rated_pair_count: Number(validation?.metrics?.mixability_pairs?.rated_pair_count || 0),
+        rated_pair_ratio: numberValue(validation?.completion?.pair_review_rated_row_ratio, 0),
+        window_review_ratio: numberValue(validation?.completion?.exp009_reviewed_track_ratio, 0),
+        set_function_ratio: numberValue(validation?.completion?.exp011_labeled_track_ratio, 0),
+        pair_review_ratio: numberValue(validation?.completion?.pair_review_rated_row_ratio, 0),
+        mean_score: average(sensorPairs.map((item) => item.score)),
+        mean_confidence: average(sensorPairs.map((item) => item.confidence)),
+        mean_risk: average(sensorPairs.map((item) => item.risk)),
+        mean_bass_risk: average(sensorPairs.map((item) => item.bass_risk)),
+        mean_vocal_risk: average(sensorPairs.map((item) => item.vocal_risk)),
+        mean_harmonic_risk: average(sensorPairs.map((item) => item.harmonic_risk)),
+        standard_blend_ratio: sensorPairs.length ? sensorPairs.filter((item) => item.standard_blend_allowed).length / sensorPairs.length : 0,
+        hard_block_count: sensorPairs.filter((item) => item.hard_block).length,
+        decision_counts: countEntries(sensorPairs.map((item) => item.decision_class), 8),
+        policy_counts: countEntries(edges.map((edge) => edge?.recommendation_policy || 'review_only'), 8),
+        blend_profile_counts: countEntries(sensorPairs.map((item) => item.profile), 8),
+        strategy_counts: countEntries(sensorPairs.map((item) => item.strategy), 8),
+        tempo_feasibility_counts: countEntries(sensorPairs.map((item) => item.tempo_feasibility), 8),
+        tempo_relation_counts: countEntries(sensorPairs.map((item) => item.tempo_relation), 8),
+        alert_terms: alertTerms,
+        top_pairs: topPairs,
+        watch_pairs: watchPairs,
+        scatter_points: sensorPairs.slice(0, 120),
+        times: {
+          validation_generated_at: String(validation?.generated_at || ''),
+          decision_generated_at: String(decision?.generated_at || ''),
+          analysis_generated_at: String(analysis?.generated_at || ''),
+        },
+        sources_available: {
+          validation: Boolean(Object.keys(validation).length),
+          decision: Boolean(Object.keys(decision).length),
+          edges: Boolean(edges.length),
+          pairs: Boolean(pairs.length),
+          analysis: Boolean(Object.keys(analysis).length),
+        },
+        warnings: Array.isArray(validation?.warnings) ? validation.warnings.slice(0, 8) : [],
+      };
+    }
+
+    function pct(value) {
+      return `${Math.round(numberValue(value, 0) * 100)}%`;
+    }
+
+    function formatNumber(value) {
+      return numberValue(value, 0).toFixed(2);
+    }
+
+    function timeAgo(isoText) {
+      if (!isoText) return 'n/a';
+      const stamp = new Date(isoText);
+      if (Number.isNaN(stamp.getTime())) return isoText;
+      const diffSec = Math.max(0, Math.round((Date.now() - stamp.getTime()) / 1000));
+      if (diffSec < 60) return `${diffSec}s ago`;
+      if (diffSec < 3600) return `${Math.round(diffSec / 60)}m ago`;
+      return `${Math.round(diffSec / 3600)}h ago`;
+    }
+
+    function metricCard(label, value, note) {
+      return `<article class="dash-card"><b>${label}</b><strong>${value}</strong><span>${note}</span></article>`;
+    }
+
+    function barList(entries, emptyCopy) {
+      if (!entries.length) return `<div class="mini">${emptyCopy}</div>`;
+      const max = Math.max(...entries.map((entry) => entry.count), 1);
+      return entries.map((entry) => `
+        <div class="bar-row">
+          <label>${entry.label}</label>
+          <div class="bar-track"><div class="bar-fill" style="width:${(entry.count / max) * 100}%"></div></div>
+          <output>${entry.count}</output>
+        </div>
+      `).join('');
+    }
+
+    function sparklineSvg(values, color) {
+      const width = 240;
+      const height = 68;
+      const points = values.length ? values : [0];
+      const max = Math.max(...points, 1);
+      const min = Math.min(...points, 0);
+      const span = Math.max(max - min, 0.001);
+      const path = points.map((value, index) => {
+        const x = points.length === 1 ? width / 2 : (index / (points.length - 1)) * width;
+        const y = height - ((value - min) / span) * (height - 6) - 3;
+        return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(' ');
+      return `<svg class="sparkline" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+        <path d="${path}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+      </svg>`;
+    }
+
+    function scatterSvg(points) {
+      if (!points.length) return '<div class="mini">No pair telemetry available yet.</div>';
+      const width = 520;
+      const height = 280;
+      const pad = 26;
+      const innerWidth = width - (pad * 2);
+      const innerHeight = height - (pad * 2);
+      const circles = points.map((point) => {
+        const x = pad + (numberValue(point.score, 0) * innerWidth);
+        const y = height - pad - (numberValue(point.risk, 0) * innerHeight);
+        const color = PROFILE_COLORS[point.profile] || '#64748b';
+        return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.2" fill="${color}" opacity="0.88">
+          <title>${point.title} | score ${formatNumber(point.score)} | risk ${formatNumber(point.risk)} | ${labelize(point.profile)}</title>
+        </circle>`;
+      }).join('');
+      return `<svg class="scatter-svg" viewBox="0 0 ${width} ${height}">
+        <rect x="${pad}" y="${pad}" width="${innerWidth}" height="${innerHeight}" rx="18" fill="#fff9ef" stroke="rgba(120,82,49,.16)"></rect>
+        <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" stroke="rgba(23,33,43,.18)"></line>
+        <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" stroke="rgba(23,33,43,.18)"></line>
+        <text x="${width / 2}" y="${height - 4}" text-anchor="middle" fill="#586373" font-size="12">Compatibility score</text>
+        <text x="14" y="${height / 2}" text-anchor="middle" fill="#586373" font-size="12" transform="rotate(-90 14 ${height / 2})">Aggregate risk</text>
+        ${circles}
+      </svg>`;
+    }
+
+    function pairItems(items, emptyCopy) {
+      if (!items.length) return `<div class="mini">${emptyCopy}</div>`;
+      return items.map((item) => `
+        <div class="pair-item">
+          <strong>${item.title}</strong>
+          <div class="pair-meta">
+            <div class="chip">score ${formatNumber(item.score)}</div>
+            <div class="chip">risk ${formatNumber(item.risk)}</div>
+            <div class="chip">${labelize(item.profile)}</div>
+            <div class="chip">${labelize(item.strategy)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function warningItems(items, emptyCopy) {
+      if (!items.length) return `<div class="mini">${emptyCopy}</div>`;
+      return items.map((item) => `
+        <div class="warning-item">
+          <b>${item.label}</b>
+          <span>${item.count}</span>
+        </div>
+      `).join('');
+    }
+
+    function sourceCards(snapshot) {
+      const times = snapshot.times || {};
+      const sources = snapshot.sources_available || {};
+      return [
+        {
+          label: 'Validation',
+          state: sources.validation ? 'attached' : 'missing',
+          note: times.validation_generated_at ? `Generated ${timeAgo(times.validation_generated_at)}` : 'Validation summary unavailable.',
+        },
+        {
+          label: 'Decision telemetry',
+          state: sources.decision ? 'attached' : 'missing',
+          note: times.decision_generated_at ? `Generated ${timeAgo(times.decision_generated_at)}` : 'Decision manifest unavailable.',
+        },
+        {
+          label: 'Pair sensors',
+          state: sources.edges ? 'attached' : 'missing',
+          note: `${snapshot.pair_count || 0} pairs currently visible to the dashboard.`,
+        },
+        {
+          label: 'Live poll',
+          state: state.liveMode,
+          note: state.lastRefreshAt ? `Last refresh ${timeAgo(new Date(state.lastRefreshAt).toISOString())}` : state.liveNote,
+        },
+      ].map((item) => `
+        <article class="source-card">
+          <b>${item.label}</b>
+          <strong>${labelize(item.state)}</strong>
+          <span>${item.note}</span>
+        </article>
+      `).join('');
+    }
+
+    function render(snapshot) {
+      state.snapshot = snapshot;
+      state.history.push({
+        ts: Date.now(),
+        mean_score: numberValue(snapshot.mean_score, 0),
+        mean_confidence: numberValue(snapshot.mean_confidence, 0),
+        mean_risk: numberValue(snapshot.mean_risk, 0),
+        pair_review_ratio: numberValue(snapshot.pair_review_ratio, 0),
+      });
+      if (state.history.length > 40) state.history.shift();
+
+      document.getElementById('heroHud').innerHTML = `
+        <div class="pill">Tracks: ${snapshot.track_count || 0}</div>
+        <div class="pill">Pairs: ${snapshot.pair_count || 0}</div>
+        <div class="pill">Rated pairs: ${snapshot.rated_pair_count || 0}</div>
+        <div class="pill">Hard blocks: ${snapshot.hard_block_count || 0}</div>
+      `;
+      document.getElementById('pollStatus').textContent = state.liveNote;
+      document.getElementById('sourceStrip').innerHTML = sourceCards(snapshot);
+      document.getElementById('metricStrip').innerHTML = [
+        metricCard('Mean score', formatNumber(snapshot.mean_score), 'Average engine compatibility signal across visible pairs.'),
+        metricCard('Mean confidence', formatNumber(snapshot.mean_confidence), 'How grounded the current pair traffic is.'),
+        metricCard('Mean risk', formatNumber(snapshot.mean_risk), 'Max of bass, vocal, harmonic, and hard-block pressure.'),
+        metricCard('Standard blend', pct(snapshot.standard_blend_ratio), 'Pairs where exposed standard overlap stays allowed.'),
+        metricCard('Pair review', pct(snapshot.pair_review_ratio), 'How much pair validation has already been rated by a human.'),
+        metricCard('Window review', pct(snapshot.window_review_ratio), 'Coverage of transition-window checking.'),
+      ].join('');
+      document.getElementById('decisionCounts').innerHTML = barList(snapshot.decision_counts || [], 'No decision traffic yet.');
+      document.getElementById('blendCounts').innerHTML = barList(snapshot.blend_profile_counts || [], 'No auto blend profiles yet.');
+      document.getElementById('strategyCounts').innerHTML = barList(snapshot.strategy_counts || [], 'No strategy counts yet.');
+      document.getElementById('tempoCounts').innerHTML = barList(snapshot.tempo_feasibility_counts || [], 'No tempo feasibility counts yet.');
+      document.getElementById('topPairs').innerHTML = pairItems(snapshot.top_pairs || [], 'No pair rankings yet.');
+      document.getElementById('watchPairs').innerHTML = pairItems(snapshot.watch_pairs || [], 'No watch-list items yet.');
+      document.getElementById('warningList').innerHTML = warningItems(snapshot.alert_terms || [], 'No repeated warning terms yet.');
+      document.getElementById('scatterMount').innerHTML = scatterSvg(snapshot.scatter_points || []);
+      document.getElementById('scatterLegend').innerHTML = Object.entries(PROFILE_COLORS).map(([key, color]) => `
+        <div class="chip"><span class="legend-swatch" style="background:${color}"></span>${labelize(key)}</div>
+      `).join('');
+      document.getElementById('sparkGrid').innerHTML = [
+        {
+          label: 'Mean score',
+          value: formatNumber(snapshot.mean_score),
+          note: 'Compatibility',
+          color: '#0f766e',
+          series: state.history.map((entry) => entry.mean_score),
+        },
+        {
+          label: 'Mean confidence',
+          value: formatNumber(snapshot.mean_confidence),
+          note: 'Grounding',
+          color: '#0ea5e9',
+          series: state.history.map((entry) => entry.mean_confidence),
+        },
+        {
+          label: 'Mean risk',
+          value: formatNumber(snapshot.mean_risk),
+          note: 'Pressure',
+          color: '#ef4444',
+          series: state.history.map((entry) => entry.mean_risk),
+        },
+        {
+          label: 'Pair review',
+          value: pct(snapshot.pair_review_ratio),
+          note: 'Human coverage',
+          color: '#f59e0b',
+          series: state.history.map((entry) => entry.pair_review_ratio),
+        },
+      ].map((card) => `
+        <div class="spark-card">
+          <b>${card.label}</b>
+          <span>${card.value}</span>
+          <small>${card.note}</small>
+          ${sparklineSvg(card.series, card.color)}
+        </div>
+      `).join('');
+    }
+
+    async function fetchJson(url) {
+      if (!url) return null;
+      const joiner = url.includes('?') ? '&' : '?';
+      const response = await fetch(`${url}${joiner}_=${Date.now()}`, { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} for ${url}`);
+      }
+      return response.json();
+    }
+
+    async function refreshNow() {
+      try {
+        const [validationSummary, decisionSummary, edgeDecisions, mixabilityPairs, analysisSummary] = await Promise.all([
+          fetchJson(APP.sources.validation_summary),
+          fetchJson(APP.sources.decision_summary),
+          fetchJson(APP.sources.edge_decisions),
+          fetchJson(APP.sources.mixability_pairs),
+          fetchJson(APP.sources.analysis_summary),
+        ]);
+        state.lastRefreshAt = Date.now();
+        state.liveMode = 'live';
+        state.liveNote = `Live polling active every ${Math.round(APP.refresh_ms / 1000)}s. Last pull completed just now.`;
+        render(buildSnapshot({ validationSummary, decisionSummary, edgeDecisions, mixabilityPairs, analysisSummary }));
+      } catch (error) {
+        state.lastRefreshAt = Date.now();
+        state.liveMode = 'fallback';
+        const fileHint = window.location.protocol === 'file:' ? ' Open the dashboard over HTTP if you want continuous polling.' : '';
+        state.liveNote = `Live polling failed, so the dashboard is showing the latest cached snapshot. ${String(error)}.${fileHint}`;
+        render(state.snapshot || APP.bootstrap || {});
+      }
+    }
+
+    function syncAutoState() {
+      const button = document.getElementById('autoBtn');
+      if (button) button.textContent = `Auto Refresh: ${state.autoRefresh ? 'On' : 'Off'}`;
+    }
+
+    function startPolling() {
+      window.clearInterval(state.timer);
+      if (!state.autoRefresh) return;
+      state.timer = window.setInterval(() => {
+        void refreshNow();
+      }, APP.refresh_ms);
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', () => {
+      void refreshNow();
+    });
+    document.getElementById('autoBtn').addEventListener('click', () => {
+      state.autoRefresh = !state.autoRefresh;
+      syncAutoState();
+      startPolling();
+    });
+
+    syncAutoState();
+    render(APP.bootstrap || {});
+    startPolling();
+    void refreshNow();
+  </script>
+</body>
+</html>

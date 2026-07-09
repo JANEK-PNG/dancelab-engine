@@ -1,0 +1,2 @@
+segment_id,track_id,start_sec,end_sec,segment_type,phrase_length_bars,energy_level,tension_level,vocal_presence,bass_intensity,comment
+demo_001_seg1,demo_001,0.0,60.0,intro,16,2,1,1,2,"clean intro, easy mix-in"

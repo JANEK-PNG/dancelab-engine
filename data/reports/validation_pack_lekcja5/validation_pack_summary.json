@@ -1,0 +1,67 @@
+{
+  "generated_at": "2026-07-08T09:41:33.999460+00:00",
+  "processed_dir": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed",
+  "annotations_dir": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/annotations",
+  "report_dir": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/reports/phase2_refresh_lekcja5",
+  "analyzed_track_count": 15,
+  "annotation_valid": true,
+  "annotation_counts": {
+    "track_metadata": 178,
+    "segments": 0,
+    "transition_windows": 534,
+    "mixability_pairs": 0,
+    "set_function_labels": 0,
+    "context_profiles": 4
+  },
+  "subset_counts": {
+    "track_metadata": 15,
+    "transition_windows": 45,
+    "mixability_pairs": 0,
+    "set_function_labels": 0,
+    "exp009_window_review_rows": 45,
+    "exp011_set_function_review_rows": 15,
+    "annotation_sheet_rows": 15
+  },
+  "overlap": {
+    "annotated_track_overlap_count": 15,
+    "annotated_track_overlap_ratio": 1.0
+  },
+  "completion": {
+    "exp009_reviewed_track_ratio": 0.0,
+    "exp011_labeled_track_ratio": 0.0,
+    "pair_review_rated_row_ratio": 0.0
+  },
+  "metrics": {
+    "transition_windows": {
+      "review_track_count": 0,
+      "track_count": 15,
+      "row_count": 45,
+      "verdict_row_count": 0,
+      "good_verdict_ratio": 0.0
+    },
+    "set_function": {
+      "track_count": 15,
+      "labeled_track_count": 0
+    },
+    "mixability_pairs": {
+      "pair_count": 210,
+      "rated_pair_count": 0
+    }
+  },
+  "warnings": [
+    "no completed DJ own-window labels in exp009 review sheet",
+    "no completed DJ set-function labels in exp011 review sheet",
+    "fewer than 3 rated pair-review rows with engine scores"
+  ],
+  "artifacts": {
+    "track_metadata_subset": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/reports/validation_pack_lekcja5/track_metadata_subset.csv",
+    "transition_window_annotations_subset": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/reports/validation_pack_lekcja5/transition_window_annotations_subset.csv",
+    "mixability_pair_annotations_subset": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/reports/validation_pack_lekcja5/mixability_pair_annotations_subset.csv",
+    "set_function_labels_subset": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/reports/validation_pack_lekcja5/set_function_labels_subset.csv",
+    "context_profiles": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/reports/validation_pack_lekcja5/context_profiles.csv",
+    "exp009_window_review_subset": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/reports/validation_pack_lekcja5/exp009_dj_window_review_subset.csv",
+    "exp011_set_function_review_subset": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/reports/validation_pack_lekcja5/exp011_set_function_review_subset.csv",
+    "annotation_sheet_subset": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/reports/validation_pack_lekcja5/annotation_sheet_subset.csv",
+    "edge_decision_review": "/Users/jantrybus/Desktop/AI/dancelab-engine/data/reports/phase2_refresh_lekcja5/edge_decision_review.csv"
+  }
+}

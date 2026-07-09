@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>DanceLab Set Function Swipe Review</title>
+  <style>
+body{
+  margin:0;
+  min-height:100vh;
+  color:#17212b;
+  background:
+    radial-gradient(circle at top left, rgba(251,146,60,.16), transparent 32%),
+    radial-gradient(circle at top right, rgba(20,184,166,.14), transparent 28%),
+    linear-gradient(180deg, #f8f1e8 0%, #efe2d2 100%);
+  font-family:'Avenir Next','Futura','Trebuchet MS',sans-serif;
+}
+.wrap{
+  max-width:1080px;
+  margin:0 auto;
+  padding:24px 18px 48px;
+}
+.hero{
+  background:rgba(255,249,239,.82);
+  border:1px solid rgba(120,82,49,.14);
+  border-radius:28px;
+  box-shadow:0 24px 60px rgba(23,33,43,.10);
+  padding:22px 22px 18px;
+  backdrop-filter:blur(12px);
+}
+.eyebrow{
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:#935f27;
+}
+h1{
+  margin:8px 0 10px;
+  font-size:44px;
+  line-height:1.02;
+}
+.hero p{
+  margin:0;
+  max-width:760px;
+  color:#586373;
+  font-size:17px;
+  line-height:1.5;
+}
+.hud{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:18px;
+}
+.pill{
+  padding:10px 14px;
+  border-radius:999px;
+  background:rgba(255,255,255,.72);
+  border:1px solid rgba(120,82,49,.14);
+  font-size:13px;
+  color:#374151;
+}
+.deck{
+  position:relative;
+  min-height:720px;
+  margin-top:22px;
+}
+.empty{
+  background:rgba(255,249,239,.76);
+  border:1px dashed rgba(120,82,49,.24);
+  border-radius:24px;
+  padding:34px 22px;
+  color:#586373;
+}
+.card-shell{
+  position:relative;
+  max-width:920px;
+  margin:0 auto;
+  touch-action:pan-y;
+}
+.card{
+  background:rgba(255,249,239,.94);
+  border:1px solid rgba(120,82,49,.14);
+  border-radius:34px;
+  box-shadow:0 30px 80px rgba(23,33,43,.16);
+  overflow:hidden;
+  transform-origin:center center;
+  transition:transform .18s ease, opacity .18s ease;
+}
+.card.dragging{
+  transition:none;
+}
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:20px 22px 0;
+}
+.tag{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:9px 12px;
+  border-radius:999px;
+  background:rgba(20,184,166,.08);
+  color:#0f766e;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.tag.warn{
+  background:rgba(245,158,11,.12);
+  color:#9a6700;
+}
+.title{
+  padding:10px 22px 0;
+}
+.title h2{
+  margin:0;
+  font-size:34px;
+  line-height:1.06;
+}
+.subtitle{
+  margin-top:8px;
+  color:#586373;
+  font-size:16px;
+}
+.metrics{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  padding:18px 22px 0;
+}
+.metric{
+  min-width:120px;
+  padding:10px 12px;
+  border-radius:18px;
+  background:#fff;
+  border:1px solid rgba(120,82,49,.14);
+}
+.metric b{
+  display:block;
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#7b8794;
+  margin-bottom:4px;
+}
+.metric span{
+  font-size:19px;
+  font-weight:800;
+}
+.visual{
+  padding:18px 22px 0;
+}
+.visual img{
+  width:100%;
+  height:auto;
+  border-radius:24px;
+  border:1px solid rgba(120,82,49,.12);
+  background:#fff;
+  display:block;
+}
+.listen-grid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:12px;
+  padding:18px 22px 0;
+}
+.listen-card{
+  background:#fffdf8;
+  border:1px solid rgba(120,82,49,.14);
+  border-radius:22px;
+  padding:14px;
+}
+.listen-card b{
+  display:block;
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#7b8794;
+}
+.listen-card strong{
+  display:block;
+  margin-top:6px;
+  font-size:16px;
+  line-height:1.35;
+}
+.listen-card .mini{
+  display:block;
+  margin-top:6px;
+}
+.listen-card audio{
+  width:100%;
+  margin-top:12px;
+}
+.listen-controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  padding:14px 22px 0;
+}
+.listen-controls label{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  color:#374151;
+  font-size:13px;
+  font-weight:700;
+}
+.listen-controls a{
+  display:inline-flex;
+  align-items:center;
+  text-decoration:none;
+}
+.listen-select{
+  border-radius:999px;
+  border:1px solid rgba(120,82,49,.18);
+  background:#fffdf8;
+  color:#17212b;
+  padding:11px 14px;
+  font:inherit;
+  font-weight:700;
+}
+.listen-action{
+  border:none;
+  border-radius:999px;
+  padding:12px 16px;
+  background:#17212b;
+  color:#fff9ef;
+  font:inherit;
+  font-weight:800;
+  letter-spacing:.03em;
+  cursor:pointer;
+}
+.listen-action.alt{
+  background:rgba(255,255,255,.84);
+  color:#374151;
+  border:1px solid rgba(120,82,49,.14);
+}
+.listen-note{
+  padding:10px 22px 0;
+  color:#586373;
+  font-size:14px;
+  line-height:1.45;
+}
+.copy{
+  padding:18px 22px 0;
+  color:#2e3a46;
+  line-height:1.55;
+  font-size:16px;
+}
+.chips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  padding:14px 22px 0;
+}
+.chip{
+  padding:8px 10px;
+  border-radius:999px;
+  border:1px solid rgba(120,82,49,.14);
+  background:rgba(255,255,255,.84);
+  color:#374151;
+  font-size:13px;
+}
+.comment-wrap{
+  padding:16px 22px 0;
+}
+.comment-wrap label{
+  display:block;
+  margin-bottom:8px;
+  color:#7b8794;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.comment-wrap textarea{
+  width:100%;
+  min-height:84px;
+  resize:vertical;
+  border-radius:18px;
+  border:1px solid rgba(120,82,49,.16);
+  padding:12px 14px;
+  font:inherit;
+  background:rgba(255,255,255,.92);
+  color:#17212b;
+  box-sizing:border-box;
+}
+.picker{
+  display:none;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:18px 22px 4px;
+}
+.picker.active{
+  display:flex;
+}
+.pick{
+  border:none;
+  border-radius:999px;
+  padding:12px 14px;
+  background:#17212b;
+  color:#fff9ef;
+  font:inherit;
+  font-weight:700;
+  cursor:pointer;
+}
+.controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  justify-content:center;
+  margin-top:18px;
+}
+.action{
+  border:none;
+  border-radius:999px;
+  padding:16px 20px;
+  min-width:160px;
+  font:inherit;
+  font-size:15px;
+  font-weight:800;
+  letter-spacing:.04em;
+  cursor:pointer;
+  box-shadow:0 10px 30px rgba(23,33,43,.10);
+}
+.action.bad{
+  background:#fff;
+  color:#b91c1c;
+}
+.action.mid{
+  background:#fff7ed;
+  color:#9a6700;
+}
+.action.good{
+  background:#0f766e;
+  color:#f8fffd;
+}
+.action.ghost{
+  background:rgba(255,255,255,.74);
+  color:#374151;
+}
+.footer{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  justify-content:center;
+  margin-top:14px;
+}
+.status{
+  text-align:center;
+  margin-top:16px;
+  color:#586373;
+  font-size:15px;
+}
+.mini{
+  font-size:13px;
+  color:#7b8794;
+}
+.nav{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:18px;
+}
+.nav a{
+  text-decoration:none;
+  color:#17212b;
+  background:rgba(255,255,255,.72);
+  border:1px solid rgba(120,82,49,.14);
+  border-radius:999px;
+  padding:10px 14px;
+  font-weight:700;
+}
+@media (max-width: 760px){
+  h1{font-size:34px;}
+  .title h2{font-size:28px;}
+  .action{min-width:140px;flex:1 1 40%;}
+  .listen-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div class="eyebrow">Swipe Review</div>
+      <h1>Set Function Deck</h1>
+      <p>Right means you agree with the engine role. Left opens a quick role picker so you can set the actual function without staring at a spreadsheet.</p>
+      <div class="hud">
+        <div class="pill">Arrow right = agree</div>
+        <div class="pill">Arrow left = disagree and pick actual role</div>
+        <div class="pill">8 focused cards chosen from the most uncertain roles</div>
+      </div>
+      <div class="nav"><a href="index.html">Back to review launcher</a></div>
+    </section>
+    <section id="deck" class="deck"></section>
+    <div class="controls">
+      <button id="badBtn" class="action bad" type="button">Left / Wrong Role</button>
+      <button id="goodBtn" class="action good" type="button">Right / Agree</button>
+    </div>
+    <div class="footer">
+      <button id="skipBtn" class="action ghost" type="button">Skip</button>
+      <button id="undoBtn" class="action ghost" type="button">Undo</button>
+      <button id="exportBtn" class="action ghost" type="button">Export CSV</button>
+      <button id="resetBtn" class="action ghost" type="button">Reset Progress</button>
+    </div>
+    <div id="status" class="status"></div>
+  </main>
+  <script>
+    const APP = {"items": [{"id": "79d93a2a256d0920", "row": {"title": "Bodhi - Thirst (Original Mix)", "track_id": "79d93a2a256d0920", "engine_primary": "builder", "engine_secondary": "bridge", "engine_conf": "0.24", "engine_risk": "0.62", "dj_primary": "", "dj_comment": ""}, "title": "Bodhi - Thirst (Original Mix)", "subtitle": "Agree with the engine role or quickly tap the real one", "primary": "builder", "secondary": "bridge", "confidence": "0.24", "risk": "0.62", "copy": "Right keeps the predicted role. Left opens a short list so you can replace it without touching a table."}, {"id": "e3b089eb3589fe94", "row": {"title": "Muskila - YARAO (Original Mix)", "track_id": "e3b089eb3589fe94", "engine_primary": "bridge", "engine_secondary": "peak", "engine_conf": "0.21", "engine_risk": "0.58", "dj_primary": "", "dj_comment": ""}, "title": "Muskila - YARAO (Original Mix)", "subtitle": "Agree with the engine role or quickly tap the real one", "primary": "bridge", "secondary": "peak", "confidence": "0.21", "risk": "0.58", "copy": "Right keeps the predicted role. Left opens a short list so you can replace it without touching a table."}, {"id": "deb940c4a6052fed", "row": {"title": "Jorg Kuning - Mercedes (Original Mix)", "track_id": "deb940c4a6052fed", "engine_primary": "bridge", "engine_secondary": "peak;builder", "engine_conf": "0.21", "engine_risk": "0.57", "dj_primary": "", "dj_comment": ""}, "title": "Jorg Kuning - Mercedes (Original Mix)", "subtitle": "Agree with the engine role or quickly tap the real one", "primary": "bridge", "secondary": "peak;builder", "confidence": "0.21", "risk": "0.57", "copy": "Right keeps the predicted role. Left opens a short list so you can replace it without touching a table."}, {"id": "85d8116989ea2f32", "row": {"title": "O_Flynn - Srekye (Extended Mix)", "track_id": "85d8116989ea2f32", "engine_primary": "builder", "engine_secondary": "bridge", "engine_conf": "0.24", "engine_risk": "0.57", "dj_primary": "", "dj_comment": ""}, "title": "O_Flynn - Srekye (Extended Mix)", "subtitle": "Agree with the engine role or quickly tap the real one", "primary": "builder", "secondary": "bridge", "confidence": "0.24", "risk": "0.57", "copy": "Right keeps the predicted role. Left opens a short list so you can replace it without touching a table."}, {"id": "4056c8ee53cfb090", "row": {"title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix)", "track_id": "4056c8ee53cfb090", "engine_primary": "builder", "engine_secondary": "bridge", "engine_conf": "0.26", "engine_risk": "0.53", "dj_primary": "", "dj_comment": ""}, "title": "Oscar Farrell, Mount XLR - Mod Break (Original Mix)", "subtitle": "Agree with the engine role or quickly tap the real one", "primary": "builder", "secondary": "bridge", "confidence": "0.26", "risk": "0.53", "copy": "Right keeps the predicted role. Left opens a short list so you can replace it without touching a table."}, {"id": "ecf64aa98ccd4467", "row": {"title": "Bicep - CHROMA 004 ROLA (Original Mix)", "track_id": "ecf64aa98ccd4467", "engine_primary": "bridge", "engine_secondary": "", "engine_conf": "0.22", "engine_risk": "0.52", "dj_primary": "", "dj_comment": ""}, "title": "Bicep - CHROMA 004 ROLA (Original Mix)", "subtitle": "Agree with the engine role or quickly tap the real one", "primary": "bridge", "secondary": "none", "confidence": "0.22", "risk": "0.52", "copy": "Right keeps the predicted role. Left opens a short list so you can replace it without touching a table."}, {"id": "76609e489f01f9de", "row": {"title": "Rohaan - Got No _3 (Original Mix)", "track_id": "76609e489f01f9de", "engine_primary": "builder", "engine_secondary": "bridge", "engine_conf": "0.25", "engine_risk": "0.49", "dj_primary": "", "dj_comment": ""}, "title": "Rohaan - Got No _3 (Original Mix)", "subtitle": "Agree with the engine role or quickly tap the real one", "primary": "builder", "secondary": "bridge", "confidence": "0.25", "risk": "0.49", "copy": "Right keeps the predicted role. Left opens a short list so you can replace it without touching a table."}, {"id": "a749c305f32f7d51", "row": {"title": "AIROD - Rave Cycle (Original Mix)", "track_id": "a749c305f32f7d51", "engine_primary": "builder", "engine_secondary": "", "engine_conf": "0.25", "engine_risk": "0.47", "dj_primary": "", "dj_comment": ""}, "title": "AIROD - Rave Cycle (Original Mix)", "subtitle": "Agree with the engine role or quickly tap the real one", "primary": "builder", "secondary": "none", "confidence": "0.25", "risk": "0.47", "copy": "Right keeps the predicted role. Left opens a short list so you can replace it without touching a table."}], "headers": ["title", "track_id", "engine_primary", "engine_secondary", "engine_conf", "engine_risk", "dj_primary", "dj_comment"], "roles": ["opener", "builder", "bridge", "peak", "reset", "closer", "tool", "depends"]};
+    const STORAGE_KEY = 'dancelab-set-function-swipe-review-v1';
+    
+function csvEscape(value) {
+  const raw = value == null ? '' : String(value);
+  if (/[",\n]/.test(raw)) {
+    return '"' + raw.replace(/"/g, '""') + '"';
+  }
+  return raw;
+}
+
+function downloadCsv(filename, headers, rows) {
+  const lines = [headers.map(csvEscape).join(',')];
+  for (const row of rows) {
+    lines.push(headers.map((header) => csvEscape(row[header] ?? '')).join(','));
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+
+    const deckEl = document.getElementById('deck');
+    const statusEl = document.getElementById('status');
+    const state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    const history = [];
+    let currentIndex = 0;
+    let pickerVisible = false;
+    let drag = null;
+
+    function nextIndex(start) {
+      for (let i = start; i < APP.items.length; i += 1) {
+        if (!state[APP.items[i].id]) return i;
+      }
+      return -1;
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function finalize(item, role, comment) {
+      history.push({ id: item.id, previous: state[item.id] || null });
+      const row = { ...item.row };
+      row['dj_primary'] = role;
+      row['dj_comment'] = comment || '';
+      state[item.id] = row;
+      save();
+      pickerVisible = false;
+      currentIndex = nextIndex(currentIndex + 1);
+      render();
+    }
+
+    function skipCurrent() {
+      pickerVisible = false;
+      currentIndex = nextIndex(currentIndex + 1);
+      render();
+    }
+
+    function undo() {
+      const last = history.pop();
+      if (!last) return;
+      if (last.previous) state[last.id] = last.previous;
+      else delete state[last.id];
+      save();
+      pickerVisible = false;
+      currentIndex = APP.items.findIndex((item) => item.id === last.id);
+      render();
+    }
+
+    function exportRows() {
+      const rows = APP.items.map((item) => state[item.id] || item.row);
+      downloadCsv('exp011_set_function_swipe.csv', APP.headers, rows);
+    }
+
+    function resetAll() {
+      localStorage.removeItem(STORAGE_KEY);
+      Object.keys(state).forEach((key) => delete state[key]);
+      history.length = 0;
+      pickerVisible = false;
+      currentIndex = 0;
+      render();
+    }
+
+    function renderCard(item) {
+      const picker = APP.roles.map((role) => `<button class="pick" type="button" data-role="${role}">${role}</button>`).join('');
+      return `
+        <div id="cardShell" class="card-shell">
+          <article id="card" class="card">
+            <div class="topbar">
+              <div class="tag">${item.primary}</div>
+              <div class="tag warn">Risk ${item.risk}</div>
+            </div>
+            <div class="title">
+              <h2>${item.title}</h2>
+              <div class="subtitle">${item.subtitle}</div>
+            </div>
+            <div class="metrics">
+              <div class="metric"><b>Primary</b><span>${item.primary}</span></div>
+              <div class="metric"><b>Secondary</b><span>${item.secondary}</span></div>
+              <div class="metric"><b>Confidence</b><span>${item.confidence}</span></div>
+              <div class="metric"><b>Risk</b><span>${item.risk}</span></div>
+            </div>
+            <div class="copy">${item.copy}</div>
+            <div class="comment-wrap">
+              <label for="commentBox">Quick note (optional)</label>
+              <textarea id="commentBox" placeholder="Why this role works or what it should be instead?"></textarea>
+            </div>
+            <div id="picker" class="picker ${pickerVisible ? 'active' : ''}">
+              ${picker}
+            </div>
+          </article>
+        </div>`;
+    }
+
+    function bindPicker(item) {
+      document.querySelectorAll('[data-role]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const comment = document.getElementById('commentBox')?.value?.trim() || '';
+          finalize(item, button.dataset.role, comment);
+        });
+      });
+    }
+
+    function bindDrag() {
+      const shell = document.getElementById('cardShell');
+      const card = document.getElementById('card');
+      if (!shell || !card || pickerVisible) return;
+      shell.addEventListener('pointerdown', (event) => {
+        drag = { startX: event.clientX };
+        card.classList.add('dragging');
+      });
+      shell.addEventListener('pointermove', (event) => {
+        if (!drag) return;
+        const dx = event.clientX - drag.startX;
+        card.style.transform = `translateX(${dx}px) rotate(${dx / 18}deg)`;
+        card.style.opacity = String(Math.max(0.55, 1 - Math.abs(dx) / 320));
+      });
+      function finish(event) {
+        if (!drag) return;
+        const dx = event.clientX - drag.startX;
+        card.classList.remove('dragging');
+        card.style.transform = '';
+        card.style.opacity = '';
+        drag = null;
+        const comment = document.getElementById('commentBox')?.value?.trim() || '';
+        if (dx > 96) finalize(APP.items[currentIndex], APP.items[currentIndex].primary, comment);
+        else if (dx < -96) {
+          pickerVisible = true;
+          render();
+        }
+      }
+      shell.addEventListener('pointerup', finish);
+      shell.addEventListener('pointercancel', finish);
+      shell.addEventListener('pointerleave', (event) => {
+        if (!drag) return;
+        finish(event);
+      });
+    }
+
+    function render() {
+      if (currentIndex < 0 || currentIndex >= APP.items.length || state[APP.items[currentIndex]?.id]) {
+        currentIndex = nextIndex(0);
+      }
+      const decided = Object.keys(state).length;
+      if (currentIndex === -1) {
+        deckEl.innerHTML = `
+          <div class="empty">
+            <h2>Set function deck complete.</h2>
+            <p>Export the CSV to feed the next validation pass.</p>
+          </div>`;
+      } else {
+        const item = APP.items[currentIndex];
+        deckEl.innerHTML = renderCard(item);
+        bindPicker(item);
+        bindDrag();
+      }
+      statusEl.innerHTML = `${decided} / ${APP.items.length} reviewed`;
+    }
+
+    document.getElementById('badBtn').addEventListener('click', () => {
+      pickerVisible = true;
+      render();
+    });
+    document.getElementById('goodBtn').addEventListener('click', () => {
+      const comment = document.getElementById('commentBox')?.value?.trim() || '';
+      finalize(APP.items[currentIndex], APP.items[currentIndex].primary, comment);
+    });
+    document.getElementById('skipBtn').addEventListener('click', skipCurrent);
+    document.getElementById('undoBtn').addEventListener('click', undo);
+    document.getElementById('exportBtn').addEventListener('click', exportRows);
+    document.getElementById('resetBtn').addEventListener('click', resetAll);
+    window.addEventListener('keydown', (event) => {
+      if (['TEXTAREA', 'INPUT'].includes(document.activeElement?.tagName)) return;
+      const comment = document.getElementById('commentBox')?.value?.trim() || '';
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        finalize(APP.items[currentIndex], APP.items[currentIndex].primary, comment);
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        pickerVisible = true;
+        render();
+      }
+    });
+    render();
+  </script>
+</body>
+</html>
