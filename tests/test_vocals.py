@@ -122,7 +122,8 @@ def test_demucs_energy_ratio_silence_gate():
 
 
 def test_auto_method_prefers_demucs_when_available():
+    # ENV-2: assert behavior, not machine state — skip when [vocals] extra absent
+    pytest.importorskip("demucs")
     from dancelab.features.vocals import _demucs_available
 
-    # demucs is installed in this environment; auto must not silently use hpss
     assert _demucs_available() is True
