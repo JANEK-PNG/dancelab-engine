@@ -325,6 +325,43 @@ touches the developer's real cache.
 
 ---
 
+## 8. Track pinning & position locking — surface existing engine capability
+
+**Current state (verified):** the engine fully supports this and the UI does
+not expose it anywhere. `build_set` accepts `pinned_track_ids` (track must
+appear somewhere in the set) and `locked_positions` (track fixed to a
+1-based slot, with conflict validation and swap handling); both are on the
+`/sets/build` and `/sets/export-rekordbox` API and readable from the graph
+node config — but the graph inspector has no form fields for them and
+Simple Mode has no pin/lock controls at all. Tested engine feature, zero
+clickable surface.
+
+**UX:**
+- Simple Mode Step 3 (set list) and Step 4 (review list): right-click /
+  per-row buttons — **Pin to set** (📌 keep this track in every regenerate),
+  **Lock position** (🔒 keep exactly here, e.g. opener at #1), unpin/unlock.
+  Pinned/locked rows get visible markers; regenerating preserves them.
+- Graph inspector `Generate Set Sequence` form: pinned-tracks multi-select
+  (from upstream analyses) + locked-positions editor (slot → track).
+- Locks/pins persist in the `.dlproj` node config (already serialized —
+  free).
+
+**Interaction with §6 (uniqueness) — rules:**
+- pinned tracks are user-forced carryover: **exempt from
+  `overuse_penalty`** and never counted against `carryover_allowance`;
+- locked slots are exempt from `repeat_slot_penalty` (locking the opener
+  MEANS wanting the same opener);
+- fingerprint stores `pinned_ids` + `locked_positions` so history-based
+  penalties compare like with like;
+- hard rule unchanged: pins/locks never bypass BPM/harmonic/risk gates — an
+  impossible lock fails loudly with the existing conflict errors, the
+  planner does not silently drop it.
+
+**QC (§7-H):** regenerate with pin keeps the track through 20 seeded runs;
+locked position survives every novelty mode; pin + Fresh mode never flags
+the pinned track as overused; conflicting locks (two tracks, slot 1) raise
+the existing `ValueError`, surfaced in UI as a form error, not a crash.
+
 ## Build order (dependency-driven)
 
 1. **§2 cache manager** — everything else writes through it.
@@ -332,10 +369,12 @@ touches the developer's real cache.
    verifiably load in Rekordbox.
 3. **§6 uniqueness** — demo "wow": regenerate gives a genuinely different,
    equally good set.
-4. **§3 bulk import** — extends Codex's preflight; small.
-5. **§4 stem export workflow** — mostly surfacing existing code.
-6. **§1** — documentation/labeling pass, no engine work.
-7. **§7 QC suites** — written alongside each item, not after.
+4. **§8 pin/lock UI** — engine done, pure surfacing; ships with §6 because
+   the exemption rules land in the same planner change.
+5. **§3 bulk import** — extends Codex's preflight; small.
+6. **§4 stem export workflow** — mostly surfacing existing code.
+7. **§1** — documentation/labeling pass, no engine work.
+8. **§7 QC suites** — written alongside each item, not after.
 
 Plus one hygiene fix found during this review: add `mutagen` to the
 `[audio]` extra — the tag-fallback path is currently dead code without it.
