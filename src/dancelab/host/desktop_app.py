@@ -28,7 +28,7 @@ from dancelab.host.project import (
     load_project,
     save_project,
 )
-from dancelab.workflows.smart_playlist import discover_audio_files
+from dancelab.workflows.smart_playlist import MIN_PLAYLIST_TRACKS, discover_audio_files
 
 try:  # optional desktop dependency
     from PySide6.QtCore import (
@@ -2903,21 +2903,22 @@ if _PYSIDE_IMPORT_ERROR is None:
                 self.statusBar().showMessage("No supported audio files found in that folder.", 7000)
                 return
 
-            available_counts = [str(count) for count in (5, 10, 15, 20) if len(files) >= count]
-            if not available_counts:
-                self.statusBar().showMessage("Smart Playlist needs at least 5 supported audio files.", 7000)
+            if len(files) < MIN_PLAYLIST_TRACKS:
+                self.statusBar().showMessage(
+                    f"Smart Playlist needs at least {MIN_PLAYLIST_TRACKS} supported audio files.",
+                    7000,
+                )
                 return
-            count_text, ok = QInputDialog.getItem(
+            target_count, ok = QInputDialog.getInt(
                 self,
                 "Smart Playlist Length",
-                "Number of tracks",
-                available_counts,
-                min(1, len(available_counts) - 1),
-                False,
+                f"Number of tracks (2–{len(files)}):",
+                min(10, len(files)),
+                MIN_PLAYLIST_TRACKS,
+                len(files),
             )
-            if not ok or not count_text:
+            if not ok:
                 return
-            target_count = int(count_text)
 
             default_name = f"DanceLab {Path(folder).name} Set"
             playlist_name, ok = QInputDialog.getText(

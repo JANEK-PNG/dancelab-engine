@@ -73,7 +73,9 @@ def test_build_smart_playlist_from_folder_writes_rekordbox_xml(tmp_path):
     assert xml.count("TrackID=") == 5
 
 
-def test_build_smart_playlist_rejects_unsupported_count(tmp_path):
+def test_build_smart_playlist_rejects_too_small_count(tmp_path):
+    # Any count >= 2 is valid (no fixed 5/10/15/20 presets); below that a set
+    # has no transitions to plan.
     music_dir = tmp_path / "music"
     music_dir.mkdir()
     (music_dir / "Track_1.wav").write_bytes(b"fake wav")
@@ -82,10 +84,29 @@ def test_build_smart_playlist_rejects_unsupported_count(tmp_path):
         build_smart_playlist_from_folder(
             music_dir,
             EngineConfig(),
-            target_track_count=7,
+            target_track_count=1,
             analyze_fn=_analysis_from_path,
         )
     except ValueError as exc:
-        assert "5, 10, 15, or 20" in str(exc)
+        assert "at least 2" in str(exc)
     else:  # pragma: no cover - defensive
-        raise AssertionError("unsupported target_track_count should fail")
+        raise AssertionError("too-small target_track_count should fail")
+
+
+def test_estimate_track_count_for_duration():
+    from dancelab.workflows.smart_playlist import estimate_track_count_for_duration
+
+    analyses = [_analysis_from_path(f"/tmp/Track_{i}.wav", None) for i in range(20)]
+    for analysis in analyses:
+        analysis.track.duration_sec = 300.0  # 5-minute tracks
+
+    assert estimate_track_count_for_duration(analyses, 60.0) == 12   # 1 h
+    assert estimate_track_count_for_duration(analyses, 180.0) == 20  # 3 h clamps to library
+    assert estimate_track_count_for_duration(analyses, 1.0) == 2     # floor at 2
+
+    import pytest
+
+    for analysis in analyses:
+        analysis.track.duration_sec = None
+    with pytest.raises(ValueError, match="known duration"):
+        estimate_track_count_for_duration(analyses, 60.0)

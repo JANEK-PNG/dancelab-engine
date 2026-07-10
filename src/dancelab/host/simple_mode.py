@@ -17,6 +17,7 @@ from PySide6.QtCore import QObject, Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
+    QDoubleSpinBox,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -27,6 +28,8 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
+    QRadioButton,
+    QSpinBox,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -38,11 +41,12 @@ from dancelab.core.pipeline import analyze_track
 from dancelab.decision.set_builder import build_set
 from dancelab.export.rekordbox import build_rekordbox_xml, write_rekordbox_xml
 from dancelab.workflows.smart_playlist import (
-    ALLOWED_PLAYLIST_COUNTS,
+    MIN_PLAYLIST_TRACKS,
     SmartPlaylistFailure,
     _transition_windows_for_playlist,
     analyze_files,
     discover_audio_files,
+    estimate_track_count_for_duration,
 )
 
 _STEP_TITLES = [
@@ -266,12 +270,39 @@ class SimpleModeWindow(QMainWindow):
         header.setProperty("role", "title")
         layout.addWidget(header)
 
+        # Set length: free track count OR target duration — no fixed presets.
+        length_row = QHBoxLayout()
+        self.count_radio = QRadioButton("Number of tracks:")
+        self.count_radio.setChecked(True)
+        length_row.addWidget(self.count_radio)
+        self.count_spin = QSpinBox()
+        self.count_spin.setRange(MIN_PLAYLIST_TRACKS, 500)
+        self.count_spin.setValue(10)
+        length_row.addWidget(self.count_spin)
+        length_row.addSpacing(24)
+        self.duration_radio = QRadioButton("Set length:")
+        length_row.addWidget(self.duration_radio)
+        self.duration_spin = QDoubleSpinBox()
+        self.duration_spin.setRange(0.25, 24.0)
+        self.duration_spin.setSingleStep(0.25)
+        self.duration_spin.setValue(1.0)
+        self.duration_spin.setSuffix(" h")
+        self.duration_spin.setToolTip(
+            "Track count is estimated from the average length of your analyzed tracks."
+        )
+        length_row.addWidget(self.duration_spin)
+        length_row.addStretch(1)
+        layout.addLayout(length_row)
+
+        def sync_length_inputs() -> None:
+            self.count_spin.setEnabled(self.count_radio.isChecked())
+            self.duration_spin.setEnabled(self.duration_radio.isChecked())
+
+        self.count_radio.toggled.connect(sync_length_inputs)
+        self.duration_radio.toggled.connect(sync_length_inputs)
+        sync_length_inputs()
+
         controls = QHBoxLayout()
-        controls.addWidget(QLabel("Set length:"))
-        self.count_combo = QComboBox()
-        for count in sorted(ALLOWED_PLAYLIST_COUNTS):
-            self.count_combo.addItem(f"{count} tracks", count)
-        controls.addWidget(self.count_combo)
         controls.addWidget(QLabel("Energy arc:"))
         self.arc_combo = QComboBox()
         for arc_value, arc_label in _ARC_CHOICES:
@@ -480,16 +511,36 @@ class SimpleModeWindow(QMainWindow):
         )
         self._sync_navigation()
 
+    def _target_track_count(self) -> int | None:
+        """Resolve the requested set length to a track count, or None + status."""
+        if self.duration_radio.isChecked():
+            try:
+                count = estimate_track_count_for_duration(
+                    self.analyses, self.duration_spin.value() * 60.0
+                )
+            except ValueError as exc:
+                self.generate_status.setText(str(exc))
+                return None
+            self.generate_status.setText(
+                f"≈{count} track(s) fit {self.duration_spin.value():g} h "
+                "(from your tracks' average length)."
+            )
+            return count
+        count = int(self.count_spin.value())
+        if len(self.analyses) < count:
+            self.generate_status.setText(
+                f"{count} tracks requested but only {len(self.analyses)} analyzed — "
+                "using all of them."
+            )
+            return len(self.analyses)
+        return count
+
     def generate_set(self) -> None:
         if not self.analyses:
             self.generate_status.setText("Analyze tracks first.")
             return
-        target_count = int(self.count_combo.currentData())
-        if len(self.analyses) < target_count:
-            self.generate_status.setText(
-                f"Set length {target_count} needs at least {target_count} analyzed tracks "
-                f"(you have {len(self.analyses)}). Pick a shorter set or add tracks."
-            )
+        target_count = self._target_track_count()
+        if target_count is None:
             return
         arc = str(self.arc_combo.currentData())
         weights = load_weights(self.config.weights_file)
@@ -509,8 +560,17 @@ class SimpleModeWindow(QMainWindow):
             suffix = f"  ·  {' · '.join(details)}" if details else ""
             QListWidgetItem(f"{position:>2}. {label}{suffix}", self.set_list)
         mean = self.plan.mean_transition_score
+        known_durations = [
+            analysis.track.duration_sec
+            for analysis in self.selected_analyses
+            if analysis.track.duration_sec
+        ]
+        duration_text = ""
+        if known_durations and len(known_durations) == len(self.selected_analyses):
+            total_min = sum(known_durations) / 60.0
+            duration_text = f" · ≈{int(total_min // 60)}h {int(total_min % 60):02d}m"
         self.generate_status.setText(
-            f"{len(self.plan.track_order)}-track set · arc {arc}"
+            f"{len(self.plan.track_order)}-track set · arc {arc}{duration_text}"
             + (f" · mean transition score {mean:.2f}" if mean is not None else "")
         )
         self._populate_review()

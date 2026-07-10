@@ -17,7 +17,11 @@ from dancelab.ingestion.loader import SUPPORTED_EXTENSIONS
 from dancelab.ingestion.metadata import make_track_id
 from dancelab.storage.repositories import FileAnalysisRepository
 
-ALLOWED_PLAYLIST_COUNTS = {5, 10, 15, 20}
+# Suggested preset lengths for UIs — NOT a validation gate. Any count >= 2 is
+# valid; users can also target a set duration via
+# estimate_track_count_for_duration().
+SUGGESTED_PLAYLIST_COUNTS = (5, 10, 15, 20)
+MIN_PLAYLIST_TRACKS = 2
 
 
 @dataclass(frozen=True)
@@ -82,6 +86,32 @@ def _load_or_analyze(
     result = analyze_fn(path, config)
     repo.save(result)
     return result
+
+
+def estimate_track_count_for_duration(
+    analyses: Sequence[AnalysisResult],
+    target_minutes: float,
+) -> int:
+    """How many tracks fit a target set length, from the analyzed durations.
+
+    Uses the mean duration of tracks whose duration is known. Honest failure:
+    if no analyzed track has a known duration, the estimate is impossible —
+    raise instead of assuming a made-up average track length.
+    """
+    if target_minutes <= 0:
+        raise ValueError("target_minutes must be positive")
+    durations = [
+        analysis.track.duration_sec
+        for analysis in analyses
+        if analysis.track.duration_sec
+    ]
+    if not durations:
+        raise ValueError(
+            "no analyzed track has a known duration — pick a track count instead"
+        )
+    mean_duration_sec = sum(durations) / len(durations)
+    count = round((target_minutes * 60.0) / mean_duration_sec)
+    return max(MIN_PLAYLIST_TRACKS, min(count, len(analyses)))
 
 
 def analyze_files(
@@ -161,8 +191,8 @@ def build_smart_playlist_from_folder(
     analyze_fn: Callable[..., AnalysisResult] = analyze_track,
 ) -> SmartPlaylistResult:
     """Analyze a music folder and write a Rekordbox XML playlist."""
-    if target_track_count not in ALLOWED_PLAYLIST_COUNTS:
-        raise ValueError("target_track_count must be one of 5, 10, 15, or 20")
+    if target_track_count < MIN_PLAYLIST_TRACKS:
+        raise ValueError(f"target_track_count must be at least {MIN_PLAYLIST_TRACKS}")
 
     source_files = discover_audio_files(folder_path, recursive=recursive)
     if not source_files:

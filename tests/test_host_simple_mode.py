@@ -80,15 +80,29 @@ def test_simple_mode_wizard_end_to_end(tmp_path):
     assert window.next_button.isEnabled()
     assert "Analyzed 5" in window.analyze_status.text()
 
-    # step 3: generate a 5-track set
+    # step 3: generate a set — free track count (no fixed 5/10/15/20 presets)
     window.go_to_step(3)
     assert not window.next_button.isEnabled()
-    assert window.count_combo.currentData() == 5
+    window.count_radio.setChecked(True)
+    window.count_spin.setValue(4)
     window.generate_set()
     assert window.plan is not None
-    assert len(window.plan.track_order) == 5
-    assert window.set_list.count() == 5
+    assert len(window.plan.track_order) == 4
+    assert window.set_list.count() == 4
     assert window.next_button.isEnabled()
+
+    # duration mode: stub tracks are 300 s → 0.5 h ≈ 6 tracks, clamped to the 5 analyzed
+    window.duration_radio.setChecked(True)
+    window.duration_spin.setValue(0.5)
+    window.generate_set()
+    assert len(window.plan.track_order) == 5
+    assert "h" in window.generate_status.text()  # estimated set duration shown
+
+    # back to explicit count for the export steps
+    window.count_radio.setChecked(True)
+    window.count_spin.setValue(5)
+    window.generate_set()
+    assert len(window.plan.track_order) == 5
 
     # step 4: review has transition lines with scores
     window.go_to_step(4)
