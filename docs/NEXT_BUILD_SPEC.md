@@ -1,3 +1,5 @@
+> **Superseded by [PRODUCT_SPEC.md](PRODUCT_SPEC.md)** (2026-07-11) — full product/engineering spec absorbing and extending this document.
+
 # DanceLab Pro — Next Build Specification (Demo Hardening)
 
 Status: accepted engineering spec · 2026-07-11
