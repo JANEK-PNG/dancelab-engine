@@ -143,6 +143,25 @@ def test_simple_mode_wizard_end_to_end(tmp_path):
     assert sidebar[0].startswith("✓")
     assert sidebar[1].startswith("✓")
 
+    # graph handoff: Advanced mode mirrors the wizard pipeline, wired up
+    graph = window.open_graph_mode()
+    app.processEvents()
+    node_ids = {item.model.spec.node_id for item in graph.node_items.values()}
+    assert {"engine", "upload_tracks", "build_set", "export_rekordbox"} <= node_ids
+    assert len(graph.connection_models) == 4
+    upload_item = next(
+        item for item in graph.node_items.values() if item.model.spec.node_id == "upload_tracks"
+    )
+    upload_config = graph.runtime.ensure_node_config(upload_item.model.instance_id)
+    assert len(upload_config["paths_text"].splitlines()) == 5
+    build_item = next(
+        item for item in graph.node_items.values() if item.model.spec.node_id == "build_set"
+    )
+    build_config = graph.runtime.ensure_node_config(build_item.model.instance_id)
+    assert build_config["target_track_count"] == 5
+    assert len(graph.runtime.analysis_index) == 5  # wizard analyses cached
+    graph.close()
+
     window.close()
 
 

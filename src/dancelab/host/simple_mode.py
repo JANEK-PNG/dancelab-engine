@@ -701,8 +701,25 @@ class SimpleModeWindow(QMainWindow):
         from dancelab.contracts.node_host import get_node_host_registry
         from dancelab.host.desktop_app import NodeHostWindow
 
-        if self.graph_window is None:
+        created = self.graph_window is None
+        if created:
             self.graph_window = NodeHostWindow(get_node_host_registry())
+            if self.files:
+                # mirror the wizard session as a wired graph so Advanced mode
+                # shows what actually ran, not an empty canvas
+                target_count = (
+                    len(self.plan.track_order)
+                    if self.plan is not None and self.plan.track_order
+                    else int(self.count_spin.value())
+                )
+                self.graph_window.import_simple_session(
+                    files=[str(path) for path in self.files],
+                    analyses=self.analyses,
+                    target_count=target_count,
+                    arc=str(self.arc_combo.currentData()),
+                    playlist_name=self.playlist_name_edit.text().strip() or "DanceLab Set",
+                    output_path=self.export_path_edit.text().strip(),
+                )
         self.graph_window.show()
         self.graph_window.raise_()
         return self.graph_window
