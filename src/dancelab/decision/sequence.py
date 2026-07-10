@@ -584,7 +584,13 @@ def _step_total_score(
     risk_score: float,
     weights: dict[str, float],
 ) -> float:
-    raw = (
+    # AUD-M6: the reward weights sum to >1 (1.24 at defaults), so an unnormalized
+    # sum saturates past 1.0 and the final clip flattens every strong candidate to
+    # a tie — the weighting stops discriminating exactly where it matters. Treat
+    # the reward terms as a weighted AVERAGE (divide by their weight mass) so the
+    # reward lands in [0,1] and relative weights are preserved; risk stays a
+    # separate subtractive penalty, and the clip only guards its floor.
+    reward_terms = (
         weights["pair_score"] * pair_score
         + weights["local_arc"] * local_arc
         + weights["global_arc"] * global_arc
@@ -592,8 +598,18 @@ def _step_total_score(
         + weights["terminal_arc"] * terminal_arc
         + weights["set_memory"] * set_memory
         + weights["transition_quality"] * transition_quality
-        - weights["risk_penalty"] * risk_score
     )
+    reward_mass = (
+        weights["pair_score"]
+        + weights["local_arc"]
+        + weights["global_arc"]
+        + weights["lookahead_arc"]
+        + weights["terminal_arc"]
+        + weights["set_memory"]
+        + weights["transition_quality"]
+    )
+    reward = reward_terms / reward_mass if reward_mass > 0 else 0.0
+    raw = reward - weights["risk_penalty"] * risk_score
     return float(np.clip(raw, 0.0, 1.0))
 
 
