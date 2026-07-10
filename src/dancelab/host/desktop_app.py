@@ -31,6 +31,7 @@ from dancelab.workflows.smart_playlist import discover_audio_files
 
 try:  # optional desktop dependency
     from PySide6.QtCore import (
+        QEvent,
         QMimeData,
         QObject,
         QPoint,
@@ -471,16 +472,33 @@ if _PYSIDE_IMPORT_ERROR is None:
                 return False
             return self.itemAt(event.pos()) is None
 
-        def zoom_by_steps(self, steps: float) -> None:
-            if steps == 0:
+        def zoom_by_factor(self, factor: float) -> None:
+            if factor <= 0:
                 return
-            factor = self.ZOOM_STEP_IN ** steps if steps > 0 else self.ZOOM_STEP_OUT ** abs(steps)
             next_zoom = max(self.MIN_ZOOM, min(self.MAX_ZOOM, self._zoom_value * factor))
             applied_factor = next_zoom / self._zoom_value
             if abs(applied_factor - 1.0) < 1e-6:
                 return
             self.scale(applied_factor, applied_factor)
             self._zoom_value = next_zoom
+
+        def zoom_by_steps(self, steps: float) -> None:
+            if steps == 0:
+                return
+            factor = self.ZOOM_STEP_IN ** steps if steps > 0 else self.ZOOM_STEP_OUT ** abs(steps)
+            self.zoom_by_factor(factor)
+
+        def event(self, event) -> bool:
+            # UI/UX audit §7: macOS touchpad pinch arrives as a native gesture,
+            # not a wheel event — without this, pinch-zoom simply did nothing.
+            if (
+                event.type() == QEvent.NativeGesture
+                and event.gestureType() == Qt.NativeGestureType.ZoomNativeGesture
+            ):
+                self.zoom_by_factor(1.0 + float(event.value()))
+                event.accept()
+                return True
+            return super().event(event)
 
         def reset_zoom(self) -> None:
             if self._zoom_value == 0:
@@ -503,6 +521,9 @@ if _PYSIDE_IMPORT_ERROR is None:
                 return
 
             delta = self._wheel_delta(event)
+            if modifiers & Qt.ShiftModifier and not delta.x():
+                # UI/UX audit §7: shift + scroll = horizontal pan
+                delta = QPoint(delta.y(), 0)
             if delta.x():
                 self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - delta.x())
             if delta.y():
@@ -1155,6 +1176,10 @@ if _PYSIDE_IMPORT_ERROR is None:
             fit_action = QAction("Fit Engine", self)
             fit_action.triggered.connect(self.fit_engine)
             view_menu.addAction(fit_action)
+            zoom_selected_action = QAction("Zoom to Selected", self)
+            zoom_selected_action.setShortcut("F")
+            zoom_selected_action.triggered.connect(self.zoom_to_selected)
+            view_menu.addAction(zoom_selected_action)
 
         def _toolbar_section_label(self, toolbar, text: str) -> None:
             label = QLabel(text)
@@ -2666,12 +2691,28 @@ if _PYSIDE_IMPORT_ERROR is None:
             self.remove_connection(connection_id)
             self._sync_inspector()
 
-        def _populate_port_section(self, title: str, ports: list[NodePortSpec]) -> None:
+        def _populate_port_section(
+            self,
+            title: str,
+            ports: list[NodePortSpec],
+            *,
+            instance_id: str | None = None,
+        ) -> None:
             if not ports:
                 return
             self._add_section_title(title)
             for port in ports:
-                label = self._add_label(f"{port.key} · {', '.join(port.port_types)}", mono=True)
+                text = f"{port.key} · {', '.join(port.port_types)}"
+                # UI/UX audit §6: input ports state connected / missing so the
+                # user can see at a glance why a node is not runnable yet.
+                if instance_id is not None:
+                    if self._incoming_connection(instance_id, port.key) is not None:
+                        text = f"{text} · ✓ connected"
+                    elif port.required:
+                        text = f"{text} · ✗ required, not connected"
+                    else:
+                        text = f"{text} · optional"
+                label = self._add_label(text, mono=True)
                 label.setToolTip(port.description)
 
         def _populate_string_section(self, title: str, values: list[str]) -> None:
@@ -2713,6 +2754,11 @@ if _PYSIDE_IMPORT_ERROR is None:
             run_button.setEnabled(self.runtime.supports_node(node_item.model.spec.node_id))
             run_button.clicked.connect(lambda: self.run_flow(target_instance_id=node_item.model.instance_id))
             layout.addWidget(run_button)
+
+            reset_button = QPushButton("Reset Node")
+            reset_button.setToolTip("Clear this node's parameters and last output.")
+            reset_button.clicked.connect(lambda: self.reset_node(node_item))
+            layout.addWidget(reset_button)
 
             remove_button = QPushButton("Remove")
             remove_button.setEnabled(node_item.model.spec.deletable)
@@ -2785,7 +2831,7 @@ if _PYSIDE_IMPORT_ERROR is None:
             self._populate_output_preview(node_item)
             self._populate_connections(node_item)
             self._add_audit_section(spec)
-            self._populate_port_section("Inputs", spec.inputs)
+            self._populate_port_section("Inputs", spec.inputs, instance_id=node_item.model.instance_id)
             self._populate_port_section("Outputs", spec.outputs)
             self._populate_string_section(
                 "Recommended Next",
@@ -2929,6 +2975,17 @@ if _PYSIDE_IMPORT_ERROR is None:
                 self.view.resetTransform()
                 self.view.fitInView(engines[0], Qt.KeepAspectRatio)
                 self.view.sync_zoom_from_transform()
+
+        def zoom_to_selected(self) -> None:
+            node_item = self.selected_node_item()
+            if node_item is None:
+                self.statusBar().showMessage("Select a node first.", 3000)
+                return
+            self.view.resetTransform()
+            self.view.fitInView(
+                node_item.sceneBoundingRect().adjusted(-120, -120, 120, 120), Qt.KeepAspectRatio
+            )
+            self.view.sync_zoom_from_transform()
 
         def remove_selected_node(self) -> None:
             node_item = self.selected_node_item()
@@ -3180,6 +3237,19 @@ if _PYSIDE_IMPORT_ERROR is None:
                 self.statusBar().showMessage("Select a node first.", 4000)
                 return
             self.run_flow(target_instance_id=node_item.model.instance_id)
+
+        def reset_node(self, node_item: NodeBoxItem) -> None:
+            """UI/UX audit §6: per-node reset — clear config + runtime output."""
+            instance_id = node_item.model.instance_id
+            self.runtime.node_configs.pop(instance_id, None)
+            self.runtime.outputs.pop(instance_id, None)
+            self.runtime.errors.pop(instance_id, None)
+            self.runtime.node_status.pop(instance_id, None)
+            node_item.update()
+            self._mark_project_dirty()
+            self._sync_inspector()
+            self._refresh_engine_status()
+            self.statusBar().showMessage(f"{node_item.model.spec.label} reset to defaults.", 4000)
 
         def reset_engine(self) -> None:
             self.runtime.reset_runtime()
