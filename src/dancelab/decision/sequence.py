@@ -47,6 +47,18 @@ from dancelab.decision.set_builder import track_energy
 from dancelab.decision.transition_windows import detect_transition_windows
 
 MODEL_VERSION = "sequence_v0.1"
+# AUD-M10: every weighted term resolves to a formula_terms.yaml entry (no
+# anonymous variables). Test-enforced by test_every_sequence_component_has_a_term.
+COMPONENTS = (
+    "pair_score",
+    "local_arc",
+    "global_arc",
+    "lookahead_arc",
+    "terminal_arc",
+    "set_memory",
+    "transition_quality",
+    "risk_penalty",
+)
 _DEFAULT_SEQUENCE_WEIGHTS = {
     "pair_score": 0.45,
     "local_arc": 0.20,

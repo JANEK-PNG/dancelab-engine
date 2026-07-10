@@ -127,6 +127,26 @@ def test_every_mixability_component_has_a_term():
         assert key in terms, f"mixability component '{key}' has no formula-term metadata"
 
 
+def test_every_set_builder_component_has_a_term():
+    # AUD-M10: set-builder transition_score weights are not anonymous variables.
+    from dancelab.decision.set_builder import COMPONENTS
+
+    terms = load_formula_terms("configs/formula_terms.yaml")
+    for key in COMPONENTS:
+        assert key in terms, f"set_builder component '{key}' has no formula-term metadata"
+        assert terms[key].cannot_claim and terms[key].formula_symbol
+
+
+def test_every_sequence_component_has_a_term():
+    # AUD-M10: sequence beam-search weights are not anonymous variables.
+    from dancelab.decision.sequence import COMPONENTS
+
+    terms = load_formula_terms("configs/formula_terms.yaml")
+    for key in COMPONENTS:
+        assert key in terms, f"sequence component '{key}' has no formula-term metadata"
+        assert terms[key].cannot_claim and terms[key].formula_symbol
+
+
 def test_formula_terms_endpoint():
     from fastapi.testclient import TestClient
 
