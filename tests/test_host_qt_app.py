@@ -598,3 +598,44 @@ def test_qt_host_menus_and_engine_status_guidance():
     assert window.run_button.isEnabled()
 
     window.close()
+
+
+@pytest.mark.skipif(
+    not _qt_bootstrap_available(),
+    reason="Qt platform bootstrap unavailable in this shell",
+)
+def test_qt_host_engine_is_singleton_and_library_is_organized():
+    # UI/UX audit §9: adding a second engine returns the existing one instead of
+    # creating an undeletable duplicate. §8/§12: advanced categories collapsed,
+    # counts shown subtly, nodes carry what/inputs/outputs tooltips.
+    app = QApplication.instance() or QApplication([])
+    window = NodeHostWindow(get_node_host_registry())
+    app.processEvents()
+
+    engines_before = [
+        item for item in window.node_items.values() if item.model.spec.node_id == "engine"
+    ]
+    assert len(engines_before) == 1
+    duplicate = window.add_node("engine")
+    assert duplicate is engines_before[0]
+    assert (
+        len([i for i in window.node_items.values() if i.model.spec.node_id == "engine"]) == 1
+    )
+
+    tree = window.library_tree
+    top_labels = [tree.topLevelItem(i).text(0) for i in range(tree.topLevelItemCount())]
+    assert any("ANALYSIS & DECISION (" in label for label in top_labels)
+    assert any("PROJECT / INPUT (" in label for label in top_labels)
+
+    for i in range(tree.topLevelItemCount()):
+        item = tree.topLevelItem(i)
+        if "DIAGNOSTICS" in item.text(0) or "UTILITIES" in item.text(0):
+            assert "advanced" in item.text(0)
+            assert not item.isExpanded()  # advanced groups start collapsed
+        elif "ANALYSIS & DECISION" in item.text(0):
+            assert item.isExpanded()
+            child_tooltip = item.child(0).toolTip(0)
+            assert "Inputs:" in child_tooltip or "Outputs:" in child_tooltip
+            assert "Status:" in child_tooltip
+
+    window.close()

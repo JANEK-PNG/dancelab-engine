@@ -353,7 +353,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="load_corpus",
-            label="Load Corpus",
+            label="Load Track Library",
             category="input",
             runtime_side="bridge",
             status="implemented",
@@ -569,7 +569,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="context_evaluate",
-            label="Context Evaluate",
+            label="Evaluate Context Fit",
             category="engine_ops",
             runtime_side="bridge",
             status="implemented",
@@ -591,7 +591,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="set_function",
-            label="Set Function",
+            label="Classify Track Role",
             category="engine_ops",
             runtime_side="bridge",
             status="implemented",
@@ -613,7 +613,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="recommend_next",
-            label="Recommend Next",
+            label="Recommend Next Track",
             category="engine_ops",
             runtime_side="bridge",
             status="implemented",
@@ -637,7 +637,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="recommend_sequence",
-            label="Recommend Sequence",
+            label="Recommend Full Sequence",
             category="engine_ops",
             runtime_side="bridge",
             status="implemented",
@@ -661,7 +661,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="build_set",
-            label="Build Set",
+            label="Generate Set Sequence",
             category="engine_ops",
             runtime_side="bridge",
             status="implemented",
@@ -685,7 +685,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="bpm_sensor",
-            label="BPM Sensor",
+            label="BPM Signal",
             category="sensors",
             runtime_side="host",
             status="implemented",
@@ -704,7 +704,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="key_sensor",
-            label="Key Sensor",
+            label="Key Detection Signal",
             category="sensors",
             runtime_side="host",
             status="implemented",
@@ -723,7 +723,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="energy_sensor",
-            label="Energy Sensor",
+            label="Energy Signal",
             category="sensors",
             runtime_side="host",
             status="implemented",
@@ -742,7 +742,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="risk_sensor",
-            label="Risk Sensor",
+            label="Risk Signal",
             category="sensors",
             runtime_side="host",
             status="implemented",
@@ -767,7 +767,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="blend_profile_sensor",
-            label="Blend Profile Sensor",
+            label="Blend Compatibility Signal",
             category="sensors",
             runtime_side="host",
             status="implemented",
@@ -782,7 +782,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="window_sensor",
-            label="Window Sensor",
+            label="Transition Window Signal",
             category="sensors",
             runtime_side="host",
             status="implemented",
@@ -801,7 +801,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="harmonic_sensor",
-            label="Harmonic Sensor",
+            label="Harmonic Signal",
             category="sensors",
             runtime_side="host",
             status="implemented",
@@ -816,7 +816,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="stem_window_sensor",
-            label="Stem Window Sensor",
+            label="Stem Window Signal",
             category="sensors",
             runtime_side="host",
             status="adapter_needed",
@@ -840,7 +840,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="telemetry_screen",
-            label="Telemetry Screen",
+            label="Telemetry Summary View",
             category="screens",
             runtime_side="host",
             status="adapter_needed",
@@ -865,7 +865,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="waveform_screen",
-            label="Waveform Screen",
+            label="Waveform Comparison View",
             category="screens",
             runtime_side="host",
             status="adapter_needed",
@@ -884,7 +884,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="listen_screen",
-            label="Listen Screen",
+            label="A/B Audition View",
             category="screens",
             runtime_side="host",
             status="adapter_needed",
@@ -906,7 +906,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="pair_review_screen",
-            label="Pair Review Screen",
+            label="Pair Review View",
             category="screens",
             runtime_side="host",
             status="adapter_needed",
@@ -921,7 +921,7 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="control_center_screen",
-            label="Control Center Screen",
+            label="Engine Telemetry Dashboard",
             category="screens",
             runtime_side="host",
             status="adapter_needed",
@@ -955,7 +955,7 @@ def _nodes() -> list[NodeSpec]:
             runtime_side="host",
             status="planned",
             execution_mode="utility",
-            summary="Host-side filter over typed node outputs.",
+            summary="Keep only results matching selected conditions.",
             inputs=[
                 _in(
                     "source",
@@ -979,7 +979,7 @@ def _nodes() -> list[NodeSpec]:
             runtime_side="host",
             status="planned",
             execution_mode="utility",
-            summary="Host-side sorter for typed result sets.",
+            summary="Sort results by score, BPM, key, energy, risk or confidence.",
             inputs=[
                 _in(
                     "source",
@@ -997,7 +997,7 @@ def _nodes() -> list[NodeSpec]:
             runtime_side="host",
             status="planned",
             execution_mode="utility",
-            summary="Host-side limiter for ranked outputs.",
+            summary="Keep only the top N ranked results.",
             inputs=[
                 _in(
                     "source",
@@ -1015,7 +1015,7 @@ def _nodes() -> list[NodeSpec]:
             runtime_side="host",
             status="planned",
             execution_mode="utility",
-            summary="Host-side threshold gate for scalar or scored outputs.",
+            summary="Remove or flag results below/above a selected score.",
             inputs=[
                 _in("source", ["scalar_signal", "warning_stream"], "Scalar or warning signal."),
             ],
@@ -1029,7 +1029,7 @@ def _nodes() -> list[NodeSpec]:
             runtime_side="host",
             status="planned",
             execution_mode="utility",
-            summary="Host-side comparator for two typed outputs.",
+            summary="Compare two result sets or two transition candidates.",
             inputs=[
                 _in("left", ["scalar_signal", "analysis_result", "edge_decision"], "Left input."),
                 _in("right", ["scalar_signal", "analysis_result", "edge_decision"], "Right input."),
@@ -1039,12 +1039,12 @@ def _nodes() -> list[NodeSpec]:
         ),
         NodeSpec(
             node_id="route",
-            label="Route",
+            label="Router / Fan-out",
             category="utility",
             runtime_side="host",
             status="planned",
             execution_mode="utility",
-            summary="Host-side reroute or fan-out helper for graph readability.",
+            summary="Send one output into multiple downstream nodes for cleaner graph layout.",
             inputs=[
                 _in(
                     "source",
