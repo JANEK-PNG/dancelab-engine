@@ -18,10 +18,16 @@ def weights():
     return load_weights("configs/descriptor_weights.yaml")
 
 
-def track(tid, camelot, bpm, rms):
+def track(tid, camelot, bpm, rms, *, title=None, artist=None):
     return AnalysisResult(
         engine_version="0.1.0",
-        track=Track(track_id=tid, key_estimate=camelot, bpm_estimate=bpm),
+        track=Track(
+            track_id=tid,
+            title=title,
+            artist=artist,
+            key_estimate=camelot,
+            bpm_estimate=bpm,
+        ),
         features=[FeatureFrame(track_id=tid, timestamp_sec=float(t), rms=rms,
                                low_freq_energy_ratio=0.5, bass_energy=50.0) for t in range(30)],
     )
@@ -148,6 +154,67 @@ def test_build_set_pins_required_tracks_when_selecting_subset(weights):
     assert plan.pinned_track_ids == ["must_play"]
     assert len(plan.dropped_track_ids) == 2
     assert not set(plan.dropped_track_ids) & {"opener", "must_play"}
+
+
+def test_build_set_prefers_unique_artists_when_library_allows_it(weights):
+    tracks = [
+        track("daphni_a", "8A", 128, 0.10, title="Daphni - Waiting So Long"),
+        track("daphni_b", "8A", 128, 0.20, title="Daphni, Sofia Kourtesis - Unidos"),
+        track("ploy", "8A", 128, 0.30, title="Ploy - When In Room"),
+        track("mercy", "8A", 128, 0.40, title="Mercy System - If I Were You"),
+    ]
+
+    plan = build_set(tracks, weights, target_track_count=3)
+
+    assert len(plan.track_order) == 3
+    assert not {"daphni_a", "daphni_b"} <= set(plan.track_order)
+    assert not any("repeated artist" in warning for warning in plan.warnings)
+
+
+def test_build_set_separates_repeated_artists_when_repeat_is_unavoidable(weights):
+    tracks = [
+        track("daphni_a", "8A", 128, 0.10, title="Daphni - Waiting So Long"),
+        track("daphni_b", "8A", 128, 0.20, title="Daphni, Sofia Kourtesis - Unidos"),
+        track("ploy", "8A", 128, 0.30, title="Ploy - When In Room"),
+        track("mercy", "8A", 128, 0.40, title="Mercy System - If I Were You"),
+    ]
+
+    plan = build_set(tracks, weights, target_track_count=4)
+
+    assert {"daphni_a", "daphni_b"} <= set(plan.track_order)
+    assert abs(plan.track_order.index("daphni_a") - plan.track_order.index("daphni_b")) > 1
+    assert any("artist diversity relaxed" in warning for warning in plan.warnings)
+    assert not any("adjacent repeated artist" in warning for warning in plan.warnings)
+
+
+def test_build_set_planner_mode_prefers_harmonic_or_bpm(weights):
+    tracks = [
+        track("opener", "8A", 128, 0.10, title="Open Artist - Open"),
+        track("key_fit", "8A", 168, 0.20, title="Key Artist - Wide Tempo"),
+        track("bpm_fit", "3B", 128, 0.20, title="Tempo Artist - Risky Key"),
+    ]
+
+    harmonic_plan = build_set(
+        tracks,
+        weights,
+        target_track_count=2,
+        start_track_id="opener",
+        planner_mode="harmonic",
+    )
+    bpm_plan = build_set(
+        tracks,
+        weights,
+        target_track_count=2,
+        start_track_id="opener",
+        planner_mode="bpm",
+    )
+
+    assert harmonic_plan.planner_mode == "harmonic"
+    assert harmonic_plan.track_order == ["opener", "key_fit"]
+    assert "planner mode harmonic" in harmonic_plan.transitions[0].reasoning[0]
+    assert bpm_plan.planner_mode == "bpm"
+    assert bpm_plan.track_order == ["opener", "bpm_fit"]
+    assert "planner mode bpm" in bpm_plan.transitions[0].reasoning[0]
 
 
 def test_build_set_reports_constraint_conflicts(weights):

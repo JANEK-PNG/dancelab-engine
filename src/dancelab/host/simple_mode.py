@@ -12,8 +12,9 @@ and Graph Mode cannot drift apart on behavior.
 from __future__ import annotations
 
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
-from PySide6.QtCore import QObject, Qt, QThread, Signal
+from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -39,12 +40,15 @@ from dancelab.core.models import AnalysisResult, SetPlan
 from dancelab.core.pipeline import analyze_track
 from dancelab.decision.set_builder import build_set
 from dancelab.export.rekordbox import build_rekordbox_xml, write_rekordbox_xml
+from dancelab.host.import_dialogs import choose_audio_directories, confirm_suspicious_audio_files
 from dancelab.host.pair_review import TransitionReviewWidget, compute_windows
 from dancelab.workflows.smart_playlist import (
     MIN_PLAYLIST_TRACKS,
     SmartPlaylistFailure,
     _transition_windows_for_playlist,
+    analysis_function_for_depth,
     analyze_files,
+    config_for_analysis_depth,
     discover_audio_files,
     estimate_track_count_for_duration,
 )
@@ -63,19 +67,37 @@ _ARC_CHOICES = [
     ("flat", "Flat — steady energy"),
 ]
 
+_PLANNER_CHOICES = [
+    ("smart", "Smart Playlist — balanced key, BPM, energy and mixability"),
+    ("harmonic", "Harmonic Match — prefer nearby Camelot/key wheel moves"),
+    ("bpm", "BPM Match — prefer similar tempo and smoother beatmatching"),
+]
 
-class _AnalysisWorker(QObject):
-    """Runs library analysis off the UI thread (same rule as the graph host)."""
+_ANALYSIS_DEPTH_CHOICES = [
+    (
+        "normal",
+        "Normal — fast cached full-mix analysis; HPSS vocal proxy, no Demucs stem separation.",
+    ),
+    (
+        "deep",
+        "Deep — slower Demucs stem-aware analysis for vocals/drums/bass/other and richer transition cues.",
+    ),
+]
+
+
+class _AnalysisThread(QThread):
+    """Runs library analysis without moving a Python QObject across threads."""
 
     progress = Signal(int, int, str)
     stage = Signal(str, str)  # (path, real pipeline stage — never simulated)
-    finished = Signal(object)  # (analyses, failures) | error string
+    completed = Signal(object)  # (analyses, failures) | error string
 
-    def __init__(self, files: list[Path], config: EngineConfig, analyze_fn):
+    def __init__(self, files: list[Path], config: EngineConfig, analyze_fn, *, recompute: bool = False):
         super().__init__()
         self._files = files
         self._config = config
         self._analyze_fn = analyze_fn
+        self._recompute = recompute
 
     def run(self) -> None:
         try:
@@ -83,13 +105,14 @@ class _AnalysisWorker(QObject):
                 self._files,
                 self._config,
                 analyze_fn=self._analyze_fn,
+                recompute=self._recompute,
                 progress=lambda done, total, path: self.progress.emit(done, total, path),
                 stage_progress=lambda path, stage: self.stage.emit(path, stage),
             )
         except Exception as exc:  # surfaced on the UI thread, never swallowed
-            self.finished.emit(str(exc))
+            self.completed.emit(str(exc))
         else:
-            self.finished.emit((analyses, failures))
+            self.completed.emit((analyses, failures))
 
 
 class SimpleModeWindow(QMainWindow):
@@ -216,12 +239,14 @@ class SimpleModeWindow(QMainWindow):
         header = QLabel("Step 1 — Import tracks")
         header.setProperty("role", "title")
         layout.addWidget(header)
-        hint = QLabel("Choose a music folder or individual audio files (mp3, wav, aiff, flac, m4a).")
+        hint = QLabel(
+            "Choose one or more music folders, or individual audio files (mp3, wav, aiff, flac, m4a)."
+        )
         hint.setProperty("role", "hint")
         layout.addWidget(hint)
 
         buttons = QHBoxLayout()
-        folder_button = QPushButton("Choose Folder…")
+        folder_button = QPushButton("Choose Folder(s)…")
         folder_button.clicked.connect(self.choose_import_folder)
         buttons.addWidget(folder_button)
         files_button = QPushButton("Choose Files…")
@@ -246,6 +271,14 @@ class SimpleModeWindow(QMainWindow):
         hint = QLabel("BPM, key, energy, vocals and transition windows for every track. Cached — re-runs are instant.")
         hint.setProperty("role", "hint")
         layout.addWidget(hint)
+
+        depth_row = QVBoxLayout()
+        depth_row.addWidget(QLabel("Analysis depth:"))
+        self.analysis_depth_combo = QComboBox()
+        for depth_value, depth_label in _ANALYSIS_DEPTH_CHOICES:
+            self.analysis_depth_combo.addItem(depth_label, depth_value)
+        depth_row.addWidget(self.analysis_depth_combo)
+        layout.addLayout(depth_row)
 
         self.analyze_button = QPushButton("▶ Analyze Tracks")
         self.analyze_button.setProperty("role", "hero")
@@ -311,6 +344,12 @@ class SimpleModeWindow(QMainWindow):
         for arc_value, arc_label in _ARC_CHOICES:
             self.arc_combo.addItem(arc_label, arc_value)
         controls.addWidget(self.arc_combo)
+        controls.addSpacing(18)
+        controls.addWidget(QLabel("Preference:"))
+        self.planner_mode_combo = QComboBox()
+        for mode_value, mode_label in _PLANNER_CHOICES:
+            self.planner_mode_combo.addItem(mode_label, mode_value)
+        controls.addWidget(self.planner_mode_combo)
         controls.addStretch(1)
         layout.addLayout(controls)
 
@@ -439,9 +478,26 @@ class SimpleModeWindow(QMainWindow):
     # ------------------------------------------------------------------- steps
 
     def choose_import_folder(self) -> None:
-        folder = QFileDialog.getExistingDirectory(self, "Choose Music Folder", str(Path.home()))
-        if folder:
-            self.set_import_files(discover_audio_files(folder))
+        folders = choose_audio_directories(
+            self,
+            title="Choose Music Folder(s)",
+            start_dir=str(Path.home()),
+        )
+        if not folders:
+            return
+        files: list[Path] = []
+        for folder in folders:
+            try:
+                files.extend(discover_audio_files(folder))
+            except ValueError as exc:
+                self.import_summary.setText(str(exc))
+                return
+        files = self._dedupe_import_files(files)
+        if not files:
+            self.set_import_files([])
+            self.import_summary.setText("No supported audio files found in selected folder(s).")
+            return
+        self._set_import_files_after_preflight(files)
 
     def choose_import_files(self) -> None:
         selected, _ = QFileDialog.getOpenFileNames(
@@ -451,7 +507,24 @@ class SimpleModeWindow(QMainWindow):
             "Audio Files (*.mp3 *.wav *.aiff *.aif *.flac *.m4a)",
         )
         if selected:
-            self.set_import_files([Path(path) for path in selected])
+            self._set_import_files_after_preflight([Path(path) for path in selected])
+
+    def _dedupe_import_files(self, files: list[Path]) -> list[Path]:
+        seen: set[str] = set()
+        result: list[Path] = []
+        for path in files:
+            normalized = str(Path(path).expanduser())
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            result.append(Path(normalized))
+        return result
+
+    def _set_import_files_after_preflight(self, files: list[Path]) -> None:
+        accepted = confirm_suspicious_audio_files(self, files)
+        self.set_import_files(self._dedupe_import_files(accepted))
+        if files and not accepted:
+            self.import_summary.setText("Import cancelled or all suspicious files were skipped.")
 
     def set_import_files(self, files: list[Path]) -> None:
         self.files = list(files)
@@ -478,7 +551,10 @@ class SimpleModeWindow(QMainWindow):
         self.analyze_button.setEnabled(False)
         self.analyze_progress.setMaximum(len(self.files))
         self.analyze_progress.setValue(0)
-        self.analyze_status.setText("Analyzing…")
+        depth = str(self.analysis_depth_combo.currentData() or "normal")
+        self.analyze_status.setText(
+            "Analyzing deeply…" if depth == "deep" else "Analyzing…"
+        )
 
         self.analyze_list.clear()
         self._analyze_rows = {}
@@ -486,21 +562,18 @@ class SimpleModeWindow(QMainWindow):
             self._analyze_rows[str(path)] = self.analyze_list.count()
             QListWidgetItem(f"○  {path.name}", self.analyze_list)
 
-        thread = QThread(self)
-        worker = _AnalysisWorker(self.files, self.config, self.analyze_fn)
-        worker.moveToThread(thread)
-        thread.started.connect(worker.run)
-        worker.progress.connect(self._on_analysis_progress)
-        worker.stage.connect(self._on_analysis_stage)
-        worker.finished.connect(self._on_analysis_finished)
-        # Same deadlock rule as the graph host: `thread` has main-thread
-        # affinity, so a queued quit() never runs while wait=True parks the
-        # main thread in thread.wait(). quit() is thread-safe.
-        worker.finished.connect(thread.quit, Qt.DirectConnection)
-        thread.finished.connect(worker.deleteLater)
-        thread.finished.connect(thread.deleteLater)
+        analysis_config = self._config_for_analysis_depth(depth)
+        analyze_fn = analysis_function_for_depth(self.analyze_fn, depth)
+        thread = _AnalysisThread(
+            self.files,
+            analysis_config,
+            analyze_fn,
+            recompute=(depth == "deep"),
+        )
+        thread.progress.connect(self._on_analysis_progress)
+        thread.stage.connect(self._on_analysis_stage)
+        thread.completed.connect(self._on_analysis_finished)
         self._analysis_thread = thread
-        self._analysis_worker = worker
         thread.start()
         if wait:
             thread.wait()
@@ -523,8 +596,13 @@ class SimpleModeWindow(QMainWindow):
         self._set_analyze_row(path, f"▶  {Path(path).name} · {stage}…")
 
     def _on_analysis_finished(self, payload: object) -> None:
-        self._analysis_thread = None
-        self._analysis_worker = None
+        finished_thread = self.sender()
+        if finished_thread is self._analysis_thread:
+            self._analysis_thread = None
+        if isinstance(finished_thread, QThread):
+            if finished_thread.isRunning() and QThread.currentThread() is not finished_thread:
+                finished_thread.wait(1000)
+            finished_thread.deleteLater()
         self.analyze_button.setEnabled(True)
         if isinstance(payload, str):
             self.analyze_status.setText(f"Analysis failed · {payload}")
@@ -578,6 +656,14 @@ class SimpleModeWindow(QMainWindow):
             return len(self.analyses)
         return count
 
+    def _config_for_analysis_depth(self, depth: str) -> EngineConfig:
+        return config_for_analysis_depth(self.config, depth)
+
+    def _current_analysis_config(self) -> EngineConfig:
+        return self._config_for_analysis_depth(
+            str(self.analysis_depth_combo.currentData() or "normal")
+        )
+
     def generate_set(self) -> None:
         if not self.analyses:
             self.generate_status.setText("Analyze tracks first.")
@@ -586,8 +672,15 @@ class SimpleModeWindow(QMainWindow):
         if target_count is None:
             return
         arc = str(self.arc_combo.currentData())
+        planner_mode = str(self.planner_mode_combo.currentData() or "smart")
         weights = load_weights(self.config.weights_file)
-        self.plan = build_set(self.analyses, weights, arc=arc, target_track_count=target_count)
+        self.plan = build_set(
+            self.analyses,
+            weights,
+            arc=arc,
+            target_track_count=target_count,
+            planner_mode=planner_mode,
+        )
         by_id = {analysis.track.track_id: analysis for analysis in self.analyses}
         self.selected_analyses = [by_id[tid] for tid in self.plan.track_order if tid in by_id]
 
@@ -612,9 +705,11 @@ class SimpleModeWindow(QMainWindow):
         if known_durations and len(known_durations) == len(self.selected_analyses):
             total_min = sum(known_durations) / 60.0
             duration_text = f" · ≈{int(total_min // 60)}h {int(total_min % 60):02d}m"
+        warning_text = f" · warning: {self.plan.warnings[0]}" if self.plan.warnings else ""
         self.generate_status.setText(
-            f"{len(self.plan.track_order)}-track set · arc {arc}{duration_text}"
+            f"{len(self.plan.track_order)}-track set · mode {planner_mode} · arc {arc}{duration_text}"
             + (f" · mean transition score {mean:.2f}" if mean is not None else "")
+            + warning_text
         )
         self._populate_review()
         self._sync_navigation()
@@ -645,7 +740,7 @@ class SimpleModeWindow(QMainWindow):
         track_id = analysis.track.track_id
         if track_id not in cache:
             try:
-                cache[track_id] = compute_windows(analysis, self.config)
+                cache[track_id] = compute_windows(analysis, self._current_analysis_config())
             except Exception:
                 cache[track_id] = []
         self._review_windows_cache = cache
@@ -681,7 +776,10 @@ class SimpleModeWindow(QMainWindow):
             self.export_status.setText("Generate a set first.")
             return
         playlist_name = self.playlist_name_edit.text().strip() or "DanceLab Smart Set"
-        windows = _transition_windows_for_playlist(self.selected_analyses, config=self.config)
+        windows = _transition_windows_for_playlist(
+            self.selected_analyses,
+            config=self._current_analysis_config(),
+        )
         xml = build_rekordbox_xml(
             self.selected_analyses,
             set_plan=self.plan,
@@ -689,8 +787,10 @@ class SimpleModeWindow(QMainWindow):
             playlist_name=playlist_name,
         )
         self.export_path = write_rekordbox_xml(xml, self.export_path_edit.text())
+        hot_cue_count = len(ET.fromstring(xml).findall("./COLLECTION/TRACK/POSITION_MARK"))
         self.export_status.setText(
             f"Exported · {self.export_path}\n"
+            f"Rekordbox XML contains {hot_cue_count} hot cue marker(s).\n"
             "In Rekordbox: Preferences → Advanced → Imported Library, then right-click "
             "the playlist to import. Uncheck re-analysis to keep the DanceLab beatgrid."
         )
@@ -717,6 +817,8 @@ class SimpleModeWindow(QMainWindow):
                     analyses=self.analyses,
                     target_count=target_count,
                     arc=str(self.arc_combo.currentData()),
+                    planner_mode=str(self.planner_mode_combo.currentData() or "smart"),
+                    analysis_depth=str(self.analysis_depth_combo.currentData() or "normal"),
                     playlist_name=self.playlist_name_edit.text().strip() or "DanceLab Set",
                     output_path=self.export_path_edit.text().strip(),
                 )

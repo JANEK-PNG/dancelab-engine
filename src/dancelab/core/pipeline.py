@@ -31,6 +31,7 @@ from dancelab.features.onset_density import detect_onsets
 from dancelab.features.vocals import _demucs_available, vocal_activity
 from dancelab.ingestion.loader import load_audio
 from dancelab.ingestion.metadata import build_track
+from dancelab.ingestion.tags import read_audio_tags
 from dancelab.preprocessing.beatgrid import estimate_beatgrid
 from dancelab.preprocessing.segmentation import segment_track
 from dancelab.stems import (
@@ -211,8 +212,15 @@ def _analyze_track_impl(
     weights = load_weights(config.weights_file)
     _stage("Loading audio")
     signal = load_audio(path, config)
+    tags = read_audio_tags(path)
+    effective_style = style_label or tags.genre
+    effective_bpm_hint = bpm_hint or tags.bpm
     track: Track = build_track(
-        signal, title=title, artist=artist, style_label=style_label, bpm_estimate=bpm_hint
+        signal,
+        title=title or tags.title,
+        artist=artist or tags.artist,
+        style_label=effective_style,
+        bpm_estimate=bpm_hint,
     )
     _stage("Extracting stems")
     stem_bundle = extract_stems(signal, track.track_id, config)
@@ -228,7 +236,7 @@ def _analyze_track_impl(
     beatgrid = estimate_beatgrid(
         signal,
         hop_size=hop,
-        bpm_hint=bpm_hint,
+        bpm_hint=effective_bpm_hint,
         tempo_min=config.analysis.tempo_min,
         tempo_max=config.analysis.tempo_max,
     )
@@ -331,6 +339,10 @@ def _analyze_track_impl(
             "groove_density, bass_salience, tension, release, breakdown_likelihood, "
             "and drop_likelihood (candidate, not DJ-validated)"
         )
+    if tags.genre and style_label is None:
+        notes.append(f"style_label source: file genre tag `{tags.genre}`")
+    if tags.bpm is not None and bpm_hint is None:
+        notes.append(f"file BPM tag used only as beat-tracker hint ({tags.bpm:.2f})")
     if stem_bundle is not None:
         notes.extend(
             [
@@ -382,6 +394,7 @@ def analyze_track_with_stems(
     bpm_hint: float | None = None,
     title: str | None = None,
     artist: str | None = None,
+    on_stage: Callable[[str], None] | None = None,
 ) -> tuple[AnalysisResult, StemBundle | None]:
     """Analyze a track and return the in-memory stem bundle for artifact export."""
     return _analyze_track_impl(
@@ -391,6 +404,7 @@ def analyze_track_with_stems(
         bpm_hint=bpm_hint,
         title=title,
         artist=artist,
+        on_stage=on_stage,
     )
 
 

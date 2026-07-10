@@ -403,6 +403,27 @@ class ContextProfile(BaseModel):
     time_of_night: str | None = None
     crowd_energy: str | None = None
     style_focus: list[str] = Field(default_factory=list)
+    bpm_min: float | None = Field(default=None, gt=0)
+    bpm_max: float | None = Field(default=None, gt=0)
+
+
+class LibraryProfile(SchemaVersionedOutput):
+    """Library-level summary extracted from analyzed tracks."""
+
+    track_count: int = Field(ge=0)
+    bpm_min: float | None = None
+    bpm_max: float | None = None
+    bpm_mean: float | None = None
+    style_counts: dict[str, int] = Field(default_factory=dict)
+    dominant_style: str | None = None
+    missing_style_count: int = Field(default=0, ge=0)
+    preferred_styles: list[str] = Field(default_factory=list)
+    preferred_style_track_count: int = Field(default=0, ge=0)
+    bpm_preference_min: float | None = None
+    bpm_preference_max: float | None = None
+    bpm_preference_track_count: int = Field(default=0, ge=0)
+    context_id: str | None = None
+    warnings: list[str] = Field(default_factory=list)
 
 
 # ------------------------------------------------------------------- curves & windows
@@ -713,6 +734,7 @@ class SetPlan(SchemaVersionedOutput):
     track_order: list[str] = Field(default_factory=list)
     transitions: list[SetTransition] = Field(default_factory=list)
     arc: str = "build"
+    planner_mode: str = "smart"
     target_track_count: int | None = Field(default=None, ge=1)
     locked_positions: dict[int, str] = Field(default_factory=dict)
     pinned_track_ids: list[str] = Field(default_factory=list)

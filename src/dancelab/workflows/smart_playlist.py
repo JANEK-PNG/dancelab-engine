@@ -10,12 +10,13 @@ from pathlib import Path
 
 from dancelab.core.config import EngineConfig, load_weights
 from dancelab.core.models import AnalysisResult, SetPlan, TransitionWindowInput
-from dancelab.core.pipeline import analyze_track
+from dancelab.core.pipeline import analyze_track, analyze_track_with_stems
 from dancelab.decision.set_builder import build_set
 from dancelab.decision.transition_windows import detect_transition_windows
 from dancelab.export.rekordbox import build_rekordbox_xml, write_rekordbox_xml
 from dancelab.ingestion.loader import SUPPORTED_EXTENSIONS
 from dancelab.ingestion.metadata import make_track_id
+from dancelab.stems.workflow import stem_enabled_config
 from dancelab.storage.repositories import FileAnalysisRepository
 
 # Suggested preset lengths for UIs — NOT a validation gate. Any count >= 2 is
@@ -165,6 +166,45 @@ def analyze_files(
     return analyses, failures
 
 
+def _normalize_analysis_depth(analysis_depth: str) -> str:
+    return (analysis_depth or "normal").strip().lower()
+
+
+def analyze_track_with_stems_only(
+    path: str | Path,
+    config: EngineConfig,
+    *,
+    on_stage: Callable[[str], None] | None = None,
+) -> AnalysisResult:
+    """Run the stem-aware pipeline but return the analysis payload only."""
+    result, _stem_bundle = analyze_track_with_stems(path, config, on_stage=on_stage)
+    return result
+
+
+def analysis_function_for_depth(
+    analyze_fn: Callable[..., AnalysisResult],
+    analysis_depth: str,
+) -> Callable[..., AnalysisResult]:
+    """Use stem-aware analysis for Deep when the caller uses the default engine."""
+    if _normalize_analysis_depth(analysis_depth) == "deep" and analyze_fn is analyze_track:
+        return analyze_track_with_stems_only
+    return analyze_fn
+
+
+def config_for_analysis_depth(config: EngineConfig, analysis_depth: str) -> EngineConfig:
+    cfg = config.model_copy(deep=True) if hasattr(config, "model_copy") else config
+    if _normalize_analysis_depth(analysis_depth) == "deep":
+        if hasattr(cfg, "stems") and hasattr(cfg, "analysis"):
+            cfg = stem_enabled_config(
+                cfg,
+                stem_method="demucs",
+                vocal_method="demucs",
+            )
+        if hasattr(cfg, "analysis"):
+            cfg.analysis.transition_top_n = max(cfg.analysis.transition_top_n, 8)
+    return cfg
+
+
 def _transition_windows_for_playlist(
     analyses: Sequence[AnalysisResult],
     *,
@@ -196,6 +236,8 @@ def build_smart_playlist_from_folder(
     output_path: str | Path | None = None,
     processed_dir: str | Path | None = None,
     arc: str = "build",
+    planner_mode: str = "smart",
+    analysis_depth: str = "normal",
     recursive: bool = True,
     recompute: bool = False,
     analyze_fn: Callable[..., AnalysisResult] = analyze_track,
@@ -211,12 +253,15 @@ def build_smart_playlist_from_folder(
     processed_root = (
         Path(processed_dir).expanduser() if processed_dir else _default_processed_dir(config)
     )
+    effective_config = config_for_analysis_depth(config, analysis_depth)
+    effective_recompute = recompute or _normalize_analysis_depth(analysis_depth) == "deep"
+    effective_analyze_fn = analysis_function_for_depth(analyze_fn, analysis_depth)
     analyses, failures = analyze_files(
         source_files,
-        config,
+        effective_config,
         processed_dir=processed_root,
-        recompute=recompute,
-        analyze_fn=analyze_fn,
+        recompute=effective_recompute,
+        analyze_fn=effective_analyze_fn,
     )
 
     if not analyses:
@@ -233,10 +278,11 @@ def build_smart_playlist_from_folder(
         weights,
         arc=arc,
         target_track_count=target_track_count,
+        planner_mode=planner_mode,
     )
     selected_ids = set(plan.track_order)
     selected_analyses = [analysis for analysis in analyses if analysis.track.track_id in selected_ids]
-    windows = _transition_windows_for_playlist(selected_analyses, config=config)
+    windows = _transition_windows_for_playlist(selected_analyses, config=effective_config)
     xml = build_rekordbox_xml(
         selected_analyses,
         set_plan=plan,

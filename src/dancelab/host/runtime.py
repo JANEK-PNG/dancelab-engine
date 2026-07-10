@@ -42,6 +42,7 @@ from dancelab.ingestion.loader import SUPPORTED_EXTENSIONS
 from dancelab.storage.repositories import FileAnalysisRepository, TrackNotFoundError
 from dancelab.stems import StemBundle, export_stem_artifacts
 from dancelab.stems.workflow import artifact_from_export_dir, stem_enabled_config
+from dancelab.workflows.smart_playlist import config_for_analysis_depth
 
 
 @dataclass
@@ -176,6 +177,20 @@ class DesktopHostRuntime:
         if self._config_cache is None:
             self._config_cache = self._config_loader(self.config_path)
         return self._config_cache
+
+    def _config_for_analysis_depth(self, analysis_depth: str) -> EngineConfig:
+        return config_for_analysis_depth(self.config(), analysis_depth)
+
+    def _analyze_for_depth(
+        self,
+        path: str | Path,
+        config: EngineConfig,
+        analysis_depth: str,
+    ) -> AnalysisResult:
+        if (analysis_depth or "normal").strip().lower() == "deep":
+            analysis, _stem_bundle = self._analyze_track_with_stems(str(path), config)
+            return analysis
+        return self._analyze_track(path, config)
 
     def weights(self) -> DescriptorWeights:
         if self._weights_cache is None:
@@ -482,10 +497,12 @@ class DesktopHostRuntime:
         if not isinstance(track_files, list) or not track_files:
             raise RuntimeError("Analyze Tracks needs upstream track files.")
 
+        node_config = self.ensure_node_config(instance_id)
         analyses: list[AnalysisResult] = []
-        cfg = self.config()
+        analysis_depth = str(node_config.get("analysis_depth") or "normal")
+        cfg = self._config_for_analysis_depth(analysis_depth)
         for path in track_files:
-            analysis = self._analyze_track(path, cfg)
+            analysis = self._analyze_for_depth(path, cfg, analysis_depth)
             analyses.append(analysis)
             self.analysis_index[analysis.track.track_id] = analysis
 
@@ -508,6 +525,9 @@ class DesktopHostRuntime:
         stack: list[str],
     ) -> NodeExecutionResult:
         tracks_source = self._resolve_connected_value(index, connections, instance_id, "tracks_in", stack)
+        node_config = self.ensure_node_config(instance_id)
+        analysis_depth = str(node_config.get("analysis_depth") or "normal")
+        cfg = self._config_for_analysis_depth(analysis_depth)
         analyses: list[AnalysisResult] = []
         warnings: list[str] = []
 
@@ -517,16 +537,15 @@ class DesktopHostRuntime:
             elif isinstance(tracks_source[0], str):
                 track_values = [str(value) for value in tracks_source if str(value).strip()]
                 if self._source_values_look_like_files(track_values):
-                    cfg = self.config()
                     for path in track_values:
-                        analysis = self._analyze_track(path, cfg)
+                        analysis = self._analyze_for_depth(path, cfg, analysis_depth)
                         analyses.append(analysis)
                         self.analysis_index[analysis.track.track_id] = analysis
                 else:
                     analyses = self._analyses_from_source(track_values)
         elif isinstance(tracks_source, str) and tracks_source:
             if Path(tracks_source).suffix.lower() in SUPPORTED_EXTENSIONS:
-                analysis = self._analyze_track(tracks_source, self.config())
+                analysis = self._analyze_for_depth(tracks_source, cfg, analysis_depth)
                 analyses = [analysis]
                 self.analysis_index[analysis.track.track_id] = analysis
             else:
@@ -543,7 +562,7 @@ class DesktopHostRuntime:
                         beatgrid=analysis.beatgrid,
                     ),
                     self.weights().transition_window,
-                    top_k=max(self.config().analysis.transition_top_n, 6),
+                    top_k=max(cfg.analysis.transition_top_n, 6),
                 )
                 windows[analysis.track.track_id] = output.windows
                 warnings.extend(output.warnings)
@@ -754,6 +773,7 @@ class DesktopHostRuntime:
 
         config = self.ensure_node_config(instance_id)
         arc = str(config.get("arc") or "build")
+        planner_mode = str(config.get("planner_mode") or "smart")
         start_track_id = str(config.get("start_track_id") or "").strip() or None
         raw_target_count = config.get("target_track_count")
         target_track_count = int(raw_target_count) if raw_target_count not in (None, "") else None
@@ -761,6 +781,7 @@ class DesktopHostRuntime:
             analyses,
             self.weights(),
             arc=arc,
+            planner_mode=planner_mode,
             start_track_id=start_track_id,
             target_track_count=target_track_count,
             locked_positions=config.get("locked_positions") or {},

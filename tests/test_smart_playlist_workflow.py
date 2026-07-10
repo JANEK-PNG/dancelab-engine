@@ -4,7 +4,10 @@ from pathlib import Path
 
 from dancelab.core.config import EngineConfig
 from dancelab.core.models import AnalysisResult, BeatGrid, FeatureFrame, Track
-from dancelab.workflows.smart_playlist import build_smart_playlist_from_folder
+from dancelab.workflows.smart_playlist import (
+    build_smart_playlist_from_folder,
+    config_for_analysis_depth,
+)
 
 
 def _analysis_from_path(path: str | Path, _config: EngineConfig) -> AnalysisResult:
@@ -137,3 +140,13 @@ def test_analyze_files_relays_real_pipeline_stages(tmp_path):
     assert len(analyses) == 1 and not failures
     assert [stage for _, stage in stages] == ["Key detection", "Beat tracking (BPM)"]
     assert all(path.endswith("Track_1.wav") for path, _ in stages)
+
+
+def test_deep_analysis_depth_enables_demucs_stem_layer():
+    cfg = config_for_analysis_depth(EngineConfig(), "deep")
+
+    assert cfg.stems.enabled is True
+    assert cfg.stems.method == "demucs"
+    assert cfg.stems.export_stems is True
+    assert cfg.analysis.vocal_method == "demucs"
+    assert cfg.analysis.transition_top_n >= 8
