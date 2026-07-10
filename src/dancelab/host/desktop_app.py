@@ -18,6 +18,15 @@ from dancelab.host.runtime import (
     RuntimeConnection,
     RuntimeNodeState,
 )
+from dancelab.host.project import (
+    PROJECT_FILE_SUFFIX,
+    DanceLabProject,
+    ProjectConnection,
+    ProjectFileError,
+    ProjectNode,
+    load_project,
+    save_project,
+)
 from dancelab.workflows.smart_playlist import discover_audio_files
 
 try:  # optional desktop dependency
@@ -27,6 +36,7 @@ try:  # optional desktop dependency
         QPoint,
         QPointF,
         QRectF,
+        QSettings,
         Qt,
         QThread,
         Signal,
@@ -911,6 +921,14 @@ if _PYSIDE_IMPORT_ERROR is None:
             self.connection_drag_started = False
             self.connection_drag_start_scene_pos: QPointF | None = None
 
+            # UI/UX audit P1: Blender-style project model. The window always
+            # works "inside a project"; dirty tracking drives the title marker.
+            self.project_path: Path | None = None
+            self.project_name = "Untitled Project"
+            self._project_dirty = False
+            self._suspend_dirty_tracking = False
+            self.engine_state = "idle"
+
             self.setWindowTitle("DanceLab Signal Graph")
             self.resize(1600, 960)
             self.setStyleSheet(
@@ -1055,83 +1073,139 @@ if _PYSIDE_IMPORT_ERROR is None:
                 """
             )
 
+            self._build_menus()
             self._build_toolbar()
             self._build_canvas()
             self._build_library()
             self._build_inspector()
+            self._build_engine_status_bar()
 
             self.scene.selectionChanged.connect(self._sync_inspector)
             self.reset_canvas()
+            self._mark_project_saved()
+
+        def _build_menus(self) -> None:
+            """UI/UX audit P1: classic creative-tool menus (Blender/Houdini model).
+
+            Project, Engine and View actions live in separate menus so the
+            toolbar can stay a small set of grouped, high-frequency controls."""
+            menu_bar = self.menuBar()
+
+            file_menu = menu_bar.addMenu("&File")
+            new_action = QAction("New Project", self)
+            new_action.setShortcut("Ctrl+N")
+            new_action.triggered.connect(self.new_project)
+            file_menu.addAction(new_action)
+            open_action = QAction("Open Project...", self)
+            open_action.setShortcut("Ctrl+O")
+            open_action.triggered.connect(self.open_project_dialog)
+            file_menu.addAction(open_action)
+            self.recent_projects_menu = file_menu.addMenu("Open Recent")
+            self._refresh_recent_projects_menu()
+            file_menu.addSeparator()
+            save_action = QAction("Save", self)
+            save_action.setShortcut("Ctrl+S")
+            save_action.triggered.connect(self.save_current_project)
+            file_menu.addAction(save_action)
+            save_as_action = QAction("Save As...", self)
+            save_as_action.setShortcut("Ctrl+Shift+S")
+            save_as_action.triggered.connect(self.save_project_as_dialog)
+            file_menu.addAction(save_as_action)
+            file_menu.addSeparator()
+            import_tracks_action = QAction("Import Tracks...", self)
+            import_tracks_action.triggered.connect(self.open_upload_file_picker)
+            file_menu.addAction(import_tracks_action)
+            import_folder_action = QAction("Import Folder...", self)
+            import_folder_action.triggered.connect(self.open_upload_folder_picker)
+            file_menu.addAction(import_folder_action)
+
+            engine_menu = menu_bar.addMenu("&Engine")
+            run_graph_action = QAction("Run Full Graph", self)
+            run_graph_action.setShortcut("Ctrl+R")
+            run_graph_action.setToolTip("Run every connected node down to the final output.")
+            run_graph_action.triggered.connect(self.run_flow)
+            engine_menu.addAction(run_graph_action)
+            run_selected_action = QAction("Run Selected Node", self)
+            run_selected_action.setToolTip("Run only the selected node and its upstream inputs.")
+            run_selected_action.triggered.connect(self.run_selected_node)
+            engine_menu.addAction(run_selected_action)
+            engine_menu.addSeparator()
+            reset_engine_action = QAction("Reset Engine", self)
+            reset_engine_action.setToolTip("Clear all runtime outputs and errors; keep the graph.")
+            reset_engine_action.triggered.connect(self.reset_engine)
+            engine_menu.addAction(reset_engine_action)
+            reset_canvas_action = QAction("Reset Canvas", self)
+            reset_canvas_action.setToolTip("Clear the whole graph and start from the pinned engine node.")
+            reset_canvas_action.triggered.connect(self.reset_canvas)
+            engine_menu.addAction(reset_canvas_action)
+
+            view_menu = menu_bar.addMenu("&View")
+            zoom_in_action = QAction("Zoom In", self)
+            zoom_in_action.setShortcut("Ctrl+=")
+            zoom_in_action.triggered.connect(lambda: self.view.zoom_by_steps(1.0))
+            view_menu.addAction(zoom_in_action)
+            zoom_out_action = QAction("Zoom Out", self)
+            zoom_out_action.setShortcut("Ctrl+-")
+            zoom_out_action.triggered.connect(lambda: self.view.zoom_by_steps(-1.0))
+            view_menu.addAction(zoom_out_action)
+            reset_zoom_action = QAction("Reset Zoom", self)
+            reset_zoom_action.setShortcut("Ctrl+0")
+            reset_zoom_action.triggered.connect(lambda: self.view.reset_zoom())
+            view_menu.addAction(reset_zoom_action)
+            fit_action = QAction("Fit Engine", self)
+            fit_action.triggered.connect(self.fit_engine)
+            view_menu.addAction(fit_action)
+
+        def _toolbar_section_label(self, toolbar, text: str) -> None:
+            label = QLabel(text)
+            label.setProperty("role", "patch")
+            toolbar.addWidget(label)
 
         def _build_toolbar(self) -> None:
+            # UI/UX audit P1: grouped toolbar — PROJECT | ENGINE | VIEW. Zoom
+            # controls no longer sit between engine actions.
             toolbar = self.addToolBar("Signal Graph")
             toolbar.setMovable(False)
 
             brand = QLabel("SIGNAL GRAPH")
             brand.setProperty("role", "brand")
             toolbar.addWidget(brand)
-
-            patch = QLabel("desktop host")
-            patch.setProperty("role", "patch")
-            toolbar.addWidget(patch)
             toolbar.addSeparator()
 
-            smart_playlist_button = QPushButton("SMART PLAYLIST")
-            smart_playlist_button.setProperty("role", "hero")
-            smart_playlist_button.setToolTip(
-                "One-click graph: upload folder -> engine analysis -> build set -> rekordbox XML."
-            )
-            smart_playlist_button.clicked.connect(self.build_smart_playlist_flow)
-            toolbar.addWidget(smart_playlist_button)
-
-            first_flow_button = QPushButton("PAIR REVIEW FLOW")
-            first_flow_button.setProperty("role", "preset")
-            first_flow_button.setToolTip("Build the beginner review graph for testing pair decisions.")
-            first_flow_button.clicked.connect(self.build_first_flow)
-            toolbar.addWidget(first_flow_button)
-
+            self._toolbar_section_label(toolbar, "PROJECT")
             upload_button = QPushButton("UPLOAD FOLDER")
             upload_button.setProperty("role", "preset")
             upload_button.setToolTip("Add or reuse an Upload Tracks node and choose a music folder.")
             upload_button.clicked.connect(self.open_upload_folder_picker)
             toolbar.addWidget(upload_button)
+            import_button = QPushButton("IMPORT TRACKS")
+            import_button.setProperty("role", "preset")
+            import_button.setToolTip("Add or reuse an Upload Tracks node and choose audio files.")
+            import_button.clicked.connect(self.open_upload_file_picker)
+            toolbar.addWidget(import_button)
             toolbar.addSeparator()
 
-            build_action = QAction("Build First Flow", self)
-            build_action.triggered.connect(self.build_first_flow)
-            toolbar.addAction(build_action)
-
-            smart_playlist_action = QAction("Smart Playlist...", self)
-            smart_playlist_action.triggered.connect(self.build_smart_playlist_flow)
-            toolbar.addAction(smart_playlist_action)
-
-            import_action = QAction("Import Tracks...", self)
-            import_action.triggered.connect(self.open_upload_file_picker)
-            toolbar.addAction(import_action)
-
-            reset_action = QAction("Reset Canvas", self)
-            reset_action.triggered.connect(self.reset_canvas)
-            toolbar.addAction(reset_action)
-
-            fit_action = QAction("Fit Engine", self)
-            fit_action.triggered.connect(self.fit_engine)
-            toolbar.addAction(fit_action)
-
-            zoom_in_action = QAction("Zoom In", self)
-            zoom_in_action.triggered.connect(lambda: self.view.zoom_by_steps(1.0))
-            toolbar.addAction(zoom_in_action)
-
-            zoom_out_action = QAction("Zoom Out", self)
-            zoom_out_action.triggered.connect(lambda: self.view.zoom_by_steps(-1.0))
-            toolbar.addAction(zoom_out_action)
-
-            reset_zoom_action = QAction("Reset Zoom", self)
-            reset_zoom_action.triggered.connect(lambda: self.view.reset_zoom())
-            toolbar.addAction(reset_zoom_action)
-
-            run_action = QAction("Run Flow", self)
-            run_action.triggered.connect(self.run_flow)
-            toolbar.addAction(run_action)
+            self._toolbar_section_label(toolbar, "ENGINE")
+            self.run_button = QPushButton("▶ RUN ANALYSIS")
+            self.run_button.setProperty("role", "hero")
+            self.run_button.setToolTip(
+                "Run the whole graph: analyze uploaded tracks and execute every "
+                "connected node down to the final output."
+            )
+            self.run_button.clicked.connect(self.run_flow)
+            toolbar.addWidget(self.run_button)
+            smart_playlist_button = QPushButton("SMART PLAYLIST")
+            smart_playlist_button.setProperty("role", "preset")
+            smart_playlist_button.setToolTip(
+                "One-click flow: choose a folder -> analyze -> build a set -> export Rekordbox XML."
+            )
+            smart_playlist_button.clicked.connect(self.build_smart_playlist_flow)
+            toolbar.addWidget(smart_playlist_button)
+            first_flow_button = QPushButton("PAIR REVIEW FLOW")
+            first_flow_button.setProperty("role", "preset")
+            first_flow_button.setToolTip("Build the beginner review graph for testing pair decisions.")
+            first_flow_button.clicked.connect(self.build_first_flow)
+            toolbar.addWidget(first_flow_button)
 
             remove_action = QAction("Remove Selected", self)
             remove_action.triggered.connect(self.remove_selected_node)
@@ -1140,6 +1214,18 @@ if _PYSIDE_IMPORT_ERROR is None:
             spacer = QWidget()
             spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
             toolbar.addWidget(spacer)
+
+            self._toolbar_section_label(toolbar, "VIEW")
+            for label, handler in (
+                ("Zoom In", lambda: self.view.zoom_by_steps(1.0)),
+                ("Zoom Out", lambda: self.view.zoom_by_steps(-1.0)),
+                ("Fit", self.fit_engine),
+                ("Reset Zoom", lambda: self.view.reset_zoom()),
+            ):
+                view_action = QAction(label, self)
+                view_action.triggered.connect(handler)
+                toolbar.addAction(view_action)
+            toolbar.addSeparator()
 
             self.toolbar_status_label = QLabel("ENGINE READY")
             self.toolbar_status_label.setProperty("role", "toolbar_status")
@@ -1248,12 +1334,14 @@ if _PYSIDE_IMPORT_ERROR is None:
             node_id: str,
             x: float | None = None,
             y: float | None = None,
+            *,
+            instance_id: str | None = None,
         ) -> NodeBoxItem:
             spec = self.node_specs[node_id]
             if x is None or y is None:
                 x, y = self._suggest_node_position(spec)
             model = NodeInstanceModel(
-                instance_id=self._next_instance_id(node_id),
+                instance_id=instance_id or self._next_instance_id(node_id),
                 spec=spec,
                 x=x,
                 y=y,
@@ -1263,6 +1351,8 @@ if _PYSIDE_IMPORT_ERROR is None:
             self.node_items[model.instance_id] = item
             self._select_node(item)
             self.statusBar().showMessage(f"Added {spec.label}.", 2500)
+            self._mark_project_dirty()
+            self._refresh_engine_status()
             return item
 
         def selected_node_item(self) -> NodeBoxItem | None:
@@ -1342,6 +1432,8 @@ if _PYSIDE_IMPORT_ERROR is None:
             merged = _dedupe_paths([*current_paths, *_normalize_audio_paths(paths)])
             config = self.runtime.ensure_node_config(node_item.model.instance_id)
             config["paths_text"] = "\n".join(merged)
+            self._mark_project_dirty()
+            self._refresh_engine_status()
             if refresh_selection:
                 self._select_node(node_item)
             return merged
@@ -1585,6 +1677,8 @@ if _PYSIDE_IMPORT_ERROR is None:
             target_handle.node_item.add_connection(item)
             self.scene.addItem(item)
             item.update_path()
+            self._mark_project_dirty()
+            self._refresh_engine_status()
 
         def _remove_connection_to_input(self, instance_id: str, port_key: str) -> None:
             for connection_id, model in list(self.connection_models.items()):
@@ -1600,6 +1694,8 @@ if _PYSIDE_IMPORT_ERROR is None:
                 self.scene.removeItem(item)
             if model is not None:
                 self.statusBar().showMessage("Connection removed.", 2000)
+                self._mark_project_dirty()
+                self._refresh_engine_status()
 
         def _refresh_port_states(self, hover_target: PortHandleItem | None = None) -> None:
             active_source = self.connection_drag_source or self.pending_output_handle
@@ -1922,6 +2018,8 @@ if _PYSIDE_IMPORT_ERROR is None:
                 paths = current_paths()
                 config = self.runtime.ensure_node_config(node_item.model.instance_id)
                 config["paths_text"] = "\n".join(paths)
+                self._mark_project_dirty()
+                self._refresh_engine_status()
                 count = len(paths)
                 if count == 0:
                     summary.setText("No audio files queued yet. Click Open File Picker... to choose tracks.")
@@ -2675,6 +2773,7 @@ if _PYSIDE_IMPORT_ERROR is None:
             self._refresh_port_states()
             self._sync_inspector()
             self._set_toolbar_status("engine ready")
+            self._refresh_engine_status()
             self.statusBar().showMessage("Desktop host ready · engine pinned", 4000)
 
         def build_first_flow(self) -> None:
@@ -2808,6 +2907,246 @@ if _PYSIDE_IMPORT_ERROR is None:
             self.runtime.node_configs.pop(instance_id, None)
             self._sync_inspector()
             self.statusBar().showMessage("Node removed.", 2500)
+            self._mark_project_dirty()
+            self._refresh_engine_status()
+
+        # ------------------------------------------------------------ project model
+
+        def _refresh_window_title(self) -> None:
+            marker = " *" if self._project_dirty else ""
+            self.setWindowTitle(f"DanceLab — {self.project_name}{marker}")
+
+        def _mark_project_dirty(self) -> None:
+            if self._suspend_dirty_tracking:
+                return
+            self._project_dirty = True
+            self._refresh_window_title()
+
+        def _mark_project_saved(self) -> None:
+            self._project_dirty = False
+            self._refresh_window_title()
+
+        def _project_from_canvas(self) -> DanceLabProject:
+            return DanceLabProject(
+                name=self.project_name,
+                nodes=[
+                    ProjectNode(
+                        instance_id=item.model.instance_id,
+                        node_id=item.model.spec.node_id,
+                        x=float(item.pos().x()),
+                        y=float(item.pos().y()),
+                    )
+                    for item in self.node_items.values()
+                ],
+                connections=[
+                    ProjectConnection(
+                        from_instance_id=model.from_instance_id,
+                        from_port_key=model.from_port_key,
+                        to_instance_id=model.to_instance_id,
+                        to_port_key=model.to_port_key,
+                    )
+                    for model in self.connection_models.values()
+                ],
+                node_configs={
+                    instance_id: dict(config)
+                    for instance_id, config in self.runtime.node_configs.items()
+                    if instance_id in self.node_items and config
+                },
+            )
+
+        def _apply_project(self, project: DanceLabProject) -> None:
+            self._suspend_dirty_tracking = True
+            try:
+                self.scene.clear()
+                self.node_items.clear()
+                self.connection_models.clear()
+                self.connection_items.clear()
+                self.pending_output_handle = None
+                self.runtime.reset_runtime()
+                self.instance_counter = 1
+
+                for node in project.nodes:
+                    if node.node_id not in self.node_specs:
+                        continue  # node vanished from the contract — skip, keep the rest
+                    item = self.add_node(node.node_id, node.x, node.y, instance_id=node.instance_id)
+                    if node.node_id == "engine":
+                        item.setFlag(QGraphicsItem.ItemIsMovable, False)
+                if not any(
+                    item.model.spec.node_id == "engine" for item in self.node_items.values()
+                ):
+                    engine = self.add_node("engine", 560.0, 120.0)
+                    engine.setFlag(QGraphicsItem.ItemIsMovable, False)
+
+                for connection in project.connections:
+                    source = self.node_items.get(connection.from_instance_id)
+                    target = self.node_items.get(connection.to_instance_id)
+                    if source is None or target is None:
+                        continue
+                    source_handle = source.output_handles.get(connection.from_port_key)
+                    target_handle = target.input_handles.get(connection.to_port_key)
+                    if source_handle is None or target_handle is None:
+                        continue
+                    self.connect_ports(source_handle, target_handle)
+
+                for instance_id, config in project.node_configs.items():
+                    if instance_id in self.node_items:
+                        self.runtime.ensure_node_config(instance_id).update(config)
+
+                # continue instance numbering past the loaded ids
+                for instance_id in self.node_items:
+                    tail = instance_id.rsplit("_", 1)[-1]
+                    if tail.isdigit():
+                        self.instance_counter = max(self.instance_counter, int(tail) + 1)
+
+                self.scene.clearSelection()
+                self._refresh_port_states()
+                self._sync_inspector()
+            finally:
+                self._suspend_dirty_tracking = False
+            self._refresh_engine_status()
+
+        def new_project(self) -> None:
+            self.project_path = None
+            self.project_name = "Untitled Project"
+            self.reset_canvas()
+            self._mark_project_saved()
+            self.statusBar().showMessage("New project.", 3000)
+
+        def save_current_project(self) -> None:
+            if self.project_path is None:
+                self.save_project_as_dialog()
+                return
+            self._save_project_to_path(self.project_path)
+
+        def save_project_as_dialog(self) -> None:
+            selected, _ = QFileDialog.getSaveFileName(
+                self,
+                "Save DanceLab Project",
+                str(Path.home() / f"{self.project_name}{PROJECT_FILE_SUFFIX}"),
+                f"DanceLab Project (*{PROJECT_FILE_SUFFIX})",
+            )
+            if not selected:
+                return
+            self._save_project_to_path(Path(selected))
+
+        def _save_project_to_path(self, path: Path) -> Path:
+            self.project_name = Path(path).stem or self.project_name
+            saved = save_project(self._project_from_canvas(), path)
+            self.project_path = saved
+            self._remember_recent_project(saved)
+            self._mark_project_saved()
+            self.statusBar().showMessage(f"Project saved · {saved}", 5000)
+            return saved
+
+        def open_project_dialog(self) -> None:
+            selected, _ = QFileDialog.getOpenFileName(
+                self,
+                "Open DanceLab Project",
+                str(Path.home()),
+                f"DanceLab Project (*{PROJECT_FILE_SUFFIX})",
+            )
+            if selected:
+                self.load_project_from_path(Path(selected))
+
+        def load_project_from_path(self, path: str | Path) -> None:
+            try:
+                project = load_project(path)
+            except ProjectFileError as exc:
+                self.statusBar().showMessage(str(exc), 8000)
+                return
+            self._apply_project(project)
+            self.project_path = Path(path)
+            self.project_name = project.name or Path(path).stem
+            self._remember_recent_project(self.project_path)
+            self._mark_project_saved()
+            self.statusBar().showMessage(f"Project loaded · {self.project_name}", 5000)
+
+        def _recent_projects(self) -> list[str]:
+            settings = QSettings("DanceLab", "DesktopHost")
+            stored = settings.value("recent_projects", [])
+            if isinstance(stored, str):
+                stored = [stored]
+            return [str(path) for path in (stored or []) if str(path).strip()]
+
+        def _remember_recent_project(self, path: Path) -> None:
+            settings = QSettings("DanceLab", "DesktopHost")
+            recents = [str(path)] + [p for p in self._recent_projects() if p != str(path)]
+            settings.setValue("recent_projects", recents[:8])
+            self._refresh_recent_projects_menu()
+
+        def _refresh_recent_projects_menu(self) -> None:
+            if not hasattr(self, "recent_projects_menu"):
+                return
+            self.recent_projects_menu.clear()
+            recents = self._recent_projects()
+            if not recents:
+                empty = QAction("(no recent projects)", self)
+                empty.setEnabled(False)
+                self.recent_projects_menu.addAction(empty)
+                return
+            for recent in recents:
+                action = QAction(recent, self)
+                action.triggered.connect(
+                    lambda checked=False, p=recent: self.load_project_from_path(p)
+                )
+                self.recent_projects_menu.addAction(action)
+
+        # ------------------------------------------------------- engine status panel
+
+        def _build_engine_status_bar(self) -> None:
+            """UI/UX audit P1: persistent engine status — state + guided next step."""
+            self.engine_state_label = QLabel("STATE · IDLE")
+            self.engine_state_label.setProperty("role", "toolbar_status")
+            self.next_action_label = QLabel("")
+            self.statusBar().addPermanentWidget(self.next_action_label)
+            self.statusBar().addPermanentWidget(self.engine_state_label)
+            self._refresh_engine_status()
+
+        def _engine_status(self) -> tuple[str, str]:
+            """(state, next-action hint) for the guided status panel."""
+            thread = getattr(self, "_flow_thread", None)
+            if thread is not None and thread.isRunning():
+                return "running", "Analysis in progress…"
+            if self.runtime.errors:
+                first_error = next(iter(self.runtime.errors.values()))
+                return "error", f"Fix and re-run · {first_error}"
+            if self.runtime.outputs:
+                return "complete", "Review results in the Parameter Panel or export."
+            uploads = self._upload_nodes()
+            if len(self.node_items) <= 1:
+                return "idle", "Click SMART PLAYLIST or build a flow to start."
+            if uploads and not any(self._configured_upload_paths(item) for item in uploads):
+                return "waiting_for_input", "Add audio files to Upload Tracks first."
+            if self._default_run_target() is None:
+                return "waiting_for_input", "Add a runnable node (e.g. Analyze Tracks)."
+            return "ready", "Click ▶ RUN ANALYSIS."
+
+        def _refresh_engine_status(self) -> None:
+            if not hasattr(self, "engine_state_label"):
+                return
+            state, next_action = self._engine_status()
+            self.engine_state = state
+            self.engine_state_label.setText(f"STATE · {state.replace('_', ' ').upper()}")
+            self.next_action_label.setText(f"Next: {next_action}")
+            if hasattr(self, "run_button"):
+                self.run_button.setEnabled(state in ("ready", "complete", "error"))
+
+        # --------------------------------------------------------------- engine ops
+
+        def run_selected_node(self) -> None:
+            node_item = self.selected_node_item()
+            if node_item is None:
+                self.statusBar().showMessage("Select a node first.", 4000)
+                return
+            self.run_flow(target_instance_id=node_item.model.instance_id)
+
+        def reset_engine(self) -> None:
+            self.runtime.reset_runtime()
+            for item in self.node_items.values():
+                item.update()
+            self._sync_inspector()
+            self._refresh_engine_status()
+            self.statusBar().showMessage("Engine reset · outputs cleared, graph kept.", 4000)
 
         def _default_run_target(self) -> str | None:
             # Toolbar "Run" executes the whole flow: target the terminal sink so
@@ -2863,6 +3202,7 @@ if _PYSIDE_IMPORT_ERROR is None:
             self._flow_thread = thread
             self._flow_worker = worker
             thread.start()
+            self._refresh_engine_status()
             if wait:
                 thread.wait()
                 QApplication.processEvents()
@@ -2879,6 +3219,7 @@ if _PYSIDE_IMPORT_ERROR is None:
             for item in self.node_items.values():
                 item.update()
             self._sync_inspector()
+            self._refresh_engine_status()
 
 
 def launch_desktop_host(
