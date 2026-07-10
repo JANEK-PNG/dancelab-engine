@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from dancelab.core.models import GateStatus, RecommendationPolicy
+from dancelab.decision._common import bpm_octave_variants, nearest_bpm_variant
 
 _PAIR_LIMITS = {
     "tempo_review_pct": 6.0,
@@ -84,6 +85,9 @@ def _mean(values: list[float]) -> float:
     return float(np.mean(values)) if values else 0.0
 
 
+_BPM_RELATION_LABELS = ("direct", "double_time_of_b", "half_time_of_b")
+
+
 def best_bpm_relation(
     bpm_a: float | None,
     bpm_b: float | None,
@@ -91,21 +95,14 @@ def best_bpm_relation(
     if not bpm_a or not bpm_b:
         return "unknown", None, None
     delta_pct = round((bpm_b - bpm_a) / bpm_a * 100.0, 2)
-    candidates = [
-        ("direct", bpm_b),
-        ("double_time_of_b", bpm_b * 2.0),
-        ("half_time_of_b", bpm_b / 2.0),
-    ]
+    candidates = list(zip(_BPM_RELATION_LABELS, bpm_octave_variants(bpm_b), strict=True))
     relation, target = min(candidates, key=lambda item: abs(bpm_a - item[1]) / bpm_a)
     effective = round(abs(target - bpm_a) / bpm_a * 100.0, 2)
     return relation, delta_pct, effective
 
 
 def best_effective_bpm(reference_bpm: float | None, candidate_bpm: float | None) -> float | None:
-    if reference_bpm is None or candidate_bpm is None:
-        return None
-    variants = [candidate_bpm, candidate_bpm * 2.0, candidate_bpm / 2.0]
-    return float(min(variants, key=lambda value: abs(reference_bpm - value)))
+    return nearest_bpm_variant(reference_bpm, candidate_bpm)
 
 
 def effective_bpm_delta_pct(previous_bpm: float | None, current_bpm: float | None) -> float | None:

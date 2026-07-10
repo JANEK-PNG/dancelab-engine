@@ -28,6 +28,7 @@ from dancelab.core.models import (
     SetTransition,
 )
 from dancelab.core.provenance import provenance_for
+from dancelab.decision._common import tempo_proximity_score
 from dancelab.decision.harmonic import harmonic_compatibility, harmonic_relation, parse_camelot
 from dancelab.decision.mixability import compute_mixability
 
@@ -39,11 +40,7 @@ __all__ = ["build_set", "transition_score", "bpm_score", "track_energy",
 
 def bpm_score(bpm_a: float | None, bpm_b: float | None, tolerance_pct: float = 0.06) -> float:
     """1.0 at equal BPM → 0 beyond 2×tolerance, half/double-time aware."""
-    if not bpm_a or not bpm_b:
-        return 0.5
-    ratios = (bpm_b, bpm_b * 2.0, bpm_b / 2.0)
-    best = min(abs(bpm_a - r) / bpm_a for r in ratios)
-    return float(np.clip(1.0 - best / (2 * tolerance_pct), 0.0, 1.0))
+    return tempo_proximity_score(bpm_a, bpm_b, tolerance_pct)
 
 
 def track_energy(analysis: AnalysisResult) -> float:
