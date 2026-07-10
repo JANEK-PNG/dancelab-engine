@@ -136,3 +136,106 @@ terms:
     missing_data_policy: neutral 0.5 + warning if no context profile supplied
     validation_required: context-specific DJ ratings
     cannot_claim: context fit predicts crowd response
+
+  # --- Set Builder components (transition_score, Set Builder v0.1) ---
+  # harmonic + energy above are reused; these are the set-builder-only keys.
+  bpm:
+    formula_symbol: S_bpm
+    name: set-flow tempo fit
+    scientific_status: source
+    source_basis: ["tempo / beat tracking (half/double-time folded)"]
+    normalization_method: 1 - min BPM distance (incl. half/double time) / range
+    missing_data_policy: neutral 0.5 + warning if BPM unknown on either track
+    validation_required: DJ set-ordering ratings
+    cannot_claim: tempo proximity guarantees an in-set beatmatch will land
+
+  mixability:
+    formula_symbol: S_mix
+    name: pairwise mixability composite
+    scientific_status: candidate
+    source_basis: ["mixability model (harmonic + tempo + bass + vocal composite)"]
+    normalization_method: reuse compute_mixability().mixability_score in [0,1]
+    missing_data_policy: inherits the mixability model's per-component neutral/warn policy
+    validation_required: DJ pair ratings
+    cannot_claim: a high composite proves the pair mixes without pair validation
+
+  # --- Sequence planner components (sequence_score, Phase 3 beam search) ---
+  pair_score:
+    formula_symbol: Q_pair
+    name: per-step pair quality
+    scientific_status: candidate
+    source_basis: ["edge-decision core compatibility for the chosen step"]
+    normalization_method: edge-decision core compatibility score in [0,1]
+    missing_data_policy: inherits edge-decision neutral/warn policy
+    validation_required: DJ transition ratings
+    cannot_claim: a strong pair step proves the whole sequence works
+
+  local_arc:
+    formula_symbol: A_local
+    name: local energy-arc fit
+    scientific_status: hypothesis
+    source_basis: ["target vs actual per-step energy delta"]
+    normalization_method: 1 - |actual delta - target delta| / band
+    missing_data_policy: neutral if energy normalization range is degenerate
+    validation_required: DJ arc-shape annotations
+    cannot_claim: local arc fit predicts crowd energy response
+
+  global_arc:
+    formula_symbol: A_global
+    name: full-sequence arc fit
+    scientific_status: hypothesis
+    source_basis: ["mean abs error of the sequence energy vs target profile"]
+    normalization_method: 1 - MAE / band
+    missing_data_policy: neutral if energy normalization range is degenerate
+    validation_required: DJ full-set arc annotations
+    cannot_claim: global arc fit predicts a successful live set
+
+  lookahead_arc:
+    formula_symbol: A_look
+    name: future-headroom preservation
+    scientific_status: hypothesis
+    source_basis: ["projected fit of remaining candidates after this step"]
+    normalization_method: mean projected future-step fit in [0,1]
+    missing_data_policy: neutral 0.5 when no lookahead candidates remain
+    validation_required: DJ set-planning annotations
+    cannot_claim: preserved headroom guarantees a better continuation exists
+
+  terminal_arc:
+    formula_symbol: A_term
+    name: terminal-state fit
+    scientific_status: hypothesis
+    source_basis: ["fit of the branch endpoint to the target terminal energy"]
+    normalization_method: terminal fit in [0,1]
+    missing_data_policy: neutral 0.5 when the branch has no terminal estimate
+    validation_required: DJ closing-energy annotations
+    cannot_claim: terminal fit predicts how a set actually ends live
+
+  set_memory:
+    formula_symbol: M_set
+    name: bounded set-memory fit
+    scientific_status: hypothesis
+    source_basis: ["recent role + tension progression over a bounded history window"]
+    normalization_method: role-stage + tension progression fit in [0,1]
+    missing_data_policy: neutral 0.5 when history is empty
+    validation_required: DJ annotations of role/tension progression
+    cannot_claim: memory fit models real listener fatigue or narrative
+
+  transition_quality:
+    formula_symbol: Q_trans
+    name: transition-window quality
+    scientific_status: candidate
+    source_basis: ["best detected transition-window risk for the step edge"]
+    normalization_method: 1 - transition-window risk in [0,1]
+    missing_data_policy: neutral when no transition windows are detectable
+    validation_required: DJ transition-window ratings
+    cannot_claim: window quality proves a clean blend without DJ validation
+
+  risk_penalty:
+    formula_symbol: R_seq
+    name: cumulative sequence risk penalty
+    scientific_status: candidate
+    source_basis: ["combined harmonic / bass / vocal edge risk for the step"]
+    normalization_method: mean available edge risk in [0,1], subtracted from reward
+    missing_data_policy: no penalty applied when risk components are unavailable
+    validation_required: DJ review of flagged high-risk transitions
+    cannot_claim: a low penalty proves the transition is safe without validation

@@ -34,8 +34,12 @@ from dancelab.decision.mixability import compute_mixability
 
 MODEL_VERSION = "set_builder_v0.1"
 
+# AUD-M10: every weighted term resolves to a formula_terms.yaml entry (no
+# anonymous variables). Test-enforced by test_every_set_builder_component_has_a_term.
+COMPONENTS = ("harmonic", "bpm", "energy", "mixability")
+
 __all__ = ["build_set", "transition_score", "bpm_score", "track_energy",
-           "harmonic_relation", "parse_camelot", "MODEL_VERSION"]
+           "harmonic_relation", "parse_camelot", "MODEL_VERSION", "COMPONENTS"]
 
 
 def bpm_score(bpm_a: float | None, bpm_b: float | None, tolerance_pct: float = 0.06) -> float:
@@ -83,7 +87,8 @@ def transition_score(
     ).mixability_score
 
     w = weights.set_builder.weights
-    score = w["harmonic"] * h + w["bpm"] * bp + w["energy"] * en + w["mixability"] * mix
+    component_values = {"harmonic": h, "bpm": bp, "energy": en, "mixability": mix}
+    score = sum(w[name] * component_values[name] for name in COMPONENTS)
     reasoning = [
         f"harmonic {rel} ({a.track.key_estimate}->{b.track.key_estimate}) score {h:.2f}",
         f"bpm {a.track.bpm_estimate}->{b.track.bpm_estimate} score {bp:.2f}",
