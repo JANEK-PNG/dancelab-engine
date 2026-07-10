@@ -68,6 +68,7 @@ class _AnalysisWorker(QObject):
     """Runs library analysis off the UI thread (same rule as the graph host)."""
 
     progress = Signal(int, int, str)
+    stage = Signal(str, str)  # (path, real pipeline stage — never simulated)
     finished = Signal(object)  # (analyses, failures) | error string
 
     def __init__(self, files: list[Path], config: EngineConfig, analyze_fn):
@@ -83,6 +84,7 @@ class _AnalysisWorker(QObject):
                 self._config,
                 analyze_fn=self._analyze_fn,
                 progress=lambda done, total, path: self.progress.emit(done, total, path),
+                stage_progress=lambda path, stage: self.stage.emit(path, stage),
             )
         except Exception as exc:  # surfaced on the UI thread, never swallowed
             self.finished.emit(str(exc))
@@ -257,10 +259,11 @@ class SimpleModeWindow(QMainWindow):
         self.analyze_status.setProperty("role", "hint")
         layout.addWidget(self.analyze_status)
 
-        self.analyze_failures = QPlainTextEdit()
-        self.analyze_failures.setReadOnly(True)
-        self.analyze_failures.setPlaceholderText("Tracks that failed to analyze will be listed here.")
-        layout.addWidget(self.analyze_failures, stretch=1)
+        # Per-track checklist: each row is checked off as the engine finishes
+        # it, and the current row shows the REAL pipeline stage (key detection,
+        # beat tracking, ...) reported by the engine — not an animation.
+        self.analyze_list = QListWidget()
+        layout.addWidget(self.analyze_list, stretch=1)
         return page
 
     def _build_generate_page(self) -> QWidget:
@@ -456,6 +459,7 @@ class SimpleModeWindow(QMainWindow):
         )
         self.analyze_progress.setValue(0)
         self.analyze_status.setText("Not started.")
+        self.analyze_list.clear()
         self._sync_navigation()
 
     def run_analysis(self, *, wait: bool = False) -> None:
@@ -469,11 +473,18 @@ class SimpleModeWindow(QMainWindow):
         self.analyze_progress.setValue(0)
         self.analyze_status.setText("Analyzing…")
 
+        self.analyze_list.clear()
+        self._analyze_rows = {}
+        for path in self.files:
+            self._analyze_rows[str(path)] = self.analyze_list.count()
+            QListWidgetItem(f"○  {path.name}", self.analyze_list)
+
         thread = QThread(self)
         worker = _AnalysisWorker(self.files, self.config, self.analyze_fn)
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
         worker.progress.connect(self._on_analysis_progress)
+        worker.stage.connect(self._on_analysis_stage)
         worker.finished.connect(self._on_analysis_finished)
         # Same deadlock rule as the graph host: `thread` has main-thread
         # affinity, so a queued quit() never runs while wait=True parks the
@@ -488,10 +499,21 @@ class SimpleModeWindow(QMainWindow):
             thread.wait()
             QApplication.processEvents()
 
+    def _set_analyze_row(self, path: str, text: str) -> None:
+        row = getattr(self, "_analyze_rows", {}).get(path)
+        if row is not None and row < self.analyze_list.count():
+            self.analyze_list.item(row).setText(text)
+            self.analyze_list.scrollToItem(self.analyze_list.item(row))
+
     def _on_analysis_progress(self, done: int, total: int, path: str) -> None:
         self.analyze_progress.setMaximum(total)
         self.analyze_progress.setValue(done)
         self.analyze_status.setText(f"Analyzing {done}/{total} · {Path(path).name}")
+        self._set_analyze_row(path, f"▶  {Path(path).name} · starting…")
+
+    def _on_analysis_stage(self, path: str, stage: str) -> None:
+        # stage names come straight from the engine pipeline hook
+        self._set_analyze_row(path, f"▶  {Path(path).name} · {stage}…")
 
     def _on_analysis_finished(self, payload: object) -> None:
         self._analysis_thread = None
@@ -506,9 +528,23 @@ class SimpleModeWindow(QMainWindow):
         self.analyze_status.setText(
             f"Analyzed {len(self.analyses)} track(s) · {len(self.failures)} failed."
         )
-        self.analyze_failures.setPlainText(
-            "\n".join(f"{f.source_path} — {f.error}" for f in self.failures)
-        )
+        for analysis in self.analyses:
+            track = analysis.track
+            details = []
+            if track.bpm_estimate:
+                details.append(f"{track.bpm_estimate:.0f} BPM")
+            if track.key_estimate:
+                details.append(track.key_estimate)
+            if track.duration_sec:
+                details.append(f"{track.duration_sec / 60:.1f} min")
+            suffix = f" · {' · '.join(details)}" if details else ""
+            source = track.source_path or ""
+            self._set_analyze_row(source, f"✓  {Path(source).name}{suffix}")
+        for failure in self.failures:
+            self._set_analyze_row(
+                failure.source_path,
+                f"✗  {Path(failure.source_path).name} — {failure.error}",
+            )
         self._sync_navigation()
 
     def _target_track_count(self) -> int | None:

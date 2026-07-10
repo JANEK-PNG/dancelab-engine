@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -122,17 +123,26 @@ def analyze_files(
     recompute: bool = False,
     analyze_fn: Callable[..., AnalysisResult] = analyze_track,
     progress: Callable[[int, int, str], None] | None = None,
+    stage_progress: Callable[[str, str], None] | None = None,
 ) -> tuple[list[AnalysisResult], list[SmartPlaylistFailure]]:
     """Analyze (or load cached) analyses for a list of audio files.
 
     Failures are collected per file, never raised — the caller decides whether
     a partial library is usable. `progress(done, total, current_path)` fires
-    before each file so a UI can show per-track progress.
+    before each file; `stage_progress(path, stage)` relays the pipeline's real
+    per-stage hook (key detection, beat tracking, ...) when the analyze
+    function supports it — stages are reported by the engine, never simulated.
     """
     processed_root = (
         Path(processed_dir).expanduser() if processed_dir else _default_processed_dir(config)
     )
     repo = FileAnalysisRepository(processed_root)
+
+    effective_analyze_fn = analyze_fn
+    if stage_progress is not None and "on_stage" in inspect.signature(analyze_fn).parameters:
+        def effective_analyze_fn(path, cfg, _fn=analyze_fn):  # noqa: ANN001
+            return _fn(path, cfg, on_stage=lambda stage: stage_progress(str(path), stage))
+
     analyses: list[AnalysisResult] = []
     failures: list[SmartPlaylistFailure] = []
     total = len(source_files)
@@ -147,7 +157,7 @@ def analyze_files(
                     config=config,
                     repo=repo,
                     recompute=recompute,
-                    analyze_fn=analyze_fn,
+                    analyze_fn=effective_analyze_fn,
                 )
             )
         except Exception as exc:

@@ -110,3 +110,30 @@ def test_estimate_track_count_for_duration():
         analysis.track.duration_sec = None
     with pytest.raises(ValueError, match="known duration"):
         estimate_track_count_for_duration(analyses, 60.0)
+
+
+def test_analyze_files_relays_real_pipeline_stages(tmp_path):
+    # stage_progress relays the engine's on_stage hook — no simulated stages
+    from dancelab.workflows.smart_playlist import analyze_files
+
+    music_dir = tmp_path / "music"
+    music_dir.mkdir()
+    (music_dir / "Track_1.wav").write_bytes(b"fake wav")
+
+    def analyze_with_stages(path, config, on_stage=None):
+        if on_stage is not None:
+            on_stage("Key detection")
+            on_stage("Beat tracking (BPM)")
+        return _analysis_from_path(path, config)
+
+    stages: list[tuple[str, str]] = []
+    analyses, failures = analyze_files(
+        [music_dir / "Track_1.wav"],
+        EngineConfig(),
+        processed_dir=tmp_path / "processed",
+        analyze_fn=analyze_with_stages,
+        stage_progress=lambda path, stage: stages.append((path, stage)),
+    )
+    assert len(analyses) == 1 and not failures
+    assert [stage for _, stage in stages] == ["Key detection", "Beat tracking (BPM)"]
+    assert all(path.endswith("Track_1.wav") for path, _ in stages)
