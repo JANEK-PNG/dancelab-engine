@@ -639,3 +639,47 @@ def test_qt_host_engine_is_singleton_and_library_is_organized():
             assert "Status:" in child_tooltip
 
     window.close()
+
+
+@pytest.mark.skipif(
+    not _qt_bootstrap_available(),
+    reason="Qt platform bootstrap unavailable in this shell",
+)
+def test_qt_host_inspector_input_status_and_node_reset():
+    # UI/UX audit §6/§7: inputs show connected/missing, Reset Node clears
+    # config+output, pinch zoom helper clamps like button zoom.
+    app = QApplication.instance() or QApplication([])
+    window = NodeHostWindow(get_node_host_registry())
+    window.build_first_flow()
+    app.processEvents()
+
+    analyze_item = next(
+        item for item in window.node_items.values() if item.model.spec.node_id == "analyze_tracks"
+    )
+    window.scene.clearSelection()
+    analyze_item.setSelected(True)
+    window._sync_inspector()
+    app.processEvents()
+    inspector_texts = [
+        widget.text()
+        for widget in window.inspector_container.findChildren(QLabel)
+        if widget.text()
+    ]
+    assert any("✓ connected" in text for text in inspector_texts)
+
+    upload_item = next(
+        item for item in window.node_items.values() if item.model.spec.node_id == "upload_tracks"
+    )
+    window.runtime.ensure_node_config(upload_item.model.instance_id)["paths_text"] = "/tmp/A.mp3"
+    window.reset_node(upload_item)
+    # inspector rebuild may recreate an empty config dict — reset means "no values"
+    assert not window.runtime.node_configs.get(upload_item.model.instance_id)
+
+    # pinch gesture path shares the clamped zoom helper
+    window.view.zoom_by_factor(100.0)
+    assert window.view._zoom_value <= window.view.MAX_ZOOM
+    window.view.zoom_by_factor(0.0001)
+    assert window.view._zoom_value >= window.view.MIN_ZOOM
+    window.view.reset_zoom()
+
+    window.close()
