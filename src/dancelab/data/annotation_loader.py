@@ -136,7 +136,11 @@ def _clean(row: dict, list_fields: tuple[str, ...] = (), bool_fields: tuple[str,
             out[k] = [s.strip() for s in (v or "").split(_LIST_SEPARATOR) if s.strip()]
         elif k in bool_fields:
             out[k] = str(v or "").strip().lower() in ("1", "true", "yes")
-        elif v in ("", None, "unknown") and k not in ("segment_type", "window_type"):
+        elif k in ("segment_type", "window_type"):
+            # AUD-L10: a blank type is the model default "unknown", not an empty
+            # string (which would read as a real, nameless label downstream).
+            out[k] = v if (v or "").strip() else "unknown"
+        elif v in ("", None, "unknown"):
             out[k] = None
         else:
             out[k] = v

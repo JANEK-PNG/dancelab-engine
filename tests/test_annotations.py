@@ -63,6 +63,17 @@ def test_loaders_parse_types(dataset):
     assert labels[0].secondary_functions == ["builder", "tension_builder"]
 
 
+def test_blank_window_type_becomes_unknown_not_empty(tmp_path):
+    # AUD-L10: a blank type resolves to the model default "unknown", never ""
+    path = tmp_path / "transition_window_annotations.csv"
+    write_csv(path,
+              ["window_id", "track_id", "window_type", "start_sec", "end_sec",
+               "dj_rating", "engine_candidate", "reason_good", "risk_notes"],
+              [["t1_tw1", "t1", "", "250", "280", "4", "true", "phrase ok", ""]])
+    windows = load_transition_windows(path)
+    assert windows[0].window_type == "unknown"
+
+
 def test_missing_column_fails_loud(tmp_path):
     write_csv(tmp_path / "track_metadata.csv", ["title"], [["no id"]])
     with pytest.raises(AnnotationFileError, match="missing columns"):
@@ -131,6 +142,11 @@ def test_window_overlap_and_topk():
     assert top_k_hit(engine, dj, k=1, min_overlap_sec=10.0) is False
     assert false_positive_rate(engine, dj) == 0.5
     assert 0 < mean_overlap(engine, dj) < 1
+
+
+def test_false_positive_rate_undefined_on_no_engine_windows():
+    # AUD-L11: 0 engine windows → 0/0 is undefined, not a fabricated 0.0
+    assert false_positive_rate([], [(110.0, 130.0)]) is None
 
 
 def test_rating_correlation_honest_none():

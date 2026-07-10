@@ -163,14 +163,16 @@ def _build_transition_window_metrics(rows: list[dict[str, str]]) -> tuple[dict[s
         top1.append(1.0 if top_k_hit(engine, manual, k=1) else 0.0)
         top3.append(1.0 if top_k_hit(engine, manual, k=3) else 0.0)
         overlaps.append(mean_overlap(engine[:3], manual))
-        fprs.append(false_positive_rate(engine[:3], manual))
+        fpr = false_positive_rate(engine[:3], manual)
+        if fpr is not None:  # AUD-L11: skip undefined (no engine windows) cases
+            fprs.append(fpr)
 
     metrics.update(
         {
             "top1_hit_rate": round(sum(top1) / len(top1), 4),
             "top3_hit_rate": round(sum(top3) / len(top3), 4),
             "mean_overlap_iou": round(sum(overlaps) / len(overlaps), 4),
-            "false_positive_rate": round(sum(fprs) / len(fprs), 4),
+            "false_positive_rate": round(sum(fprs) / len(fprs), 4) if fprs else None,
         }
     )
     return metrics, warnings
