@@ -4,9 +4,26 @@ import numpy as np
 from fastapi.testclient import TestClient
 
 from dancelab.api.main import app
-from dancelab.context.conditioning import condition, evaluate_context, track_context_score
+from dancelab.context.conditioning import (
+    _infer_role,
+    condition,
+    evaluate_context,
+    track_context_score,
+)
 from dancelab.core.models import AnalysisResult, ContextProfile, FeatureFrame, Track
 from dancelab.storage.repositories import FileAnalysisRepository
+
+
+def test_infer_role_late_night_boundaries():
+    # AUD-L7: 00:00–03:59 is peak (03:xx no longer falls through to builder),
+    # 04:00–08:59 is closer, 22:00+ opener.
+    def role_at(hour):
+        return _infer_role(ContextProfile(context_id="c", time_of_night=f"{hour:02d}:00"))
+
+    assert role_at(0) == "peak"
+    assert role_at(3) == "peak"   # was the dead-branch gap → builder
+    assert role_at(4) == "closer"
+    assert role_at(23) == "opener"
 
 
 def make_analysis(track_id, rms_curve, lfer=0.5, vocal=0.2, style="techno", bpm=128):

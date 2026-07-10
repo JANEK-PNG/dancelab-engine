@@ -25,7 +25,13 @@ def release_map(tension_eff: np.ndarray, times_sec: np.ndarray) -> np.ndarray:
     if len(tension) == 1:
         return np.zeros(1, dtype=np.float64)
 
-    gradient = np.gradient(tension, times)
+    # AUD-L9: duplicate/non-monotonic timestamps make np.gradient(tension, times)
+    # divide by a zero/negative dt → inf/NaN. Callers pass monotonic times, but
+    # fall back to unit-spacing gradient rather than silently emitting NaNs.
+    if np.all(np.diff(times) > 0):
+        gradient = np.gradient(tension, times)
+    else:
+        gradient = np.gradient(tension)
     drop = np.clip(-gradient, 0.0, None)
 
     lookahead = np.empty_like(tension)

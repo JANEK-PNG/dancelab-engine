@@ -18,6 +18,12 @@ Schema (researched — pyrekordbox / Rekordbox 7 manual):
       NODE Type=0 (ROOT) → NODE Type=1 (playlist) → TRACK Key=TrackID
 
 Stdlib only (xml.etree). Deterministic.
+
+AUD-L6 — constant-tempo assumption: we emit a single TEMPO node per track, so
+the exported grid is a fixed BPM anchored at the first (down)beat. This is
+correct for the steady four-on-the-floor material this engine targets but will
+misgrid genuinely tempo-automated tracks (ramps, rubato). Variable-tempo grids
+(one TEMPO per tempo change) are a later upgrade.
 """
 
 from __future__ import annotations
@@ -73,10 +79,20 @@ def _track_element(
         "Artist": t.artist or "",
         "Location": _location_uri(t.source_path),
         "Kind": _kind(t.source_path),
-        "TotalTime": str(int(t.duration_sec)) if t.duration_sec else "0",
+        # AUD-L4: round, don't truncate (300.9s → "301", not "300").
+        "TotalTime": str(round(t.duration_sec)) if t.duration_sec else "0",
     }
-    if t.bpm_estimate:
-        attrs["AverageBpm"] = f"{t.bpm_estimate:.2f}"
+    # AUD-L3: AverageBpm must agree with the grid tempo Rekordbox actually beat-
+    # matches to (the TEMPO Bpm below). When a beatgrid exists, use its bpm so the
+    # browser number and the grid can't diverge under a bpm_hint; else fall back
+    # to the track estimate.
+    grid_bpm = (
+        analysis.beatgrid.bpm
+        if analysis.beatgrid and analysis.beatgrid.beat_times_sec
+        else t.bpm_estimate
+    )
+    if grid_bpm:
+        attrs["AverageBpm"] = f"{grid_bpm:.2f}"
     if t.key_estimate:
         attrs["Tonality"] = t.key_estimate  # Camelot (e.g. "8A")
     if t.sample_rate:

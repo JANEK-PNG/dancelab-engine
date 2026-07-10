@@ -50,10 +50,14 @@ def false_positive_rate(
     engine_windows: list[tuple[float, float]],
     dj_windows: list[tuple[float, float]],
     min_overlap_sec: float = 4.0,
-) -> float:
-    """Fraction of engine windows with no DJ counterpart."""
+) -> float | None:
+    """Fraction of engine windows with no DJ counterpart.
+
+    AUD-L11: with no engine windows the rate is undefined (0/0), not 0.0 — a
+    fabricated 0.0 would read as "no false positives" — so return None.
+    """
     if not engine_windows:
-        return 0.0
+        return None
     misses = sum(
         1 for ew in engine_windows
         if not any(window_overlap_sec(ew, dw) >= min_overlap_sec for dw in dj_windows)

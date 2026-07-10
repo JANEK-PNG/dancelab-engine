@@ -65,7 +65,12 @@ def segment_track(
     for i in range(len(edges) - 1):
         start, end = float(edges[i]), float(edges[i + 1])
         if end - start < min_len_sec and segments:  # merge tiny tail into previous
-            segments[-1] = segments[-1].model_copy(update={"end_sec": round(end, 3)})
+            update = {"end_sec": round(end, 3)}
+            # AUD-L1: a merged final segment now ends the track, so the previous
+            # segment inherits the outro label instead of the track losing it.
+            if i == len(edges) - 2:
+                update["segment_type"] = SegmentType.outro
+            segments[-1] = segments[-1].model_copy(update=update)
             continue
         mask = (seg_times >= start) & (seg_times < end)
         energy = float(seg_rms[mask].mean()) if mask.any() else 0.0

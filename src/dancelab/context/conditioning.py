@@ -119,11 +119,14 @@ def _infer_role(context: ContextProfile) -> str:
 
     hour = _start_hour(context.time_of_night)
     crowd = (context.crowd_energy or "").strip().lower()
-    if crowd == "high" or (hour is not None and 0 <= hour < 3):
+    # AUD-L7: late night (00:00–03:59) is peak, early morning (04:00–08:59) is
+    # the wind-down. Previously 03:00–03:59 fell through to the default role, and
+    # the opener's `hour < 1` branch was dead (hour 0 is already caught by peak).
+    if crowd == "high" or (hour is not None and 0 <= hour < 4):
         return "peak"
     if crowd == "descending" or (hour is not None and 4 <= hour <= 8):
         return "closer"
-    if crowd == "low" or (hour is not None and (hour >= 22 or hour < 1)):
+    if crowd == "low" or (hour is not None and hour >= 22):
         return "opener"
     return _DEFAULT_ROLE
 
@@ -136,7 +139,7 @@ def _target_profile(context: ContextProfile, length: int) -> dict[str, np.ndarra
 
     hour = _start_hour(context.time_of_night)
     if hour is not None:
-        if 0 <= hour < 3:
+        if 0 <= hour < 4:  # AUD-L7: late-night peak band matches _infer_role
             energy += 0.04
         elif 4 <= hour <= 8:
             energy -= 0.05
