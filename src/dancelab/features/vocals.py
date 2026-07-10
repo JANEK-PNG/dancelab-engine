@@ -111,9 +111,14 @@ def _energy_ratio_per_frame(
 ) -> np.ndarray:
     """Fraction of per-frame mix energy carried by the vocals stem, in [0,1].
 
-    Silence gate: frames whose mix energy is below 5% of the track's median
-    frame energy are set to 0 — in near-silent gaps vocal/mix ratio spikes to
-    1.0 meaninglessly, which would fake a vocal peak."""
+    Silence gate: frames whose mix energy is below 5% of the track's typical
+    (nonzero-frame median) energy are set to 0 — in near-silent gaps vocal/mix
+    ratio spikes to 1.0 meaninglessly, which would fake a vocal peak.
+
+    AUD-M1: the reference is the median of *nonzero* frames, not all frames.
+    A track that is >50% silent has an all-frames median of 0, which makes the
+    floor 0 so the gate never fires and every silent gap reads as a full vocal
+    peak — the exact fabrication the gate exists to prevent."""
     from dancelab.features.rms import frame_signal
 
     n = min(len(vocals), len(mix))
@@ -124,7 +129,9 @@ def _energy_ratio_per_frame(
     v_energy = np.mean(v_frames.astype(np.float64) ** 2, axis=1)
     m_energy = np.mean(m_frames.astype(np.float64) ** 2, axis=1)
     ratio = np.clip(v_energy / (m_energy + _EPS), 0.0, 1.0)
-    floor = 0.05 * np.median(m_energy)
+    nonzero = m_energy[m_energy > _EPS]
+    reference = float(np.median(nonzero)) if nonzero.size else 0.0
+    floor = 0.05 * reference
     ratio[m_energy < floor] = 0.0
     return ratio
 

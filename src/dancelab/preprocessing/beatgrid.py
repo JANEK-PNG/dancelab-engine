@@ -96,9 +96,14 @@ def estimate_beatgrid(
             bpm *= factor
             beat_times = _refit_beats(beat_times, factor)
 
+    # AUD-M2: no detected beats → the 120 is a placeholder, not a measurement.
+    # Keep a positive bpm (schema requires >0) but flag it unreliable so
+    # downstream never treats fabricated silence as a real tempo.
+    reliable = bpm > 0 and len(beat_times) >= 2
     downbeats = [float(t) for t in beat_times[::beats_per_bar]]
     return BeatGrid(
         bpm=round(bpm, 2) if bpm > 0 else 120.0,
         beat_times_sec=[round(float(t), 4) for t in beat_times],
         downbeats_sec=[round(t, 4) for t in downbeats],
+        reliable=reliable,
     )

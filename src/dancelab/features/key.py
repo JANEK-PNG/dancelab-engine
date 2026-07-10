@@ -36,11 +36,17 @@ def _corr(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / denom) if denom > 1e-12 else 0.0
 
 
-def key_from_chroma(chroma_mean: np.ndarray) -> tuple[str, str, float]:
+def key_from_chroma(chroma_mean: np.ndarray) -> tuple[str | None, str | None, float]:
     """(key_name, camelot, confidence) from a 12-bin mean chroma vector (C-first).
 
     confidence = margin between best and 2nd-best correlation, scaled to [0,1].
     """
+    chroma_mean = np.asarray(chroma_mean, dtype=np.float64)
+    # AUD-M3: no tonal content (silence / flat chroma) → every correlation is
+    # 0 and the stable sort would fabricate "C major / 8B". Return an explicit
+    # unknown instead of a confident positive claim.
+    if chroma_mean.size != 12 or np.allclose(chroma_mean, chroma_mean.mean()):
+        return None, None, 0.0
     scores: list[tuple[float, int, str]] = []
     for root in range(12):
         maj = np.roll(_KS_MAJOR, root)
@@ -56,7 +62,7 @@ def key_from_chroma(chroma_mean: np.ndarray) -> tuple[str, str, float]:
     return key_name, camelot, round(confidence, 3)
 
 
-def estimate_key(x: np.ndarray, sample_rate: int, hop_size: int = 512) -> tuple[str, str, float]:
+def estimate_key(x: np.ndarray, sample_rate: int, hop_size: int = 512) -> tuple[str | None, str | None, float]:
     """Estimate track key. Returns (key_name, camelot, confidence)."""
     try:
         import librosa

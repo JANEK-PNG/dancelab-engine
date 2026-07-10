@@ -39,9 +39,17 @@ def test_camelot_wheel_is_complete_and_unique():
     assert set(_MINOR_CAMELOT) == set(range(12))
 
 
-def test_flat_chroma_low_confidence():
-    _, _, conf = key_from_chroma(np.ones(12))
-    assert conf < 0.2  # no tonal centre → low confidence
+def test_flat_chroma_returns_unknown():
+    # AUD-M3: no tonal centre → explicit unknown, never a fabricated "C major/8B"
+    name, camelot, conf = key_from_chroma(np.ones(12))
+    assert name is None
+    assert camelot is None
+    assert conf == 0.0
+
+
+def test_silent_chroma_returns_unknown():
+    name, camelot, conf = key_from_chroma(np.zeros(12))
+    assert name is None and camelot is None and conf == 0.0
 
 
 def test_pitch_classes_length():
