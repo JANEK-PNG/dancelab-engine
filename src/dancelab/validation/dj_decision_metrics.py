@@ -86,23 +86,40 @@ def spearman_rho(a: list[float], b: list[float]) -> float | None:
 
 
 def kendall_tau(a: list[float], b: list[float]) -> float | None:
-    """Kendall τ = (n_c − n_d) / (½ n(n−1)) (Validation Metrics, S041).
+    """Kendall τ-b (tie-corrected) — Validation Metrics, S041.
 
-    τ-a form (no tie correction). None when undefined."""
+    AUD-H4: DJ ratings are 1–5 integers with heavy ties; τ-a's ½n(n−1)
+    denominator counts tied pairs and systematically attenuates agreement
+    (verified 0.786 vs scipy τ-b 0.898 on tied data). τ-b divides by
+    √((n₀−T_a)(n₀−T_b)) where T_x counts tied pairs in x. None when
+    undefined: fewer than 3 pairs, or zero variance in either input
+    (a constant rater expresses no ranking — matching spearman_rho)."""
     n = len(a)
     if n != len(b) or n < 3:
         return None
     a_arr, b_arr = np.asarray(a, float), np.asarray(b, float)
-    concordant = discordant = 0
+    if a_arr.std() < 1e-12 or b_arr.std() < 1e-12:
+        return None
+    concordant = discordant = ties_a = ties_b = 0
     for i in range(n):
         for j in range(i + 1, n):
-            sign = np.sign(a_arr[i] - a_arr[j]) * np.sign(b_arr[i] - b_arr[j])
-            if sign > 0:
+            da, db = a_arr[i] - a_arr[j], b_arr[i] - b_arr[j]
+            if da == 0 and db == 0:
+                ties_a += 1
+                ties_b += 1
+            elif da == 0:
+                ties_a += 1
+            elif db == 0:
+                ties_b += 1
+            elif np.sign(da) * np.sign(db) > 0:
                 concordant += 1
-            elif sign < 0:
+            else:
                 discordant += 1
-    denom = 0.5 * n * (n - 1)
-    return float((concordant - discordant) / denom) if denom else None
+    n0 = 0.5 * n * (n - 1)
+    denom = np.sqrt((n0 - ties_a) * (n0 - ties_b))
+    if denom < 1e-12:
+        return None
+    return float((concordant - discordant) / denom)
 
 
 def cohen_kappa(rater_a: list, rater_b: list) -> float | None:

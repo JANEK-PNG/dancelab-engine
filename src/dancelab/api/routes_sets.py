@@ -11,17 +11,24 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from dancelab.api.schemas import (
+    BuildSetRequest,
     NextTrackRecommendation,
     RecommendNextRequest,
     RecommendSequenceRequest,
+    RekordboxExportRequest,
+    RekordboxExportResponse,
     SequenceDecision,
 )
 from dancelab.core.config import load_config, load_weights
+from dancelab.core.models import SetPlan, TransitionWindowInput
 from dancelab.decision.next_track import recommend_next as recommend_next_engine
 from dancelab.decision.sequence import recommend_sequence as recommend_sequence_engine
+from dancelab.decision.set_builder import build_set as build_set_engine
+from dancelab.decision.transition_windows import detect_transition_windows
+from dancelab.export.rekordbox import build_rekordbox_xml, write_rekordbox_xml
 from dancelab.storage.repositories import FileAnalysisRepository
 
 router = APIRouter(prefix="/sets", tags=["sets"])
@@ -35,6 +42,11 @@ def _repository(config) -> FileAnalysisRepository:
     return FileAnalysisRepository(
         os.environ.get("DANCELAB_PROCESSED_DIR", config.paths.processed_dir)
     )
+
+
+def _requested_analyses(repo: FileAnalysisRepository, track_ids: list[str]):
+    ids = track_ids or repo.list_track_ids()
+    return [repo.get(track_id) for track_id in ids]
 
 
 @router.post("/recommend-next", response_model=NextTrackRecommendation)
@@ -75,4 +87,75 @@ async def recommend_sequence(request: RecommendSequenceRequest) -> SequenceDecis
         recent_history=recent_history,
         arc_mode=request.arc_mode,
         horizon=request.horizon,
+    )
+
+
+@router.post("/build", response_model=SetPlan)
+async def build_set(request: BuildSetRequest) -> SetPlan:
+    """Build a set via the same engine path used by CLI and desktop host."""
+    config = _config()
+    repo = _repository(config)
+    weights = load_weights(config.weights_file)
+    analyses = _requested_analyses(repo, request.track_ids)
+    try:
+        return build_set_engine(
+            analyses,
+            weights,
+            arc=request.arc,
+            start_track_id=request.start_track_id,
+            target_track_count=request.target_track_count,
+            locked_positions=request.locked_positions,
+            pinned_track_ids=request.pinned_track_ids,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/export-rekordbox", response_model=RekordboxExportResponse)
+async def export_rekordbox(request: RekordboxExportRequest) -> RekordboxExportResponse:
+    """Export analyzed tracks to Rekordbox XML without forking CLI logic."""
+    config = _config()
+    repo = _repository(config)
+    weights = load_weights(config.weights_file)
+    analyses = _requested_analyses(repo, request.track_ids)
+    try:
+        set_plan = request.set_plan or build_set_engine(
+            analyses,
+            weights,
+            arc=request.arc,
+            start_track_id=request.start_track_id,
+            target_track_count=request.target_track_count,
+            locked_positions=request.locked_positions,
+            pinned_track_ids=request.pinned_track_ids,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    windows = {
+        analysis.track.track_id: detect_transition_windows(
+            TransitionWindowInput(
+                track_id=analysis.track.track_id,
+                segments=analysis.segments,
+                feature_frames=analysis.features,
+                beatgrid=analysis.beatgrid,
+            ),
+            weights.transition_window,
+            top_k=config.analysis.transition_top_n,
+        ).windows
+        for analysis in analyses
+    }
+    xml = build_rekordbox_xml(
+        analyses,
+        set_plan=set_plan,
+        windows_by_track=windows,
+        playlist_name=request.playlist_name,
+    )
+    output_path = None
+    if request.output_path:
+        output_path = str(write_rekordbox_xml(xml, request.output_path))
+    return RekordboxExportResponse(
+        playlist_name=request.playlist_name,
+        track_count=len(set_plan.track_order),
+        output_path=output_path,
+        set_plan=set_plan,
+        xml=xml,
     )

@@ -40,14 +40,20 @@ def analyze(
     audio_path: Path,
     output: Path = typer.Option(None, "--output", "-o", help="Write AnalysisResult JSON here"),
     style: str = typer.Option(None, "--style", help="Style label, e.g. techno"),
-    context: str = typer.Option(None, "--context", help="Context profile id, e.g. club_peak"),
     bpm: float = typer.Option(None, "--bpm", help="Known BPM hint (tightens beat tracking)"),
+    title: str = typer.Option(None, "--title", help="Override track title"),
+    artist: str = typer.Option(None, "--artist", help="Override artist"),
     config: str = CONFIG_OPT,
 ) -> None:
-    """Analyze a single track → JSON output."""
+    """Analyze a single track → JSON output.
+
+    AUD-M9: the --context flag was removed — it was a silent no-op (context
+    conditioning happens at decision time, e.g. /tracks/{id}/set-function).
+    """
     try:
         result = analyze_track(
-            audio_path, load_config(config), style_label=style, context_id=context, bpm_hint=bpm
+            audio_path, load_config(config), style_label=style, bpm_hint=bpm,
+            title=title, artist=artist,
         )
     except NotImplementedFeature as exc:
         typer.secho(f"NOT IMPLEMENTED (status={exc.status}): {exc}", fg="yellow", err=True)

@@ -57,8 +57,12 @@ def _matched_deviations(
     deviations = onsets - nearest
 
     # Syncopated off-beat onsets are not microtiming noise; keep only near-beat
-    # events for the deviation proxy.
-    tolerance = 0.5 * beat_period + _EPS
+    # events for the deviation proxy. AUD-H2: nearest-beat distance is ALWAYS
+    # ≤ 0.5·beat_period by construction, so the old 0.5 tolerance admitted
+    # everything (exact off-beats included) and saturated the proxy on
+    # syncopated material. 0.15·beat_period keeps push/drag around the beat
+    # (real microtiming) while excluding off-beat hits.
+    tolerance = 0.15 * beat_period + _EPS
     mask = np.abs(deviations) <= tolerance
     return onsets[mask], deviations[mask], beat_period
 

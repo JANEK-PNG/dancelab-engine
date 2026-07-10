@@ -10,7 +10,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
-from dancelab.contracts.node_host import NodeHostRegistry, get_node_host_registry
+from dancelab.contracts.node_host import (
+    HOST_RUNNABLE_NODE_IDS,
+    NodeHostRegistry,
+    get_node_host_registry,
+)
 from dancelab.core.config import (
     DescriptorWeights,
     EngineConfig,
@@ -26,15 +30,17 @@ from dancelab.core.models import (
     NextTrackRecommendation,
     TransitionWindowInput,
 )
-from dancelab.core.pipeline import analyze_track
+from dancelab.core.pipeline import analyze_track, analyze_track_with_stems
 from dancelab.data.dataset_manifest import build_dataset_manifest
 from dancelab.decision.edge_decision import build_edge_decision
 from dancelab.decision.mixability import compute_mixability
 from dancelab.decision.next_track import recommend_next
 from dancelab.decision.set_builder import build_set
-from dancelab.export.rekordbox import build_rekordbox_xml, write_rekordbox_xml
 from dancelab.decision.transition_windows import detect_transition_windows
+from dancelab.export.rekordbox import build_rekordbox_xml, write_rekordbox_xml
 from dancelab.storage.repositories import FileAnalysisRepository, TrackNotFoundError
+from dancelab.stems import StemBundle, export_stem_artifacts
+from dancelab.stems.workflow import artifact_from_export_dir, stem_enabled_config
 
 
 @dataclass
@@ -108,20 +114,7 @@ def _default_edge_decision_payload(
 class DesktopHostRuntime:
     """Graph execution runtime for the Qt host MVP."""
 
-    SUPPORTED_NODE_IDS = {
-        "engine",
-        "upload_tracks",
-        "load_corpus",
-        "select_track",
-        "select_pair",
-        "select_context",
-        "analyze_tracks",
-        "edge_decision",
-        "telemetry_screen",
-        "build_set",
-        "export_rekordbox",
-        "recommend_next",
-    }
+    SUPPORTED_NODE_IDS = set(HOST_RUNNABLE_NODE_IDS)
 
     def __init__(
         self,
@@ -129,16 +122,24 @@ class DesktopHostRuntime:
         *,
         config_path: str | Path = "configs/default.yaml",
         analyze_track_fn: Callable[..., AnalysisResult] = analyze_track,
+        analyze_track_with_stems_fn: Callable[
+            ..., tuple[AnalysisResult, StemBundle | None]
+        ] = analyze_track_with_stems,
         edge_decision_fn: Callable[..., EdgeDecision] = _default_edge_decision_payload,
         recommend_next_fn: Callable[..., NextTrackRecommendation] = recommend_next,
+        stem_export_fn: Callable[
+            [AnalysisResult, StemBundle | None, str | Path], Path
+        ] = export_stem_artifacts,
         config_loader: Callable[[str | Path], EngineConfig] = load_config,
         weights_loader: Callable[[str | Path], DescriptorWeights] = load_weights,
     ):
         self.registry = registry or get_node_host_registry()
         self.config_path = Path(config_path)
         self._analyze_track = analyze_track_fn
+        self._analyze_track_with_stems = analyze_track_with_stems_fn
         self._edge_decision = edge_decision_fn
         self._recommend_next = recommend_next_fn
+        self._stem_export = stem_export_fn
         self._config_loader = config_loader
         self._weights_loader = weights_loader
 
@@ -314,6 +315,8 @@ class DesktopHostRuntime:
                 result = self._run_select_track(index, connections, instance_id, next_stack)
             elif node.node_id == "analyze_tracks":
                 result = self._run_analyze_tracks(index, connections, instance_id, next_stack)
+            elif node.node_id == "extract_stems":
+                result = self._run_extract_stems(index, connections, instance_id, next_stack)
             elif node.node_id == "select_pair":
                 result = self._run_select_pair(index, connections, instance_id, next_stack)
             elif node.node_id == "select_context":
@@ -326,6 +329,8 @@ class DesktopHostRuntime:
                 result = self._run_build_set(index, connections, instance_id, next_stack)
             elif node.node_id == "export_rekordbox":
                 result = self._run_export_rekordbox(index, connections, instance_id, next_stack)
+            elif node.node_id == "stem_export":
+                result = self._run_stem_export(index, connections, instance_id, next_stack)
             elif node.node_id == "recommend_next":
                 result = self._run_recommend_next(index, connections, instance_id, next_stack)
             elif node.node_id == "engine":
@@ -491,6 +496,50 @@ class DesktopHostRuntime:
             },
         )
 
+    def _run_extract_stems(
+        self,
+        index: dict[str, RuntimeNodeState],
+        connections: list[RuntimeConnection],
+        instance_id: str,
+        stack: list[str],
+    ) -> NodeExecutionResult:
+        track_files = self._resolve_connected_value(index, connections, instance_id, "tracks", stack)
+        if not isinstance(track_files, list) or not track_files:
+            raise RuntimeError("Extract Stems needs upstream track files.")
+
+        config = self.ensure_node_config(instance_id)
+        stem_method = str(config.get("stem_method") or "auto")
+        vocal_method_value = str(config.get("vocal_method") or "").strip()
+        vocal_method = vocal_method_value or None
+        cfg = stem_enabled_config(
+            self.config(),
+            stem_method=stem_method,
+            vocal_method=vocal_method,
+        )
+
+        analyses: list[AnalysisResult] = []
+        stem_bundles: dict[str, StemBundle] = {}
+        for path in track_files:
+            analysis, stem_bundle = self._analyze_track_with_stems(str(path), cfg)
+            analyses.append(analysis)
+            self.analysis_index[analysis.track.track_id] = analysis
+            if stem_bundle is not None:
+                stem_bundles[analysis.track.track_id] = stem_bundle
+
+        return NodeExecutionResult(
+            node_id="extract_stems",
+            ports={
+                "analysis": analyses,
+                "track_ids": [analysis.track.track_id for analysis in analyses],
+                "stems": stem_bundles,
+                "stem_windows": [
+                    feature
+                    for analysis in analyses
+                    for feature in analysis.stem_window_features
+                ],
+            },
+        )
+
     def _run_select_pair(
         self,
         index: dict[str, RuntimeNodeState],
@@ -644,11 +693,16 @@ class DesktopHostRuntime:
         config = self.ensure_node_config(instance_id)
         arc = str(config.get("arc") or "build")
         start_track_id = str(config.get("start_track_id") or "").strip() or None
+        raw_target_count = config.get("target_track_count")
+        target_track_count = int(raw_target_count) if raw_target_count not in (None, "") else None
         plan = build_set(
             analyses,
             self.weights(),
             arc=arc,
             start_track_id=start_track_id,
+            target_track_count=target_track_count,
+            locked_positions=config.get("locked_positions") or {},
+            pinned_track_ids=config.get("pinned_track_ids") or [],
         )
         return NodeExecutionResult(
             node_id="build_set",
@@ -699,6 +753,80 @@ class DesktopHostRuntime:
                 "artifact_path": str(written_path),
                 "playlist_name": playlist_name,
                 "track_count": len(analyses),
+            },
+        )
+
+    def _run_stem_export(
+        self,
+        index: dict[str, RuntimeNodeState],
+        connections: list[RuntimeConnection],
+        instance_id: str,
+        stack: list[str],
+    ) -> NodeExecutionResult:
+        analysis_source = self._resolve_connected_value(index, connections, instance_id, "analysis", stack)
+        analyses = self._analyses_from_source(analysis_source)
+        single_analysis = self._analysis_from_single_source(analysis_source)
+        if single_analysis is not None and not analyses:
+            analyses = [single_analysis]
+        if not analyses:
+            analyses = list(self.analysis_index.values())
+        if not analyses:
+            raise RuntimeError("Stem Export needs upstream stem-aware analyses.")
+
+        stems_source = self._resolve_connected_value(index, connections, instance_id, "stems", stack)
+        stem_bundles: dict[str, StemBundle] = {}
+        if isinstance(stems_source, dict):
+            stem_bundles = {
+                str(track_id): bundle
+                for track_id, bundle in stems_source.items()
+                if isinstance(bundle, StemBundle)
+            }
+        elif isinstance(stems_source, StemBundle) and len(analyses) == 1:
+            stem_bundles[analyses[0].track.track_id] = stems_source
+
+        config = self.ensure_node_config(instance_id)
+        output_root_value = str(config.get("output_root") or "").strip()
+        output_root = (
+            Path(output_root_value).expanduser()
+            if output_root_value
+            else Path(self.config().paths.data_dir).expanduser() / "exports" / "stems"
+        )
+        output_root.mkdir(parents=True, exist_ok=True)
+
+        artifacts = []
+        for analysis in analyses:
+            out_dir = self._stem_export(
+                analysis,
+                stem_bundles.get(analysis.track.track_id),
+                output_root,
+            )
+            artifact = artifact_from_export_dir(analysis, out_dir)
+            artifacts.append(
+                {
+                    "track_id": artifact.track_id,
+                    "title": artifact.title,
+                    "artifact_path": artifact.artifact_path,
+                    "stems_written": artifact.stems_written,
+                    "stem_source_status": artifact.stem_source_status,
+                    "warnings": artifact.warnings,
+                }
+            )
+
+        config["output_root"] = str(output_root)
+        return NodeExecutionResult(
+            node_id="stem_export",
+            ports={
+                "artifacts": {
+                    "output_root": str(output_root),
+                    "track_count": len(artifacts),
+                    "items": artifacts,
+                },
+                "artifact_paths": [artifact["artifact_path"] for artifact in artifacts],
+                "warnings": {
+                    artifact["track_id"]: artifact["warnings"]
+                    for artifact in artifacts
+                    if artifact["warnings"]
+                },
             },
         )
 

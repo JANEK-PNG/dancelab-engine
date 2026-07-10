@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from dancelab.contracts.node_host import NodeHostRegistry, NodePortSpec, NodeSpec, get_node_host_registry
+from dancelab.core.models import AnalysisResult
 from dancelab.host.runtime import (
     DesktopHostRuntime,
     RuntimeConnection,
@@ -30,7 +31,16 @@ try:  # optional desktop dependency
     if _qt_platform_plugin_root.exists():
         os.environ.setdefault("QT_QPA_PLATFORM_PLUGIN_PATH", str(_qt_platform_plugin_root))
 
-    from PySide6.QtCore import QMimeData, QPoint, QPointF, QRectF, Qt
+    from PySide6.QtCore import (
+        QMimeData,
+        QObject,
+        QPoint,
+        QPointF,
+        QRectF,
+        Qt,
+        QThread,
+        Signal,
+    )
     from PySide6.QtGui import (
         QAction,
         QBrush,
@@ -61,7 +71,6 @@ try:  # optional desktop dependency
         QPushButton,
         QScrollArea,
         QSizePolicy,
-        QSpinBox,
         QTreeWidget,
         QTreeWidgetItem,
         QVBoxLayout,
@@ -160,8 +169,10 @@ FORM_IMPLEMENTED_NODE_IDS = {
     "select_track",
     "select_pair",
     "select_context",
+    "extract_stems",
     "build_set",
     "export_rekordbox",
+    "stem_export",
     "recommend_next",
 }
 
@@ -234,7 +245,7 @@ NODE_AUDIT_NOTES: dict[str, list[str]] = {
         "Desktop bridge now builds a SetPlan from loaded analyses or repository-backed track IDs, but still lacks a dedicated public API route and export follow-through.",
     ],
     "extract_stems": [
-        "Stem-aware engine capability exists, but the desktop host still lacks the public adapter and configuration surface.",
+        "Desktop bridge runs stem-aware analysis and exports stems through explicit host-controlled artifact folders.",
     ],
     "stem_window_sensor": [
         "Underlying stem-window data exists, but the host adapter and visual consumer are not wired yet.",
@@ -261,7 +272,7 @@ NODE_AUDIT_NOTES: dict[str, list[str]] = {
         "Desktop bridge now writes rekordbox XML to disk, but still lacks transition-window cue enrichment and a dedicated public API route.",
     ],
     "stem_export": [
-        "Stem export helper exists, but the desktop host lacks both the bridge executor and export-path controls.",
+        "Desktop bridge writes source audio, analysis JSON, stem manifest, and available WAV stems into a user-selected external folder.",
     ],
     "save_snapshot": [
         "Snapshot persistence is still a planned host feature; no disk target or serializer is wired yet.",
@@ -347,6 +358,29 @@ class NodeInstanceModel:
 
 
 if _PYSIDE_IMPORT_ERROR is None:
+    class _FlowWorker(QObject):
+        """Runs the (seconds-to-minutes) runtime graph off the UI thread.
+
+        NEW-H2: analysis must never block the Qt event loop — emit the outcome
+        back to the main thread instead."""
+
+        finished = Signal(object)  # None on success, error string on failure
+
+        def __init__(self, runtime, node_states, connections, target_instance_id):
+            super().__init__()
+            self._runtime = runtime
+            self._node_states = node_states
+            self._connections = connections
+            self._target = target_instance_id
+
+        def run(self) -> None:
+            try:
+                self._runtime.run(self._node_states, self._connections, self._target)
+            except Exception as exc:  # surfaced on the UI thread, never swallowed
+                self.finished.emit(str(exc))
+            else:
+                self.finished.emit(None)
+
     class NodeLibraryTree(QTreeWidget):
         MIME_TYPE = "application/x-dancelab-node-id"
 
@@ -1026,9 +1060,10 @@ if _PYSIDE_IMPORT_ERROR is None:
             build_action.triggered.connect(self.build_first_flow)
             toolbar.addAction(build_action)
 
-            smart_mix_action = QAction("Build Smart Mix", self)
-            smart_mix_action.triggered.connect(self.build_smart_mix_flow)
-            toolbar.addAction(smart_mix_action)
+            # "Build Smart Mix" removed: it referenced build_smart_mix_flow,
+            # which was never implemented — the dangling connect made the
+            # whole window fail to construct (found when the Qt suite was
+            # un-skipped). Re-add together with a real implementation.
 
             import_action = QAction("Import Tracks...", self)
             import_action.triggered.connect(self.open_upload_file_picker)
@@ -1415,16 +1450,21 @@ if _PYSIDE_IMPORT_ERROR is None:
             return list(self.connection_models.values())
 
         def _clear_inspector(self) -> None:
+            # setParent(None) detaches immediately — deleteLater alone leaves
+            # widgets as findChildren-visible ghosts until the event loop spins,
+            # so rebuilds appeared to accumulate stale controls.
             while self.inspector_layout.count():
                 item = self.inspector_layout.takeAt(0)
                 widget = item.widget()
                 child_layout = item.layout()
                 if widget is not None:
+                    widget.setParent(None)
                     widget.deleteLater()
                 elif child_layout is not None:
                     while child_layout.count():
                         inner = child_layout.takeAt(0)
                         if inner.widget() is not None:
+                            inner.widget().setParent(None)
                             inner.widget().deleteLater()
 
         def _add_label(
@@ -1486,6 +1526,7 @@ if _PYSIDE_IMPORT_ERROR is None:
 
         def _node_audit_snapshot(self, spec: NodeSpec) -> dict[str, Any]:
             runtime_ready = self.runtime.supports_node(spec.node_id)
+            host_status = spec.host_execution_status
             form_status = self._node_form_status(spec)
 
             if runtime_ready and form_status != "missing":
@@ -1499,7 +1540,13 @@ if _PYSIDE_IMPORT_ERROR is None:
                 display_color = "#8b8d92"
 
             gaps: list[str] = []
-            if not runtime_ready:
+            if host_status == "engine_only":
+                gaps.append("Engine/API capability exists, but the desktop host has no executor adapter yet.")
+            elif host_status == "adapter_needed":
+                gaps.append("A host adapter is still needed before this node can run in the desktop graph.")
+            elif host_status == "planned":
+                gaps.append("Host execution is planned, not implemented.")
+            if not runtime_ready and host_status == "runnable":
                 gaps.append("Desktop runtime still does not execute this node.")
             if form_status == "missing":
                 gaps.append("Desktop host still lacks a host-side parameter form for this node.")
@@ -1512,7 +1559,12 @@ if _PYSIDE_IMPORT_ERROR is None:
                 "partial": "Partial",
                 "contract_only": "Contract Only",
             }[readiness]
-            runtime_status_label = "Executable" if runtime_ready else "Not Executable"
+            runtime_status_label = {
+                "runnable": "Host Runnable",
+                "engine_only": "Engine Only",
+                "adapter_needed": "Adapter Needed",
+                "planned": "Planned",
+            }[host_status]
             form_status_label = {
                 "implemented": "Form Ready",
                 "missing": "Form Missing",
@@ -1524,6 +1576,7 @@ if _PYSIDE_IMPORT_ERROR is None:
                 "readiness_label": readiness_label,
                 "runtime_ready": runtime_ready,
                 "runtime_status_label": runtime_status_label,
+                "host_execution_status": host_status,
                 "form_status": form_status,
                 "form_status_label": form_status_label,
                 "display_color": display_color,
@@ -1847,6 +1900,77 @@ if _PYSIDE_IMPORT_ERROR is None:
             layout.addWidget(browse)
             self.inspector_layout.addWidget(row)
 
+        def _populate_extract_stems_form(self, node_item: NodeBoxItem) -> None:
+            self._add_section_title("Extract Stems")
+            self._add_label(
+                "Run stem-aware analysis from upstream track files. Auto uses Demucs when available and falls back honestly when it is not installed.",
+                role="hint",
+            )
+            config = self.runtime.ensure_node_config(node_item.model.instance_id)
+            config.setdefault("stem_method", "auto")
+            config.setdefault("vocal_method", "")
+
+            self.inspector_layout.addWidget(QLabel("Stem Method"))
+            stem_combo = QComboBox()
+            stem_combo.addItem("Auto (Demucs if available)", "auto")
+            stem_combo.addItem("Demucs", "demucs")
+            stem_combo.addItem("None / fallback only", "none")
+            self._set_combo_to_value(stem_combo, str(config.get("stem_method") or "auto"))
+            config["stem_method"] = stem_combo.currentData()
+            stem_combo.currentIndexChanged.connect(
+                lambda _: config.__setitem__("stem_method", stem_combo.currentData())
+            )
+            self.inspector_layout.addWidget(stem_combo)
+
+            self.inspector_layout.addWidget(QLabel("Vocal Proxy Method"))
+            vocal_combo = QComboBox()
+            vocal_combo.addItem("Default engine config", "")
+            vocal_combo.addItem("HPSS (fast proxy)", "hpss")
+            vocal_combo.addItem("Auto", "auto")
+            vocal_combo.addItem("Demucs", "demucs")
+            self._set_combo_to_value(vocal_combo, str(config.get("vocal_method") or ""))
+            config["vocal_method"] = vocal_combo.currentData()
+            vocal_combo.currentIndexChanged.connect(
+                lambda _: config.__setitem__("vocal_method", vocal_combo.currentData())
+            )
+            self.inspector_layout.addWidget(vocal_combo)
+
+        def _populate_stem_export_form(self, node_item: NodeBoxItem) -> None:
+            self._add_section_title("Stem Export")
+            self._add_label(
+                "Choose where per-track stem folders should be written. This keeps exports outside the engine repository unless you explicitly point it there.",
+                role="hint",
+            )
+            config = self.runtime.ensure_node_config(node_item.model.instance_id)
+            default_root = str(
+                Path(self.runtime.config().paths.data_dir).expanduser() / "exports" / "stems"
+            )
+            config.setdefault("output_root", default_root)
+
+            self.inspector_layout.addWidget(QLabel("Output Folder"))
+            row = QWidget()
+            layout = QHBoxLayout(row)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(8)
+            path_field = QLineEdit(str(config.get("output_root", "")))
+            browse = QPushButton("Browse")
+
+            def choose_output_root() -> None:
+                start_dir = path_field.text().strip() or str(Path.home() / "Desktop")
+                selected = QFileDialog.getExistingDirectory(
+                    self,
+                    "Choose Stem Export Folder",
+                    start_dir,
+                )
+                if selected:
+                    path_field.setText(selected)
+
+            path_field.textChanged.connect(lambda value: config.__setitem__("output_root", value.strip()))
+            browse.clicked.connect(choose_output_root)
+            layout.addWidget(path_field, 1)
+            layout.addWidget(browse)
+            self.inspector_layout.addWidget(row)
+
         def _populate_recommend_next_form(self, node_item: NodeBoxItem) -> None:
             self._add_section_title("Recommend Next")
             self._add_label(
@@ -2126,6 +2250,35 @@ if _PYSIDE_IMPORT_ERROR is None:
                 preview.setPlainText(str(output.ports.get("xml", ""))[:4000])
                 self.inspector_layout.addWidget(preview)
                 return
+            if output.node_id == "extract_stems":
+                track_ids = list(output.ports.get("track_ids", []))
+                stem_bundles = output.ports.get("stems", {})
+                stem_windows = list(output.ports.get("stem_windows", []))
+                self._add_label(
+                    f"tracks analyzed: {len(track_ids)} · stem bundles: {len(stem_bundles)} · stem windows: {len(stem_windows)}",
+                    mono=True,
+                )
+                for track_id in track_ids[:8]:
+                    self._add_label(str(track_id), mono=True)
+                return
+            if output.node_id == "stem_export":
+                artifacts = output.ports.get("artifacts", {})
+                items = list(artifacts.get("items", [])) if isinstance(artifacts, dict) else []
+                self._add_label(
+                    f"output: {artifacts.get('output_root', '--') if isinstance(artifacts, dict) else '--'}",
+                    mono=True,
+                )
+                self._add_label(
+                    f"tracks exported: {artifacts.get('track_count', len(items)) if isinstance(artifacts, dict) else len(items)}",
+                    mono=True,
+                )
+                for item in items[:6]:
+                    self._add_label(
+                        f"{item.get('track_id', '--')} · stems: {', '.join(item.get('stems_written') or []) or 'manifest only'}",
+                        mono=True,
+                    )
+                    self._add_label(str(item.get("artifact_path", "--")), mono=True)
+                return
             if output.node_id == "recommend_next":
                 recommendation = output.ports.get("recommendation")
                 if recommendation is not None:
@@ -2261,6 +2414,7 @@ if _PYSIDE_IMPORT_ERROR is None:
             self._add_pills(
                 [
                     spec.status,
+                    spec.host_execution_status,
                     spec.runtime_side,
                     spec.execution_mode,
                     runtime_status,
@@ -2288,10 +2442,14 @@ if _PYSIDE_IMPORT_ERROR is None:
                 self._populate_select_pair_form(node_item)
             elif spec.node_id == "select_context":
                 self._populate_select_context_form(node_item)
+            elif spec.node_id == "extract_stems":
+                self._populate_extract_stems_form(node_item)
             elif spec.node_id == "build_set":
                 self._populate_build_set_form(node_item)
             elif spec.node_id == "export_rekordbox":
                 self._populate_export_rekordbox_form(node_item)
+            elif spec.node_id == "stem_export":
+                self._populate_stem_export_form(node_item)
             elif spec.node_id == "recommend_next":
                 self._populate_recommend_next_form(node_item)
 
@@ -2389,31 +2547,54 @@ if _PYSIDE_IMPORT_ERROR is None:
                     return candidate.model.instance_id
             return None
 
-        def run_flow(self, *, target_instance_id: str | None = None) -> None:
+        def run_flow(
+            self, *, target_instance_id: str | None = None, wait: bool = False
+        ) -> None:
+            """Execute the graph on a worker thread (NEW-H2: never block the UI).
+
+            wait=True blocks until completion and drains the result signal —
+            for tests and scripted use only."""
+            if getattr(self, "_flow_thread", None) is not None and self._flow_thread.isRunning():
+                self.statusBar().showMessage("A flow is already running…", 4000)
+                return
             target = target_instance_id or self._default_run_target()
             if target is None:
                 self.statusBar().showMessage("Nothing runnable is on the canvas yet.", 4000)
                 return
 
-            self.statusBar().showMessage("Running desktop flow...", 1000)
-            QApplication.processEvents()
+            self.statusBar().showMessage("Running desktop flow…", 0)
+            thread = QThread(self)
+            worker = _FlowWorker(
+                self.runtime,
+                self._serialize_node_states(),
+                self._serialize_connections(),
+                target,
+            )
+            worker.moveToThread(thread)
+            thread.started.connect(worker.run)
+            worker.finished.connect(self._on_flow_finished)
+            worker.finished.connect(thread.quit)
+            thread.finished.connect(worker.deleteLater)
+            thread.finished.connect(thread.deleteLater)
+            self._flow_thread = thread
+            self._flow_worker = worker
+            thread.start()
+            if wait:
+                thread.wait()
+                QApplication.processEvents()
 
-            try:
-                self.runtime.run(
-                    self._serialize_node_states(),
-                    self._serialize_connections(),
-                    target,
-                )
-            except Exception as exc:
-                self._set_toolbar_status(f"run failed · {exc}")
-                self.statusBar().showMessage(f"Run failed · {exc}", 7000)
+        def _on_flow_finished(self, error: object) -> None:
+            self._flow_thread = None
+            self._flow_worker = None
+            if error:
+                self._set_toolbar_status(f"run failed · {error}")
+                self.statusBar().showMessage(f"Run failed · {error}", 7000)
             else:
                 self._set_toolbar_status(self.runtime.session_message)
                 self.statusBar().showMessage(self.runtime.session_message, 7000)
-            finally:
-                for item in self.node_items.values():
-                    item.update()
-                self._sync_inspector()
+            for item in self.node_items.values():
+                item.update()
+            self._sync_inspector()
 
 
 def launch_desktop_host(

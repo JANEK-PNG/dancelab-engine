@@ -7,11 +7,13 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from dancelab.core.models import DANCELAB_SCHEMA_VERSION
 from dancelab.data.annotation_validator import DatasetValidationReport, validate_annotation_dataset
 from dancelab.storage.repositories import FileAnalysisRepository
 
 
 class DatasetManifest(BaseModel):
+    schema_version: str = DANCELAB_SCHEMA_VERSION
     engine_version: str
     n_analyzed_tracks: int
     annotation_counts: dict[str, int] = Field(default_factory=dict)
@@ -39,5 +41,6 @@ def build_dataset_manifest(
 
 def write_dataset_manifest(manifest: DatasetManifest, path: str | Path) -> Path:
     p = Path(path)
-    p.write_text(json.dumps(manifest.model_dump(), indent=2))
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(manifest.model_dump(), indent=2), encoding="utf-8")
     return p

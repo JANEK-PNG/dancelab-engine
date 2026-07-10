@@ -53,12 +53,16 @@ def _available_contexts(config) -> list[ContextProfile]:
 
 @router.post("/analyze", response_model=AnalysisResult)
 async def analyze(request: AnalyzeTrackRequest) -> AnalysisResult:
+    # AUD-H3: forward EVERY accepted field — bpm_hint was validated then
+    # silently dropped, making API-analyze diverge from CLI-analyze.
     config = _config()
     result = analyze_track(
         request.source_path,
         config,
         style_label=request.style_label,
-        context_id=request.context_id,
+        bpm_hint=request.bpm_hint,
+        title=request.title,
+        artist=request.artist,
     )
     _repository(config).save(result)  # analyzed → immediately queryable
     return result

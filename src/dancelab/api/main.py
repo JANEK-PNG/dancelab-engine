@@ -18,6 +18,7 @@ from dancelab.api import (
     routes_host,
     routes_pairs,
     routes_sets,
+    routes_stems,
     routes_tracks,
 )
 from dancelab.api.schemas import HealthResponse, NotImplementedResponse
@@ -40,6 +41,7 @@ app.include_router(routes_tracks.router)
 app.include_router(routes_pairs.router)
 app.include_router(routes_context.router)
 app.include_router(routes_sets.router)
+app.include_router(routes_stems.router)
 app.include_router(routes_contracts.router)
 app.include_router(routes_host.router)
 

@@ -12,6 +12,20 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field
 
 
+DANCELAB_SCHEMA_VERSION = "1.0.0"
+
+
+class SchemaVersionedOutput(BaseModel):
+    """Marker for top-level public JSON/API output contracts.
+
+    This versions the serialized schema shape, separate from `model_version`
+    (which versions a scoring/model formula) and `engine_version` (which
+    versions the software package).
+    """
+
+    schema_version: str = DANCELAB_SCHEMA_VERSION
+
+
 class ModelStatus(str, Enum):
     """Scientific status of a formula/output (ADR-005)."""
 
@@ -433,7 +447,7 @@ class TransitionWindowInput(BaseModel):
     available_contexts: list[ContextProfile] = Field(default_factory=list)
 
 
-class TransitionWindowOutput(BaseModel):
+class TransitionWindowOutput(SchemaVersionedOutput):
     """Output contract for detect_transition_windows (Engineering Ticket)."""
 
     model_config = ConfigDict(protected_namespaces=())
@@ -475,7 +489,7 @@ class DecisionOutput(BaseModel):
     candidate_next_track_ids: list[str] = Field(default_factory=list)
 
 
-class AnalysisResult(BaseModel):
+class AnalysisResult(SchemaVersionedOutput):
     """Full per-track analysis (POST /tracks/analyze response body)."""
 
     engine_version: str
@@ -492,7 +506,7 @@ class AnalysisResult(BaseModel):
     """Honest coverage notes: what this analysis did and did not compute."""
 
 
-class MixabilityResult(BaseModel):
+class MixabilityResult(SchemaVersionedOutput):
     """POST /pairs/mixability response body (API Contract Draft)."""
 
     track_id_a: str
@@ -505,7 +519,7 @@ class MixabilityResult(BaseModel):
     recommended_transition_points: list[TransitionWindow] = Field(default_factory=list)
 
 
-class ContextEvaluation(BaseModel):
+class ContextEvaluation(SchemaVersionedOutput):
     """POST /contexts/evaluate response body."""
 
     track_id: str
@@ -539,7 +553,7 @@ class MixabilityInput(BaseModel):
     transition_windows_b: list[TransitionWindow] = Field(default_factory=list)
 
 
-class MixabilityOutput(BaseModel):
+class MixabilityOutput(SchemaVersionedOutput):
     """Output contract for compute_mixability (Sprint 2 Final ticket)."""
 
     model_config = ConfigDict(protected_namespaces=())
@@ -603,7 +617,7 @@ class BlendProfileDecision(BaseModel):
     explanation: str
 
 
-class EdgeDecision(BaseModel):
+class EdgeDecision(SchemaVersionedOutput):
     """Unified pair-level DJ decision payload."""
 
     model_config = ConfigDict(protected_namespaces=())
@@ -653,7 +667,7 @@ class SetFunctionInput(BaseModel):
     transition_windows: list[TransitionWindow] = Field(default_factory=list)
 
 
-class SetFunctionOutput(BaseModel):
+class SetFunctionOutput(SchemaVersionedOutput):
     """Output contract for classify_set_function (Sprint 2 Final ticket)."""
 
     model_config = ConfigDict(protected_namespaces=())
@@ -688,7 +702,7 @@ class SetTransition(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
-class SetPlan(BaseModel):
+class SetPlan(SchemaVersionedOutput):
     """An ordered DJ set proposed by the set-builder (candidate)."""
 
     model_config = ConfigDict(protected_namespaces=())
@@ -696,6 +710,10 @@ class SetPlan(BaseModel):
     track_order: list[str] = Field(default_factory=list)
     transitions: list[SetTransition] = Field(default_factory=list)
     arc: str = "build"
+    target_track_count: int | None = Field(default=None, ge=1)
+    locked_positions: dict[int, str] = Field(default_factory=dict)
+    pinned_track_ids: list[str] = Field(default_factory=list)
+    dropped_track_ids: list[str] = Field(default_factory=list)
     mean_transition_score: float | None = None
     model_version: str = "set_builder_v0.1"
     warnings: list[str] = Field(default_factory=list)
@@ -713,7 +731,7 @@ class NextTrackCandidate(BaseModel):
     policy_reasons: list[str] = Field(default_factory=list)
 
 
-class NextTrackRecommendation(BaseModel):
+class NextTrackRecommendation(SchemaVersionedOutput):
     """POST /sets/recommend-next response body."""
 
     current_track_id: str
@@ -757,7 +775,7 @@ class SequenceStep(BaseModel):
     policy_reasons: list[str] = Field(default_factory=list)
 
 
-class SequenceDecision(BaseModel):
+class SequenceDecision(SchemaVersionedOutput):
     """Draft sequence planner output for Phase 3."""
 
     current_track_id: str

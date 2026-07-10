@@ -18,8 +18,10 @@ _EPS = 1e-12
 
 
 def minmax_01(z: np.ndarray) -> np.ndarray:
-    """Min-max to [0,1]. Constant input → 0.5."""
+    """Min-max to [0,1]. Constant input → 0.5. Empty input → empty (AUD-M4)."""
     z = np.asarray(z, dtype=np.float64)
+    if z.size == 0:
+        return z
     lo, hi = float(z.min()), float(z.max())
     if hi - lo < _EPS:
         return np.full_like(z, 0.5)
@@ -27,8 +29,11 @@ def minmax_01(z: np.ndarray) -> np.ndarray:
 
 
 def robust_01(z: np.ndarray, low_pct: float = 5.0, high_pct: float = 95.0) -> np.ndarray:
-    """Robust percentile (P5–P95) to [0,1], clipped. Outlier-safe. Constant → 0.5."""
+    """Robust percentile (P5–P95) to [0,1], clipped. Outlier-safe.
+    Constant → 0.5. Empty input → empty (AUD-M4)."""
     z = np.asarray(z, dtype=np.float64)
+    if z.size == 0:
+        return z
     lo, hi = np.percentile(z, low_pct), np.percentile(z, high_pct)
     if hi - lo < _EPS:
         return np.full_like(z, 0.5)

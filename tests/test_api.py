@@ -4,11 +4,41 @@ import pytest
 from fastapi.testclient import TestClient
 
 from dancelab.api.main import app
+from dancelab.core.models import DANCELAB_SCHEMA_VERSION, AnalysisResult, BeatGrid, FeatureFrame, Track
+from dancelab.stems.workflow import StemExportArtifact
+from dancelab.storage.repositories import FileAnalysisRepository
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
+
+
+def _stored_analysis(track_id: str, key: str, bpm: float, source_path: str) -> AnalysisResult:
+    return AnalysisResult(
+        engine_version="0.1.0",
+        track=Track(
+            track_id=track_id,
+            title=track_id.replace("_", " ").title(),
+            artist="DanceLab",
+            key_estimate=key,
+            bpm_estimate=bpm,
+            source_path=source_path,
+            duration_sec=300.0,
+            sample_rate=44100,
+        ),
+        beatgrid=BeatGrid(bpm=bpm, beat_times_sec=[0.0, 0.5, 1.0], downbeats_sec=[0.0]),
+        features=[
+            FeatureFrame(
+                track_id=track_id,
+                timestamp_sec=float(t),
+                rms=0.2 + 0.01 * t,
+                low_freq_energy_ratio=0.5,
+                bass_energy=40.0,
+            )
+            for t in range(30)
+        ],
+    )
 
 
 def test_health(client):
@@ -31,6 +61,9 @@ def test_openapi_lists_contracted_endpoints(client):
         "/contexts/evaluate",
         "/sets/recommend-next",
         "/sets/recommend-sequence",
+        "/sets/build",
+        "/sets/export-rekordbox",
+        "/stems/export",
     ):
         assert endpoint in paths, f"missing contracted endpoint: {endpoint}"
 
@@ -81,6 +114,121 @@ def test_recommend_sequence_unknown_tracks_return_404(client, monkeypatch, tmp_p
         json={"current_track_id": "a", "candidate_track_ids": ["b", "c"], "horizon": 2},
     )
     assert r.status_code == 404
+
+
+def test_build_set_endpoint_uses_stored_analyses(client, monkeypatch, tmp_path):
+    monkeypatch.setenv("DANCELAB_PROCESSED_DIR", str(tmp_path))
+    repo = FileAnalysisRepository(tmp_path)
+    repo.save(_stored_analysis("track_alpha", "8A", 128.0, "/tmp/Track Alpha.mp3"))
+    repo.save(_stored_analysis("track_beta", "9A", 128.0, "/tmp/Track Beta.mp3"))
+
+    r = client.post(
+        "/sets/build",
+        json={
+            "track_ids": ["track_beta", "track_alpha"],
+            "start_track_id": "track_alpha",
+            "target_track_count": 2,
+            "locked_positions": {"1": "track_alpha"},
+            "pinned_track_ids": ["track_beta"],
+            "arc": "build",
+        },
+    )
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["schema_version"] == DANCELAB_SCHEMA_VERSION
+    assert body["model_version"] == "set_builder_v0.1"
+    assert body["track_order"][0] == "track_alpha"
+    assert set(body["track_order"]) == {"track_alpha", "track_beta"}
+    assert body["locked_positions"] == {"1": "track_alpha"}
+    assert body["pinned_track_ids"] == ["track_beta"]
+
+
+def test_build_set_endpoint_rejects_conflicting_constraints(client, monkeypatch, tmp_path):
+    monkeypatch.setenv("DANCELAB_PROCESSED_DIR", str(tmp_path))
+    repo = FileAnalysisRepository(tmp_path)
+    repo.save(_stored_analysis("track_alpha", "8A", 128.0, "/tmp/Track Alpha.mp3"))
+    repo.save(_stored_analysis("track_beta", "9A", 128.0, "/tmp/Track Beta.mp3"))
+
+    r = client.post(
+        "/sets/build",
+        json={
+            "track_ids": ["track_alpha", "track_beta"],
+            "target_track_count": 1,
+            "pinned_track_ids": ["track_alpha", "track_beta"],
+        },
+    )
+
+    assert r.status_code == 422
+    assert "exceed target_track_count" in r.json()["detail"]
+
+
+def test_export_rekordbox_endpoint_returns_and_writes_xml(client, monkeypatch, tmp_path):
+    monkeypatch.setenv("DANCELAB_PROCESSED_DIR", str(tmp_path / "processed"))
+    repo = FileAnalysisRepository(tmp_path / "processed")
+    repo.save(_stored_analysis("track_alpha", "8A", 128.0, "/tmp/Track Alpha.mp3"))
+    repo.save(_stored_analysis("track_beta", "9A", 128.0, "/tmp/Track Beta.mp3"))
+    output_path = tmp_path / "exports" / "api_set.xml"
+
+    r = client.post(
+        "/sets/export-rekordbox",
+        json={
+            "track_ids": ["track_alpha", "track_beta"],
+            "start_track_id": "track_alpha",
+            "locked_positions": {"1": "track_alpha"},
+            "playlist_name": "API Test Set",
+            "output_path": str(output_path),
+        },
+    )
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["schema_version"] == DANCELAB_SCHEMA_VERSION
+    assert body["set_plan"]["schema_version"] == DANCELAB_SCHEMA_VERSION
+    assert body["playlist_name"] == "API Test Set"
+    assert body["track_count"] == 2
+    assert body["output_path"] == str(output_path)
+    assert "DJ_PLAYLISTS" in body["xml"]
+    assert "API Test Set" in output_path.read_text(encoding="utf-8")
+
+
+def test_stem_export_endpoint_returns_artifacts(client, monkeypatch, tmp_path):
+    output_root = tmp_path / "stem_exports"
+
+    def export_stub(source_paths, config, output_root_arg, *, stem_method, vocal_method):
+        assert source_paths == ["/tmp/Track Alpha.mp3"]
+        assert output_root_arg == str(output_root)
+        assert stem_method == "none"
+        assert vocal_method == "hpss"
+        return [
+            StemExportArtifact(
+                track_id="track_alpha",
+                title="Track Alpha",
+                artifact_path=str(output_root / "Track Alpha [track_alpha]"),
+                stems_written=["vocals.wav"],
+                stem_source_status="source_backed",
+                warnings=[],
+            )
+        ]
+
+    monkeypatch.setattr("dancelab.api.routes_stems.export_stems_for_paths", export_stub)
+    r = client.post(
+        "/stems/export",
+        json={
+            "source_paths": ["/tmp/Track Alpha.mp3"],
+            "output_root": str(output_root),
+            "stem_method": "none",
+            "vocal_method": "hpss",
+        },
+    )
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["schema_version"] == DANCELAB_SCHEMA_VERSION
+    assert body["track_count"] == 1
+    assert body["output_root"] == str(output_root)
+    assert body["artifacts"][0]["track_id"] == "track_alpha"
+    assert body["artifacts"][0]["stems_written"] == ["vocals.wav"]
 
 
 def test_context_evaluate_unknown_track_returns_404(client, monkeypatch, tmp_path):

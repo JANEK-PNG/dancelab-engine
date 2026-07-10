@@ -23,7 +23,9 @@ def test_analyze_track_populates_descriptor_proxies(monkeypatch):
     monkeypatch.setattr("dancelab.core.pipeline.load_audio", lambda path, cfg: signal)
     monkeypatch.setattr(
         "dancelab.core.pipeline.build_track",
-        lambda sig, style_label=None, bpm_estimate=None: Track(track_id="track-descriptors"),
+        lambda sig, title=None, artist=None, style_label=None, bpm_estimate=None: Track(
+            track_id="track-descriptors"
+        ),
     )
     monkeypatch.setattr("dancelab.core.pipeline.extract_stems", lambda *args, **kwargs: None)
     monkeypatch.setattr(

@@ -40,6 +40,10 @@ def _qt_bootstrap_available() -> bool:
     if not desktop_available():
         return False
 
+    # NEW-M1: the probe must go through desktop_app, which is the only place
+    # QT_PLUGIN_PATH / QT_QPA_PLATFORM_PLUGIN_PATH get configured — probing
+    # bare PySide6 fails to find the 'offscreen' plugin and silently skipped
+    # the entire UI suite even with PySide6 installed.
     probe = subprocess.run(
         [
             sys.executable,
@@ -47,6 +51,7 @@ def _qt_bootstrap_available() -> bool:
             (
                 "import os; "
                 "os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen'); "
+                "import dancelab.host.desktop_app as d; "
                 "from PySide6.QtWidgets import QApplication; "
                 "app = QApplication([]); "
                 "print('qt-ok')"
@@ -55,6 +60,7 @@ def _qt_bootstrap_available() -> bool:
         capture_output=True,
         text=True,
         check=False,
+        env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parent.parent / "src")},
     )
     return probe.returncode == 0 and "qt-ok" in probe.stdout
 
@@ -139,7 +145,7 @@ def test_qt_host_builds_first_flow_and_runs_it():
     ]
     assert len(choose_files_buttons) == 1
 
-    window.run_flow()
+    window.run_flow(wait=True)
     app.processEvents()
 
     telemetry_item = next(

@@ -70,7 +70,13 @@ def harmonic_relation(cam_a: str | None, cam_b: str | None) -> str:
         return "relative_major_minor"
     if la == lb and min(abs(na - nb), 12 - abs(na - nb)) == 1:
         return "adjacent_same_mode"
-    if la == lb and (nb - na) % 12 == 2:
+    # AUD-H1: distance-2 same-mode moves are symmetric — +2 (energy lift) and
+    # −2 (energy drop) are both plausible-but-secondary Camelot moves, not the
+    # "large jump / clash" the risky bucket documents. The old `(nb-na)%12==2`
+    # tagged only the upward direction, scoring 8A→6A as a near-clash (0.15)
+    # while 6A→8A scored 0.60 — an undocumented asymmetry in the single
+    # highest-weighted set-builder term.
+    if la == lb and min(abs(na - nb), 12 - abs(na - nb)) == 2:
         return "cautious"
     return "risky"
 

@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
+
 from dancelab.contracts.node_host import get_node_host_registry
+from dancelab.core.audio_types import AudioSignal
+from dancelab.core.config import EngineConfig
 from dancelab.core.models import (
     AnalysisResult,
     ContextProfile,
@@ -11,9 +15,17 @@ from dancelab.core.models import (
     NextTrackRecommendation,
     RecommendationPolicy,
     ScoredOutput,
+    SourceStatus,
+    StemChannelSummary,
+    StemExtractionResult,
+    StemExtractionStatus,
+    StemProvenance,
+    StemType,
     Track,
+    WarningLevel,
 )
 from dancelab.host.runtime import DesktopHostRuntime, RuntimeConnection, RuntimeNodeState
+from dancelab.stems.extractor import StemBundle
 from dancelab.storage.repositories import FileAnalysisRepository
 
 
@@ -48,6 +60,59 @@ def _analysis_from_path(path: str, _config: object) -> AnalysisResult:
             source_path=path,
         ),
     )
+
+
+def _stem_result(track_id: str) -> StemExtractionResult:
+    return StemExtractionResult(
+        status=ModelStatus.candidate,
+        source_status=SourceStatus.source_backed,
+        warning_level=WarningLevel.info,
+        provenance=StemProvenance(
+            provenance_id=f"{track_id}:runtime-test",
+            model_name="test_stem_backend",
+            input_audio_id=track_id,
+            output_stem_ids={StemType.vocals: f"{track_id}:vocals"},
+            output_sample_rate=44100,
+            extraction_status=StemExtractionStatus.success,
+        ),
+        channels=[
+            StemChannelSummary(
+                stem_type=StemType.vocals,
+                stem_id=f"{track_id}:vocals",
+                available=True,
+                source_status=SourceStatus.source_backed,
+                confidence=0.9,
+            )
+        ],
+    )
+
+
+def _stem_analysis_from_path(path: str, config: EngineConfig):
+    assert config.stems.enabled is True
+    assert config.stems.method == "none"
+    stem = Path(path).stem
+    track_id = stem.lower().replace(" ", "_")
+    stem_result = _stem_result(track_id)
+    result = AnalysisResult(
+        engine_version="test-host-runtime",
+        track=Track(
+            track_id=track_id,
+            title=stem,
+            source_path=path,
+        ),
+        stem_extraction=stem_result,
+    )
+    bundle = StemBundle(
+        channels={
+            StemType.vocals: AudioSignal(
+                samples=np.ones(1024, dtype=np.float32),
+                sample_rate=44100,
+                source_path=path,
+            )
+        },
+        result=stem_result,
+    )
+    return result, bundle
 
 
 def _edge_decision_stub(**kwargs) -> dict[str, object]:
@@ -339,6 +404,9 @@ def test_desktop_host_runtime_build_set_from_corpus_track_ids(tmp_path):
     build_config = runtime.ensure_node_config(build_set_id)
     build_config["arc"] = "build"
     build_config["start_track_id"] = "track_alpha"
+    build_config["target_track_count"] = 2
+    build_config["locked_positions"] = {1: "track_alpha"}
+    build_config["pinned_track_ids"] = ["track_beta"]
 
     result = runtime.run(
         [
@@ -361,6 +429,8 @@ def test_desktop_host_runtime_build_set_from_corpus_track_ids(tmp_path):
     assert plan.arc == "build"
     assert plan.track_order[0] == "track_alpha"
     assert set(plan.track_order) == {"track_alpha", "track_beta"}
+    assert plan.locked_positions == {1: "track_alpha"}
+    assert plan.pinned_track_ids == ["track_beta"]
 
 
 def test_desktop_host_runtime_exports_rekordbox_xml_from_set_plan(tmp_path):
@@ -428,6 +498,66 @@ def test_desktop_host_runtime_exports_rekordbox_xml_from_set_plan(tmp_path):
     xml = export_path.read_text(encoding="utf-8")
     assert "Host Test Set" in xml
     assert "DJ_PLAYLISTS" in xml
+
+
+def test_desktop_host_runtime_extracts_and_exports_stems(tmp_path):
+    source_path = tmp_path / "Track Alpha.mp3"
+    source_path.write_bytes(b"fake mp3 payload")
+    output_root = tmp_path / "stem_exports"
+
+    runtime = DesktopHostRuntime(
+        get_node_host_registry(),
+        config_loader=lambda _path: EngineConfig(),
+        analyze_track_with_stems_fn=_stem_analysis_from_path,
+    )
+
+    upload_id = "desktop_upload_tracks_1"
+    extract_id = "desktop_extract_stems_2"
+    export_id = "desktop_stem_export_3"
+
+    runtime.ensure_node_config(upload_id)["paths_text"] = str(source_path)
+    runtime.ensure_node_config(extract_id)["stem_method"] = "none"
+    runtime.ensure_node_config(export_id)["output_root"] = str(output_root)
+
+    result = runtime.run(
+        [
+            RuntimeNodeState(instance_id=upload_id, node_id="upload_tracks"),
+            RuntimeNodeState(instance_id=extract_id, node_id="extract_stems"),
+            RuntimeNodeState(instance_id=export_id, node_id="stem_export"),
+        ],
+        [
+            RuntimeConnection(
+                from_instance_id=upload_id,
+                from_port_key="tracks",
+                to_instance_id=extract_id,
+                to_port_key="tracks",
+            ),
+            RuntimeConnection(
+                from_instance_id=extract_id,
+                from_port_key="analysis",
+                to_instance_id=export_id,
+                to_port_key="analysis",
+            ),
+            RuntimeConnection(
+                from_instance_id=extract_id,
+                from_port_key="stems",
+                to_instance_id=export_id,
+                to_port_key="stems",
+            ),
+        ],
+        export_id,
+    )
+
+    assert result.node_id == "stem_export"
+    assert runtime.outputs[extract_id].ports["track_ids"] == ["track_alpha"]
+    artifacts = result.ports["artifacts"]
+    assert artifacts["track_count"] == 1
+    assert artifacts["output_root"] == str(output_root)
+    artifact_path = Path(result.ports["artifact_paths"][0])
+    assert artifact_path.name == "Track Alpha [track_alpha]"
+    assert (artifact_path / "analysis.json").exists()
+    assert (artifact_path / "stem_manifest.json").exists()
+    assert (artifact_path / "vocals.wav").exists()
 
 
 def test_desktop_host_runtime_recommend_next_from_corpus_and_context(tmp_path):

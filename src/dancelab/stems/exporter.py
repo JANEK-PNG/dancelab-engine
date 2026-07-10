@@ -62,5 +62,8 @@ def export_stem_artifacts(
             sf.write(path, _audio_matrix(signal.samples), signal.sample_rate)
             manifest["stems_written"].append(path.name)
 
-    (out_dir / "stem_manifest.json").write_text(json.dumps(manifest, indent=2))
+    (out_dir / "stem_manifest.json").write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
     return out_dir

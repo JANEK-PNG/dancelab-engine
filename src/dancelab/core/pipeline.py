@@ -180,8 +180,9 @@ def _analyze_track_impl(
     path: str | Path,
     config: EngineConfig,
     style_label: str | None = None,
-    context_id: str | None = None,
     bpm_hint: float | None = None,
+    title: str | None = None,
+    artist: str | None = None,
 ) -> tuple[AnalysisResult, StemBundle | None]:
     """Analyze a single audio file with everything implemented so far.
 
@@ -190,10 +191,20 @@ def _analyze_track_impl(
     stay empty here - they are produced on demand by the decision endpoints,
     never fabricated in storage (ADR-005). The `notes` field states exactly
     what is and isn't covered.
+
+    AUD-M9: the old `context_id` parameter was accepted and silently ignored
+    (conditioning happens at decision time, not analyze time) — removed rather
+    than kept as a lying knob. title/artist overrides now actually apply.
     """
+    # AUD-M9: engine.random_seed was an advertised-but-unused knob. The engine
+    # is seed-free by design, but seeding the global RNG here guards against
+    # any dependency (librosa/torch paths) quietly introducing randomness.
+    np.random.seed(config.engine.random_seed)
     weights = load_weights(config.weights_file)
     signal = load_audio(path, config)
-    track: Track = build_track(signal, style_label=style_label, bpm_estimate=bpm_hint)
+    track: Track = build_track(
+        signal, title=title, artist=artist, style_label=style_label, bpm_estimate=bpm_hint
+    )
     stem_bundle = extract_stems(signal, track.track_id, config)
     vocal_stem = stem_bundle.channels.get(StemType.vocals) if stem_bundle is not None else None
 
@@ -330,15 +341,17 @@ def analyze_track(
     path: str | Path,
     config: EngineConfig,
     style_label: str | None = None,
-    context_id: str | None = None,
     bpm_hint: float | None = None,
+    title: str | None = None,
+    artist: str | None = None,
 ) -> AnalysisResult:
     result, _ = _analyze_track_impl(
         path,
         config,
         style_label=style_label,
-        context_id=context_id,
         bpm_hint=bpm_hint,
+        title=title,
+        artist=artist,
     )
     return result
 
@@ -347,16 +360,18 @@ def analyze_track_with_stems(
     path: str | Path,
     config: EngineConfig,
     style_label: str | None = None,
-    context_id: str | None = None,
     bpm_hint: float | None = None,
+    title: str | None = None,
+    artist: str | None = None,
 ) -> tuple[AnalysisResult, StemBundle | None]:
     """Analyze a track and return the in-memory stem bundle for artifact export."""
     return _analyze_track_impl(
         path,
         config,
         style_label=style_label,
-        context_id=context_id,
         bpm_hint=bpm_hint,
+        title=title,
+        artist=artist,
     )
 
 

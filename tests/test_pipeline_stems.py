@@ -87,7 +87,7 @@ def test_analyze_track_prefers_source_backed_vocal_stem(monkeypatch):
     monkeypatch.setattr("dancelab.core.pipeline.load_audio", lambda path, cfg: signal)
     monkeypatch.setattr(
         "dancelab.core.pipeline.build_track",
-        lambda sig, style_label=None, bpm_estimate=None: Track(track_id="track-1"),
+        lambda sig, title=None, artist=None, style_label=None, bpm_estimate=None: Track(track_id="track-1"),
     )
     monkeypatch.setattr(
         "dancelab.core.pipeline.extract_stems",
@@ -151,7 +151,7 @@ def test_analyze_track_falls_back_to_hpss_when_stems_unavailable(monkeypatch):
     monkeypatch.setattr("dancelab.core.pipeline.load_audio", lambda path, cfg: signal)
     monkeypatch.setattr(
         "dancelab.core.pipeline.build_track",
-        lambda sig, style_label=None, bpm_estimate=None: Track(track_id="track-2"),
+        lambda sig, title=None, artist=None, style_label=None, bpm_estimate=None: Track(track_id="track-2"),
     )
     monkeypatch.setattr(
         "dancelab.core.pipeline.extract_stems",

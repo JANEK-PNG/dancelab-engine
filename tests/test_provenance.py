@@ -10,6 +10,7 @@ from dancelab.core.config import load_weights
 from dancelab.core.models import (
     AnalysisResult,
     ContextProfile,
+    DANCELAB_SCHEMA_VERSION,
     EvidenceGrade,
     FeatureFrame,
     MixabilityInput,
@@ -108,6 +109,7 @@ def test_transition_windows_carry_provenance(weights):
     assert p.scientific_status == ScientificStatus.candidate
     assert "best transition point" in p.cannot_claim
     assert p.required_validation
+    assert out.schema_version == DANCELAB_SCHEMA_VERSION
 
 
 def test_mixability_carries_provenance(weights):
@@ -117,12 +119,14 @@ def test_mixability_carries_provenance(weights):
     )
     assert out.provenance.model_card_id == "mixability_model_card_v0.1"
     assert "this transition will work" in out.provenance.cannot_claim
+    assert out.schema_version == DANCELAB_SCHEMA_VERSION
 
 
 def test_set_function_carries_provenance():
     out = classify_set_function(SetFunctionInput(track_analysis=make_analysis("t1", n=300)))
     assert out.provenance.model_card_id == "set_function_model_card_v0.1"
     assert out.provenance.evidence_grade == EvidenceGrade.E4
+    assert out.schema_version == DANCELAB_SCHEMA_VERSION
 
 
 def test_context_evaluation_carries_provenance():
@@ -132,6 +136,7 @@ def test_context_evaluation_carries_provenance():
     )
     assert out.provenance.model_card_id == "context_evaluation_model_card_v0.1"
     assert "crowd reaction" in " ".join(out.provenance.cannot_claim)
+    assert out.schema_version == DANCELAB_SCHEMA_VERSION
 
 
 def test_next_track_carries_provenance(weights):
@@ -143,6 +148,7 @@ def test_next_track_carries_provenance(weights):
     )
     assert out.provenance.model_card_id == "next_track_model_card_v0.1"
     assert out.ranking
+    assert out.schema_version == DANCELAB_SCHEMA_VERSION
 
 
 def test_sequence_carries_provenance(weights):
@@ -158,6 +164,7 @@ def test_sequence_carries_provenance(weights):
     )
     assert out.provenance.model_card_id == "sequence_model_card_v0.1"
     assert out.sequence_track_ids
+    assert out.schema_version == DANCELAB_SCHEMA_VERSION
 
 
 def test_edge_decision_carries_provenance(weights):
@@ -169,6 +176,7 @@ def test_edge_decision_carries_provenance(weights):
     )
     assert out.provenance.model_card_id == "edge_decision_model_card_v0.1"
     assert out.recommended_transition_strategy.value
+    assert out.schema_version == DANCELAB_SCHEMA_VERSION
 
 
 def test_short_track_output_still_carries_provenance(weights):
