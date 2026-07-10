@@ -574,6 +574,57 @@ def test_desktop_host_runtime_routes_playlist_flow_through_engine(tmp_path):
     assert "Engine Routed Set" in export_path.read_text(encoding="utf-8")
 
 
+def test_desktop_host_runtime_deep_engine_analysis_uses_stem_pipeline():
+    calls: list[tuple[str, bool, str, str, int]] = []
+
+    def normal_analyze_fn(*_args, **_kwargs):  # pragma: no cover - must not run
+        raise AssertionError("Deep analysis should use the stem-aware pipeline")
+
+    def deep_stem_fn(path: str, config: EngineConfig):
+        calls.append(
+            (
+                path,
+                config.stems.enabled,
+                config.stems.method,
+                config.analysis.vocal_method,
+                config.analysis.transition_top_n,
+            )
+        )
+        return _analysis_from_path(path, config), None
+
+    runtime = DesktopHostRuntime(
+        get_node_host_registry(),
+        config_loader=lambda _path: EngineConfig(),
+        analyze_track_fn=normal_analyze_fn,
+        analyze_track_with_stems_fn=deep_stem_fn,
+    )
+
+    upload_id = "desktop_upload_tracks_1"
+    engine_id = "desktop_engine_2"
+    runtime.ensure_node_config(upload_id)["paths_text"] = "/tmp/Track Alpha.mp3"
+    runtime.ensure_node_config(engine_id)["analysis_depth"] = "deep"
+
+    result = runtime.run(
+        [
+            RuntimeNodeState(instance_id=upload_id, node_id="upload_tracks"),
+            RuntimeNodeState(instance_id=engine_id, node_id="engine"),
+        ],
+        [
+            RuntimeConnection(
+                from_instance_id=upload_id,
+                from_port_key="tracks",
+                to_instance_id=engine_id,
+                to_port_key="tracks_in",
+            ),
+        ],
+        engine_id,
+    )
+
+    assert result.node_id == "engine"
+    assert result.ports["track_ids"] == ["track_alpha"]
+    assert calls == [("/tmp/Track Alpha.mp3", True, "demucs", "demucs", 8)]
+
+
 def test_desktop_host_runtime_extracts_and_exports_stems(tmp_path):
     source_path = tmp_path / "Track Alpha.mp3"
     source_path.write_bytes(b"fake mp3 payload")

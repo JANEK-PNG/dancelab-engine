@@ -81,6 +81,7 @@ class BuildSetRequest(BaseModel):
     locked_positions: dict[int, str] = Field(default_factory=dict)
     pinned_track_ids: list[str] = Field(default_factory=list)
     arc: str = "build"
+    planner_mode: str = "smart"
 
 
 class RekordboxExportRequest(BaseModel):
@@ -93,6 +94,7 @@ class RekordboxExportRequest(BaseModel):
     locked_positions: dict[int, str] = Field(default_factory=dict)
     pinned_track_ids: list[str] = Field(default_factory=list)
     arc: str = "build"
+    planner_mode: str = "smart"
     playlist_name: str = "DanceLab Set"
     output_path: str | None = None
 
@@ -115,6 +117,8 @@ class SmartPlaylistRequest(BaseModel):
     output_path: str | None = None
     processed_dir: str | None = None
     arc: str = "build"
+    planner_mode: str = "smart"
+    analysis_depth: str = "normal"
     recursive: bool = True
     recompute: bool = False
 

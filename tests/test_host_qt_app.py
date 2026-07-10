@@ -371,11 +371,8 @@ def test_qt_host_builds_smart_playlist_flow_from_folder(monkeypatch, tmp_path):
         (music_dir / f"Track {index}.wav").write_bytes(b"fake wav")
     output_path = tmp_path / "exports" / "smart.xml"
 
-    monkeypatch.setattr(
-        desktop_app_module.QFileDialog,
-        "getExistingDirectory",
-        lambda *args, **kwargs: str(music_dir),
-    )
+    monkeypatch.setattr(window, "_choose_audio_folders", lambda **_kwargs: [music_dir])
+    monkeypatch.setattr(window, "_confirm_audio_import", lambda files: [Path(path) for path in files])
     monkeypatch.setattr(
         desktop_app_module.QFileDialog,
         "getSaveFileName",
@@ -428,6 +425,38 @@ def test_qt_host_builds_smart_playlist_flow_from_folder(monkeypatch, tmp_path):
         and edge.to_instance_id == build_item.model.instance_id
         for edge in window.connection_models.values()
     )
+
+    window.close()
+
+
+@pytest.mark.skipif(
+    not _qt_bootstrap_available(),
+    reason="Qt platform bootstrap unavailable in this shell",
+)
+def test_qt_host_upload_folder_picker_accepts_multiple_folders(monkeypatch, tmp_path):
+    app = QApplication.instance() or QApplication([])
+    window = NodeHostWindow(get_node_host_registry())
+    folder_a = tmp_path / "crate_a"
+    folder_b = tmp_path / "crate_b"
+    folder_a.mkdir()
+    folder_b.mkdir()
+    (folder_a / "Track Alpha.mp3").write_bytes(b"fake")
+    (folder_b / "Track Beta.wav").write_bytes(b"fake")
+    (folder_b / "notes.txt").write_text("ignore me", encoding="utf-8")
+
+    monkeypatch.setattr(window, "_choose_audio_folders", lambda **_kwargs: [folder_a, folder_b])
+    monkeypatch.setattr(window, "_confirm_audio_import", lambda files: [Path(path) for path in files])
+
+    merged = window.open_upload_folder_picker()
+    app.processEvents()
+
+    assert merged == [
+        str(folder_a / "Track Alpha.mp3"),
+        str(folder_b / "Track Beta.wav"),
+    ]
+    upload_item = next(item for item in window.node_items.values() if item.model.spec.node_id == "upload_tracks")
+    upload_config = window.runtime.ensure_node_config(upload_item.model.instance_id)
+    assert upload_config["paths_text"] == "\n".join(merged)
 
     window.close()
 

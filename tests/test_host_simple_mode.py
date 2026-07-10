@@ -107,8 +107,15 @@ def test_simple_mode_wizard_end_to_end(tmp_path):
     # back to explicit count for the export steps
     window.count_radio.setChecked(True)
     window.count_spin.setValue(5)
+    window.planner_mode_combo.setCurrentIndex(
+        window.planner_mode_combo.findData("harmonic")
+    )
+    window.analysis_depth_combo.setCurrentIndex(
+        window.analysis_depth_combo.findData("deep")
+    )
     window.generate_set()
     assert len(window.plan.track_order) == 5
+    assert window.plan.planner_mode == "harmonic"
 
     # step 4: real review tool — transition list + A/B decks with structure
     window.go_to_step(4)
@@ -122,6 +129,17 @@ def test_simple_mode_wizard_end_to_end(tmp_path):
     assert window.review_widget.deck_b.analysis is not None
     assert "BPM" in window.review_widget.deck_a.title_label.text()
     assert window.review_widget.sync_status.text()  # beat-sync state stated
+    assert window.review_widget.deck_a.strip.waveform  # RMS envelope, not only blocks
+
+    # Regression: changing rows must refresh Deck B to the incoming track. A
+    # stale stem-button cleanup bug used to leave Deck B on the previous track.
+    for row in range(window.review_list.count()):
+        window.review_list.setCurrentRow(row)
+        app.processEvents()
+        transition = window.plan.transitions[row]
+        assert window.review_widget.deck_a.analysis.track.track_id == transition.from_track_id
+        assert window.review_widget.deck_b.analysis.track.track_id == transition.to_track_id
+
     # quantized seek snaps to the stub beatgrid (beats at 0.0/0.5/1.0)
     window.review_widget.deck_b.quantize = True
     from dancelab.host.pair_review import snap_to_grid
@@ -136,6 +154,7 @@ def test_simple_mode_wizard_end_to_end(tmp_path):
     window.export_set()
     assert out.exists()
     assert "DJ_PLAYLISTS" in out.read_text(encoding="utf-8")
+    assert "hot cue marker" in window.export_status.text()
     assert str(out) in window.export_status.text()
 
     # sidebar shows completed steps
@@ -159,6 +178,12 @@ def test_simple_mode_wizard_end_to_end(tmp_path):
     )
     build_config = graph.runtime.ensure_node_config(build_item.model.instance_id)
     assert build_config["target_track_count"] == 5
+    assert build_config["planner_mode"] == "harmonic"
+    engine_item = next(
+        item for item in graph.node_items.values() if item.model.spec.node_id == "engine"
+    )
+    engine_config = graph.runtime.ensure_node_config(engine_item.model.instance_id)
+    assert engine_config["analysis_depth"] == "deep"
     assert len(graph.runtime.analysis_index) == 5  # wizard analyses cached
     graph.close()
 

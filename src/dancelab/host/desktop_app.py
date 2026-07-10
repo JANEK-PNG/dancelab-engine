@@ -34,7 +34,6 @@ try:  # optional desktop dependency
     from PySide6.QtCore import (
         QEvent,
         QMimeData,
-        QObject,
         QPoint,
         QPointF,
         QRectF,
@@ -79,6 +78,7 @@ try:  # optional desktop dependency
         QVBoxLayout,
         QWidget,
     )
+    from dancelab.host.import_dialogs import choose_audio_directories, confirm_suspicious_audio_files
 except ModuleNotFoundError as exc:  # pragma: no cover - environment-dependent
     _PYSIDE_IMPORT_ERROR = exc
 else:
@@ -361,13 +361,14 @@ class NodeInstanceModel:
 
 
 if _PYSIDE_IMPORT_ERROR is None:
-    class _FlowWorker(QObject):
-        """Runs the (seconds-to-minutes) runtime graph off the UI thread.
+    class _FlowThread(QThread):
+        """Runs the runtime graph without moving a Python QObject across threads.
 
         NEW-H2: analysis must never block the Qt event loop — emit the outcome
-        back to the main thread instead."""
+        back to the main thread instead. Keeping the worker as the QThread itself
+        avoids a macOS/PySide QObject cleanup crash seen after long analyses."""
 
-        finished = Signal(object)  # None on success, error string on failure
+        completed = Signal(object)  # None on success, error string on failure
 
         def __init__(self, runtime, node_states, connections, target_instance_id):
             super().__init__()
@@ -380,9 +381,9 @@ if _PYSIDE_IMPORT_ERROR is None:
             try:
                 self._runtime.run(self._node_states, self._connections, self._target)
             except Exception as exc:  # surfaced on the UI thread, never swallowed
-                self.finished.emit(str(exc))
+                self.completed.emit(str(exc))
             else:
-                self.finished.emit(None)
+                self.completed.emit(None)
 
     class NodeLibraryTree(QTreeWidget):
         MIME_TYPE = "application/x-dancelab-node-id"
@@ -1505,6 +1506,22 @@ if _PYSIDE_IMPORT_ERROR is None:
                 self._select_node(node_item)
             return merged
 
+        def _choose_audio_folders(self, *, title: str = "Choose Music Folder(s)") -> list[Path]:
+            return choose_audio_directories(
+                self,
+                title=title,
+                start_dir=self._default_audio_dialog_dir(),
+            )
+
+        def _discover_audio_files_from_folders(self, folders: list[Path]) -> list[Path]:
+            files: list[Path] = []
+            for folder in folders:
+                files.extend(discover_audio_files(folder))
+            return [Path(path) for path in _dedupe_paths(files)]
+
+        def _confirm_audio_import(self, files: list[str | Path]) -> list[Path]:
+            return confirm_suspicious_audio_files(self, files)
+
         def open_upload_file_picker(self, node_item: NodeBoxItem | None = None) -> list[str]:
             target = node_item or self._preferred_upload_node()
             selected, _ = QFileDialog.getOpenFileNames(
@@ -1517,9 +1534,13 @@ if _PYSIDE_IMPORT_ERROR is None:
             )
             if not selected:
                 return []
+            selected_paths = self._confirm_audio_import(selected)
+            if not selected_paths:
+                self.statusBar().showMessage("Import cancelled or all suspicious files were skipped.", 6000)
+                return []
             if target is None:
                 target = self._resolve_upload_target()
-            merged = self._set_upload_paths(target, selected)
+            merged = self._set_upload_paths(target, selected_paths)
             self.statusBar().showMessage(
                 f"Queued {len(merged)} audio file(s) in Upload Tracks.",
                 4000,
@@ -1528,28 +1549,26 @@ if _PYSIDE_IMPORT_ERROR is None:
 
         def open_upload_folder_picker(self, node_item: NodeBoxItem | None = None) -> list[str]:
             target = node_item or self._preferred_upload_node()
-            selected = QFileDialog.getExistingDirectory(
-                self,
-                "Choose Music Folder",
-                self._default_audio_dialog_dir(
-                    self._configured_upload_paths(target) if target is not None else None
-                ),
-            )
-            if not selected:
+            folders = self._choose_audio_folders(title="Choose Music Folder(s)")
+            if not folders:
                 return []
             try:
-                files = discover_audio_files(selected)
+                files = self._discover_audio_files_from_folders(folders)
             except ValueError as exc:
                 self.statusBar().showMessage(str(exc), 6000)
                 return []
             if not files:
-                self.statusBar().showMessage("No supported audio files found in that folder.", 6000)
+                self.statusBar().showMessage("No supported audio files found in selected folder(s).", 6000)
+                return []
+            accepted_files = self._confirm_audio_import(files)
+            if not accepted_files:
+                self.statusBar().showMessage("Import cancelled or all suspicious files were skipped.", 6000)
                 return []
             if target is None:
                 target = self._resolve_upload_target()
-            merged = self._set_upload_paths(target, files)
+            merged = self._set_upload_paths(target, accepted_files)
             self.statusBar().showMessage(
-                f"Queued {len(files)} audio file(s) from folder.",
+                f"Queued {len(accepted_files)} audio file(s) from {len(folders)} folder(s).",
                 5000,
             )
             return merged
@@ -2107,6 +2126,30 @@ if _PYSIDE_IMPORT_ERROR is None:
             self.inspector_layout.addWidget(summary)
             sync_text()
 
+        def _populate_analysis_depth_form(
+            self,
+            node_item: NodeBoxItem,
+            *,
+            title: str = "Analysis Depth",
+        ) -> None:
+            self._add_section_title(title)
+            self._add_label(
+                "Normal is fast full-mix analysis. Deep enables Demucs stem-aware analysis "
+                "for vocals/drums/bass/other, refreshes caches, and keeps more transition candidates.",
+                role="hint",
+            )
+            config = self.runtime.ensure_node_config(node_item.model.instance_id)
+            config.setdefault("analysis_depth", "normal")
+            depth_combo = QComboBox()
+            depth_combo.addItem("Normal - fast full-mix analysis", "normal")
+            depth_combo.addItem("Deep - Demucs stem-aware analysis", "deep")
+            self._set_combo_to_value(depth_combo, str(config.get("analysis_depth") or "normal"))
+            config["analysis_depth"] = depth_combo.currentData()
+            depth_combo.currentIndexChanged.connect(
+                lambda _: config.__setitem__("analysis_depth", depth_combo.currentData())
+            )
+            self.inspector_layout.addWidget(depth_combo)
+
         def _populate_load_corpus_form(self, node_item: NodeBoxItem) -> None:
             self._add_section_title("Load Track Library")
             self._add_label(
@@ -2172,6 +2215,7 @@ if _PYSIDE_IMPORT_ERROR is None:
             )
             config = self.runtime.ensure_node_config(node_item.model.instance_id)
             config.setdefault("arc", "build")
+            config.setdefault("planner_mode", "smart")
 
             self.inspector_layout.addWidget(QLabel("Arc Mode"))
             arc_combo = QComboBox()
@@ -2181,6 +2225,32 @@ if _PYSIDE_IMPORT_ERROR is None:
             config["arc"] = arc_combo.currentData()
             arc_combo.currentIndexChanged.connect(lambda _: config.__setitem__("arc", arc_combo.currentData()))
             self.inspector_layout.addWidget(arc_combo)
+
+            self.inspector_layout.addWidget(QLabel("Playlist Preference"))
+            planner_combo = QComboBox()
+            planner_combo.addItem("Smart Playlist - balanced", "smart")
+            planner_combo.addItem("Harmonic Match - Camelot/key-first", "harmonic")
+            planner_combo.addItem("BPM Match - tempo-first", "bpm")
+            self._set_combo_to_value(planner_combo, str(config.get("planner_mode") or "smart"))
+            config["planner_mode"] = planner_combo.currentData()
+            planner_combo.currentIndexChanged.connect(
+                lambda _: config.__setitem__("planner_mode", planner_combo.currentData())
+            )
+            self.inspector_layout.addWidget(planner_combo)
+
+            self.inspector_layout.addWidget(QLabel("Target Track Count"))
+            count_field = QLineEdit(
+                "" if config.get("target_track_count") in (None, "") else str(config.get("target_track_count"))
+            )
+            count_field.setPlaceholderText("blank = all analyzed tracks")
+
+            def sync_target_count(value: str) -> None:
+                text = value.strip()
+                config["target_track_count"] = int(text) if text.isdigit() else ""
+
+            count_field.textChanged.connect(sync_target_count)
+            sync_target_count(count_field.text())
+            self.inspector_layout.addWidget(count_field)
 
             choices = self._upstream_track_choices(node_item)
             self.inspector_layout.addWidget(QLabel("Start Track"))
@@ -2808,8 +2878,12 @@ if _PYSIDE_IMPORT_ERROR is None:
 
             self._populate_quick_actions(node_item)
 
-            if spec.node_id == "upload_tracks":
+            if spec.node_id == "engine":
+                self._populate_analysis_depth_form(node_item, title="Engine Analysis Settings")
+            elif spec.node_id == "upload_tracks":
                 self._populate_upload_form(node_item)
+            elif spec.node_id == "analyze_tracks":
+                self._populate_analysis_depth_form(node_item, title="Analyze Tracks Settings")
             elif spec.node_id == "load_corpus":
                 self._populate_load_corpus_form(node_item)
             elif spec.node_id == "select_track":
@@ -2887,20 +2961,20 @@ if _PYSIDE_IMPORT_ERROR is None:
             )
 
         def build_smart_playlist_flow(self) -> None:
-            folder = QFileDialog.getExistingDirectory(
-                self,
-                "Choose Music Folder",
-                self._default_audio_dialog_dir(),
-            )
-            if not folder:
+            folders = self._choose_audio_folders(title="Choose Music Folder(s)")
+            if not folders:
                 return
             try:
-                files = discover_audio_files(folder)
+                files = self._discover_audio_files_from_folders(folders)
             except ValueError as exc:
                 self.statusBar().showMessage(str(exc), 7000)
                 return
             if not files:
-                self.statusBar().showMessage("No supported audio files found in that folder.", 7000)
+                self.statusBar().showMessage("No supported audio files found in selected folder(s).", 7000)
+                return
+            files = self._confirm_audio_import(files)
+            if not files:
+                self.statusBar().showMessage("Smart Playlist cancelled or all suspicious files were skipped.", 7000)
                 return
 
             if len(files) < MIN_PLAYLIST_TRACKS:
@@ -2920,7 +2994,8 @@ if _PYSIDE_IMPORT_ERROR is None:
             if not ok:
                 return
 
-            default_name = f"DanceLab {Path(folder).name} Set"
+            folder_label = Path(folders[0]).name if len(folders) == 1 else "Selected Folders"
+            default_name = f"DanceLab {folder_label} Set"
             playlist_name, ok = QInputDialog.getText(
                 self,
                 "Playlist Name",
@@ -2959,6 +3034,8 @@ if _PYSIDE_IMPORT_ERROR is None:
             files: list,
             target_count: int,
             arc: str = "build",
+            planner_mode: str = "smart",
+            analysis_depth: str = "normal",
             playlist_name: str = "DanceLab Set",
             output_path: str = "",
         ) -> None:
@@ -2978,9 +3055,12 @@ if _PYSIDE_IMPORT_ERROR is None:
             self.connect_ports(build_set.output_handles["set_plan"], export.input_handles["set_plan"])
 
             self._set_upload_paths(upload, files, replace=True, refresh_selection=False)
+            engine_config = self.runtime.ensure_node_config(engine.model.instance_id)
+            engine_config["analysis_depth"] = analysis_depth
             build_config = self.runtime.ensure_node_config(build_set.model.instance_id)
             build_config["target_track_count"] = target_count
             build_config["arc"] = arc
+            build_config["planner_mode"] = planner_mode
             export_config = self.runtime.ensure_node_config(export.model.instance_id)
             export_config["playlist_name"] = playlist_name
             if output_path:
@@ -2999,6 +3079,8 @@ if _PYSIDE_IMPORT_ERROR is None:
             analyses: list[AnalysisResult],
             target_count: int,
             arc: str = "build",
+            planner_mode: str = "smart",
+            analysis_depth: str = "normal",
             playlist_name: str = "DanceLab Set",
             output_path: str = "",
         ) -> None:
@@ -3012,6 +3094,8 @@ if _PYSIDE_IMPORT_ERROR is None:
                 files=files,
                 target_count=target_count,
                 arc=arc,
+                planner_mode=planner_mode,
+                analysis_depth=analysis_depth,
                 playlist_name=playlist_name,
                 output_path=output_path,
             )
@@ -3347,25 +3431,14 @@ if _PYSIDE_IMPORT_ERROR is None:
                 return
 
             self.statusBar().showMessage("Running desktop flow…", 0)
-            thread = QThread(self)
-            worker = _FlowWorker(
+            thread = _FlowThread(
                 self.runtime,
                 self._serialize_node_states(),
                 self._serialize_connections(),
                 target,
             )
-            worker.moveToThread(thread)
-            thread.started.connect(worker.run)
-            worker.finished.connect(self._on_flow_finished)
-            # DirectConnection is required: `thread` has main-thread affinity, so a
-            # queued quit() would sit in the main event queue — which wait=True
-            # blocks by parking the main thread in thread.wait(), deadlocking. quit()
-            # is documented thread-safe, so calling it inline from the worker is fine.
-            worker.finished.connect(thread.quit, Qt.DirectConnection)
-            thread.finished.connect(worker.deleteLater)
-            thread.finished.connect(thread.deleteLater)
+            thread.completed.connect(self._on_flow_finished)
             self._flow_thread = thread
-            self._flow_worker = worker
             thread.start()
             self._refresh_engine_status()
             if wait:
@@ -3373,8 +3446,13 @@ if _PYSIDE_IMPORT_ERROR is None:
                 QApplication.processEvents()
 
         def _on_flow_finished(self, error: object) -> None:
-            self._flow_thread = None
-            self._flow_worker = None
+            finished_thread = self.sender()
+            if finished_thread is self._flow_thread:
+                self._flow_thread = None
+            if isinstance(finished_thread, QThread):
+                if finished_thread.isRunning() and QThread.currentThread() is not finished_thread:
+                    finished_thread.wait(1000)
+                finished_thread.deleteLater()
             if error:
                 self._set_toolbar_status(f"run failed · {error}")
                 self.statusBar().showMessage(f"Run failed · {error}", 7000)

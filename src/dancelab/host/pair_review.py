@@ -14,6 +14,7 @@ Everything shown here is engine data, not decoration:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal
@@ -98,6 +99,29 @@ def best_window(
     if not matching:
         return None
     return max(matching, key=lambda w: w.score)
+
+
+def waveform_envelope_from_features(analysis: AnalysisResult) -> list[float]:
+    """Normalized RMS envelope for Rekordbox-style visual timing.
+
+    The engine does not persist raw waveform peaks yet, but analysis features
+    already carry frame-level RMS. That is enough for a truthful visual
+    amplitude envelope without re-reading large audio files during review.
+    """
+    values = [
+        float(frame.rms)
+        for frame in analysis.features
+        if frame.rms is not None and np.isfinite(frame.rms)
+    ]
+    if not values:
+        return []
+    arr = np.asarray(values, dtype=np.float64)
+    lo = float(arr.min())
+    hi = float(arr.max())
+    if hi <= lo:
+        return [0.35 for _ in values]
+    arr = (arr - lo) / (hi - lo)
+    return [float(max(0.04, min(1.0, value))) for value in arr]
 
 
 def compute_windows(analysis: AnalysisResult, config: EngineConfig, top_k: int = 6):
@@ -212,7 +236,7 @@ class _StemWorker(QObject):
 
 
 class StructureStrip(QWidget):
-    """Paints the track's real segment map + transition windows + playhead."""
+    """Paints waveform envelope + structure + transition windows + playhead."""
 
     seekRequested = Signal(float)
 
@@ -222,12 +246,14 @@ class StructureStrip(QWidget):
         self.duration_sec = 0.0
         self.segments = []
         self.windows: list[TransitionWindow] = []
+        self.waveform: list[float] = []
         self.playhead_sec: float | None = None
 
-    def set_data(self, *, duration_sec: float, segments, windows) -> None:
+    def set_data(self, *, duration_sec: float, segments, windows, waveform=None) -> None:
         self.duration_sec = max(float(duration_sec or 0.0), 0.0)
         self.segments = list(segments or [])
         self.windows = list(windows or [])
+        self.waveform = list(waveform or [])
         self.playhead_sec = None
         self.update()
 
@@ -250,17 +276,36 @@ class StructureStrip(QWidget):
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor("#17181a"))
         height = self.height()
+        width = max(self.width(), 1)
 
+        # Main lane: waveform-like RMS envelope from engine analysis frames.
+        lane_top = 12
+        lane_bottom = height - 8
+        lane_mid = (lane_top + lane_bottom) / 2.0
+        lane_half = max((lane_bottom - lane_top) / 2.0 - 2.0, 1.0)
+        if self.waveform:
+            painter.setPen(QPen(QColor("#d6d7d9"), 1))
+            count = len(self.waveform)
+            for index, value in enumerate(self.waveform):
+                x = int(index / max(count - 1, 1) * width)
+                amp = max(1.0, float(value) * lane_half)
+                painter.drawLine(x, int(lane_mid - amp), x, int(lane_mid + amp))
+            painter.setPen(QPen(QColor("#2f6fcf"), 1))
+            painter.drawLine(0, int(lane_mid), width, int(lane_mid))
+
+        # Structure stays visible, but as a thin map below the waveform instead
+        # of replacing the waveform with big opaque blocks.
         for segment in self.segments:
             seg_type = getattr(segment.segment_type, "value", str(segment.segment_type))
             color = QColor(SEGMENT_COLORS.get(seg_type, SEGMENT_COLORS["unknown"]))
+            color.setAlpha(190)
             x0 = self._x(segment.start_sec)
             x1 = self._x(segment.end_sec)
-            painter.fillRect(int(x0), 14, max(int(x1 - x0) - 1, 1), height - 20, color)
+            painter.fillRect(int(x0), height - 8, max(int(x1 - x0) - 1, 1), 6, color)
 
         for window in self.windows:
             color = QColor(WINDOW_COLORS.get(window.window_type, QColor("#ffffff")))
-            color.setAlpha(140)
+            color.setAlpha(180)
             x0 = self._x(window.start_sec)
             x1 = self._x(window.end_sec)
             painter.fillRect(int(x0), 0, max(int(x1 - x0), 2), 12, color)
@@ -354,6 +399,7 @@ class Deck(QWidget):
             duration_sec=track.duration_sec or 0.0,
             segments=analysis.segments,
             windows=windows,
+            waveform=waveform_envelope_from_features(analysis),
         )
         self._rebuild_stem_buttons()
         cue = best_window(windows, cue_window_type)
@@ -366,9 +412,10 @@ class Deck(QWidget):
     def _rebuild_stem_buttons(self) -> None:
         while self.stem_row.count():
             item = self.stem_row.takeAt(0)
-            if item.widget() is not None:
-                item.widget().setParent(None)
-                item.widget().deleteLater()
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
+                widget.deleteLater()
         mix_button = QPushButton("Mix")
         mix_button.setToolTip("Play the full mix.")
         mix_button.clicked.connect(lambda: self.select_source("Mix"))
@@ -384,7 +431,7 @@ class Deck(QWidget):
         isolate_button.clicked.connect(self.render_stems)
         self.stem_row.addWidget(isolate_button)
 
-    def _add_stem_buttons(self, stems: dict[str, str]) -> None:
+    def _add_stem_buttons(self, stems: dict[str, Any]) -> None:
         self._stem_paths = stems
         for label in stems:
             button = QPushButton(label)

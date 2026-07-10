@@ -78,6 +78,7 @@ def export_rekordbox(
     output: Path = typer.Option(Path("dancelab_set.xml"), "--output", "-o"),
     playlist_name: str = typer.Option("DanceLab Set", "--name"),
     arc: str = typer.Option("build", "--arc", help="Energy arc: build/peak/flat"),
+    planner_mode: str = typer.Option("smart", "--planner-mode", help="smart/harmonic/bpm"),
     config: str = CONFIG_OPT,
 ) -> None:
     """Build a set from analyzed tracks and export a Rekordbox XML."""
@@ -96,7 +97,7 @@ def export_rekordbox(
         typer.secho("need >=2 analyzed tracks", fg="red", err=True)
         sys.exit(2)
 
-    plan = build_set(analyses, weights, arc=arc)
+    plan = build_set(analyses, weights, arc=arc, planner_mode=planner_mode)
     windows = {
         a.track.track_id: detect_transition_windows(
             TransitionWindowInput(track_id=a.track.track_id, segments=a.segments,
@@ -119,6 +120,8 @@ def smart_playlist(
     processed_dir: Path | None = typer.Option(None, "--processed-dir", help="Where analysis JSONs are cached"),
     playlist_name: str = typer.Option("DanceLab Smart Set", "--name"),
     arc: str = typer.Option("build", "--arc", help="Energy arc: build/peak/flat"),
+    planner_mode: str = typer.Option("smart", "--planner-mode", help="smart/harmonic/bpm"),
+    analysis_depth: str = typer.Option("normal", "--analysis-depth", help="normal/deep"),
     recompute: bool = typer.Option(False, "--recompute", help="Re-analyze tracks even if cached"),
     config: str = CONFIG_OPT,
 ) -> None:
@@ -134,6 +137,8 @@ def smart_playlist(
             output_path=output,
             processed_dir=processed_dir,
             arc=arc,
+            planner_mode=planner_mode,
+            analysis_depth=analysis_depth,
             recompute=recompute,
         )
     except ValueError as exc:

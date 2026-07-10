@@ -248,6 +248,8 @@ def test_smart_playlist_endpoint_builds_from_folder(client, monkeypatch, tmp_pat
         assert kwargs["target_track_count"] == 10
         assert kwargs["playlist_name"] == "API Smart Set"
         assert kwargs["output_path"] == str(output_path)
+        assert kwargs["planner_mode"] == "bpm"
+        assert kwargs["analysis_depth"] == "deep"
         plan = SetPlan(track_order=["track_a", "track_b"], target_track_count=10)
         return SmartPlaylistResult(
             playlist_name="API Smart Set",
@@ -274,6 +276,8 @@ def test_smart_playlist_endpoint_builds_from_folder(client, monkeypatch, tmp_pat
             "target_track_count": 10,
             "playlist_name": "API Smart Set",
             "output_path": str(output_path),
+            "planner_mode": "bpm",
+            "analysis_depth": "deep",
         },
     )
 
