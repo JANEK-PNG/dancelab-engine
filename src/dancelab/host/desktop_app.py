@@ -2536,9 +2536,11 @@ if _PYSIDE_IMPORT_ERROR is None:
             self.statusBar().showMessage("Node removed.", 2500)
 
         def _default_run_target(self) -> str | None:
-            node_item = self.selected_node_item()
-            if node_item and self.runtime.supports_node(node_item.model.spec.node_id):
-                return node_item.model.instance_id
+            # Toolbar "Run" executes the whole flow: target the terminal sink so
+            # runtime.run pulls every upstream dependency. (Running a single node
+            # is a separate action — the per-node Run button passes an explicit
+            # target_instance_id, so the current selection must NOT hijack the
+            # full-flow run here.)
             for candidate in self.node_items.values():
                 if candidate.model.spec.node_id == "telemetry_screen":
                     return candidate.model.instance_id
@@ -2573,7 +2575,11 @@ if _PYSIDE_IMPORT_ERROR is None:
             worker.moveToThread(thread)
             thread.started.connect(worker.run)
             worker.finished.connect(self._on_flow_finished)
-            worker.finished.connect(thread.quit)
+            # DirectConnection is required: `thread` has main-thread affinity, so a
+            # queued quit() would sit in the main event queue — which wait=True
+            # blocks by parking the main thread in thread.wait(), deadlocking. quit()
+            # is documented thread-safe, so calling it inline from the worker is fine.
+            worker.finished.connect(thread.quit, Qt.DirectConnection)
             thread.finished.connect(worker.deleteLater)
             thread.finished.connect(thread.deleteLater)
             self._flow_thread = thread

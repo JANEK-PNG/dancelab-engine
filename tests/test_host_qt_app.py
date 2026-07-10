@@ -211,7 +211,14 @@ def test_qt_host_inspector_surfaces_audit_and_context_forms():
         for widget in window.inspector_container.findChildren(QLabel)
         if widget.text()
     ]
-    assert any("Desktop runtime still does not execute this node." in text for text in inspector_texts)
+    # decision_report is an output node whose host_execution_status is
+    # "engine_only" (engine/CLI capability exists, no desktop executor adapter)
+    # — the audit panel must surface that gap honestly rather than claim the
+    # desktop can run it.
+    assert any(
+        "Engine/API capability exists, but the desktop host has no executor adapter yet." in text
+        for text in inspector_texts
+    )
     assert any("Desktop Audit" == text for text in inspector_texts)
 
     select_context_item = window.add_node("select_context", 420.0, 320.0)
