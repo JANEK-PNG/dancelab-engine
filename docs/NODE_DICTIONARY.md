@@ -29,7 +29,7 @@ and which ones are approved placeholders waiting for a cleaner adapter.
   - emits: `track_files`
   - role: explicit session start from user-selected audio files
 
-- `Load Corpus`
+- `Load Track Library`
   - status: `adapter_needed`
   - emits: `track_id_list`, optional `analysis_set`, `dataset_manifest`
   - role: bring analyzed corpus data into the host without auto-starting a session
@@ -76,85 +76,85 @@ and which ones are approved placeholders waiting for a cleaner adapter.
   - backing: `build_edge_decision`, `POST /pairs/edge-decision`
   - emits: `edge_decision`, `warning_stream`
 
-- `Context Evaluate`
+- `Evaluate Context Fit`
   - status: `implemented`
   - backing: `evaluate_context`, `POST /contexts/evaluate`
   - emits: `context_evaluation`
 
-- `Set Function`
+- `Classify Track Role`
   - status: `implemented`
   - backing: `classify_set_function`, `POST /tracks/{track_id}/set-function`
   - emits: `set_function_output`
 
-- `Recommend Next`
+- `Recommend Next Track`
   - status: `implemented`
   - backing: `recommend_next`, `POST /sets/recommend-next`
   - emits: `next_track_recommendation`, `warning_stream`
 
-- `Recommend Sequence`
+- `Recommend Full Sequence`
   - status: `implemented`
   - backing: `recommend_sequence`, `POST /sets/recommend-sequence`
   - emits: `sequence_decision`, `warning_stream`
 
-- `Build Set`
+- `Generate Set Sequence`
   - status: `adapter_needed`
   - backing: `build_set`
   - emits: `set_plan`
 
 ## Sensors
 
-- `BPM Sensor`
+- `BPM Signal`
   - status: `implemented`
   - reads: BPM, tempo deltas, effective BPM fields
 
-- `Key Sensor`
+- `Key Detection Signal`
   - status: `implemented`
   - reads: key estimates and harmonic relation data
 
-- `Energy Sensor`
+- `Energy Signal`
   - status: `implemented`
   - reads: energy-profile-like fields from analysis and sequencing outputs
 
-- `Risk Sensor`
+- `Risk Signal`
   - status: `implemented`
   - reads: risks, warnings, policy flags, guardrails
 
-- `Blend Profile Sensor`
+- `Blend Compatibility Signal`
   - status: `implemented`
   - reads: `blend_profile_auto`
 
-- `Window Sensor`
+- `Transition Window Signal`
   - status: `implemented`
   - reads: transition timing and selected mix windows
 
-- `Harmonic Sensor`
+- `Harmonic Signal`
   - status: `implemented`
   - reads: harmonic relation and harmonic risk
 
-- `Stem Window Sensor`
+- `Stem Window Signal`
   - status: `adapter_needed`
   - reads: `stem_window_features`
   - role: later support for stems-aware transition heuristics and review
 
 ## Screens
 
-- `Telemetry Screen`
+- `Telemetry Summary View`
   - status: `adapter_needed`
   - current source: existing validation dashboards and summaries
 
-- `Waveform Screen`
+- `Waveform Comparison View`
   - status: `adapter_needed`
   - current source: waveform gallery tooling
 
-- `Listen Screen`
+- `A/B Audition View`
   - status: `adapter_needed`
   - current source: external listen board
 
-- `Pair Review Screen`
+- `Pair Review View`
   - status: `adapter_needed`
   - current source: swipe review tooling
 
-- `Control Center Screen`
+- `Engine Telemetry Dashboard`
   - status: `adapter_needed`
   - current source: control-center diagnostics page
 
@@ -179,7 +179,7 @@ and which ones are approved placeholders waiting for a cleaner adapter.
 - `Compare`
   - status: `planned`
 
-- `Route`
+- `Router / Fan-out`
   - status: `planned`
 
 These are host nodes only.

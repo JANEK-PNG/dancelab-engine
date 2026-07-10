@@ -1262,16 +1262,49 @@ if _PYSIDE_IMPORT_ERROR is None:
             dock.setWidget(self.inspector_scroll)
             self.addDockWidget(Qt.RightDockWidgetArea, dock)
 
+        def _node_library_tooltip(self, node: NodeSpec) -> str:
+            """UI/UX audit §16: every node explains what/inputs/outputs/status."""
+            audit = self._node_audit_snapshot(node)
+            lines = [node.label, "", node.summary]
+            if node.inputs:
+                lines.append("")
+                lines.append("Inputs:")
+                lines.extend(f"  • {port.key} — {port.description}" for port in node.inputs)
+            if node.outputs:
+                lines.append("")
+                lines.append("Outputs:")
+                lines.extend(f"  • {port.key} — {port.description}" for port in node.outputs)
+            lines.append("")
+            lines.append(
+                f"Status: {audit['readiness_label']} · runtime "
+                f"{audit['runtime_status_label'].lower()} · form {audit['form_status_label'].lower()}"
+            )
+            return "\n".join(lines)
+
         def _populate_library(self) -> None:
+            # UI/UX audit §8/§12/§14: friendly category names, subtle counts,
+            # diagnostics/utilities collapsed as advanced by default.
             self.library_tree.clear()
-            ordered = ["system", "input", "engine_ops", "sensors", "screens", "utility", "output"]
+            ordered = ["system", "input", "engine_ops", "screens", "output", "sensors", "utility"]
+            display_names = {
+                "system": "SYSTEM",
+                "input": "PROJECT / INPUT",
+                "engine_ops": "ANALYSIS & DECISION",
+                "screens": "VIEWS",
+                "output": "OUTPUTS",
+                "sensors": "DIAGNOSTICS / SIGNALS",
+                "utility": "UTILITIES",
+            }
+            advanced_categories = {"sensors", "utility"}
             for category in ordered:
                 nodes = [node for node in self.registry.nodes if node.category == category]
                 if not nodes:
                     continue
                 summary = self._category_readiness_summary(nodes)
+                display = display_names.get(category, category.replace("_", " ").upper())
+                suffix = "  · advanced" if category in advanced_categories else ""
                 parent = QTreeWidgetItem(
-                    [f"{CATEGORY_MARKERS.get(category, '■')}  {category.replace('_', ' ').upper()}  {len(nodes)}"]
+                    [f"{CATEGORY_MARKERS.get(category, '■')}  {display} ({len(nodes)}){suffix}"]
                 )
                 parent.setFlags(parent.flags() & ~Qt.ItemIsSelectable)
                 parent.setForeground(0, QBrush(QColor(_category_color(category))))
@@ -1288,17 +1321,10 @@ if _PYSIDE_IMPORT_ERROR is None:
                     audit = self._node_audit_snapshot(node)
                     child = QTreeWidgetItem([f"{CATEGORY_MARKERS.get(category, '■')}  {node.label}"])
                     child.setData(0, Qt.UserRole, node.node_id)
-                    child.setToolTip(
-                        0,
-                        (
-                            f"{audit['readiness_label']} · runtime "
-                            f"{audit['runtime_status_label'].lower()} · "
-                            f"form {audit['form_status_label'].lower()}"
-                        ),
-                    )
+                    child.setToolTip(0, self._node_library_tooltip(node))
                     child.setForeground(0, QBrush(QColor(audit["display_color"])))
                     parent.addChild(child)
-                parent.setExpanded(True)
+                parent.setExpanded(category not in advanced_categories)
 
         def _handle_library_double_click(self, item: QTreeWidgetItem) -> None:
             node_id = item.data(0, Qt.UserRole)
@@ -1338,6 +1364,21 @@ if _PYSIDE_IMPORT_ERROR is None:
             instance_id: str | None = None,
         ) -> NodeBoxItem:
             spec = self.node_specs[node_id]
+            # UI/UX audit §9: the engine is a singleton — a second copy could be
+            # added but never deleted (deletable=False). Return the existing one.
+            if node_id == "engine":
+                existing = next(
+                    (
+                        item
+                        for item in self.node_items.values()
+                        if item.model.spec.node_id == "engine"
+                    ),
+                    None,
+                )
+                if existing is not None:
+                    self._select_node(existing)
+                    self.statusBar().showMessage("Engine already exists in this graph.", 4000)
+                    return existing
             if x is None or y is None:
                 x, y = self._suggest_node_position(spec)
             model = NodeInstanceModel(
@@ -2041,7 +2082,7 @@ if _PYSIDE_IMPORT_ERROR is None:
             sync_text()
 
         def _populate_load_corpus_form(self, node_item: NodeBoxItem) -> None:
-            self._add_section_title("Load Corpus")
+            self._add_section_title("Load Track Library")
             self._add_label(
                 "Bridge the local processed repository into the graph. This node can expose track IDs only or hydrate full analyses.",
                 role="hint",
@@ -2098,7 +2139,7 @@ if _PYSIDE_IMPORT_ERROR is None:
             self.inspector_layout.addWidget(mode_combo)
 
         def _populate_build_set_form(self, node_item: NodeBoxItem) -> None:
-            self._add_section_title("Build Set")
+            self._add_section_title("Generate Set Sequence")
             self._add_label(
                 "Build a SetPlan from analyzed tracks or repository-backed track IDs. The desktop host uses the engine weights and current corpus bridge.",
                 role="hint",
