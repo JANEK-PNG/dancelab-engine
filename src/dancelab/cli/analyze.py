@@ -111,6 +111,49 @@ def export_rekordbox(
     typer.echo("Import: see docs/rekordbox_import.md (enable rekordbox-xml view, uncheck Beatgrid analysis)")
 
 
+@app.command(name="smart-playlist")
+def smart_playlist(
+    directory: Path = typer.Argument(..., help="Folder with music files"),
+    count: int = typer.Option(10, "--count", "-n", help="Playlist length: 5, 10, 15, or 20"),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Write Rekordbox XML here"),
+    processed_dir: Path | None = typer.Option(None, "--processed-dir", help="Where analysis JSONs are cached"),
+    playlist_name: str = typer.Option("DanceLab Smart Set", "--name"),
+    arc: str = typer.Option("build", "--arc", help="Energy arc: build/peak/flat"),
+    recompute: bool = typer.Option(False, "--recompute", help="Re-analyze tracks even if cached"),
+    config: str = CONFIG_OPT,
+) -> None:
+    """Analyze a folder, build a smart set, and export Rekordbox XML."""
+    from dancelab.workflows.smart_playlist import build_smart_playlist_from_folder
+
+    try:
+        result = build_smart_playlist_from_folder(
+            directory,
+            load_config(config),
+            target_track_count=count,
+            playlist_name=playlist_name,
+            output_path=output,
+            processed_dir=processed_dir,
+            arc=arc,
+            recompute=recompute,
+        )
+    except ValueError as exc:
+        typer.secho(f"INPUT ERROR: {exc}", fg="red", err=True)
+        sys.exit(2)
+    except DanceLabError as exc:
+        typer.secho(f"ERROR: {exc}", fg="red", err=True)
+        sys.exit(1)
+
+    typer.echo(f"Wrote {result.output_path}")
+    typer.echo(
+        f"Playlist: {result.playlist_name} · {len(result.set_plan.track_order)} tracks "
+        f"· mean transition {result.set_plan.mean_transition_score}"
+    )
+    if result.failed_tracks:
+        typer.secho(f"Warnings: {len(result.failed_tracks)} file(s) failed analysis", fg="yellow")
+        for failure in result.failed_tracks[:8]:
+            typer.secho(f"fail {Path(failure.source_path).name}: {failure.error}", fg="yellow")
+
+
 @app.command(name="validate-annotations")
 def validate_annotations(
     annotations_dir: Path = typer.Argument(Path("data/annotations")),

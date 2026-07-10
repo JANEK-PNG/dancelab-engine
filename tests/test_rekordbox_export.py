@@ -60,6 +60,27 @@ def test_transition_windows_become_hot_cues():
     assert marks[0].get("Type") == "0"
 
 
+def test_playlist_hot_cues_are_role_aware_and_not_clustered():
+    tracks = [make_track("t1", "One", 128, "8A", "/Music/one.mp3")]
+    windows = {
+        "t1": [
+            TransitionWindow(start_sec=250.0, end_sec=266.0, score=0.95, window_type=WindowType.mix_out),
+            TransitionWindow(start_sec=252.0, end_sec=268.0, score=0.93, window_type=WindowType.mix_out),
+            TransitionWindow(start_sec=16.0, end_sec=32.0, score=0.80, window_type=WindowType.mix_in),
+            TransitionWindow(start_sec=120.0, end_sec=136.0, score=0.70, window_type=WindowType.bridge),
+        ]
+    }
+    plan = SetPlan(track_order=["t1"])
+    xml = build_rekordbox_xml(tracks, set_plan=plan, windows_by_track=windows)
+    marks = ET.fromstring(xml).findall("COLLECTION/TRACK/POSITION_MARK")
+    starts = [float(mark.get("Start")) for mark in marks]
+
+    assert len(marks) == 3
+    assert [mark.get("Name") for mark in marks] == ["Mix Out", "Mix In", "Bridge"]
+    assert 252.0 not in starts
+    assert min(abs(a - b) for index, a in enumerate(starts) for b in starts[index + 1:]) >= 32.0
+
+
 def test_set_plan_orders_playlist():
     tracks = [make_track("t1", "One", 128, "8A", "/Music/one.mp3"),
               make_track("t2", "Two", 130, "9A", "/Music/two.mp3"),

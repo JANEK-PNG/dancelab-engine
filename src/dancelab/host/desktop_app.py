@@ -7,7 +7,6 @@ Python desktop software backed by the engine registry, not an HTML-first app.
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -19,18 +18,9 @@ from dancelab.host.runtime import (
     RuntimeConnection,
     RuntimeNodeState,
 )
+from dancelab.workflows.smart_playlist import discover_audio_files
 
 try:  # optional desktop dependency
-    from PySide6 import QtCore as _QtCore
-
-    _pyside_root = Path(_QtCore.__file__).resolve().parent
-    _qt_plugin_root = _pyside_root / "Qt" / "plugins"
-    _qt_platform_plugin_root = _qt_plugin_root / "platforms"
-    if _qt_plugin_root.exists():
-        os.environ.setdefault("QT_PLUGIN_PATH", str(_qt_plugin_root))
-    if _qt_platform_plugin_root.exists():
-        os.environ.setdefault("QT_QPA_PLATFORM_PLUGIN_PATH", str(_qt_platform_plugin_root))
-
     from PySide6.QtCore import (
         QMimeData,
         QObject,
@@ -64,6 +54,7 @@ try:  # optional desktop dependency
         QGraphicsScene,
         QGraphicsView,
         QHBoxLayout,
+        QInputDialog,
         QLabel,
         QLineEdit,
         QMainWindow,
@@ -613,7 +604,7 @@ if _PYSIDE_IMPORT_ERROR is None:
             direction: str,
             y: float,
         ):
-            super().__init__(-6.0, -6.0, 12.0, 12.0, node_item)
+            super().__init__(-8.0, -8.0, 16.0, 16.0, node_item)
             self.node_item = node_item
             self.port_spec = port_spec
             self.direction = direction
@@ -641,32 +632,22 @@ if _PYSIDE_IMPORT_ERROR is None:
             width = 2.0
             if self.compatible:
                 border = QColor("#7ecf8b")
-                width = 2.4
+                width = 3.0
             self.setBrush(fill)
             self.setPen(QPen(border, width))
 
         def mousePressEvent(self, event) -> None:
             self.node_item.setSelected(True)
-            if self.direction == "output":
-                self.node_item.host_window.start_connection_drag(self, event.scenePos())
-                event.accept()
-                return
-            self.node_item.host_window.handle_port_click(self)
+            self.node_item.host_window.start_connection_drag(self, event.scenePos())
             event.accept()
 
         def mouseMoveEvent(self, event) -> None:
-            if self.direction == "output":
-                self.node_item.host_window.update_connection_drag(event.scenePos())
-                event.accept()
-                return
-            super().mouseMoveEvent(event)
+            self.node_item.host_window.update_connection_drag(event.scenePos())
+            event.accept()
 
         def mouseReleaseEvent(self, event) -> None:
-            if self.direction == "output":
-                self.node_item.host_window.finish_connection_drag(event.scenePos())
-                event.accept()
-                return
-            super().mouseReleaseEvent(event)
+            self.node_item.host_window.finish_connection_drag(event.scenePos())
+            event.accept()
 
 
     class ConnectionItem(QGraphicsPathItem):
@@ -711,15 +692,28 @@ if _PYSIDE_IMPORT_ERROR is None:
             self.setPen(pen)
             self.update_path(self.current_scene_pos)
 
+        def set_target_state(self, *, valid: bool = False, invalid: bool = False) -> None:
+            if valid:
+                color = QColor("#7ecf8b")
+            elif invalid:
+                color = QColor("#d66b6b")
+            else:
+                color = QColor("#e6c896")
+            pen = QPen(color, 2.8 if valid else 2.4)
+            pen.setCapStyle(Qt.RoundCap)
+            pen.setStyle(Qt.SolidLine if valid else Qt.DashLine)
+            self.setPen(pen)
+
         def update_path(self, scene_pos: QPointF) -> None:
             self.current_scene_pos = scene_pos
             start = self.source_handle.center_in_scene()
             end = scene_pos
             dx = max(80.0, abs(end.x() - start.x()) * 0.55)
+            direction = 1.0 if self.source_handle.direction == "output" else -1.0
             path = QPainterPath(start)
             path.cubicTo(
-                QPointF(start.x() + dx, start.y()),
-                QPointF(end.x() - dx, end.y()),
+                QPointF(start.x() + direction * dx, start.y()),
+                QPointF(end.x() - direction * dx, end.y()),
                 end,
             )
             self.setPath(path)
@@ -987,11 +981,11 @@ if _PYSIDE_IMPORT_ERROR is None:
                 }
                 QLabel[role="title"] {
                     color: #eceded;
-                    font-size: 18px;
+                    font-size: 15px;
                     font-weight: 600;
                 }
                 QLabel[role="section"] {
-                    color: #989ba1;
+                    color: #d99a4e;
                     font-size: 11px;
                     font-weight: 600;
                     text-transform: uppercase;
@@ -1032,6 +1026,32 @@ if _PYSIDE_IMPORT_ERROR is None:
                     font-family: "IBM Plex Mono";
                     font-size: 11px;
                 }
+                QPushButton[role="hero"] {
+                    background: #d99a4e;
+                    color: #111214;
+                    border: 1px solid #f0c98f;
+                    border-radius: 8px;
+                    font-weight: 700;
+                    min-height: 38px;
+                    padding: 8px 14px;
+                }
+                QPushButton[role="hero"]:hover {
+                    background: #edb766;
+                }
+                QPushButton[role="preset"] {
+                    background: #20231d;
+                    color: #9bd27f;
+                    border: 1px solid #4d7443;
+                    border-radius: 8px;
+                    font-weight: 600;
+                    min-height: 34px;
+                    padding: 7px 12px;
+                }
+                QWidget[role="inspector_card"] {
+                    background: #17181a;
+                    border: 1px solid #272a2f;
+                    border-radius: 10px;
+                }
                 """
             )
 
@@ -1056,14 +1076,34 @@ if _PYSIDE_IMPORT_ERROR is None:
             toolbar.addWidget(patch)
             toolbar.addSeparator()
 
+            smart_playlist_button = QPushButton("SMART PLAYLIST")
+            smart_playlist_button.setProperty("role", "hero")
+            smart_playlist_button.setToolTip(
+                "One-click graph: upload folder -> engine analysis -> build set -> rekordbox XML."
+            )
+            smart_playlist_button.clicked.connect(self.build_smart_playlist_flow)
+            toolbar.addWidget(smart_playlist_button)
+
+            first_flow_button = QPushButton("PAIR REVIEW FLOW")
+            first_flow_button.setProperty("role", "preset")
+            first_flow_button.setToolTip("Build the beginner review graph for testing pair decisions.")
+            first_flow_button.clicked.connect(self.build_first_flow)
+            toolbar.addWidget(first_flow_button)
+
+            upload_button = QPushButton("UPLOAD FOLDER")
+            upload_button.setProperty("role", "preset")
+            upload_button.setToolTip("Add or reuse an Upload Tracks node and choose a music folder.")
+            upload_button.clicked.connect(self.open_upload_folder_picker)
+            toolbar.addWidget(upload_button)
+            toolbar.addSeparator()
+
             build_action = QAction("Build First Flow", self)
             build_action.triggered.connect(self.build_first_flow)
             toolbar.addAction(build_action)
 
-            # "Build Smart Mix" removed: it referenced build_smart_mix_flow,
-            # which was never implemented — the dangling connect made the
-            # whole window fail to construct (found when the Qt suite was
-            # un-skipped). Re-add together with a real implementation.
+            smart_playlist_action = QAction("Smart Playlist...", self)
+            smart_playlist_action.triggered.connect(self.build_smart_playlist_flow)
+            toolbar.addAction(smart_playlist_action)
 
             import_action = QAction("Import Tracks...", self)
             import_action.triggered.connect(self.open_upload_file_picker)
@@ -1124,6 +1164,8 @@ if _PYSIDE_IMPORT_ERROR is None:
         def _build_inspector(self) -> None:
             dock = QDockWidget("Parameter Panel", self)
             dock.setFeatures(QDockWidget.NoDockWidgetFeatures)
+            dock.setMinimumWidth(360)
+            dock.setMaximumWidth(460)
             self.inspector_scroll = QScrollArea()
             self.inspector_scroll.setWidgetResizable(True)
             self.inspector_container = QWidget()
@@ -1325,6 +1367,34 @@ if _PYSIDE_IMPORT_ERROR is None:
             )
             return merged
 
+        def open_upload_folder_picker(self, node_item: NodeBoxItem | None = None) -> list[str]:
+            target = node_item or self._preferred_upload_node()
+            selected = QFileDialog.getExistingDirectory(
+                self,
+                "Choose Music Folder",
+                self._default_audio_dialog_dir(
+                    self._configured_upload_paths(target) if target is not None else None
+                ),
+            )
+            if not selected:
+                return []
+            try:
+                files = discover_audio_files(selected)
+            except ValueError as exc:
+                self.statusBar().showMessage(str(exc), 6000)
+                return []
+            if not files:
+                self.statusBar().showMessage("No supported audio files found in that folder.", 6000)
+                return []
+            if target is None:
+                target = self._resolve_upload_target()
+            merged = self._set_upload_paths(target, files)
+            self.statusBar().showMessage(
+                f"Queued {len(files)} audio file(s) from folder.",
+                5000,
+            )
+            return merged
+
         def handle_audio_file_drop(
             self,
             paths: list[str | Path],
@@ -1366,6 +1436,110 @@ if _PYSIDE_IMPORT_ERROR is None:
             self._refresh_port_states()
             self._sync_inspector()
             self.statusBar().showMessage("Connection added.", 2500)
+
+        def start_connection_drag(self, handle: PortHandleItem, scene_pos: QPointF) -> None:
+            self.connection_drag_source = handle
+            self.connection_drag_started = False
+            self.connection_drag_start_scene_pos = scene_pos
+            self.pending_connection_preview = PendingConnectionItem(handle)
+            self.scene.addItem(self.pending_connection_preview)
+            self._refresh_port_states()
+            self.statusBar().showMessage(
+                "Drag the cable to a highlighted compatible socket.",
+                2500,
+            )
+
+        def update_connection_drag(self, scene_pos: QPointF) -> None:
+            source = self.connection_drag_source
+            if source is None or self.pending_connection_preview is None:
+                return
+            self.pending_connection_preview.update_path(scene_pos)
+            if self.connection_drag_start_scene_pos is not None:
+                dx = scene_pos.x() - self.connection_drag_start_scene_pos.x()
+                dy = scene_pos.y() - self.connection_drag_start_scene_pos.y()
+                if (dx * dx + dy * dy) > 16.0:
+                    self.connection_drag_started = True
+
+            target = self._port_handle_at_scene_pos(scene_pos, exclude=source)
+            connectable = target is not None and self._handles_connectable(source, target)
+            invalid_target = target is not None and not connectable
+            self.pending_connection_preview.set_target_state(valid=connectable, invalid=invalid_target)
+            self._refresh_port_states(hover_target=target if connectable else None)
+
+        def finish_connection_drag(self, scene_pos: QPointF) -> None:
+            source = self.connection_drag_source
+            target = self._port_handle_at_scene_pos(scene_pos, exclude=source)
+            if source is not None and target is not None and self._handles_connectable(source, target):
+                output_handle, input_handle = self._connection_direction(source, target)
+                self.connect_ports(output_handle, input_handle)
+                self.pending_output_handle = None
+                self.statusBar().showMessage("Connection added.", 2500)
+            elif source is not None and not self.connection_drag_started:
+                self.handle_port_click(source)
+            elif source is not None:
+                self.statusBar().showMessage(
+                    "Connection cancelled. Drop on a highlighted compatible socket.",
+                    3000,
+                )
+            self._clear_connection_drag()
+            self._refresh_port_states()
+            self._sync_inspector()
+
+        def _clear_connection_drag(self) -> None:
+            if self.pending_connection_preview is not None:
+                self.scene.removeItem(self.pending_connection_preview)
+            self.pending_connection_preview = None
+            self.connection_drag_source = None
+            self.connection_drag_started = False
+            self.connection_drag_start_scene_pos = None
+
+        def _all_port_handles(self) -> list[PortHandleItem]:
+            handles: list[PortHandleItem] = []
+            for node_item in self.node_items.values():
+                handles.extend(node_item.input_handles.values())
+                handles.extend(node_item.output_handles.values())
+            return handles
+
+        def _port_handle_at_scene_pos(
+            self,
+            scene_pos: QPointF,
+            *,
+            exclude: PortHandleItem | None = None,
+        ) -> PortHandleItem | None:
+            zoom = max(float(self.view.transform().m11()), 0.2)
+            max_distance = 18.0 / zoom
+            closest: tuple[float, PortHandleItem] | None = None
+            for handle in self._all_port_handles():
+                if handle is exclude:
+                    continue
+                center = handle.center_in_scene()
+                dx = center.x() - scene_pos.x()
+                dy = center.y() - scene_pos.y()
+                distance = (dx * dx + dy * dy) ** 0.5
+                if distance <= max_distance and (
+                    closest is None or distance < closest[0]
+                ):
+                    closest = (distance, handle)
+            return closest[1] if closest is not None else None
+
+        def _connection_direction(
+            self,
+            first: PortHandleItem,
+            second: PortHandleItem,
+        ) -> tuple[PortHandleItem, PortHandleItem]:
+            if first.direction == "output" and second.direction == "input":
+                return first, second
+            if first.direction == "input" and second.direction == "output":
+                return second, first
+            raise ValueError("Connection direction requires one output and one input handle.")
+
+        def _handles_connectable(self, first: PortHandleItem, second: PortHandleItem) -> bool:
+            if first.node_item is second.node_item:
+                return False
+            if first.direction == second.direction:
+                return False
+            output_handle, input_handle = self._connection_direction(first, second)
+            return self._ports_compatible(output_handle.port_spec, input_handle.port_spec)
 
         def _ports_compatible(self, output_port: NodePortSpec, input_port: NodePortSpec) -> bool:
             output_types = set(output_port.port_types)
@@ -1427,18 +1601,23 @@ if _PYSIDE_IMPORT_ERROR is None:
             if model is not None:
                 self.statusBar().showMessage("Connection removed.", 2000)
 
-        def _refresh_port_states(self) -> None:
+        def _refresh_port_states(self, hover_target: PortHandleItem | None = None) -> None:
+            active_source = self.connection_drag_source or self.pending_output_handle
             for node_item in self.node_items.values():
                 for handle in node_item.input_handles.values():
-                    compatible = False
-                    if self.pending_output_handle is not None:
-                        compatible = self._ports_compatible(
-                            self.pending_output_handle.port_spec,
-                            handle.port_spec,
-                        )
-                    handle.set_state(active=False, compatible=compatible)
+                    compatible = (
+                        active_source is not None
+                        and active_source is not handle
+                        and self._handles_connectable(active_source, handle)
+                    )
+                    handle.set_state(active=handle is active_source, compatible=compatible or handle is hover_target)
                 for handle in node_item.output_handles.values():
-                    handle.set_state(active=handle is self.pending_output_handle, compatible=False)
+                    compatible = (
+                        active_source is not None
+                        and active_source is not handle
+                        and self._handles_connectable(active_source, handle)
+                    )
+                    handle.set_state(active=handle is active_source, compatible=compatible or handle is hover_target)
 
         def _serialize_node_states(self) -> list[RuntimeNodeState]:
             return [
@@ -1592,7 +1771,9 @@ if _PYSIDE_IMPORT_ERROR is None:
 
         def _add_audit_section(self, spec: NodeSpec) -> None:
             audit = self._node_audit_snapshot(spec)
-            self._add_section_title("Desktop Audit")
+            if not audit["gaps"]:
+                return
+            self._add_section_title("Implementation Notes")
             self._add_pills(
                 [
                     audit["readiness_label"],
@@ -1600,9 +1781,6 @@ if _PYSIDE_IMPORT_ERROR is None:
                     audit["form_status_label"],
                 ]
             )
-            if not audit["gaps"]:
-                self._add_label("No known desktop-host delivery gaps for this node right now.", role="hint")
-                return
             for gap in audit["gaps"]:
                 self._add_label(gap, role="hint")
 
@@ -1704,8 +1882,10 @@ if _PYSIDE_IMPORT_ERROR is None:
 
             choose_button = QPushButton("Open File Picker...")
             choose_button.setProperty("role", "primary")
+            folder_button = QPushButton("Open Folder...")
             clear_button = QPushButton("Clear List")
             controls_layout.addWidget(choose_button)
+            controls_layout.addWidget(folder_button)
             controls_layout.addWidget(clear_button)
             self.inspector_layout.addWidget(controls)
 
@@ -1756,6 +1936,7 @@ if _PYSIDE_IMPORT_ERROR is None:
 
             field.textChanged.connect(sync_text)
             choose_button.clicked.connect(lambda: self.open_upload_file_picker(node_item))
+            folder_button.clicked.connect(lambda: self.open_upload_folder_picker(node_item))
             clear_button.clicked.connect(clear_paths)
             self.inspector_layout.addWidget(field)
             self.inspector_layout.addWidget(summary)
@@ -2319,7 +2500,7 @@ if _PYSIDE_IMPORT_ERROR is None:
             ]
             if not related:
                 self._add_label(
-                    "No live connections yet. Click an output handle, then a compatible input handle.",
+                    "No live connections yet. Drag a cable from a socket to a highlighted compatible socket.",
                     role="hint",
                 )
                 return
@@ -2347,27 +2528,38 @@ if _PYSIDE_IMPORT_ERROR is None:
             self._sync_inspector()
 
         def _populate_port_section(self, title: str, ports: list[NodePortSpec]) -> None:
-            self._add_section_title(title)
             if not ports:
-                self._add_label("No ports.", role="hint")
                 return
+            self._add_section_title(title)
             for port in ports:
-                self._add_label(
-                    f"{port.key} · {', '.join(port.port_types)}",
-                    mono=True,
-                )
-                self._add_label(port.description)
+                label = self._add_label(f"{port.key} · {', '.join(port.port_types)}", mono=True)
+                label.setToolTip(port.description)
 
         def _populate_string_section(self, title: str, values: list[str]) -> None:
-            self._add_section_title(title)
             if not values:
-                self._add_label("No entries.", role="hint")
                 return
+            self._add_section_title(title)
             for value in values:
                 self._add_label(value, mono=True)
 
         def _populate_quick_actions(self, node_item: NodeBoxItem) -> None:
             self._add_section_title("Quick Actions")
+            preset_row = QWidget()
+            preset_layout = QHBoxLayout(preset_row)
+            preset_layout.setContentsMargins(0, 0, 0, 0)
+            preset_layout.setSpacing(8)
+
+            smart_button = QPushButton("Smart Playlist")
+            smart_button.setProperty("role", "hero")
+            smart_button.clicked.connect(self.build_smart_playlist_flow)
+            preset_layout.addWidget(smart_button)
+
+            pair_button = QPushButton("Pair Review")
+            pair_button.setProperty("role", "preset")
+            pair_button.clicked.connect(self.build_first_flow)
+            preset_layout.addWidget(pair_button)
+            self.inspector_layout.addWidget(preset_row)
+
             row = QWidget()
             layout = QHBoxLayout(row)
             layout.setContentsMargins(0, 0, 0, 0)
@@ -2410,11 +2602,9 @@ if _PYSIDE_IMPORT_ERROR is None:
             title = QLabel(spec.label)
             title.setProperty("role", "title")
             self.inspector_layout.addWidget(title)
-            self._add_label(spec.summary)
+            self._add_label(spec.summary, role="hint")
             self._add_pills(
                 [
-                    spec.status,
-                    spec.host_execution_status,
                     spec.runtime_side,
                     spec.execution_mode,
                     runtime_status,
@@ -2430,7 +2620,7 @@ if _PYSIDE_IMPORT_ERROR is None:
             if runtime_error:
                 self._add_label(f"Runtime error: {runtime_error}", role="hint")
 
-            self._add_audit_section(spec)
+            self._populate_quick_actions(node_item)
 
             if spec.node_id == "upload_tracks":
                 self._populate_upload_form(node_item)
@@ -2455,6 +2645,7 @@ if _PYSIDE_IMPORT_ERROR is None:
 
             self._populate_output_preview(node_item)
             self._populate_connections(node_item)
+            self._add_audit_section(spec)
             self._populate_port_section("Inputs", spec.inputs)
             self._populate_port_section("Outputs", spec.outputs)
             self._populate_string_section(
@@ -2464,7 +2655,6 @@ if _PYSIDE_IMPORT_ERROR is None:
             self._populate_string_section("Backed By", spec.backed_by)
             self._populate_string_section("API Routes", spec.api_routes)
             self._populate_string_section("Notes", spec.notes)
-            self._populate_quick_actions(node_item)
             self.inspector_scroll.verticalScrollBar().setValue(0)
             self.inspector_layout.addStretch(1)
 
@@ -2509,6 +2699,90 @@ if _PYSIDE_IMPORT_ERROR is None:
                 6000,
             )
 
+        def build_smart_playlist_flow(self) -> None:
+            folder = QFileDialog.getExistingDirectory(
+                self,
+                "Choose Music Folder",
+                self._default_audio_dialog_dir(),
+            )
+            if not folder:
+                return
+            try:
+                files = discover_audio_files(folder)
+            except ValueError as exc:
+                self.statusBar().showMessage(str(exc), 7000)
+                return
+            if not files:
+                self.statusBar().showMessage("No supported audio files found in that folder.", 7000)
+                return
+
+            available_counts = [str(count) for count in (5, 10, 15, 20) if len(files) >= count]
+            if not available_counts:
+                self.statusBar().showMessage("Smart Playlist needs at least 5 supported audio files.", 7000)
+                return
+            count_text, ok = QInputDialog.getItem(
+                self,
+                "Smart Playlist Length",
+                "Number of tracks",
+                available_counts,
+                min(1, len(available_counts) - 1),
+                False,
+            )
+            if not ok or not count_text:
+                return
+            target_count = int(count_text)
+
+            default_name = f"DanceLab {Path(folder).name} Set"
+            playlist_name, ok = QInputDialog.getText(
+                self,
+                "Playlist Name",
+                "Rekordbox playlist name",
+                text=default_name,
+            )
+            if not ok:
+                return
+            playlist_name = playlist_name.strip() or default_name
+
+            default_output = Path.home() / "Desktop" / f"{playlist_name.replace('/', '_')}.xml"
+            output_path, _ = QFileDialog.getSaveFileName(
+                self,
+                "Export Rekordbox XML",
+                str(default_output),
+                "XML Files (*.xml);;All Files (*)",
+            )
+            if not output_path:
+                return
+
+            self.reset_canvas()
+            engine = next(
+                item for item in self.node_items.values() if item.model.spec.node_id == "engine"
+            )
+            upload = self.add_node("upload_tracks", 120.0, 390.0)
+            build_set = self.add_node("build_set", 680.0, 390.0)
+            export = self.add_node("export_rekordbox", 960.0, 390.0)
+
+            self.connect_ports(upload.output_handles["tracks"], engine.input_handles["tracks_in"])
+            self.connect_ports(engine.output_handles["analysis_out"], build_set.input_handles["analysis"])
+            self.connect_ports(engine.output_handles["analysis_out"], export.input_handles["analysis"])
+            self.connect_ports(build_set.output_handles["set_plan"], export.input_handles["set_plan"])
+
+            self._set_upload_paths(upload, files, replace=True, refresh_selection=False)
+            build_config = self.runtime.ensure_node_config(build_set.model.instance_id)
+            build_config["target_track_count"] = target_count
+            build_config["arc"] = "build"
+            export_config = self.runtime.ensure_node_config(export.model.instance_id)
+            export_config["playlist_name"] = playlist_name
+            export_config["output_path"] = output_path
+
+            self.scene.clearSelection()
+            upload.setSelected(True)
+            self._refresh_port_states()
+            self._sync_inspector()
+            self.statusBar().showMessage(
+                f"Smart Playlist ready · {len(files)} files queued · {target_count} track export.",
+                7000,
+            )
+
         def fit_engine(self) -> None:
             engines = [item for item in self.node_items.values() if item.model.spec.node_id == "engine"]
             if engines:
@@ -2541,6 +2815,10 @@ if _PYSIDE_IMPORT_ERROR is None:
             # is a separate action — the per-node Run button passes an explicit
             # target_instance_id, so the current selection must NOT hijack the
             # full-flow run here.)
+            for sink_node_id in ("stem_export", "export_rekordbox", "telemetry_screen", "recommend_next", "build_set"):
+                for candidate in self.node_items.values():
+                    if candidate.model.spec.node_id == sink_node_id:
+                        return candidate.model.instance_id
             for candidate in self.node_items.values():
                 if candidate.model.spec.node_id == "telemetry_screen":
                     return candidate.model.instance_id
@@ -2611,8 +2889,13 @@ def launch_desktop_host(
     _require_pyside6()
     registry = registry or get_node_host_registry()
     app = QApplication.instance() or QApplication([])
+    app.setApplicationName("DanceLab Host")
+    app.setApplicationDisplayName("DanceLab Host")
+    app.setOrganizationName("DanceLab")
     window = NodeHostWindow(registry, config_path=config_path)
     window.show()
+    window.raise_()
+    window.activateWindow()
     return app.exec()
 
 

@@ -106,6 +106,39 @@ class RekordboxExportResponse(BaseModel):
     xml: str
 
 
+class SmartPlaylistRequest(BaseModel):
+    """POST /sets/smart-playlist — folder in, analyzed Rekordbox playlist out."""
+
+    folder_path: str
+    target_track_count: Literal[5, 10, 15, 20] = 10
+    playlist_name: str = "DanceLab Smart Set"
+    output_path: str | None = None
+    processed_dir: str | None = None
+    arc: str = "build"
+    recursive: bool = True
+    recompute: bool = False
+
+
+class SmartPlaylistFailureResponse(BaseModel):
+    source_path: str
+    error: str
+
+
+class SmartPlaylistResponse(BaseModel):
+    schema_version: str = DANCELAB_SCHEMA_VERSION
+    playlist_name: str
+    source_folder: str
+    source_track_count: int
+    analyzed_track_count: int
+    target_track_count: int
+    output_path: str
+    processed_dir: str
+    analyzed_track_ids: list[str] = Field(default_factory=list)
+    failed_tracks: list[SmartPlaylistFailureResponse] = Field(default_factory=list)
+    set_plan: SetPlan
+    xml: str
+
+
 class StemExportRequest(BaseModel):
     """POST /stems/export — analyze with stems enabled and write artifact folders."""
 

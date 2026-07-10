@@ -1,0 +1,186 @@
+"""One-shot folder analysis -> set plan -> Rekordbox playlist workflow."""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from dancelab.core.config import EngineConfig, load_weights
+from dancelab.core.models import AnalysisResult, SetPlan, TransitionWindowInput
+from dancelab.core.pipeline import analyze_track
+from dancelab.decision.set_builder import build_set
+from dancelab.decision.transition_windows import detect_transition_windows
+from dancelab.export.rekordbox import build_rekordbox_xml, write_rekordbox_xml
+from dancelab.ingestion.loader import SUPPORTED_EXTENSIONS
+from dancelab.ingestion.metadata import make_track_id
+from dancelab.storage.repositories import FileAnalysisRepository
+
+ALLOWED_PLAYLIST_COUNTS = {5, 10, 15, 20}
+
+
+@dataclass(frozen=True)
+class SmartPlaylistFailure:
+    source_path: str
+    error: str
+
+
+@dataclass(frozen=True)
+class SmartPlaylistResult:
+    playlist_name: str
+    source_folder: str
+    source_track_count: int
+    analyzed_track_count: int
+    target_track_count: int
+    processed_dir: str
+    output_path: str
+    set_plan: SetPlan
+    xml: str
+    analyzed_track_ids: list[str] = field(default_factory=list)
+    failed_tracks: list[SmartPlaylistFailure] = field(default_factory=list)
+
+
+def discover_audio_files(folder_path: str | Path, *, recursive: bool = True) -> list[Path]:
+    folder = Path(folder_path).expanduser()
+    if not folder.exists():
+        raise ValueError(f"folder_path does not exist: {folder}")
+    if not folder.is_dir():
+        raise ValueError(f"folder_path must be a directory: {folder}")
+    iterator = folder.rglob("*") if recursive else folder.glob("*")
+    return sorted(
+        path
+        for path in iterator
+        if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS
+    )
+
+
+def _safe_filename(value: str) -> str:
+    text = re.sub(r"[^\w.\-() ]+", "_", value, flags=re.ASCII).strip()
+    return text[:120] or "dancelab_playlist"
+
+
+def _default_output_path(config: EngineConfig, playlist_name: str) -> Path:
+    return Path(config.paths.data_dir).expanduser() / "exports" / f"{_safe_filename(playlist_name)}.xml"
+
+
+def _default_processed_dir(config: EngineConfig) -> Path:
+    return Path(config.paths.processed_dir).expanduser() / "smart_playlist"
+
+
+def _load_or_analyze(
+    path: Path,
+    *,
+    config: EngineConfig,
+    repo: FileAnalysisRepository,
+    recompute: bool,
+    analyze_fn: Callable[..., AnalysisResult],
+) -> AnalysisResult:
+    track_id = make_track_id(str(path))
+    if not recompute and repo._path(track_id).exists():
+        return repo.get(track_id)
+    result = analyze_fn(path, config)
+    repo.save(result)
+    return result
+
+
+def _transition_windows_for_playlist(
+    analyses: Sequence[AnalysisResult],
+    *,
+    config: EngineConfig,
+) -> dict[str, list]:
+    weights = load_weights(config.weights_file)
+    top_k = max(config.analysis.transition_top_n, 6)
+    return {
+        analysis.track.track_id: detect_transition_windows(
+            TransitionWindowInput(
+                track_id=analysis.track.track_id,
+                segments=analysis.segments,
+                feature_frames=analysis.features,
+                beatgrid=analysis.beatgrid,
+            ),
+            weights.transition_window,
+            top_k=top_k,
+        ).windows
+        for analysis in analyses
+    }
+
+
+def build_smart_playlist_from_folder(
+    folder_path: str | Path,
+    config: EngineConfig,
+    *,
+    target_track_count: int,
+    playlist_name: str = "DanceLab Smart Set",
+    output_path: str | Path | None = None,
+    processed_dir: str | Path | None = None,
+    arc: str = "build",
+    recursive: bool = True,
+    recompute: bool = False,
+    analyze_fn: Callable[..., AnalysisResult] = analyze_track,
+) -> SmartPlaylistResult:
+    """Analyze a music folder and write a Rekordbox XML playlist."""
+    if target_track_count not in ALLOWED_PLAYLIST_COUNTS:
+        raise ValueError("target_track_count must be one of 5, 10, 15, or 20")
+
+    source_files = discover_audio_files(folder_path, recursive=recursive)
+    if not source_files:
+        raise ValueError(f"no supported audio files found in {folder_path}")
+
+    processed_root = Path(processed_dir).expanduser() if processed_dir else _default_processed_dir(config)
+    repo = FileAnalysisRepository(processed_root)
+    analyses: list[AnalysisResult] = []
+    failures: list[SmartPlaylistFailure] = []
+    for source_path in source_files:
+        try:
+            analyses.append(
+                _load_or_analyze(
+                    source_path,
+                    config=config,
+                    repo=repo,
+                    recompute=recompute,
+                    analyze_fn=analyze_fn,
+                )
+            )
+        except Exception as exc:
+            failures.append(SmartPlaylistFailure(source_path=str(source_path), error=str(exc)))
+
+    if not analyses:
+        raise ValueError("no tracks could be analyzed from the selected folder")
+    if len(analyses) < target_track_count:
+        raise ValueError(
+            f"target_track_count={target_track_count} needs at least "
+            f"{target_track_count} analyzed tracks; got {len(analyses)}"
+        )
+
+    weights = load_weights(config.weights_file)
+    plan = build_set(
+        analyses,
+        weights,
+        arc=arc,
+        target_track_count=target_track_count,
+    )
+    selected_ids = set(plan.track_order)
+    selected_analyses = [analysis for analysis in analyses if analysis.track.track_id in selected_ids]
+    windows = _transition_windows_for_playlist(selected_analyses, config=config)
+    xml = build_rekordbox_xml(
+        selected_analyses,
+        set_plan=plan,
+        windows_by_track=windows,
+        playlist_name=playlist_name,
+    )
+    final_output_path = Path(output_path).expanduser() if output_path else _default_output_path(config, playlist_name)
+    written_path = write_rekordbox_xml(xml, final_output_path)
+    return SmartPlaylistResult(
+        playlist_name=playlist_name,
+        source_folder=str(Path(folder_path).expanduser()),
+        source_track_count=len(source_files),
+        analyzed_track_count=len(analyses),
+        target_track_count=target_track_count,
+        processed_dir=str(processed_root),
+        output_path=str(written_path),
+        set_plan=plan,
+        xml=xml,
+        analyzed_track_ids=[analysis.track.track_id for analysis in analyses],
+        failed_tracks=failures,
+    )
