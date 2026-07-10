@@ -21,6 +21,9 @@ from dancelab.api.schemas import (
     RekordboxExportRequest,
     RekordboxExportResponse,
     SequenceDecision,
+    SmartPlaylistFailureResponse,
+    SmartPlaylistRequest,
+    SmartPlaylistResponse,
 )
 from dancelab.core.config import load_config, load_weights
 from dancelab.core.models import SetPlan, TransitionWindowInput
@@ -30,6 +33,7 @@ from dancelab.decision.set_builder import build_set as build_set_engine
 from dancelab.decision.transition_windows import detect_transition_windows
 from dancelab.export.rekordbox import build_rekordbox_xml, write_rekordbox_xml
 from dancelab.storage.repositories import FileAnalysisRepository
+from dancelab.workflows.smart_playlist import build_smart_playlist_from_folder
 
 router = APIRouter(prefix="/sets", tags=["sets"])
 
@@ -158,4 +162,42 @@ async def export_rekordbox(request: RekordboxExportRequest) -> RekordboxExportRe
         output_path=output_path,
         set_plan=set_plan,
         xml=xml,
+    )
+
+
+@router.post("/smart-playlist", response_model=SmartPlaylistResponse)
+async def smart_playlist(request: SmartPlaylistRequest) -> SmartPlaylistResponse:
+    """One-shot DJ-set preset: folder -> analysis -> set plan -> Rekordbox XML."""
+    try:
+        result = build_smart_playlist_from_folder(
+            request.folder_path,
+            _config(),
+            target_track_count=request.target_track_count,
+            playlist_name=request.playlist_name,
+            output_path=request.output_path,
+            processed_dir=request.processed_dir,
+            arc=request.arc,
+            recursive=request.recursive,
+            recompute=request.recompute,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return SmartPlaylistResponse(
+        playlist_name=result.playlist_name,
+        source_folder=result.source_folder,
+        source_track_count=result.source_track_count,
+        analyzed_track_count=result.analyzed_track_count,
+        target_track_count=result.target_track_count,
+        output_path=result.output_path,
+        processed_dir=result.processed_dir,
+        analyzed_track_ids=result.analyzed_track_ids,
+        failed_tracks=[
+            SmartPlaylistFailureResponse(
+                source_path=failure.source_path,
+                error=failure.error,
+            )
+            for failure in result.failed_tracks
+        ],
+        set_plan=result.set_plan,
+        xml=result.xml,
     )

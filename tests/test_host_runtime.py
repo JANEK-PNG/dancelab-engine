@@ -500,6 +500,80 @@ def test_desktop_host_runtime_exports_rekordbox_xml_from_set_plan(tmp_path):
     assert "DJ_PLAYLISTS" in xml
 
 
+def test_desktop_host_runtime_routes_playlist_flow_through_engine(tmp_path):
+    export_path = tmp_path / "exports" / "engine_set.xml"
+    runtime = DesktopHostRuntime(
+        get_node_host_registry(),
+        config_loader=lambda _path: EngineConfig(),
+        analyze_track_fn=_analysis_from_path,
+    )
+
+    upload_id = "desktop_upload_tracks_1"
+    engine_id = "desktop_engine_2"
+    build_id = "desktop_build_set_3"
+    export_id = "desktop_export_rekordbox_4"
+
+    runtime.ensure_node_config(upload_id)["paths_text"] = "\n".join(
+        [
+            "/tmp/Track Alpha.mp3",
+            "/tmp/Track Beta.mp3",
+        ]
+    )
+    runtime.ensure_node_config(build_id)["target_track_count"] = 2
+    export_config = runtime.ensure_node_config(export_id)
+    export_config["output_path"] = str(export_path)
+    export_config["playlist_name"] = "Engine Routed Set"
+
+    result = runtime.run(
+        [
+            RuntimeNodeState(instance_id=upload_id, node_id="upload_tracks"),
+            RuntimeNodeState(instance_id=engine_id, node_id="engine"),
+            RuntimeNodeState(instance_id=build_id, node_id="build_set"),
+            RuntimeNodeState(instance_id=export_id, node_id="export_rekordbox"),
+        ],
+        [
+            RuntimeConnection(
+                from_instance_id=upload_id,
+                from_port_key="tracks",
+                to_instance_id=engine_id,
+                to_port_key="tracks_in",
+            ),
+            RuntimeConnection(
+                from_instance_id=engine_id,
+                from_port_key="analysis_out",
+                to_instance_id=build_id,
+                to_port_key="analysis",
+            ),
+            RuntimeConnection(
+                from_instance_id=engine_id,
+                from_port_key="analysis_out",
+                to_instance_id=export_id,
+                to_port_key="analysis",
+            ),
+            RuntimeConnection(
+                from_instance_id=build_id,
+                from_port_key="set_plan",
+                to_instance_id=export_id,
+                to_port_key="set_plan",
+            ),
+        ],
+        export_id,
+    )
+
+    assert result.node_id == "export_rekordbox"
+    engine_output = runtime.outputs[engine_id]
+    assert [analysis.track.track_id for analysis in engine_output.ports["analysis_out"]] == [
+        "track_alpha",
+        "track_beta",
+    ]
+    assert runtime.outputs[build_id].ports["set_plan"].track_order == [
+        "track_alpha",
+        "track_beta",
+    ]
+    assert result.ports["artifact_path"] == str(export_path)
+    assert "Engine Routed Set" in export_path.read_text(encoding="utf-8")
+
+
 def test_desktop_host_runtime_extracts_and_exports_stems(tmp_path):
     source_path = tmp_path / "Track Alpha.mp3"
     source_path.write_bytes(b"fake mp3 payload")

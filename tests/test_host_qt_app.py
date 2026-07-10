@@ -219,7 +219,7 @@ def test_qt_host_inspector_surfaces_audit_and_context_forms():
         "Engine/API capability exists, but the desktop host has no executor adapter yet." in text
         for text in inspector_texts
     )
-    assert any("Desktop Audit" == text for text in inspector_texts)
+    assert any("Implementation Notes" == text for text in inspector_texts)
 
     select_context_item = window.add_node("select_context", 420.0, 320.0)
     window.scene.clearSelection()
@@ -354,6 +354,112 @@ def test_qt_host_import_tracks_cancel_does_not_create_upload_node(monkeypatch):
     ]
     assert merged == []
     assert upload_items == []
+
+    window.close()
+
+
+@pytest.mark.skipif(
+    not _qt_bootstrap_available(),
+    reason="Qt platform bootstrap unavailable in this shell",
+)
+def test_qt_host_builds_smart_playlist_flow_from_folder(monkeypatch, tmp_path):
+    app = QApplication.instance() or QApplication([])
+    window = NodeHostWindow(get_node_host_registry())
+    music_dir = tmp_path / "music"
+    music_dir.mkdir()
+    for index in range(1, 7):
+        (music_dir / f"Track {index}.wav").write_bytes(b"fake wav")
+    output_path = tmp_path / "exports" / "smart.xml"
+
+    monkeypatch.setattr(
+        desktop_app_module.QFileDialog,
+        "getExistingDirectory",
+        lambda *args, **kwargs: str(music_dir),
+    )
+    monkeypatch.setattr(
+        desktop_app_module.QFileDialog,
+        "getSaveFileName",
+        lambda *args, **kwargs: (str(output_path), ""),
+    )
+    monkeypatch.setattr(
+        desktop_app_module.QInputDialog,
+        "getItem",
+        lambda *args, **kwargs: ("5", True),
+    )
+    monkeypatch.setattr(
+        desktop_app_module.QInputDialog,
+        "getText",
+        lambda *args, **kwargs: ("Tomorrow Set", True),
+    )
+
+    window.build_smart_playlist_flow()
+    app.processEvents()
+
+    specs = [item.model.spec.node_id for item in window.node_items.values()]
+    assert "upload_tracks" in specs
+    assert "engine" in specs
+    assert "build_set" in specs
+    assert "export_rekordbox" in specs
+    assert len(window.connection_models) == 4
+
+    upload_item = next(item for item in window.node_items.values() if item.model.spec.node_id == "upload_tracks")
+    engine_item = next(item for item in window.node_items.values() if item.model.spec.node_id == "engine")
+    build_item = next(item for item in window.node_items.values() if item.model.spec.node_id == "build_set")
+    export_item = next(item for item in window.node_items.values() if item.model.spec.node_id == "export_rekordbox")
+
+    upload_config = window.runtime.ensure_node_config(upload_item.model.instance_id)
+    build_config = window.runtime.ensure_node_config(build_item.model.instance_id)
+    export_config = window.runtime.ensure_node_config(export_item.model.instance_id)
+
+    assert len(upload_config["paths_text"].splitlines()) == 6
+    assert build_config["target_track_count"] == 5
+    assert export_config["playlist_name"] == "Tomorrow Set"
+    assert export_config["output_path"] == str(output_path)
+    assert window._default_run_target() == export_item.model.instance_id
+    assert any(
+        edge.from_instance_id == upload_item.model.instance_id
+        and edge.to_instance_id == engine_item.model.instance_id
+        and edge.to_port_key == "tracks_in"
+        for edge in window.connection_models.values()
+    )
+    assert any(
+        edge.from_instance_id == engine_item.model.instance_id
+        and edge.from_port_key == "analysis_out"
+        and edge.to_instance_id == build_item.model.instance_id
+        for edge in window.connection_models.values()
+    )
+
+    window.close()
+
+
+@pytest.mark.skipif(
+    not _qt_bootstrap_available(),
+    reason="Qt platform bootstrap unavailable in this shell",
+)
+def test_qt_host_dragging_socket_cable_creates_connection():
+    app = QApplication.instance() or QApplication([])
+    window = NodeHostWindow(get_node_host_registry())
+    window.show()
+    app.processEvents()
+
+    upload_item = window.add_node("upload_tracks", 120.0, 390.0)
+    engine_item = next(
+        item for item in window.node_items.values() if item.model.spec.node_id == "engine"
+    )
+    source = upload_item.output_handles["tracks"]
+    target = engine_item.input_handles["tracks_in"]
+
+    window.start_connection_drag(source, source.center_in_scene())
+    window.update_connection_drag(target.center_in_scene())
+    window.finish_connection_drag(target.center_in_scene())
+    app.processEvents()
+
+    assert len(window.connection_models) == 1
+    edge = next(iter(window.connection_models.values()))
+    assert edge.from_instance_id == upload_item.model.instance_id
+    assert edge.from_port_key == "tracks"
+    assert edge.to_instance_id == engine_item.model.instance_id
+    assert edge.to_port_key == "tracks_in"
 
     window.close()
 

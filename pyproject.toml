@@ -30,9 +30,9 @@ audio = [
     "soundfile>=0.12",
 ]
 viz = ["matplotlib>=3.9", "plotly>=5.22"]
-desktop = ["PySide6>=6.7"]
+desktop = ["PySide6>=6.7,<6.8"]
 desktop-build = [
-    "PySide6>=6.7",
+    "PySide6>=6.7,<6.8",
     "Nuitka>=4.0",
     "ordered-set>=4.1",
     "zstandard>=0.23",

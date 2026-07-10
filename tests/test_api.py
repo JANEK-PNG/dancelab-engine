@@ -4,9 +4,17 @@ import pytest
 from fastapi.testclient import TestClient
 
 from dancelab.api.main import app
-from dancelab.core.models import DANCELAB_SCHEMA_VERSION, AnalysisResult, BeatGrid, FeatureFrame, Track
+from dancelab.core.models import (
+    DANCELAB_SCHEMA_VERSION,
+    AnalysisResult,
+    BeatGrid,
+    FeatureFrame,
+    SetPlan,
+    Track,
+)
 from dancelab.stems.workflow import StemExportArtifact
 from dancelab.storage.repositories import FileAnalysisRepository
+from dancelab.workflows.smart_playlist import SmartPlaylistResult
 
 
 @pytest.fixture
@@ -63,6 +71,7 @@ def test_openapi_lists_contracted_endpoints(client):
         "/sets/recommend-sequence",
         "/sets/build",
         "/sets/export-rekordbox",
+        "/sets/smart-playlist",
         "/stems/export",
     ):
         assert endpoint in paths, f"missing contracted endpoint: {endpoint}"
@@ -229,6 +238,52 @@ def test_stem_export_endpoint_returns_artifacts(client, monkeypatch, tmp_path):
     assert body["output_root"] == str(output_root)
     assert body["artifacts"][0]["track_id"] == "track_alpha"
     assert body["artifacts"][0]["stems_written"] == ["vocals.wav"]
+
+
+def test_smart_playlist_endpoint_builds_from_folder(client, monkeypatch, tmp_path):
+    output_path = tmp_path / "exports" / "api_smart.xml"
+
+    def workflow_stub(folder_path, config, **kwargs):
+        assert folder_path == "/tmp/music"
+        assert kwargs["target_track_count"] == 10
+        assert kwargs["playlist_name"] == "API Smart Set"
+        assert kwargs["output_path"] == str(output_path)
+        plan = SetPlan(track_order=["track_a", "track_b"], target_track_count=10)
+        return SmartPlaylistResult(
+            playlist_name="API Smart Set",
+            source_folder="/tmp/music",
+            source_track_count=12,
+            analyzed_track_count=12,
+            target_track_count=10,
+            processed_dir=str(tmp_path / "processed"),
+            output_path=str(output_path),
+            set_plan=plan,
+            xml="<DJ_PLAYLISTS />",
+            analyzed_track_ids=["track_a", "track_b"],
+            failed_tracks=[],
+        )
+
+    monkeypatch.setattr(
+        "dancelab.api.routes_sets.build_smart_playlist_from_folder",
+        workflow_stub,
+    )
+    r = client.post(
+        "/sets/smart-playlist",
+        json={
+            "folder_path": "/tmp/music",
+            "target_track_count": 10,
+            "playlist_name": "API Smart Set",
+            "output_path": str(output_path),
+        },
+    )
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["schema_version"] == DANCELAB_SCHEMA_VERSION
+    assert body["source_track_count"] == 12
+    assert body["target_track_count"] == 10
+    assert body["output_path"] == str(output_path)
+    assert body["set_plan"]["track_order"] == ["track_a", "track_b"]
 
 
 def test_context_evaluate_unknown_track_returns_404(client, monkeypatch, tmp_path):

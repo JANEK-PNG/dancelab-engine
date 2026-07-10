@@ -54,16 +54,100 @@ def _kind(source_path: str | None) -> str:
             "wav": "WAV File", "flac": "FLAC File", "m4a": "M4A File"}.get(ext, "Audio File")
 
 
+def _nearest_grid_time(target_sec: float, grid: list[float], tolerance_sec: float) -> float | None:
+    if not grid:
+        return None
+    nearest = min(grid, key=lambda value: abs(value - target_sec))
+    return float(nearest) if abs(nearest - target_sec) <= tolerance_sec else None
+
+
+def _snap_cue_start(analysis: AnalysisResult, start_sec: float) -> float:
+    """Snap cue starts to a musical grid when the analysis has one."""
+    beatgrid = analysis.beatgrid
+    if beatgrid is None:
+        return start_sec
+    downbeat = _nearest_grid_time(start_sec, beatgrid.downbeats_sec, tolerance_sec=8.0)
+    if downbeat is not None:
+        return downbeat
+    beat = _nearest_grid_time(start_sec, beatgrid.beat_times_sec, tolerance_sec=2.0)
+    return beat if beat is not None else start_sec
+
+
+def _cue_min_separation_sec(analysis: AnalysisResult) -> float:
+    duration = analysis.track.duration_sec or 0.0
+    if duration <= 0:
+        return 24.0
+    return float(max(12.0, min(32.0, duration / 4.0)))
+
+
+def _cue_priority(cue_profile: str) -> list[WindowType]:
+    if cue_profile == "single":
+        return []
+    if cue_profile == "first":
+        return [WindowType.mix_out, WindowType.bridge, WindowType.reset]
+    if cue_profile == "last":
+        return [WindowType.mix_in, WindowType.bridge, WindowType.reset]
+    return [WindowType.mix_in, WindowType.mix_out, WindowType.bridge, WindowType.reset]
+
+
+def _cue_label(window_type: WindowType, index_for_type: int) -> str:
+    label = {
+        WindowType.mix_in: "Mix In",
+        WindowType.mix_out: "Mix Out",
+        WindowType.bridge: "Bridge",
+        WindowType.reset: "Reset",
+        WindowType.peak_handoff: "Peak Handoff",
+    }.get(window_type, "Cue")
+    return label if index_for_type == 1 else f"{label} {index_for_type}"
+
+
 def _track_windows_as_cues(
-    windows: list[TransitionWindow], max_cues: int = 8
+    analysis: AnalysisResult,
+    windows: list[TransitionWindow],
+    *,
+    cue_profile: str,
+    max_cues: int = 4,
 ) -> list[tuple[str, float, int]]:
-    """(label, start_sec, num) hot cues from transition windows, best first."""
+    """(label, start_sec, num) hot cues from diverse, grid-snapped windows.
+
+    A live playlist needs readable cue intent more than eight high-scoring
+    markers. Select at most one strong cue per transition role first, enforce
+    temporal separation, and only then fill remaining slots from fallback
+    windows.
+    """
+    selected: list[TransitionWindow] = []
+    min_sep = _cue_min_separation_sec(analysis)
+
+    def try_add(window: TransitionWindow) -> bool:
+        cue_start = _snap_cue_start(analysis, window.start_sec)
+        if any(abs(cue_start - _snap_cue_start(analysis, item.start_sec)) < min_sep for item in selected):
+            return False
+        selected.append(window)
+        return True
+
+    sorted_windows = sorted(windows, key=lambda window: window.score, reverse=True)
+    for window_type in _cue_priority(cue_profile):
+        candidates = [window for window in sorted_windows if window.window_type == window_type]
+        if candidates and try_add(candidates[0]) and len(selected) >= max_cues:
+            break
+
+    if len(selected) < max_cues:
+        for window in sorted_windows:
+            if window in selected:
+                continue
+            try_add(window)
+            if len(selected) >= max_cues:
+                break
+
+    type_counts: dict[WindowType, int] = {}
     cues: list[tuple[str, float, int]] = []
-    for i, w in enumerate(sorted(windows, key=lambda w: -w.score)[:max_cues]):
-        label = {WindowType.mix_in: "Mix In", WindowType.mix_out: "Mix Out",
-                 WindowType.bridge: "Bridge", WindowType.reset: "Reset"}.get(
-                     w.window_type, "Cue")
-        cues.append((label, w.start_sec, i))  # Num 0-7 → hot cues A-H
+    for num, window in enumerate(selected[:max_cues]):
+        type_counts[window.window_type] = type_counts.get(window.window_type, 0) + 1
+        cues.append((
+            _cue_label(window.window_type, type_counts[window.window_type]),
+            _snap_cue_start(analysis, window.start_sec),
+            num,
+        ))
     return cues
 
 
@@ -71,6 +155,8 @@ def _track_element(
     analysis: AnalysisResult,
     track_id: int,
     windows: list[TransitionWindow] | None,
+    *,
+    cue_profile: str = "middle",
 ) -> ET.Element:
     t = analysis.track
     attrs = {
@@ -108,7 +194,11 @@ def _track_element(
         })
 
     # transition windows → hot cues at mix points
-    for label, start, num in _track_windows_as_cues(windows or []):
+    for label, start, num in _track_windows_as_cues(
+        analysis,
+        windows or [],
+        cue_profile=cue_profile,
+    ):
         r, g, b = _CUE_COLOURS[num % len(_CUE_COLOURS)]
         ET.SubElement(track_el, "POSITION_MARK", {
             "Name": label, "Type": "0", "Start": f"{start:.3f}",
@@ -141,8 +231,16 @@ def build_rekordbox_xml(
     id_map: dict[str, int] = {}
     for i, tid in enumerate(order, start=1):
         id_map[tid] = i
+        if len(order) <= 1:
+            cue_profile = "single"
+        elif i == 1:
+            cue_profile = "first"
+        elif i == len(order):
+            cue_profile = "last"
+        else:
+            cue_profile = "middle"
         collection.append(_track_element(
-            by_id[tid], i, (windows_by_track or {}).get(tid)
+            by_id[tid], i, (windows_by_track or {}).get(tid), cue_profile=cue_profile
         ))
 
     playlists = ET.SubElement(root, "PLAYLISTS")

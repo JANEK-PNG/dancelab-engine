@@ -38,6 +38,7 @@ from dancelab.decision.next_track import recommend_next
 from dancelab.decision.set_builder import build_set
 from dancelab.decision.transition_windows import detect_transition_windows
 from dancelab.export.rekordbox import build_rekordbox_xml, write_rekordbox_xml
+from dancelab.ingestion.loader import SUPPORTED_EXTENSIONS
 from dancelab.storage.repositories import FileAnalysisRepository, TrackNotFoundError
 from dancelab.stems import StemBundle, export_stem_artifacts
 from dancelab.stems.workflow import artifact_from_export_dir, stem_enabled_config
@@ -334,7 +335,7 @@ class DesktopHostRuntime:
             elif node.node_id == "recommend_next":
                 result = self._run_recommend_next(index, connections, instance_id, next_stack)
             elif node.node_id == "engine":
-                result = NodeExecutionResult(node_id=node.node_id)
+                result = self._run_engine(index, connections, instance_id, next_stack)
             else:
                 raise RuntimeError(
                     f"desktop runtime does not execute node `{node.node_id}` yet"
@@ -493,6 +494,67 @@ class DesktopHostRuntime:
             ports={
                 "analysis": analyses,
                 "track_ids": [analysis.track.track_id for analysis in analyses],
+            },
+        )
+
+    def _source_values_look_like_files(self, values: list[str]) -> bool:
+        return any(Path(value).suffix.lower() in SUPPORTED_EXTENSIONS for value in values)
+
+    def _run_engine(
+        self,
+        index: dict[str, RuntimeNodeState],
+        connections: list[RuntimeConnection],
+        instance_id: str,
+        stack: list[str],
+    ) -> NodeExecutionResult:
+        tracks_source = self._resolve_connected_value(index, connections, instance_id, "tracks_in", stack)
+        analyses: list[AnalysisResult] = []
+        warnings: list[str] = []
+
+        if isinstance(tracks_source, list) and tracks_source:
+            if isinstance(tracks_source[0], AnalysisResult):
+                analyses = self._analyses_from_source(tracks_source)
+            elif isinstance(tracks_source[0], str):
+                track_values = [str(value) for value in tracks_source if str(value).strip()]
+                if self._source_values_look_like_files(track_values):
+                    cfg = self.config()
+                    for path in track_values:
+                        analysis = self._analyze_track(path, cfg)
+                        analyses.append(analysis)
+                        self.analysis_index[analysis.track.track_id] = analysis
+                else:
+                    analyses = self._analyses_from_source(track_values)
+        elif isinstance(tracks_source, str) and tracks_source:
+            if Path(tracks_source).suffix.lower() in SUPPORTED_EXTENSIONS:
+                analysis = self._analyze_track(tracks_source, self.config())
+                analyses = [analysis]
+                self.analysis_index[analysis.track.track_id] = analysis
+            else:
+                analyses = [self._analysis_for_track_id(tracks_source)]
+
+        windows = {}
+        if analyses:
+            for analysis in analyses:
+                output = detect_transition_windows(
+                    TransitionWindowInput(
+                        track_id=analysis.track.track_id,
+                        segments=analysis.segments,
+                        feature_frames=analysis.features,
+                        beatgrid=analysis.beatgrid,
+                    ),
+                    self.weights().transition_window,
+                    top_k=max(self.config().analysis.transition_top_n, 6),
+                )
+                windows[analysis.track.track_id] = output.windows
+                warnings.extend(output.warnings)
+
+        return NodeExecutionResult(
+            node_id="engine",
+            ports={
+                "analysis_out": analyses,
+                "track_ids": [analysis.track.track_id for analysis in analyses],
+                "windows_out": windows,
+                "warnings_out": warnings,
             },
         )
 
@@ -738,9 +800,23 @@ class DesktopHostRuntime:
         )
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
+        windows = {
+            analysis.track.track_id: detect_transition_windows(
+                TransitionWindowInput(
+                    track_id=analysis.track.track_id,
+                    segments=analysis.segments,
+                    feature_frames=analysis.features,
+                    beatgrid=analysis.beatgrid,
+                ),
+                self.weights().transition_window,
+                top_k=max(self.config().analysis.transition_top_n, 6),
+            ).windows
+            for analysis in analyses
+        }
         xml = build_rekordbox_xml(
             analyses,
             set_plan=set_plan,
+            windows_by_track=windows,
             playlist_name=playlist_name,
         )
         written_path = write_rekordbox_xml(xml, output_path)
