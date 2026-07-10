@@ -143,5 +143,6 @@ def build_rekordbox_xml(
 
 def write_rekordbox_xml(xml: str, path: str | Path) -> Path:
     p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(xml, encoding="utf-8")
     return p

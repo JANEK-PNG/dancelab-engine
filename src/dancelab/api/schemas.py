@@ -6,14 +6,18 @@ Response bodies reuse core domain models directly — the API is a thin gateway
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from dancelab.core.models import (  # noqa: F401  (re-exported as API responses)
     AnalysisResult,
     ContextEvaluation,
     ContextProfile,
+    DANCELAB_SCHEMA_VERSION,
     MixabilityResult,
     NextTrackRecommendation,
+    SetPlan,
     SequenceDecision,
     Track,
     TransitionWindowOutput,
@@ -28,7 +32,8 @@ class AnalyzeTrackRequest(BaseModel):
     artist: str | None = None
     style_label: str | None = None
     bpm_hint: float | None = Field(default=None, gt=0)
-    context_id: str | None = None
+    # AUD-M9: context_id removed — it was accepted and silently ignored
+    # (conditioning is decision-time, not analyze-time).
 
 
 class MixabilityRequest(BaseModel):
@@ -65,6 +70,65 @@ class RecommendSequenceRequest(BaseModel):
     context_profile: ContextProfile | None = None
     arc_mode: str = "build"
     horizon: int = Field(default=3, ge=1, le=12)
+
+
+class BuildSetRequest(BaseModel):
+    """POST /sets/build — builds a SetPlan from stored analysis results."""
+
+    track_ids: list[str] = Field(default_factory=list)
+    start_track_id: str | None = None
+    target_track_count: int | None = Field(default=None, ge=1)
+    locked_positions: dict[int, str] = Field(default_factory=dict)
+    pinned_track_ids: list[str] = Field(default_factory=list)
+    arc: str = "build"
+
+
+class RekordboxExportRequest(BaseModel):
+    """POST /sets/export-rekordbox — returns XML and optionally writes it to disk."""
+
+    track_ids: list[str] = Field(default_factory=list)
+    set_plan: SetPlan | None = None
+    start_track_id: str | None = None
+    target_track_count: int | None = Field(default=None, ge=1)
+    locked_positions: dict[int, str] = Field(default_factory=dict)
+    pinned_track_ids: list[str] = Field(default_factory=list)
+    arc: str = "build"
+    playlist_name: str = "DanceLab Set"
+    output_path: str | None = None
+
+
+class RekordboxExportResponse(BaseModel):
+    schema_version: str = DANCELAB_SCHEMA_VERSION
+    playlist_name: str
+    track_count: int
+    output_path: str | None = None
+    set_plan: SetPlan
+    xml: str
+
+
+class StemExportRequest(BaseModel):
+    """POST /stems/export — analyze with stems enabled and write artifact folders."""
+
+    source_paths: list[str] = Field(min_length=1)
+    output_root: str = "data/exports/stems"
+    stem_method: Literal["auto", "demucs", "none"] = "auto"
+    vocal_method: Literal["hpss", "auto", "demucs"] | None = None
+
+
+class StemExportArtifactResponse(BaseModel):
+    track_id: str
+    title: str | None = None
+    artifact_path: str
+    stems_written: list[str] = Field(default_factory=list)
+    stem_source_status: str | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class StemExportResponse(BaseModel):
+    schema_version: str = DANCELAB_SCHEMA_VERSION
+    output_root: str
+    track_count: int
+    artifacts: list[StemExportArtifactResponse] = Field(default_factory=list)
 
 
 class TransitionWindowsRequest(BaseModel):

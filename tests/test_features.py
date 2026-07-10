@@ -150,3 +150,24 @@ def test_extract_features_block_boundary_consistency(config):
     finally:
         ex.BLOCK_FRAMES = old
     assert normal == chunked
+
+
+def test_microtiming_excludes_offbeat_onsets():
+    """AUD-H2: exact off-beat hits are syncopation, not microtiming — they
+    must be filtered, not saturate the deviation stats."""
+    from dancelab.features.microtiming import microtiming_deviations, microtiming_profile
+
+    beats = np.arange(0.0, 8.0, 0.5)            # 120 BPM grid
+    offbeats = beats[:-1] + 0.25                # exact off-beats
+    assert microtiming_deviations(offbeats, beats).size == 0
+
+    # off-beat-only material must NOT report maximal microtiming
+    prof = microtiming_profile(offbeats, beats, np.array([1.0, 3.0, 5.0]))
+    assert float(prof.max()) == 0.0
+
+    # genuine push/drag around the beat (±30 ms) IS kept
+    rng = np.random.default_rng(1)
+    near = beats + rng.uniform(-0.03, 0.03, size=beats.size)
+    devs = microtiming_deviations(near, beats)
+    assert devs.size == beats.size
+    assert np.all(np.abs(devs) <= 0.075 + 1e-9)

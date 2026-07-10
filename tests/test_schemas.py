@@ -10,6 +10,7 @@ from dancelab.core.models import (
     AnalysisResult,
     ArtifactFlag,
     ContextProfile,
+    DANCELAB_SCHEMA_VERSION,
     DecisionOutput,
     DurationMatchStatus,
     ScoredOutput,
@@ -44,8 +45,17 @@ def test_example_json_validates_against_schema():
 def test_analysis_result_json_roundtrip():
     raw = json.loads(Path("data/examples/example_track_analysis.json").read_text())
     result = AnalysisResult.model_validate(raw)
+    assert result.schema_version == DANCELAB_SCHEMA_VERSION
     again = AnalysisResult.model_validate_json(result.model_dump_json())
     assert again == result
+
+
+def test_analysis_result_accepts_legacy_json_without_schema_version():
+    raw = json.loads(Path("data/examples/example_track_analysis.json").read_text())
+    raw.pop("schema_version", None)
+    result = AnalysisResult.model_validate(raw)
+    assert result.schema_version == DANCELAB_SCHEMA_VERSION
+    assert json.loads(result.model_dump_json())["schema_version"] == DANCELAB_SCHEMA_VERSION
 
 
 def test_analysis_result_with_stem_fields_json_roundtrip():
@@ -103,6 +113,7 @@ def test_analysis_result_with_stem_fields_json_roundtrip():
 
     again = AnalysisResult.model_validate_json(result.model_dump_json())
     assert again == result
+    assert again.schema_version == DANCELAB_SCHEMA_VERSION
 
 
 def test_scored_output_requires_explanation_and_confidence():

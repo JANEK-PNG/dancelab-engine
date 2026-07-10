@@ -23,8 +23,29 @@ NodeCategory = Literal[
 ]
 NodeRuntimeSide = Literal["engine", "host", "bridge"]
 NodeStatus = Literal["implemented", "adapter_needed", "host_only", "planned"]
+NodeHostExecutionStatus = Literal["runnable", "planned", "engine_only", "adapter_needed"]
 NodeExecutionMode = Literal["system", "compute", "query", "view", "utility", "export"]
 PortDirection = Literal["input", "output"]
+
+
+HOST_RUNNABLE_NODE_IDS = frozenset(
+    {
+        "engine",
+        "upload_tracks",
+        "load_corpus",
+        "select_track",
+        "select_pair",
+        "select_context",
+        "analyze_tracks",
+        "extract_stems",
+        "edge_decision",
+        "telemetry_screen",
+        "build_set",
+        "export_rekordbox",
+        "stem_export",
+        "recommend_next",
+    }
+)
 
 
 class PortTypeSpec(BaseModel):
@@ -48,6 +69,7 @@ class NodeSpec(BaseModel):
     category: NodeCategory
     runtime_side: NodeRuntimeSide
     status: NodeStatus
+    host_execution_status: NodeHostExecutionStatus = "planned"
     execution_mode: NodeExecutionMode
     summary: str
     default_visible: bool = False
@@ -442,7 +464,7 @@ def _nodes() -> list[NodeSpec]:
             label="Extract Stems",
             category="engine_ops",
             runtime_side="bridge",
-            status="adapter_needed",
+            status="implemented",
             execution_mode="compute",
             summary="Runs stem-aware analysis and optional source separation for one track.",
             inputs=[
@@ -463,9 +485,10 @@ def _nodes() -> list[NodeSpec]:
                 "dancelab.stems.extractor.extract_stems",
                 "dancelab.stems.window_features.build_stem_window_features",
             ],
+            api_routes=["/stems/export"],
             recommended_next=["stem_window_sensor", "stem_export"],
             notes=[
-                "Core capability exists, but no stable public route exposes it yet.",
+                "Desktop/API bridge enables explicit stem-aware analysis for export workflows.",
             ],
         ),
         NodeSpec(
@@ -1129,7 +1152,7 @@ def _nodes() -> list[NodeSpec]:
             label="Stem Export",
             category="output",
             runtime_side="bridge",
-            status="adapter_needed",
+            status="implemented",
             execution_mode="export",
             summary="Writes per-track folders with source audio, analysis JSON, and separated stems.",
             inputs=[
@@ -1140,8 +1163,9 @@ def _nodes() -> list[NodeSpec]:
                 _out("artifacts", ["artifact_bundle"], "Per-track stem artifact folders."),
             ],
             backed_by=["dancelab.stems.exporter.export_stem_artifacts"],
+            api_routes=["/stems/export"],
             notes=[
-                "Export helper exists, but there is no stable host contract yet.",
+                "Writes user-selected external artifact folders; it does not persist raw stems inside the engine store.",
             ],
         ),
         NodeSpec(
@@ -1162,9 +1186,25 @@ def _nodes() -> list[NodeSpec]:
     ]
 
 
+def _host_execution_status(node: NodeSpec) -> NodeHostExecutionStatus:
+    if node.node_id in HOST_RUNNABLE_NODE_IDS:
+        return "runnable"
+    if node.status == "planned":
+        return "planned"
+    if node.status == "adapter_needed":
+        return "adapter_needed"
+    if node.runtime_side == "bridge" and node.status == "implemented":
+        return "engine_only"
+    return "adapter_needed"
+
+
+def _with_host_execution_status(node: NodeSpec) -> NodeSpec:
+    return node.model_copy(update={"host_execution_status": _host_execution_status(node)})
+
+
 @lru_cache(maxsize=1)
 def get_node_host_registry() -> NodeHostRegistry:
     return NodeHostRegistry(
         port_types=_port_types(),
-        nodes=_nodes(),
+        nodes=[_with_host_execution_status(node) for node in _nodes()],
     )

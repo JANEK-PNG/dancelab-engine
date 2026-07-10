@@ -16,6 +16,8 @@ possible set order, or that it will work live.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+
 import numpy as np
 
 from dancelab.core.config import DescriptorWeights
@@ -94,68 +96,271 @@ def transition_score(
     return float(score), rel, reasoning
 
 
+def _normalize_locked_positions(
+    locked_positions: Mapping[int | str, str] | None,
+) -> dict[int, str]:
+    normalized: dict[int, str] = {}
+    for raw_position, raw_track_id in (locked_positions or {}).items():
+        try:
+            position = int(raw_position)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("locked_positions keys must be 1-based integer positions") from exc
+        track_id = str(raw_track_id).strip()
+        if not track_id:
+            raise ValueError("locked_positions values must be non-empty track IDs")
+        normalized[position] = track_id
+    return normalized
+
+
+def _normalize_pinned_track_ids(pinned_track_ids: Sequence[str] | None) -> list[str]:
+    seen: set[str] = set()
+    normalized: list[str] = []
+    for raw_track_id in pinned_track_ids or []:
+        track_id = str(raw_track_id).strip()
+        if track_id and track_id not in seen:
+            normalized.append(track_id)
+            seen.add(track_id)
+    return normalized
+
+
+def _validate_build_constraints(
+    by_id: dict[str, AnalysisResult],
+    *,
+    target_track_count: int | None,
+    locked_positions: dict[int, str],
+    pinned_track_ids: list[str],
+    start_track_id: str | None,
+) -> tuple[int, list[str]]:
+    target_count = target_track_count or len(by_id)
+    if target_count < 1:
+        raise ValueError("target_track_count must be >= 1")
+    if target_count > len(by_id):
+        raise ValueError("target_track_count cannot exceed the number of available tracks")
+
+    warnings: list[str] = []
+    unknown_locked = sorted(set(locked_positions.values()) - set(by_id))
+    if unknown_locked:
+        raise ValueError(f"locked_positions reference unknown tracks: {', '.join(unknown_locked)}")
+    unknown_pinned = sorted(set(pinned_track_ids) - set(by_id))
+    if unknown_pinned:
+        raise ValueError(f"pinned_track_ids reference unknown tracks: {', '.join(unknown_pinned)}")
+
+    invalid_positions = sorted(position for position in locked_positions if position < 1 or position > target_count)
+    if invalid_positions:
+        raise ValueError(
+            "locked_positions must be within the final 1-based set length: "
+            + ", ".join(str(position) for position in invalid_positions)
+        )
+
+    locked_track_ids = list(locked_positions.values())
+    duplicate_locked_ids = sorted({track_id for track_id in locked_track_ids if locked_track_ids.count(track_id) > 1})
+    if duplicate_locked_ids:
+        raise ValueError(
+            "a track cannot be locked to multiple positions: " + ", ".join(duplicate_locked_ids)
+        )
+
+    required_ids = set(locked_track_ids) | set(pinned_track_ids)
+    if len(required_ids) > target_count:
+        raise ValueError("locked/pinned tracks exceed target_track_count")
+
+    if start_track_id and start_track_id not in by_id:
+        warnings.append(f"start_track_id `{start_track_id}` is unknown and was ignored")
+    elif start_track_id and locked_positions.get(1) and locked_positions[1] != start_track_id:
+        warnings.append("start_track_id ignored because locked position 1 defines the opener")
+    elif start_track_id and start_track_id in locked_track_ids and locked_positions.get(1) != start_track_id:
+        warnings.append("start_track_id is locked to a later position, so opener was chosen by constraints")
+
+    return target_count, warnings
+
+
+def _best_successor(
+    current: str,
+    candidates: list[str],
+    *,
+    by_id: dict[str, AnalysisResult],
+    weights: DescriptorWeights,
+    arc: str,
+    energy: dict[str, float],
+    energy_range: float,
+) -> str:
+    best_id, best_score = candidates[0], -1.0
+    for candidate in candidates:
+        score, _, _ = transition_score(
+            by_id[current],
+            by_id[candidate],
+            weights,
+            arc,
+            energy[current],
+            energy[candidate],
+            energy_range,
+        )
+        if score > best_score:
+            best_id, best_score = candidate, score
+    return best_id
+
+
+def _build_transition(
+    from_track_id: str,
+    to_track_id: str,
+    *,
+    by_id: dict[str, AnalysisResult],
+    weights: DescriptorWeights,
+    arc: str,
+    energy: dict[str, float],
+    energy_range: float,
+) -> SetTransition:
+    a = by_id[from_track_id]
+    b = by_id[to_track_id]
+    score, rel, reason = transition_score(
+        a, b, weights, arc, energy[from_track_id], energy[to_track_id], energy_range
+    )
+    d_bpm = None
+    if a.track.bpm_estimate and b.track.bpm_estimate:
+        d_bpm = round((b.track.bpm_estimate - a.track.bpm_estimate) / a.track.bpm_estimate * 100, 1)
+    warnings = []
+    if rel == "risky":
+        warnings.append("risky key change — consider an echo-out / effect transition")
+    return SetTransition(
+        from_track_id=from_track_id,
+        to_track_id=to_track_id,
+        transition_score=round(score, 4),
+        harmonic_relation=rel,
+        key_from=a.track.key_estimate,
+        key_to=b.track.key_estimate,
+        bpm_from=a.track.bpm_estimate,
+        bpm_to=b.track.bpm_estimate,
+        bpm_delta_pct=d_bpm,
+        energy_delta=round(energy[to_track_id] - energy[from_track_id], 4),
+        reasoning=reason,
+        warnings=warnings,
+    )
+
+
+def _constrained_order(
+    by_id: dict[str, AnalysisResult],
+    *,
+    weights: DescriptorWeights,
+    arc: str,
+    start_track_id: str | None,
+    target_count: int,
+    locked_positions: dict[int, str],
+    pinned_track_ids: list[str],
+    energy: dict[str, float],
+    energy_range: float,
+) -> list[str]:
+    locked_slots = {position - 1: track_id for position, track_id in locked_positions.items()}
+    locked_track_ids = set(locked_positions.values())
+    remaining = set(by_id) - locked_track_ids
+    order: list[str] = []
+    current: str | None = None
+
+    for index in range(target_count):
+        if index in locked_slots:
+            chosen = locked_slots[index]
+        else:
+            open_slots = sum(1 for slot in range(index, target_count) if slot not in locked_slots)
+            remaining_pinned = [track_id for track_id in pinned_track_ids if track_id in remaining]
+            candidates = sorted(remaining_pinned if len(remaining_pinned) >= open_slots else remaining)
+            if not candidates:
+                raise ValueError("constraints left no candidate track for an unlocked position")
+            if current is None:
+                chosen = start_track_id if start_track_id in candidates else min(candidates, key=lambda tid: (energy[tid], tid))
+            else:
+                chosen = _best_successor(
+                    current,
+                    candidates,
+                    by_id=by_id,
+                    weights=weights,
+                    arc=arc,
+                    energy=energy,
+                    energy_range=energy_range,
+                )
+            remaining.remove(chosen)
+
+        order.append(chosen)
+        current = chosen
+
+    return order
+
+
 def build_set(
     analyses: list[AnalysisResult],
     weights: DescriptorWeights,
     arc: str = "build",
     start_track_id: str | None = None,
+    target_track_count: int | None = None,
+    locked_positions: Mapping[int | str, str] | None = None,
+    pinned_track_ids: Sequence[str] | None = None,
 ) -> SetPlan:
-    """Greedy harmonic/energy set ordering. Deterministic for fixed input order."""
+    """Greedy harmonic/energy set ordering with optional lock/pin constraints.
+
+    `locked_positions` uses 1-based final playlist slots. Pinned tracks must
+    appear somewhere in the final plan; `target_track_count` lets the planner
+    choose a constrained subset from a larger candidate pool.
+    """
     provenance = provenance_for("set_builder")
-    if len(analyses) < 2:
+    locked = _normalize_locked_positions(locked_positions)
+    pinned = _normalize_pinned_track_ids(pinned_track_ids)
+    by_id = {a.track.track_id: a for a in analyses}
+    if not by_id:
+        if target_track_count or locked or pinned:
+            raise ValueError("no tracks available for requested set constraints")
         return SetPlan(
-            track_order=[a.track.track_id for a in analyses],
-            arc=arc, model_version=MODEL_VERSION, provenance=provenance,
+            track_order=[],
+            arc=arc,
+            target_track_count=target_track_count,
+            locked_positions=locked,
+            pinned_track_ids=pinned,
+            model_version=MODEL_VERSION,
+            provenance=provenance,
             warnings=["need >=2 tracks to build a set"],
         )
 
-    by_id = {a.track.track_id: a for a in analyses}
+    target_count, constraint_warnings = _validate_build_constraints(
+        by_id,
+        target_track_count=target_track_count,
+        locked_positions=locked,
+        pinned_track_ids=pinned,
+        start_track_id=start_track_id,
+    )
     energy = {tid: track_energy(a) for tid, a in by_id.items()}
     e_range = max(energy.values()) - min(energy.values()) or 1.0
 
-    # opener: user pick, else lowest-energy track (typical warm-up start)
-    if start_track_id and start_track_id in by_id:
-        current = start_track_id
-    else:
-        current = min(energy, key=energy.get)
+    order = _constrained_order(
+        by_id,
+        weights=weights,
+        arc=arc,
+        start_track_id=start_track_id,
+        target_count=target_count,
+        locked_positions=locked,
+        pinned_track_ids=pinned,
+        energy=energy,
+        energy_range=e_range,
+    )
+    transitions = [
+        _build_transition(
+            current,
+            successor,
+            by_id=by_id,
+            weights=weights,
+            arc=arc,
+            energy=energy,
+            energy_range=e_range,
+        )
+        for current, successor in zip(order, order[1:], strict=False)
+    ]
+    mean_score = round(float(np.mean([t.transition_score for t in transitions])), 4) if transitions else None
+    warnings = [*constraint_warnings]
+    if len(order) < 2:
+        warnings.append("need >=2 tracks to build a set")
 
-    order = [current]
-    remaining = set(by_id) - {current}
-    transitions: list[SetTransition] = []
-
-    while remaining:
-        a = by_id[current]
-        best_id, best_score, best_rel, best_reason = None, -1.0, "", []
-        for cand in remaining:
-            b = by_id[cand]
-            score, rel, reason = transition_score(
-                a, b, weights, arc, energy[current], energy[cand], e_range
-            )
-            if score > best_score:
-                best_id, best_score, best_rel, best_reason = cand, score, rel, reason
-
-        b = by_id[best_id]
-        d_bpm = None
-        if a.track.bpm_estimate and b.track.bpm_estimate:
-            d_bpm = round((b.track.bpm_estimate - a.track.bpm_estimate) / a.track.bpm_estimate * 100, 1)
-        warns = []
-        if best_rel == "risky":
-            warns.append("risky key change — consider an echo-out / effect transition")
-        transitions.append(SetTransition(
-            from_track_id=current, to_track_id=best_id,
-            transition_score=round(best_score, 4), harmonic_relation=best_rel,
-            key_from=a.track.key_estimate, key_to=b.track.key_estimate,
-            bpm_from=a.track.bpm_estimate, bpm_to=b.track.bpm_estimate, bpm_delta_pct=d_bpm,
-            energy_delta=round(energy[best_id] - energy[current], 4),
-            reasoning=best_reason, warnings=warns,
-        ))
-        order.append(best_id)
-        remaining.remove(best_id)
-        current = best_id
-
-    mean_score = round(float(np.mean([t.transition_score for t in transitions])), 4)
     return SetPlan(
         track_order=order, transitions=transitions, arc=arc,
+        target_track_count=target_count,
+        locked_positions=locked,
+        pinned_track_ids=pinned,
+        dropped_track_ids=sorted(set(by_id) - set(order)),
         mean_transition_score=mean_score, model_version=MODEL_VERSION,
+        warnings=warnings,
         provenance=provenance,
     )

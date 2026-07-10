@@ -136,3 +136,44 @@ def test_formula_terms_endpoint():
     assert "phrase" in body
     assert body["phrase"]["scientific_status"] == "candidate"
     assert body["phrase"]["cannot_claim"]
+
+
+def test_kendall_tau_b_tie_corrected():
+    """AUD-H4: τ-b on tied 1-5 rating data (scipy reference 0.8981); τ-a
+    understated this as 0.786."""
+    tau = kendall_tau([1, 2, 2, 3, 3, 4, 5, 5], [2, 2, 3, 3, 4, 4, 5, 5])
+    assert tau == pytest.approx(0.8981, abs=1e-3)
+
+
+def test_rank_metrics_honest_none_on_zero_variance():
+    """AUD-H4: a constant rater expresses no ranking — abstain, don't emit 0.0."""
+    assert kendall_tau([3, 3, 3, 3], [1, 2, 3, 4]) is None
+    assert kendall_tau([1, 2, 3, 4], [3, 3, 3, 3]) is None
+    assert spearman_rho([3, 3, 3, 3], [1, 2, 3, 4]) is None
+
+
+def test_cohen_kappa_unit():
+    """T-7: hand-computed κ + all None branches."""
+    from dancelab.validation.dj_decision_metrics import cohen_kappa
+
+    assert cohen_kappa(["a", "b", "a", "b"], ["a", "b", "b", "b"]) == pytest.approx(0.5)
+    assert cohen_kappa([], []) is None
+    assert cohen_kappa(["a"], ["a", "b"]) is None       # length mismatch
+    assert cohen_kappa(["a", "a"], ["a", "a"]) is None  # p_e == 1
+
+
+def test_normalization_empty_input_returns_empty():
+    """AUD-M4: empty descriptor series must not crash the 'never NaN' module."""
+    assert minmax_01(np.array([])).size == 0
+    assert robust_01(np.array([])).size == 0
+
+
+def test_save_json_roundtrips_unicode(tmp_path):
+    """AUD-M7 / T-11: emoji + accents survive regardless of locale default."""
+    from dancelab.core.models import Track
+    from dancelab.storage.artifact_store import load_json, save_json
+
+    t = Track(track_id="t1", title="Café 🎵 Zażółć", artist="Łukasz")
+    p = save_json(t, tmp_path / "t.json")
+    again = load_json(Track, p)
+    assert again.title == "Café 🎵 Zażółć" and again.artist == "Łukasz"

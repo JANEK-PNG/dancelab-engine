@@ -3,7 +3,7 @@
 import pytest
 
 from dancelab.core.config import load_weights
-from dancelab.core.models import AnalysisResult, FeatureFrame, Track
+from dancelab.core.models import DANCELAB_SCHEMA_VERSION, AnalysisResult, FeatureFrame, Track
 from dancelab.decision.set_builder import (
     MODEL_VERSION,
     bpm_score,
@@ -49,6 +49,20 @@ def test_harmonic_relations():
     assert harmonic_relation("8A", None) == "unknown"
 
 
+def test_harmonic_distance2_is_symmetric():
+    """AUD-H1: ±2 same-mode moves must classify identically — the old code
+    tagged only +2 as cautious and let −2 fall through to risky."""
+    from dancelab.decision.harmonic import harmonic_compatibility
+
+    assert harmonic_relation("8A", "6A") == "cautious"   # −2 (energy drop)
+    assert harmonic_relation("6A", "8A") == "cautious"   # +2 (energy lift)
+    assert harmonic_relation("1A", "11A") == "cautious"  # −2 across the wrap
+    down = harmonic_compatibility("8A", "6A", 0.9, 0.9)
+    up = harmonic_compatibility("6A", "8A", 0.9, 0.9)
+    assert down.harmonic_compatibility_score == up.harmonic_compatibility_score
+    assert down.harmonic_risk == up.harmonic_risk
+
+
 def test_bpm_score_halftime():
     assert bpm_score(128, 128) == 1.0
     assert bpm_score(140, 70) == 1.0        # half-time compatible
@@ -67,6 +81,7 @@ def test_build_set_orders_harmonically(weights):
         track("t_diss", "3B", 128, 0.35),
     ]
     plan = build_set(tracks, weights, arc="build")
+    assert plan.schema_version == DANCELAB_SCHEMA_VERSION
     assert plan.model_version == MODEL_VERSION
     assert len(plan.track_order) == 4
     assert set(plan.track_order) == {"t_8a", "t_9a", "t_10a", "t_diss"}
@@ -92,6 +107,60 @@ def test_start_track_override(weights):
     tracks = [track("a", "8A", 128, 0.3), track("b", "9A", 128, 0.1)]
     plan = build_set(tracks, weights, start_track_id="a")
     assert plan.track_order[0] == "a"
+
+
+def test_build_set_respects_locked_positions(weights):
+    tracks = [
+        track("a", "8A", 128, 0.10),
+        track("b", "9A", 128, 0.20),
+        track("c", "10A", 128, 0.30),
+        track("locked", "8B", 128, 0.40),
+    ]
+
+    plan = build_set(tracks, weights, locked_positions={2: "locked"})
+
+    assert plan.track_order[1] == "locked"
+    assert plan.locked_positions == {2: "locked"}
+    assert {t.from_track_id for t in plan.transitions} == set(plan.track_order[:-1])
+    assert {t.to_track_id for t in plan.transitions} == set(plan.track_order[1:])
+
+
+def test_build_set_pins_required_tracks_when_selecting_subset(weights):
+    tracks = [
+        track("opener", "8A", 128, 0.10),
+        track("optional_a", "9A", 128, 0.20),
+        track("must_play", "3B", 130, 0.30),
+        track("optional_b", "10A", 128, 0.40),
+        track("closer", "8B", 126, 0.50),
+    ]
+
+    plan = build_set(
+        tracks,
+        weights,
+        target_track_count=3,
+        locked_positions={1: "opener"},
+        pinned_track_ids=["must_play"],
+    )
+
+    assert len(plan.track_order) == 3
+    assert plan.track_order[0] == "opener"
+    assert "must_play" in plan.track_order
+    assert plan.pinned_track_ids == ["must_play"]
+    assert len(plan.dropped_track_ids) == 2
+    assert not set(plan.dropped_track_ids) & {"opener", "must_play"}
+
+
+def test_build_set_reports_constraint_conflicts(weights):
+    tracks = [track("a", "8A", 128, 0.2), track("b", "9A", 128, 0.25)]
+
+    with pytest.raises(ValueError, match="multiple positions"):
+        build_set(tracks, weights, locked_positions={1: "a", 2: "a"})
+    with pytest.raises(ValueError, match="exceed target_track_count"):
+        build_set(tracks, weights, target_track_count=1, pinned_track_ids=["a", "b"])
+    with pytest.raises(ValueError, match="unknown tracks"):
+        build_set(tracks, weights, pinned_track_ids=["ghost"])
+    with pytest.raises(ValueError, match="cannot exceed"):
+        build_set([track("solo", "8A", 128, 0.2)], weights, target_track_count=2)
 
 
 def test_single_track_is_honest(weights):
@@ -121,3 +190,14 @@ def test_json_roundtrip(weights):
     from dancelab.core.models import SetPlan
     plan = build_set([track("a", "8A", 128, 0.2), track("b", "9A", 128, 0.25)], weights)
     assert SetPlan.model_validate_json(plan.model_dump_json()) == plan
+
+
+def test_build_set_deterministic_on_ties(weights, monkeypatch):
+    """AUD-M5 / T-4: identical candidates (guaranteed score ties) must yield
+    the same order regardless of hash seed — ties break by track_id."""
+    tracks = [track(f"tie_{c}", "8A", 128, 0.2) for c in "dbca"]
+    orders = {tuple(build_set(tracks, weights).track_order) for _ in range(5)}
+    assert len(orders) == 1
+    # tie-break is lexicographic by id after the opener
+    order = orders.pop()
+    assert list(order[1:]) == sorted(order[1:])
