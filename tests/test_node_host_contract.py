@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 
 from dancelab.api.main import app
 from dancelab.contracts.node_host import get_node_host_registry
-from dancelab.host.runtime import DesktopHostRuntime
+from dancelab.host.runtime import DesktopHostRuntime, RuntimeNodeState
 
 
 def test_node_host_registry_has_pinned_engine_anchor():
@@ -61,6 +61,23 @@ def test_node_host_registry_declares_desktop_execution_truth():
     assert by_id["bpm_sensor"].host_execution_status == "adapter_needed"
     assert by_id["listen_screen"].host_execution_status == "adapter_needed"
     assert by_id["filter"].host_execution_status == "planned"
+
+
+def test_every_supported_node_has_a_real_dispatch_branch():
+    # AUD-C1/NEW-M3: SUPPORTED_NODE_IDS must not claim a node the runtime cannot
+    # actually execute. Drive each supported node through the runtime on its own;
+    # any error is fine (missing upstream deps / config) EXCEPT the
+    # "does not execute node" fall-through — that means the dispatch branch is
+    # missing and the declared capability is a lie.
+    for node_id in sorted(DesktopHostRuntime.SUPPORTED_NODE_IDS):
+        runtime = DesktopHostRuntime()
+        state = RuntimeNodeState(instance_id=f"probe_{node_id}", node_id=node_id)
+        try:
+            runtime.run([state], [], state.instance_id)
+        except Exception as exc:  # noqa: BLE001 - only the fall-through is a failure
+            assert "does not execute node" not in str(exc), (
+                f"{node_id} is in SUPPORTED_NODE_IDS but has no run() dispatch branch"
+            )
 
 
 def test_node_host_contract_endpoint():
