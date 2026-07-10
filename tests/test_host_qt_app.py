@@ -515,3 +515,86 @@ def test_qt_host_canvas_zoom_helpers_clamp_and_reset():
     assert window.view._zoom_value == 1.0
 
     window.close()
+
+
+@pytest.mark.skipif(
+    not _qt_bootstrap_available(),
+    reason="Qt platform bootstrap unavailable in this shell",
+)
+def test_qt_host_project_save_load_roundtrip(tmp_path):
+    # UI/UX audit P1: Blender-style project model — the saved .dlproj restores
+    # nodes (with positions), connections and node configs.
+    app = QApplication.instance() or QApplication([])
+    window = NodeHostWindow(get_node_host_registry())
+    window.build_first_flow()
+    upload_item = next(
+        item for item in window.node_items.values() if item.model.spec.node_id == "upload_tracks"
+    )
+    window.runtime.ensure_node_config(upload_item.model.instance_id)["paths_text"] = "/tmp/A.mp3"
+    app.processEvents()
+
+    saved = window._save_project_to_path(tmp_path / "roundtrip")
+    assert saved.exists()
+    assert window.windowTitle() == "DanceLab — roundtrip"
+
+    node_ids_before = {
+        item.model.instance_id: item.model.spec.node_id for item in window.node_items.values()
+    }
+    connections_before = set(window.connection_models)
+
+    window.new_project()
+    app.processEvents()
+    assert len(window.node_items) == 1  # engine only
+
+    window.load_project_from_path(saved)
+    app.processEvents()
+
+    node_ids_after = {
+        item.model.instance_id: item.model.spec.node_id for item in window.node_items.values()
+    }
+    assert node_ids_after == node_ids_before
+    assert set(window.connection_models) == connections_before
+    restored = window.runtime.ensure_node_config(upload_item.model.instance_id)
+    assert restored["paths_text"] == "/tmp/A.mp3"
+    assert window.windowTitle() == "DanceLab — roundtrip"  # loaded → not dirty
+
+    window.add_node("filter", 40.0, 40.0)
+    app.processEvents()
+    assert window.windowTitle().endswith("*")  # graph edit marks project dirty
+
+    window.close()
+
+
+@pytest.mark.skipif(
+    not _qt_bootstrap_available(),
+    reason="Qt platform bootstrap unavailable in this shell",
+)
+def test_qt_host_menus_and_engine_status_guidance():
+    # UI/UX audit P1: File/Engine/View menus exist and the status panel guides
+    # the user (idle -> waiting for input -> ready).
+    app = QApplication.instance() or QApplication([])
+    window = NodeHostWindow(get_node_host_registry())
+    app.processEvents()
+
+    menu_titles = [action.text().replace("&", "") for action in window.menuBar().actions()]
+    assert menu_titles == ["File", "Engine", "View"]
+
+    assert window.engine_state == "idle"
+    assert "SMART PLAYLIST" in window.next_action_label.text() or "build a flow" in window.next_action_label.text()
+
+    window.build_first_flow()
+    app.processEvents()
+    assert window.engine_state == "waiting_for_input"
+    assert "Upload Tracks" in window.next_action_label.text()
+    assert not window.run_button.isEnabled()
+
+    upload_item = next(
+        item for item in window.node_items.values() if item.model.spec.node_id == "upload_tracks"
+    )
+    window._set_upload_paths(upload_item, ["/tmp/A.mp3"], refresh_selection=False)
+    app.processEvents()
+    assert window.engine_state == "ready"
+    assert "RUN ANALYSIS" in window.next_action_label.text()
+    assert window.run_button.isEnabled()
+
+    window.close()
