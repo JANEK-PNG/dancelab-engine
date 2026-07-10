@@ -2941,6 +2941,29 @@ if _PYSIDE_IMPORT_ERROR is None:
             if not output_path:
                 return
 
+            self.build_pipeline_graph(
+                files=files,
+                target_count=target_count,
+                arc="build",
+                playlist_name=playlist_name,
+                output_path=output_path,
+            )
+            self.statusBar().showMessage(
+                f"Smart Playlist ready · {len(files)} files queued · {target_count} track export.",
+                7000,
+            )
+
+        def build_pipeline_graph(
+            self,
+            *,
+            files: list,
+            target_count: int,
+            arc: str = "build",
+            playlist_name: str = "DanceLab Set",
+            output_path: str = "",
+        ) -> None:
+            """Materialize the standard pipeline as a wired graph:
+            upload → engine → build_set → export, with configs filled in."""
             self.reset_canvas()
             engine = next(
                 item for item in self.node_items.values() if item.model.spec.node_id == "engine"
@@ -2957,18 +2980,47 @@ if _PYSIDE_IMPORT_ERROR is None:
             self._set_upload_paths(upload, files, replace=True, refresh_selection=False)
             build_config = self.runtime.ensure_node_config(build_set.model.instance_id)
             build_config["target_track_count"] = target_count
-            build_config["arc"] = "build"
+            build_config["arc"] = arc
             export_config = self.runtime.ensure_node_config(export.model.instance_id)
             export_config["playlist_name"] = playlist_name
-            export_config["output_path"] = output_path
+            if output_path:
+                export_config["output_path"] = output_path
 
             self.scene.clearSelection()
             upload.setSelected(True)
             self._refresh_port_states()
             self._sync_inspector()
+            self._refresh_engine_status()
+
+        def import_simple_session(
+            self,
+            *,
+            files: list,
+            analyses: list[AnalysisResult],
+            target_count: int,
+            arc: str = "build",
+            playlist_name: str = "DanceLab Set",
+            output_path: str = "",
+        ) -> None:
+            """Mirror the Simple Mode wizard pipeline as a wired graph.
+
+            Analyses are seeded into the runtime cache (they were produced by
+            the same engine on the same files), but node run-state stays idle —
+            the graph honestly shows "not run HERE yet"; Run Analysis
+            re-executes it in graph terms."""
+            self.build_pipeline_graph(
+                files=files,
+                target_count=target_count,
+                arc=arc,
+                playlist_name=playlist_name,
+                output_path=output_path,
+            )
+            for analysis in analyses:
+                self.runtime.analysis_index[analysis.track.track_id] = analysis
             self.statusBar().showMessage(
-                f"Smart Playlist ready · {len(files)} files queued · {target_count} track export.",
-                7000,
+                f"Imported from Simple Mode · {len(files)} tracks, "
+                f"{len(analyses)} analyses cached · graph mirrors your wizard pipeline.",
+                9000,
             )
 
         def fit_engine(self) -> None:
