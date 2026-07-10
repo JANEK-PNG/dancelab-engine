@@ -2,6 +2,7 @@
 
 from types import SimpleNamespace
 
+import pytest
 from fastapi.testclient import TestClient
 
 from dancelab.api.main import app
@@ -20,9 +21,11 @@ from dancelab.core.models import (
     TransitionStrategy,
 )
 from dancelab.decision.sequence import (
+    _DEFAULT_SEQUENCE_WEIGHTS,
     MODEL_VERSION,
     _lookahead_arc_score,
     _set_memory_score,
+    _step_total_score,
     recommend_sequence,
 )
 from dancelab.storage.repositories import FileAnalysisRepository
@@ -430,6 +433,23 @@ def test_recommend_sequence_skips_suppressed_transitions(monkeypatch):
 
     assert out.sequence_track_ids == ["current", "safe"]
     assert out.suppressed_transition_count >= 1
+
+
+def test_step_total_score_is_weighted_average_no_ceiling_saturation():
+    # AUD-M6: reward weights sum to >1, so an unnormalized sum would clip every
+    # all-high candidate to 1.0 and erase differences. Normalized, a perfect,
+    # risk-free step is exactly 1.0 and a strictly weaker one scores strictly
+    # below it (no saturation tie).
+    w = dict(_DEFAULT_SEQUENCE_WEIGHTS)
+    perfect = _step_total_score(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, w)
+    assert perfect == pytest.approx(1.0)
+
+    weaker = _step_total_score(0.9, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, w)
+    assert weaker < perfect  # lower pair_score is not masked by the clip
+
+    # risk is a separate subtractive penalty on top of the [0,1] reward
+    penalized = _step_total_score(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, w)
+    assert penalized == pytest.approx(1.0 - w["risk_penalty"])
 
 
 def test_lookahead_arc_score_prefers_preserving_future_headroom():
