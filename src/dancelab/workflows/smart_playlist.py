@@ -84,6 +84,47 @@ def _load_or_analyze(
     return result
 
 
+def analyze_files(
+    source_files: Sequence[str | Path],
+    config: EngineConfig,
+    *,
+    processed_dir: str | Path | None = None,
+    recompute: bool = False,
+    analyze_fn: Callable[..., AnalysisResult] = analyze_track,
+    progress: Callable[[int, int, str], None] | None = None,
+) -> tuple[list[AnalysisResult], list[SmartPlaylistFailure]]:
+    """Analyze (or load cached) analyses for a list of audio files.
+
+    Failures are collected per file, never raised — the caller decides whether
+    a partial library is usable. `progress(done, total, current_path)` fires
+    before each file so a UI can show per-track progress.
+    """
+    processed_root = (
+        Path(processed_dir).expanduser() if processed_dir else _default_processed_dir(config)
+    )
+    repo = FileAnalysisRepository(processed_root)
+    analyses: list[AnalysisResult] = []
+    failures: list[SmartPlaylistFailure] = []
+    total = len(source_files)
+    for index, source_path in enumerate(source_files):
+        path = Path(source_path)
+        if progress is not None:
+            progress(index + 1, total, str(path))
+        try:
+            analyses.append(
+                _load_or_analyze(
+                    path,
+                    config=config,
+                    repo=repo,
+                    recompute=recompute,
+                    analyze_fn=analyze_fn,
+                )
+            )
+        except Exception as exc:
+            failures.append(SmartPlaylistFailure(source_path=str(path), error=str(exc)))
+    return analyses, failures
+
+
 def _transition_windows_for_playlist(
     analyses: Sequence[AnalysisResult],
     *,
@@ -127,23 +168,16 @@ def build_smart_playlist_from_folder(
     if not source_files:
         raise ValueError(f"no supported audio files found in {folder_path}")
 
-    processed_root = Path(processed_dir).expanduser() if processed_dir else _default_processed_dir(config)
-    repo = FileAnalysisRepository(processed_root)
-    analyses: list[AnalysisResult] = []
-    failures: list[SmartPlaylistFailure] = []
-    for source_path in source_files:
-        try:
-            analyses.append(
-                _load_or_analyze(
-                    source_path,
-                    config=config,
-                    repo=repo,
-                    recompute=recompute,
-                    analyze_fn=analyze_fn,
-                )
-            )
-        except Exception as exc:
-            failures.append(SmartPlaylistFailure(source_path=str(source_path), error=str(exc)))
+    processed_root = (
+        Path(processed_dir).expanduser() if processed_dir else _default_processed_dir(config)
+    )
+    analyses, failures = analyze_files(
+        source_files,
+        config,
+        processed_dir=processed_root,
+        recompute=recompute,
+        analyze_fn=analyze_fn,
+    )
 
     if not analyses:
         raise ValueError("no tracks could be analyzed from the selected folder")

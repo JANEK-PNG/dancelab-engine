@@ -7,6 +7,7 @@ Python desktop software backed by the engine registry, not an HTML-first app.
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -3337,14 +3338,22 @@ def launch_desktop_host(
     registry: NodeHostRegistry | None = None,
     *,
     config_path: str | Path = "configs/default.yaml",
+    mode: str = "simple",
 ) -> int:
+    """Launch DanceLab. UI/UX audit §18: Simple Mode is the default start —
+    the raw Signal Graph is the advanced mode ("graph")."""
     _require_pyside6()
-    registry = registry or get_node_host_registry()
     app = QApplication.instance() or QApplication([])
     app.setApplicationName("DanceLab Host")
     app.setApplicationDisplayName("DanceLab Host")
     app.setOrganizationName("DanceLab")
-    window = NodeHostWindow(registry, config_path=config_path)
+    if mode == "graph":
+        registry = registry or get_node_host_registry()
+        window = NodeHostWindow(registry, config_path=config_path)
+    else:
+        from dancelab.host.simple_mode import SimpleModeWindow
+
+        window = SimpleModeWindow(config_path=config_path)
     window.show()
     window.raise_()
     window.activateWindow()
@@ -3352,4 +3361,5 @@ def launch_desktop_host(
 
 
 def main() -> int:
-    return launch_desktop_host()
+    mode = "graph" if "--graph" in sys.argv[1:] else "simple"
+    return launch_desktop_host(mode=mode)
