@@ -23,6 +23,7 @@ dependencies = [
 # Heavy audio/DSP stack is optional so the skeleton installs and tests fast.
 # Feature extraction modules import these lazily and fail with a clear message.
 audio = [
+    "mutagen>=1.47",
     "librosa>=0.10",
     "scipy>=1.13",
     "pandas>=2.2",
