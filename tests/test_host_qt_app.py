@@ -383,8 +383,8 @@ def test_qt_host_builds_smart_playlist_flow_from_folder(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(
         desktop_app_module.QInputDialog,
-        "getItem",
-        lambda *args, **kwargs: ("5", True),
+        "getInt",
+        lambda *args, **kwargs: (5, True),  # free count, no fixed presets
     )
     monkeypatch.setattr(
         desktop_app_module.QInputDialog,
