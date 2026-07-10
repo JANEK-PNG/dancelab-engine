@@ -53,6 +53,19 @@ def test_beatgrid_recovers_bpm():
     assert bg.bpm == pytest.approx(128.0, abs=3.0)
     assert len(bg.beat_times_sec) > 10
     assert len(bg.downbeats_sec) == pytest.approx(len(bg.beat_times_sec) / 4, abs=2)
+    assert bg.reliable is True  # real beats tracked
+
+
+def test_beatgrid_on_silence_is_flagged_unreliable():
+    # AUD-M2: silence yields no trackable beats. The bpm stays a positive
+    # placeholder (schema requires >0) but reliable=False so downstream never
+    # treats the fabricated tempo as a measurement.
+    from dancelab.preprocessing.beatgrid import estimate_beatgrid
+
+    y = np.zeros(SR * 5, dtype=np.float32)
+    bg = estimate_beatgrid(AudioSignal(samples=y, sample_rate=SR))
+    assert bg.reliable is False
+    assert bg.bpm > 0
 
 
 def test_beatgrid_deterministic():

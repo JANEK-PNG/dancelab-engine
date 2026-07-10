@@ -121,6 +121,23 @@ def test_demucs_energy_ratio_silence_gate():
     assert ratio[n_frames // 2 :].mean() > 0.5  # loud region keeps the ratio
 
 
+def test_energy_ratio_gate_holds_when_mostly_silent():
+    # AUD-M1: when >50% of frames are silent the all-frames median is 0, so the
+    # old floor (0.05 * median) was 0 and the silence gate never fired — every
+    # silent gap faked a full vocal peak. Reference must be the nonzero median.
+    from dancelab.features.vocals import _energy_ratio_per_frame
+
+    n = 44100 * 3
+    rng = np.random.default_rng(1)
+    mix = (rng.standard_normal(n) * 0.3).astype(np.float32)
+    mix[: (2 * n) // 3] *= 1e-4                  # first TWO thirds = near silence
+    vocals = mix.copy()                          # vocals == mix → naive ratio ~1
+    ratio = _energy_ratio_per_frame(vocals, mix, 2048, 512)
+    n_frames = len(ratio)
+    assert ratio[: n_frames // 4].max() == 0.0   # silent majority still gated to 0
+    assert ratio[(3 * n_frames) // 4 :].mean() > 0.5  # loud tail preserved
+
+
 def test_auto_method_prefers_demucs_when_available():
     # ENV-2: assert behavior, not machine state — skip when [vocals] extra absent
     pytest.importorskip("demucs")

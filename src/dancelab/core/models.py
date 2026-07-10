@@ -254,6 +254,9 @@ class BeatGrid(BaseModel):
     bpm: float = Field(gt=0)
     beat_times_sec: list[float] = Field(default_factory=list)
     downbeats_sec: list[float] = Field(default_factory=list)
+    # AUD-M2: False when no beats were detected (silence/untrackable) and the
+    # bpm is a placeholder, not a measurement — downstream must not trust it.
+    reliable: bool = True
 
 
 # --------------------------------------------------------------------------- entities
