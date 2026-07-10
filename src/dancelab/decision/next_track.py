@@ -29,6 +29,7 @@ from dancelab.core.models import (
     TransitionWindowInput,
 )
 from dancelab.core.provenance import guardrail_warnings, provenance_for
+from dancelab.decision._common import tempo_proximity_score
 from dancelab.decision.mixability import compute_mixability
 from dancelab.decision.rules import evaluate_recommendation_policy
 from dancelab.decision.set_function import classify_set_function
@@ -175,11 +176,7 @@ def _tempo_continuity_score(
     bpm_b: float | None,
     tolerance_pct: float = 0.06,
 ) -> float:
-    if not bpm_a or not bpm_b:
-        return 0.5
-    ratios = (bpm_b, bpm_b * 2.0, bpm_b / 2.0)
-    best = min(abs(bpm_a - ratio) / bpm_a for ratio in ratios)
-    return float(np.clip(1.0 - best / (2.0 * tolerance_pct), 0.0, 1.0))
+    return tempo_proximity_score(bpm_a, bpm_b, tolerance_pct)
 
 
 def _history_energy_summary(
