@@ -7,6 +7,7 @@ return byte-identical results for the same input (Repo Blueprint DoD:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
@@ -183,6 +184,7 @@ def _analyze_track_impl(
     bpm_hint: float | None = None,
     title: str | None = None,
     artist: str | None = None,
+    on_stage: Callable[[str], None] | None = None,
 ) -> tuple[AnalysisResult, StemBundle | None]:
     """Analyze a single audio file with everything implemented so far.
 
@@ -199,20 +201,30 @@ def _analyze_track_impl(
     # AUD-M9: engine.random_seed was an advertised-but-unused knob. The engine
     # is seed-free by design, but seeding the global RNG here guards against
     # any dependency (librosa/torch paths) quietly introducing randomness.
+    def _stage(name: str) -> None:
+        # real progress hook for UIs — fires at each actual pipeline stage,
+        # never simulated
+        if on_stage is not None:
+            on_stage(name)
+
     np.random.seed(config.engine.random_seed)
     weights = load_weights(config.weights_file)
+    _stage("Loading audio")
     signal = load_audio(path, config)
     track: Track = build_track(
         signal, title=title, artist=artist, style_label=style_label, bpm_estimate=bpm_hint
     )
+    _stage("Extracting stems")
     stem_bundle = extract_stems(signal, track.track_id, config)
     vocal_stem = stem_bundle.channels.get(StemType.vocals) if stem_bundle is not None else None
 
     hop = config.audio.hop_size
+    _stage("Key detection")
     key_name, camelot, key_conf = estimate_key(signal.samples, signal.sample_rate, hop_size=hop)
     track = track.model_copy(
         update={"key_estimate": camelot, "key_name": key_name, "key_confidence": key_conf}
     )
+    _stage("Beat tracking (BPM)")
     beatgrid = estimate_beatgrid(
         signal,
         hop_size=hop,
@@ -220,7 +232,9 @@ def _analyze_track_impl(
         tempo_min=config.analysis.tempo_min,
         tempo_max=config.analysis.tempo_max,
     )
+    _stage("Onset detection")
     onset_times = detect_onsets(signal.samples, signal.sample_rate, hop_size=hop)
+    _stage("Vocal activity")
     if vocal_stem is not None:
         vocal_proxy = stem_energy_ratio_per_frame(
             vocal_stem.samples,
@@ -253,6 +267,7 @@ def _analyze_track_impl(
             "vocal_density_proxy is an HPSS mid-band VAD proxy (candidate) - "
             "melodic instruments can raise it; not proof of vocals"
         )
+    _stage("Feature extraction")
     features = extract_features(
         signal,
         config,
@@ -271,12 +286,14 @@ def _analyze_track_impl(
             frame_size=config.audio.frame_size,
             hop_size=hop,
         )
+    _stage("Segmentation")
     segments = segment_track(
         signal,
         track.track_id,
         hop_size=hop,
         min_len_sec=config.analysis.segment_min_len_sec,
     )
+    _stage("Descriptor proxies")
     features, descriptor_curves, detector_curves = _enrich_descriptor_features(
         features,
         onset_times=onset_times,
@@ -344,6 +361,7 @@ def analyze_track(
     bpm_hint: float | None = None,
     title: str | None = None,
     artist: str | None = None,
+    on_stage: Callable[[str], None] | None = None,
 ) -> AnalysisResult:
     result, _ = _analyze_track_impl(
         path,
@@ -352,6 +370,7 @@ def analyze_track(
         bpm_hint=bpm_hint,
         title=title,
         artist=artist,
+        on_stage=on_stage,
     )
     return result
 

@@ -80,6 +80,12 @@ def test_simple_mode_wizard_end_to_end(tmp_path):
     assert window.next_button.isEnabled()
     assert "Analyzed 5" in window.analyze_status.text()
 
+    # per-track checklist: every row checked off with real results (BPM/key)
+    rows = [window.analyze_list.item(i).text() for i in range(window.analyze_list.count())]
+    assert len(rows) == 5
+    assert all(row.startswith("✓") for row in rows)
+    assert all("BPM" in row and "8A" in row for row in rows)
+
     # step 3: generate a set — free track count (no fixed 5/10/15/20 presets)
     window.go_to_step(3)
     assert not window.next_button.isEnabled()
