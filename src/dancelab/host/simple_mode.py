@@ -25,7 +25,6 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMainWindow,
-    QPlainTextEdit,
     QProgressBar,
     QPushButton,
     QRadioButton,
@@ -40,6 +39,7 @@ from dancelab.core.models import AnalysisResult, SetPlan
 from dancelab.core.pipeline import analyze_track
 from dancelab.decision.set_builder import build_set
 from dancelab.export.rekordbox import build_rekordbox_xml, write_rekordbox_xml
+from dancelab.host.pair_review import TransitionReviewWidget, compute_windows
 from dancelab.workflows.smart_playlist import (
     MIN_PLAYLIST_TRACKS,
     SmartPlaylistFailure,
@@ -333,15 +333,22 @@ class SimpleModeWindow(QMainWindow):
         header.setProperty("role", "title")
         layout.addWidget(header)
         hint = QLabel(
-            "Every transition with its score, harmonic relation, BPM shift and warnings. "
+            "Pick a transition: song structure, transition windows, A/B decks with "
+            "beat sync, quantized cueing and stem isolation. "
             "Candidate estimates — not DJ-validated ground truth."
         )
         hint.setProperty("role", "hint")
         hint.setWordWrap(True)
         layout.addWidget(hint)
-        self.review_text = QPlainTextEdit()
-        self.review_text.setReadOnly(True)
-        layout.addWidget(self.review_text, stretch=1)
+
+        split = QHBoxLayout()
+        self.review_list = QListWidget()
+        self.review_list.setMaximumWidth(340)
+        self.review_list.currentRowChanged.connect(self._on_review_row_changed)
+        split.addWidget(self.review_list)
+        self.review_widget = TransitionReviewWidget()
+        split.addWidget(self.review_widget, stretch=1)
+        layout.addLayout(split, stretch=1)
         return page
 
     def _build_export_page(self) -> QWidget:
@@ -613,8 +620,9 @@ class SimpleModeWindow(QMainWindow):
         self._sync_navigation()
 
     def _populate_review(self) -> None:
+        self.review_list.clear()
+        self._review_windows_cache = {}
         if self.plan is None:
-            self.review_text.setPlainText("")
             return
         by_id = {analysis.track.track_id: analysis for analysis in self.analyses}
 
@@ -622,25 +630,44 @@ class SimpleModeWindow(QMainWindow):
             analysis = by_id.get(track_id)
             return (analysis.track.title if analysis else None) or track_id
 
-        lines = []
-        for transition in self.plan.transitions:
-            bpm = ""
-            if transition.bpm_from and transition.bpm_to:
-                bpm = f" · {transition.bpm_from:.0f}→{transition.bpm_to:.0f} BPM"
-            lines.append(
-                f"{name(transition.from_track_id)}  →  {name(transition.to_track_id)}\n"
-                f"    score {transition.transition_score:.2f} · "
-                f"{transition.harmonic_relation}"
-                f"{f' · {transition.key_from}→{transition.key_to}' if transition.key_from else ''}"
-                f"{bpm}"
+        for position, transition in enumerate(self.plan.transitions, start=1):
+            warn = " ⚠" if transition.warnings else ""
+            QListWidgetItem(
+                f"{position}. {name(transition.from_track_id)}\n"
+                f"    → {name(transition.to_track_id)} · {transition.transition_score:.2f}{warn}",
+                self.review_list,
             )
-            for warning in transition.warnings:
-                lines.append(f"    ⚠ {warning}")
-        if self.plan.warnings:
-            lines.append("")
-            lines.append("Set warnings:")
-            lines.extend(f"  ⚠ {warning}" for warning in self.plan.warnings)
-        self.review_text.setPlainText("\n".join(lines))
+        if self.plan.transitions:
+            self.review_list.setCurrentRow(0)
+
+    def _windows_for(self, analysis: AnalysisResult):
+        cache = getattr(self, "_review_windows_cache", {})
+        track_id = analysis.track.track_id
+        if track_id not in cache:
+            try:
+                cache[track_id] = compute_windows(analysis, self.config)
+            except Exception:
+                cache[track_id] = []
+        self._review_windows_cache = cache
+        return cache[track_id]
+
+    def _on_review_row_changed(self, row: int) -> None:
+        if self.plan is None or row < 0 or row >= len(self.plan.transitions):
+            return
+        transition = self.plan.transitions[row]
+        by_id = {analysis.track.track_id: analysis for analysis in self.analyses}
+        analysis_a = by_id.get(transition.from_track_id)
+        analysis_b = by_id.get(transition.to_track_id)
+        if analysis_a is None or analysis_b is None:
+            return
+        self.review_widget.set_transition(
+            analysis_a,
+            analysis_b,
+            transition,
+            self.config,
+            self._windows_for(analysis_a),
+            self._windows_for(analysis_b),
+        )
 
     def choose_export_path(self) -> None:
         selected, _ = QFileDialog.getSaveFileName(

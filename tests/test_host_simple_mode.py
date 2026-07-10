@@ -110,10 +110,24 @@ def test_simple_mode_wizard_end_to_end(tmp_path):
     window.generate_set()
     assert len(window.plan.track_order) == 5
 
-    # step 4: review has transition lines with scores
+    # step 4: real review tool — transition list + A/B decks with structure
     window.go_to_step(4)
-    review = window.review_text.toPlainText()
-    assert "score" in review and "→" in review
+    app.processEvents()
+    assert window.review_list.count() == 4  # 5 tracks → 4 transitions
+    assert window.review_list.currentRow() == 0
+    header = window.review_widget.header_label.text()
+    assert "score" in header and "→" in header
+    # decks carry the engine data: titles + structure strips + beat-sync status
+    assert window.review_widget.deck_a.analysis is not None
+    assert window.review_widget.deck_b.analysis is not None
+    assert "BPM" in window.review_widget.deck_a.title_label.text()
+    assert window.review_widget.sync_status.text()  # beat-sync state stated
+    # quantized seek snaps to the stub beatgrid (beats at 0.0/0.5/1.0)
+    window.review_widget.deck_b.quantize = True
+    from dancelab.host.pair_review import snap_to_grid
+
+    grid = window.review_widget.deck_b.analysis.beatgrid
+    assert snap_to_grid(0.61, grid.beat_times_sec, grid.downbeats_sec) == 0.5
 
     # step 5: export writes the XML
     window.go_to_step(5)
