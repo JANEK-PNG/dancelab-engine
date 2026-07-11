@@ -44,6 +44,7 @@ from dancelab.host.import_dialogs import choose_audio_directories, confirm_suspi
 from dancelab.host.pair_review import TransitionReviewWidget, compute_windows
 from dancelab.workflows.smart_playlist import (
     MIN_PLAYLIST_TRACKS,
+    auto_analysis_workers,
     SmartPlaylistFailure,
     _transition_windows_for_playlist,
     analysis_function_for_depth,
@@ -92,12 +93,13 @@ class _AnalysisThread(QThread):
     stage = Signal(str, str)  # (path, real pipeline stage — never simulated)
     completed = Signal(object)  # (analyses, failures) | error string
 
-    def __init__(self, files: list[Path], config: EngineConfig, analyze_fn, *, recompute: bool = False):
+    def __init__(self, files: list[Path], config: EngineConfig, analyze_fn, *, tier: str = "quick", workers: int = 1):
         super().__init__()
         self._files = files
         self._config = config
         self._analyze_fn = analyze_fn
-        self._recompute = recompute
+        self._tier = tier
+        self._workers = workers
         self._stop_requested = False
 
     def request_stop(self) -> None:
@@ -115,7 +117,8 @@ class _AnalysisThread(QThread):
                 self._files,
                 self._config,
                 analyze_fn=self._analyze_fn,
-                recompute=self._recompute,
+                tier=self._tier,
+                workers=self._workers,
                 progress=lambda done, total, path: self.progress.emit(done, total, path),
                 stage_progress=lambda path, stage: self.stage.emit(path, stage),
                 should_stop=lambda: self._stop_requested,
@@ -618,11 +621,20 @@ class SimpleModeWindow(QMainWindow):
 
         analysis_config = self._config_for_analysis_depth(depth)
         analyze_fn = analysis_function_for_depth(self.analyze_fn, depth)
+        # §18: quick analysis fans out across performance cores; deep stays
+        # single-worker (demucs memory pressure). Custom/stub analyzers run
+        # sequentially inside analyze_files regardless.
+        workers = auto_analysis_workers() if depth != "deep" else 1
+        if workers > 1:
+            self.analyze_status.setText(
+                self.analyze_status.text() + f" · {workers} CPU workers"
+            )
         thread = _AnalysisThread(
             self.files,
             analysis_config,
             analyze_fn,
-            recompute=(depth == "deep"),
+            tier=("deep" if depth == "deep" else "quick"),  # §7: manifest decides reuse
+            workers=workers,
         )
         thread.progress.connect(self._on_analysis_progress)
         thread.stage.connect(self._on_analysis_stage)

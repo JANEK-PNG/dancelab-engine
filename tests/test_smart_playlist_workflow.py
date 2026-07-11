@@ -138,7 +138,10 @@ def test_analyze_files_relays_real_pipeline_stages(tmp_path):
         stage_progress=lambda path, stage: stages.append((path, stage)),
     )
     assert len(analyses) == 1 and not failures
-    assert [stage for _, stage in stages] == ["Key detection", "Beat tracking (BPM)"]
+    stage_names = [stage for _, stage in stages]
+    # §7 prepends the honest re-analysis reason; engine stages follow in order
+    assert stage_names[0].startswith("Re-analysis:")
+    assert stage_names[1:] == ["Key detection", "Beat tracking (BPM)"]
     assert all(path.endswith("Track_1.wav") for path, _ in stages)
 
 
@@ -194,3 +197,114 @@ def test_analyze_files_cooperative_stop(tmp_path):
     )
     assert len(analyses2) == 5
     assert calls["n"] == 5  # 2 cached + 3 new — nothing processed twice
+
+
+def test_incremental_manifest_reuse_and_invalidation(tmp_path):
+    # §7 hard rule: valid stored analysis → zero compute. Each trigger re-runs.
+    from dancelab.ingestion.metadata import make_track_id
+    from dancelab.storage.library_manifest import LibraryManifest, file_checksum
+    from dancelab.workflows.smart_playlist import analyze_files
+
+    music_dir = tmp_path / "music"
+    music_dir.mkdir()
+    track = music_dir / "Track_1.wav"
+    track.write_bytes(b"original-content")
+    processed = tmp_path / "processed"
+    calls = {"n": 0}
+
+    def analyze_counting(path, config):
+        calls["n"] += 1
+        result = _analysis_from_path(path, config)
+        result.track.track_id = make_track_id(str(path))
+        return result
+
+    def run(tier="quick"):
+        return analyze_files(
+            [track], EngineConfig(), processed_dir=processed,
+            analyze_fn=analyze_counting, tier=tier,
+        )
+
+    run()
+    assert calls["n"] == 1
+    run()
+    assert calls["n"] == 1          # unchanged → zero compute
+    run(tier="quick")
+    assert calls["n"] == 1
+
+    run(tier="deep")
+    assert calls["n"] == 2   # tier upgrade recomputes
+    run(tier="quick")
+    assert calls["n"] == 2  # deep satisfies quick — reuse
+
+    track.write_bytes(b"CHANGED-content")       # checksum change
+    run(tier="deep")
+    assert calls["n"] == 3
+
+    # engine-version change invalidates
+    manifest = LibraryManifest(processed)
+    record = manifest.record(make_track_id(str(track)))
+    record.engine_version = "0.0.1-old"
+    manifest._save()
+    run(tier="deep")
+    assert calls["n"] == 4
+
+    # reuse reason API is explicit about why
+    manifest = LibraryManifest(processed)
+    assert manifest.reuse_reason_or_none(
+        "unknown-track", source_checksum="x", requested_tier="quick",
+        formula_version="f", analysis_file_exists=False,
+    ) == "not analyzed yet"
+    checksum = file_checksum(track)
+    assert manifest.reuse_reason_or_none(
+        make_track_id(str(track)), source_checksum=checksum,
+        requested_tier="quick",
+        formula_version=manifest.record(make_track_id(str(track))).formula_version,
+        analysis_file_exists=True,
+    ) is None
+
+
+def test_parallel_analysis_matches_sequential(tmp_path):
+    # §18: process-pool fan-out uses the REAL pipeline and must produce the
+    # same library as sequential — order preserved, manifest reuse intact.
+    import numpy as np
+    import pytest
+    import soundfile as sf
+
+    pytest.importorskip("librosa")
+    from dancelab.workflows.smart_playlist import analyze_files
+
+    music_dir = tmp_path / "music"
+    music_dir.mkdir()
+    sr = 22050
+    files = []
+    for i in range(4):
+        t = np.arange(sr) / sr
+        tone = (0.4 * np.sin(2 * np.pi * (220 + 40 * i) * t)).astype("float32")
+        p = music_dir / f"tone_{i}.wav"
+        sf.write(p, tone, sr)
+        files.append(p)
+
+    par_dir = tmp_path / "par"
+    analyses_par, failures_par = analyze_files(
+        files, EngineConfig(), processed_dir=par_dir, workers=3,
+    )
+    assert not failures_par
+    assert [a.track.source_path for a in analyses_par] == [str(f) for f in files]
+
+    seq_dir = tmp_path / "seq"
+    analyses_seq, _ = analyze_files(files, EngineConfig(), processed_dir=seq_dir)
+    assert [a.track.track_id for a in analyses_par] == [
+        a.track.track_id for a in analyses_seq
+    ]
+    assert [a.beatgrid.bpm for a in analyses_par] == [
+        a.beatgrid.bpm for a in analyses_seq
+    ]
+
+    # second parallel run: manifest reuse → all four from cache, zero compute
+    progress_events = []
+    analyses_again, _ = analyze_files(
+        files, EngineConfig(), processed_dir=par_dir, workers=3,
+        progress=lambda done, total, path: progress_events.append(done),
+    )
+    assert len(analyses_again) == 4
+    assert progress_events == [1, 2, 3, 4]  # instant cache hits, in order
