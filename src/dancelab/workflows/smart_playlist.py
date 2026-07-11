@@ -116,12 +116,53 @@ def estimate_track_count_for_duration(
     return max(MIN_PLAYLIST_TRACKS, min(count, len(analyses)))
 
 
+def auto_analysis_workers() -> int:
+    """Parallel analysis width (§18): performance cores on Apple Silicon,
+    else half the logical CPUs. Capped at 8; at least 1."""
+    import os as _os
+    import subprocess as _sp
+    import sys as _sys
+
+    if _sys.platform == "darwin":
+        try:
+            perf = int(
+                _sp.run(
+                    ["sysctl", "-n", "hw.perflevel0.physicalcpu"],
+                    capture_output=True, text=True, check=False, timeout=2,
+                ).stdout.strip() or 0
+            )
+            if perf > 0:
+                return max(1, min(perf, 8))
+        except Exception:
+            pass
+    return max(1, min((_os.cpu_count() or 2) // 2, 8))
+
+
+def _analyze_one_subprocess(
+    path_str: str, config_json: str, processed_dir_str: str
+) -> tuple[str, str | None]:
+    """Worker-process entry: analyze one file, save to repo, return (track_id,
+    error). The AnalysisResult itself stays on disk — IPC payload is tiny."""
+    from dancelab.core.config import EngineConfig as _EngineConfig
+
+    config = _EngineConfig.model_validate_json(config_json)
+    track_id = make_track_id(path_str)
+    try:
+        result = analyze_track(Path(path_str), config)
+        FileAnalysisRepository(processed_dir_str).save(result)
+    except Exception as exc:
+        return track_id, str(exc)
+    return track_id, None
+
+
 def analyze_files(
     source_files: Sequence[str | Path],
     config: EngineConfig,
     *,
     processed_dir: str | Path | None = None,
     recompute: bool = False,
+    tier: str = "quick",
+    workers: int = 1,
     analyze_fn: Callable[..., AnalysisResult] = analyze_track,
     progress: Callable[[int, int, str], None] | None = None,
     stage_progress: Callable[[str, str], None] | None = None,
@@ -140,10 +181,18 @@ def analyze_files(
     to the repository per track, so nothing is lost — the remainder simply
     stays pending and a re-run continues from cache.
     """
+    from dancelab.storage.library_manifest import (
+        LibraryManifest,
+        file_checksum,
+        formula_hash,
+    )
+
     processed_root = (
         Path(processed_dir).expanduser() if processed_dir else _default_processed_dir(config)
     )
     repo = FileAnalysisRepository(processed_root)
+    manifest = LibraryManifest(processed_root)
+    weights_hash = formula_hash(config.weights_file)
 
     effective_analyze_fn = analyze_fn
     if stage_progress is not None and "on_stage" in inspect.signature(analyze_fn).parameters:
@@ -153,6 +202,24 @@ def analyze_files(
     analyses: list[AnalysisResult] = []
     failures: list[SmartPlaylistFailure] = []
     total = len(source_files)
+
+    # §18 CPU parallelism: only for the real, picklable pipeline entry point.
+    # Custom analyze_fn (tests, stubs, stage relays) stays sequential.
+    if workers > 1 and analyze_fn is analyze_track:
+        return _analyze_files_parallel(
+            source_files,
+            config,
+            processed_root=processed_root,
+            repo=repo,
+            manifest=manifest,
+            weights_hash=weights_hash,
+            recompute=recompute,
+            tier=tier,
+            workers=workers,
+            progress=progress,
+            stage_progress=stage_progress,
+            should_stop=should_stop,
+        )
     for index, source_path in enumerate(source_files):
         if should_stop is not None and should_stop():
             break  # stop between tracks; completed work already saved per track
@@ -160,18 +227,142 @@ def analyze_files(
         if progress is not None:
             progress(index + 1, total, str(path))
         try:
-            analyses.append(
-                _load_or_analyze(
-                    path,
-                    config=config,
-                    repo=repo,
-                    recompute=recompute,
-                    analyze_fn=effective_analyze_fn,
+            track_id = make_track_id(str(path))
+            checksum = file_checksum(path)
+            reason = (
+                "recompute requested"
+                if recompute
+                else manifest.reuse_reason_or_none(
+                    track_id,
+                    source_checksum=checksum,
+                    requested_tier=tier,
+                    formula_version=weights_hash,
+                    analysis_file_exists=repo._path(track_id).exists(),
                 )
             )
+            if reason is None:
+                result = repo.get(track_id)  # §7: valid analysis → zero compute
+            else:
+                if stage_progress is not None:
+                    stage_progress(str(path), f"Re-analysis: {reason}")
+                result = effective_analyze_fn(path, config)
+                repo.save(result)
+                # manifest identity = source file (make_track_id), matching the
+                # repo cache key — stable even when analyzers set custom ids
+                manifest.mark_analyzed(
+                    track_id,
+                    source_path=str(path),
+                    source_checksum=checksum,
+                    analysis_tier=tier,
+                    formula_version=weights_hash,
+                )
+            analyses.append(result)
         except Exception as exc:
             failures.append(SmartPlaylistFailure(source_path=str(path), error=str(exc)))
+            manifest.mark_failed(make_track_id(str(path)), source_path=str(path), error=str(exc))
     return analyses, failures
+
+
+def _analyze_files_parallel(
+    source_files: Sequence[str | Path],
+    config: EngineConfig,
+    *,
+    processed_root: Path,
+    repo: FileAnalysisRepository,
+    manifest,
+    weights_hash: str,
+    recompute: bool,
+    tier: str,
+    workers: int,
+    progress: Callable[[int, int, str], None] | None,
+    stage_progress: Callable[[str, str], None] | None,
+    should_stop: Callable[[], bool] | None,
+) -> tuple[list[AnalysisResult], list[SmartPlaylistFailure]]:
+    """Process-pool fan-out over tracks (§18). Reuse decisions and manifest
+    writes stay in the main process; workers only analyze+save. Results are
+    reassembled in input order. Per-stage hooks cannot cross processes, so
+    parallel mode reports per-track completion, never simulated stages."""
+    from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
+    from dancelab.storage.library_manifest import file_checksum
+
+    total = len(source_files)
+    results: dict[str, AnalysisResult] = {}
+    failures: dict[str, SmartPlaylistFailure] = {}
+    checksums: dict[str, str] = {}
+    to_compute: list[str] = []
+    done_count = 0
+
+    for source_path in source_files:
+        path_str = str(Path(source_path))
+        track_id = make_track_id(path_str)
+        checksum = file_checksum(path_str)
+        checksums[path_str] = checksum
+        reason = (
+            "recompute requested"
+            if recompute
+            else manifest.reuse_reason_or_none(
+                track_id,
+                source_checksum=checksum,
+                requested_tier=tier,
+                formula_version=weights_hash,
+                analysis_file_exists=repo._path(track_id).exists(),
+            )
+        )
+        if reason is None:
+            results[path_str] = repo.get(track_id)
+            done_count += 1
+            if progress is not None:
+                progress(done_count, total, path_str)
+        else:
+            to_compute.append(path_str)
+
+    config_json = config.model_dump_json()
+    stopped = False
+    if to_compute and not (should_stop is not None and should_stop()):
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            futures = {
+                pool.submit(
+                    _analyze_one_subprocess, path_str, config_json, str(processed_root)
+                ): path_str
+                for path_str in to_compute
+            }
+            pending = set(futures)
+            while pending:
+                finished, pending = wait(pending, return_when=FIRST_COMPLETED)
+                for future in finished:
+                    path_str = futures[future]
+                    track_id, error = future.result()
+                    done_count += 1
+                    if progress is not None:
+                        progress(done_count, total, path_str)
+                    if error is not None:
+                        failures[path_str] = SmartPlaylistFailure(
+                            source_path=path_str, error=error
+                        )
+                        manifest.mark_failed(track_id, source_path=path_str, error=error)
+                    else:
+                        results[path_str] = repo.get(track_id)
+                        manifest.mark_analyzed(
+                            track_id,
+                            source_path=path_str,
+                            source_checksum=checksums[path_str],
+                            analysis_tier=tier,
+                            formula_version=weights_hash,
+                        )
+                if should_stop is not None and should_stop() and pending:
+                    for future in pending:
+                        future.cancel()  # not-yet-started tracks stay pending
+                    stopped = True
+                    pending = {f for f in pending if f.running()}
+    _ = stopped  # running tracks finish and are saved; the rest stays pending
+
+    ordered = [
+        results[str(Path(p))] for p in source_files if str(Path(p)) in results
+    ]
+    ordered_failures = [
+        failures[str(Path(p))] for p in source_files if str(Path(p)) in failures
+    ]
+    return ordered, ordered_failures
 
 
 def _normalize_analysis_depth(analysis_depth: str) -> str:
