@@ -295,3 +295,61 @@ def test_import_clear_and_remove_selected(tmp_path):
     assert all(p.exists() for p in files)
 
     window.close()
+
+
+@pytest.mark.skipif(
+    not _qt_bootstrap_available(),
+    reason="Qt platform bootstrap unavailable in this shell",
+)
+def test_deep_on_demand_upgrades_only_set_tracks(tmp_path):
+    # Deep-speed plan #1: stems only for tracks that made the set; second run
+    # reuses the deep cache (§7 manifest) with zero compute.
+    from dancelab.ingestion.metadata import make_track_id
+
+    QApplication.instance() or QApplication([])
+    window = SimpleModeWindow()
+    window.config.paths.processed_dir = str(tmp_path / "processed")
+
+    calls = {"n": 0}
+
+    def counting_stub(path, _config):
+        calls["n"] += 1
+        result = _stub_analysis(path, _config)
+        result.track.track_id = make_track_id(str(path))
+        for frame in result.features:
+            frame.track_id = result.track.track_id
+        return result
+
+    window.analyze_fn = counting_stub
+    files = []
+    for name in ("Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta"):
+        p = tmp_path / f"{name}.mp3"
+        p.write_bytes(b"stub")
+        files.append(p)
+    window.set_import_files(files)
+    window.run_analysis(wait=True)
+    QApplication.processEvents()
+    assert len(window.analyses) == 6
+    quick_calls = calls["n"]
+
+    window.go_to_step(3)
+    window.count_radio.setChecked(True)
+    window.count_spin.setValue(4)
+    window.generate_set()
+    assert window.deep_upgrade_button.isEnabled()
+    set_ids = set(window.plan.track_order)
+    assert len(set_ids) == 4
+
+    window.run_deep_upgrade(wait=True)
+    QApplication.processEvents()
+    # deep ran ONLY for the 4 set tracks (tier upgrade), not the whole library
+    assert calls["n"] == quick_calls + 4
+    assert "Deep data ready for 4" in window.deep_status.text()
+    assert len(window.analyses) == 6  # library size unchanged, entries merged
+
+    # §7: second deep upgrade — all from deep cache, zero compute
+    window.run_deep_upgrade(wait=True)
+    QApplication.processEvents()
+    assert calls["n"] == quick_calls + 4
+
+    window.close()
