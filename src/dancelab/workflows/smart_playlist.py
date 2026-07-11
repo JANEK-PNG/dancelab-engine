@@ -166,6 +166,7 @@ def analyze_files(
     analyze_fn: Callable[..., AnalysisResult] = analyze_track,
     progress: Callable[[int, int, str], None] | None = None,
     stage_progress: Callable[[str, str], None] | None = None,
+    track_done: Callable[[str, str], None] | None = None,
     should_stop: Callable[[], bool] | None = None,
 ) -> tuple[list[AnalysisResult], list[SmartPlaylistFailure]]:
     """Analyze (or load cached) analyses for a list of audio files.
@@ -218,6 +219,7 @@ def analyze_files(
             workers=workers,
             progress=progress,
             stage_progress=stage_progress,
+            track_done=track_done,
             should_stop=should_stop,
         )
     for index, source_path in enumerate(source_files):
@@ -242,6 +244,8 @@ def analyze_files(
             )
             if reason is None:
                 result = repo.get(track_id)  # §7: valid analysis → zero compute
+                if track_done is not None:
+                    track_done(str(path), "cached")
             else:
                 if stage_progress is not None:
                     stage_progress(str(path), f"Re-analysis: {reason}")
@@ -256,10 +260,14 @@ def analyze_files(
                     analysis_tier=tier,
                     formula_version=weights_hash,
                 )
+                if track_done is not None:
+                    track_done(str(path), "done")
             analyses.append(result)
         except Exception as exc:
             failures.append(SmartPlaylistFailure(source_path=str(path), error=str(exc)))
             manifest.mark_failed(make_track_id(str(path)), source_path=str(path), error=str(exc))
+            if track_done is not None:
+                track_done(str(path), "failed")
     return analyses, failures
 
 
@@ -276,6 +284,7 @@ def _analyze_files_parallel(
     workers: int,
     progress: Callable[[int, int, str], None] | None,
     stage_progress: Callable[[str, str], None] | None,
+    track_done: Callable[[str, str], None] | None,
     should_stop: Callable[[], bool] | None,
 ) -> tuple[list[AnalysisResult], list[SmartPlaylistFailure]]:
     """Process-pool fan-out over tracks (§18). Reuse decisions and manifest
@@ -313,6 +322,8 @@ def _analyze_files_parallel(
             done_count += 1
             if progress is not None:
                 progress(done_count, total, path_str)
+            if track_done is not None:
+                track_done(path_str, "cached")
         else:
             to_compute.append(path_str)
 
@@ -340,6 +351,8 @@ def _analyze_files_parallel(
                             source_path=path_str, error=error
                         )
                         manifest.mark_failed(track_id, source_path=path_str, error=error)
+                        if track_done is not None:
+                            track_done(path_str, "failed")
                     else:
                         results[path_str] = repo.get(track_id)
                         manifest.mark_analyzed(
@@ -349,6 +362,8 @@ def _analyze_files_parallel(
                             analysis_tier=tier,
                             formula_version=weights_hash,
                         )
+                        if track_done is not None:
+                            track_done(path_str, "done")
                 if should_stop is not None and should_stop() and pending:
                     for future in pending:
                         future.cancel()  # not-yet-started tracks stay pending
