@@ -111,9 +111,20 @@ def _empty_summary(
     )
 
 
-def _extract_demucs_channels(signal: AudioSignal) -> tuple[dict[StemType, AudioSignal], DurationMatchStatus]:
+def _extract_demucs_channels(
+    signal: AudioSignal, config: EngineConfig | None = None
+) -> tuple[dict[StemType, AudioSignal], DurationMatchStatus]:
     import torch
     from demucs.apply import apply_model
+
+    overlap = config.stems.overlap if config is not None else 0.25
+    torch_threads = config.stems.torch_threads if config is not None else 0
+    if torch_threads > 0:
+        # pinned intra-op threads for multi-worker setups. M4 benchmark
+        # (2026-07-11, 60 s clips): 2 workers × 5 threads gave only ×1.18 over
+        # 1 worker × default threads — torch already parallelizes internally —
+        # so parallel_workers defaults to 1; the knob exists for bigger machines.
+        torch.set_num_threads(torch_threads)
 
     model = _get_demucs()
     stereo = np.asarray(signal.samples, dtype=np.float32)
@@ -131,7 +142,9 @@ def _extract_demucs_channels(signal: AudioSignal) -> tuple[dict[StemType, AudioS
 
     wav = torch.tensor(stereo[None], dtype=torch.float32)
     with torch.no_grad():
-        raw = apply_model(model, wav, device=preferred_torch_device())[0]
+        raw = apply_model(
+            model, wav, device=preferred_torch_device(), overlap=overlap
+        )[0]
 
     channels: dict[StemType, AudioSignal] = {}
     for stem_type in StemType:

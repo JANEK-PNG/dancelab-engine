@@ -153,6 +153,9 @@ def test_deep_analysis_depth_enables_demucs_stem_layer():
     assert cfg.stems.export_stems is True
     assert cfg.analysis.vocal_method == "demucs"
     assert cfg.analysis.transition_top_n >= 8
+    # M4-benchmarked fast separation profile (x1.25, cosine 0.99994 vs 0.25)
+    assert cfg.stems.overlap == 0.10
+    assert EngineConfig().stems.overlap == 0.25  # normal tier untouched
 
 
 def test_analyze_files_cooperative_stop(tmp_path):

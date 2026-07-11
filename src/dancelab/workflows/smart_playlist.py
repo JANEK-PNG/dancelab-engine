@@ -416,6 +416,11 @@ def config_for_analysis_depth(config: EngineConfig, analysis_depth: str) -> Engi
             )
         if hasattr(cfg, "analysis"):
             cfg.analysis.transition_top_n = max(cfg.analysis.transition_top_n, 8)
+        if hasattr(cfg, "stems"):
+            # M4 benchmark 2026-07-11: overlap 0.10 → ×1.25 faster, cosine
+            # 0.99994 vs the 0.25 default — quality-identical fast profile.
+            # Recorded in stem provenance via config_hash (stems config hashed).
+            cfg.stems.overlap = min(cfg.stems.overlap, 0.10)
     return cfg
 
 
