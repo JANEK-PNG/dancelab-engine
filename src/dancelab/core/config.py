@@ -37,6 +37,14 @@ class StemConfig(BaseModel):
     max_artifact_flag: str = "clear"
     min_required_stems: int = Field(default=4, ge=1, le=4)
     export_stems: bool = False
+    # Deep-speed knobs (benchmarked on M4 — see stems/extractor.py notes):
+    # separation window overlap; lower = faster, provenance records the value
+    overlap: float = Field(default=0.25, ge=0.0, le=0.9)
+    # torch intra-op threads per separation process (0 = torch default);
+    # pinned when running multiple separation workers so they don't fight
+    torch_threads: int = Field(default=0, ge=0, le=16)
+    # parallel separation workers for deep batches (memory: ~2-4 GB each)
+    parallel_workers: int = Field(default=1, ge=1, le=4)
 
 
 class EngineSection(BaseModel):
