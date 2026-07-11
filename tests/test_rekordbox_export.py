@@ -107,3 +107,20 @@ def test_export_without_key_omits_tonality():
     a.track.key_estimate = None
     track = ET.fromstring(build_rekordbox_xml([a])).find("COLLECTION/TRACK")
     assert track.get("Tonality") is None  # honest: no fake key
+
+
+def test_location_uri_matches_rekordbox_own_encoding():
+    # Verified against a real Rekordbox device library: RB leaves parens,
+    # apostrophes etc. literal and only percent-encodes spaces — encoding
+    # them (%28/%27) makes RB fail to match the file and drop our hot cues.
+    from dancelab.export.rekordbox import _location_uri
+
+    uri = _location_uri("/Volumes/JANTRY/Contents/Bicep/CHROMA 010 (Original Mix).aiff")
+    assert uri == (
+        "file://localhost/Volumes/JANTRY/Contents/Bicep/CHROMA%20010%20(Original%20Mix).aiff"
+    )
+    assert "%28" not in uri and "%29" not in uri
+
+    uri = _location_uri("/Music/O'Flynn/Pearl's Girl.aiff")
+    assert "'" in uri and "%27" not in uri
+    assert "%20" not in _location_uri("/a/plain.wav")
