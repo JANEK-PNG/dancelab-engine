@@ -22,6 +22,7 @@ from __future__ import annotations
 import numpy as np
 
 from dancelab.core.errors import MissingDependencyError
+from dancelab.core.backend import preferred_torch_device
 
 VOCAL_BAND_HZ = (200.0, 3400.0)
 _EPS = 1e-9
@@ -93,8 +94,8 @@ def _vocal_activity_demucs(
 
     wav = torch.tensor(stereo[None], dtype=torch.float32)
     with torch.no_grad():
-        stems = apply_model(model, wav, device="cpu")[0]
-    vocals = stems[model.sources.index("vocals")].numpy().mean(axis=0)  # → mono
+        stems = apply_model(model, wav, device=preferred_torch_device())[0]
+    vocals = stems[model.sources.index("vocals")].cpu().numpy().mean(axis=0)  # → mono
     mix = stereo.mean(axis=0)
 
     # resample stems back to the analysis sample rate for frame alignment
