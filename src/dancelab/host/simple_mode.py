@@ -432,7 +432,107 @@ class SimpleModeWindow(QMainWindow):
         self.generate_status = QLabel("")
         self.generate_status.setProperty("role", "hint")
         layout.addWidget(self.generate_status)
+
+        # Deep-on-demand (spec deep-speed plan #1): separate stems only for the
+        # tracks that made the set — minutes instead of an overnight library run.
+        deep_row = QHBoxLayout()
+        self.deep_upgrade_button = QPushButton("Deep-Analyze Set Tracks")
+        self.deep_upgrade_button.setToolTip(
+            "Run Demucs stem-aware analysis ONLY on the tracks in this set. "
+            "Already-deep tracks are reused from cache."
+        )
+        self.deep_upgrade_button.setEnabled(False)
+        self.deep_upgrade_button.clicked.connect(self.toggle_deep_upgrade)
+        deep_row.addWidget(self.deep_upgrade_button)
+        self.deep_status = QLabel("")
+        self.deep_status.setProperty("role", "hint")
+        deep_row.addWidget(self.deep_status, stretch=1)
+        layout.addLayout(deep_row)
         return page
+
+    # ------------------------------------------------- deep-on-demand upgrade
+
+    def toggle_deep_upgrade(self) -> None:
+        thread = self._analysis_thread
+        if thread is not None and thread.isRunning():
+            thread.request_stop()
+            self.deep_status.setText("Stopping after current track…")
+            return
+        self.run_deep_upgrade()
+
+    def run_deep_upgrade(self, *, wait: bool = False) -> None:
+        if self.plan is None or not self.selected_analyses:
+            self.deep_status.setText("Generate a set first.")
+            return
+        if self._analysis_thread is not None and self._analysis_thread.isRunning():
+            self.deep_status.setText("Another job is running — stop it first.")
+            return
+        files = [
+            Path(analysis.track.source_path)
+            for analysis in self.selected_analyses
+            if analysis.track.source_path
+        ]
+        if not files:
+            self.deep_status.setText("Set tracks have no source paths.")
+            return
+        manager = self.cache_manager()
+        if manager.low_disk():
+            self.deep_status.setText(
+                f"Low disk space — deep analysis blocked ({manager.root})."
+            )
+            return
+        self.deep_upgrade_button.setText("Stop Deep Analysis")
+        self.deep_status.setText(f"Deep-analyzing {len(files)} set track(s)…")
+        thread = _AnalysisThread(
+            files,
+            self._config_for_analysis_depth("deep"),
+            analysis_function_for_depth(self.analyze_fn, "deep"),
+            tier="deep",       # §7 manifest: already-deep tracks reuse, zero compute
+            workers=1,         # demucs memory pressure — single worker
+        )
+        thread.progress.connect(
+            lambda done, total, path: self.deep_status.setText(
+                f"Deep {done}/{total} · {Path(path).name}"
+            )
+        )
+        thread.completed.connect(self._on_deep_upgrade_finished)
+        self._analysis_thread = thread
+        thread.start()
+        if wait:
+            thread.wait()
+            QApplication.processEvents()
+
+    def _on_deep_upgrade_finished(self, payload: object) -> None:
+        finished_thread = self.sender()
+        if finished_thread is self._analysis_thread:
+            self._analysis_thread = None
+        if isinstance(finished_thread, QThread):
+            if finished_thread.isRunning() and QThread.currentThread() is not finished_thread:
+                finished_thread.wait(1000)
+            finished_thread.deleteLater()
+        self.deep_upgrade_button.setText("Deep-Analyze Set Tracks")
+        if isinstance(payload, str):
+            self.deep_status.setText(f"Deep analysis failed · {payload}")
+            return
+        upgraded, failures = payload
+        # merge: deep results replace quick ones by track_id; library keeps rest
+        by_id = {analysis.track.track_id: analysis for analysis in self.analyses}
+        for analysis in upgraded:
+            by_id[analysis.track.track_id] = analysis
+        self.analyses = list(by_id.values())
+        selected_ids = set(self.plan.track_order) if self.plan else set()
+        self.selected_analyses = [
+            by_id[tid] for tid in (self.plan.track_order if self.plan else []) if tid in by_id
+        ]
+        _ = selected_ids
+        self._review_windows_cache = {}  # windows recompute from stem-aware data
+        was_stopped = bool(getattr(finished_thread, "stop_requested", False))
+        note = " (stopped early — rest stays quick)" if was_stopped else ""
+        fail_note = f" · {len(failures)} failed" if failures else ""
+        self.deep_status.setText(
+            f"Deep data ready for {len(upgraded)} track(s){fail_note}{note}. "
+            "Review now uses stem-aware transition data; Regenerate to re-score the order."
+        )
 
     def _build_review_page(self) -> QWidget:
         page = QWidget()
@@ -872,6 +972,11 @@ class SimpleModeWindow(QMainWindow):
             total_min = sum(known_durations) / 60.0
             duration_text = f" · ≈{int(total_min // 60)}h {int(total_min % 60):02d}m"
         warning_text = f" · warning: {self.plan.warnings[0]}" if self.plan.warnings else ""
+        self.deep_upgrade_button.setEnabled(True)
+        self.deep_status.setText(
+            "Tip: Deep-Analyze Set Tracks separates stems for just these "
+            f"{len(self.plan.track_order)} tracks — minutes, not an overnight run."
+        )
         self.generate_status.setText(
             f"{len(self.plan.track_order)}-track set · mode {planner_mode} · arc {arc}{duration_text}"
             + (f" · mean transition score {mean:.2f}" if mean is not None else "")
