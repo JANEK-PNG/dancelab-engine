@@ -98,6 +98,16 @@ class _AnalysisThread(QThread):
         self._config = config
         self._analyze_fn = analyze_fn
         self._recompute = recompute
+        self._stop_requested = False
+
+    def request_stop(self) -> None:
+        """PRODUCT_SPEC §9: cooperative stop — honored between tracks; every
+        completed track is already committed to cache, nothing is lost."""
+        self._stop_requested = True
+
+    @property
+    def stop_requested(self) -> bool:
+        return self._stop_requested
 
     def run(self) -> None:
         try:
@@ -108,6 +118,7 @@ class _AnalysisThread(QThread):
                 recompute=self._recompute,
                 progress=lambda done, total, path: self.progress.emit(done, total, path),
                 stage_progress=lambda path, stage: self.stage.emit(path, stage),
+                should_stop=lambda: self._stop_requested,
             )
         except Exception as exc:  # surfaced on the UI thread, never swallowed
             self.completed.emit(str(exc))
@@ -280,10 +291,17 @@ class SimpleModeWindow(QMainWindow):
         depth_row.addWidget(self.analysis_depth_combo)
         layout.addLayout(depth_row)
 
+        analyze_row = QHBoxLayout()
         self.analyze_button = QPushButton("▶ Analyze Tracks")
         self.analyze_button.setProperty("role", "hero")
         self.analyze_button.clicked.connect(self.run_analysis)
-        layout.addWidget(self.analyze_button, alignment=Qt.AlignLeft)
+        analyze_row.addWidget(self.analyze_button)
+        self.stop_button = QPushButton("Stop Processing")
+        self.stop_button.setVisible(False)
+        self.stop_button.clicked.connect(self.confirm_stop_processing)
+        analyze_row.addWidget(self.stop_button)
+        analyze_row.addStretch(1)
+        layout.addLayout(analyze_row)
 
         self.analyze_progress = QProgressBar()
         self.analyze_progress.setValue(0)
@@ -607,10 +625,39 @@ class SimpleModeWindow(QMainWindow):
         thread.stage.connect(self._on_analysis_stage)
         thread.completed.connect(self._on_analysis_finished)
         self._analysis_thread = thread
+        self.stop_button.setVisible(True)
         thread.start()
         if wait:
             thread.wait()
             QApplication.processEvents()
+
+    def confirm_stop_processing(self) -> None:
+        thread = self._analysis_thread
+        if thread is None or not thread.isRunning():
+            return
+        from PySide6.QtWidgets import QMessageBox
+
+        box = QMessageBox(self)
+        box.setWindowTitle("Stop this job?")
+        box.setText(
+            "DanceLab will stop after the current track. Tracks already "
+            "processed will be saved and will not need to be processed again."
+        )
+        keep_button = box.addButton("Keep Running", QMessageBox.RejectRole)
+        stop_button = box.addButton("Stop After Current Track", QMessageBox.AcceptRole)
+        box.setDefaultButton(keep_button)
+        box.exec()
+        if box.clickedButton() is stop_button:
+            self.request_stop_processing()
+
+    def request_stop_processing(self) -> None:
+        """Programmatic stop (used by the modal and by tests)."""
+        thread = self._analysis_thread
+        if thread is None:
+            return
+        thread.request_stop()
+        self.analyze_status.setText("Stopping after current track…")
+        self.stop_button.setEnabled(False)
 
     def _set_analyze_row(self, path: str, text: str) -> None:
         row = getattr(self, "_analyze_rows", {}).get(path)
@@ -637,15 +684,27 @@ class SimpleModeWindow(QMainWindow):
                 finished_thread.wait(1000)
             finished_thread.deleteLater()
         self.analyze_button.setEnabled(True)
+        self.stop_button.setVisible(False)
+        self.stop_button.setEnabled(True)
+        was_stopped = bool(getattr(finished_thread, "stop_requested", False))
         if isinstance(payload, str):
             self.analyze_status.setText(f"Analysis failed · {payload}")
             self._sync_navigation()
             return
         self.analyses, self.failures = payload
-        self.analyze_progress.setValue(self.analyze_progress.maximum())
-        self.analyze_status.setText(
-            f"Analyzed {len(self.analyses)} track(s) · {len(self.failures)} failed."
-        )
+        if was_stopped:
+            # §9: completed tracks saved; the rest stays pending. Re-run
+            # continues from cache — nothing is processed twice.
+            pending = len(self.files) - len(self.analyses) - len(self.failures)
+            self.analyze_status.setText(
+                f"Stopped · {len(self.analyses)} analyzed, {pending} pending — "
+                "run Analyze Tracks again to continue."
+            )
+        else:
+            self.analyze_progress.setValue(self.analyze_progress.maximum())
+            self.analyze_status.setText(
+                f"Analyzed {len(self.analyses)} track(s) · {len(self.failures)} failed."
+            )
         for analysis in self.analyses:
             track = analysis.track
             details = []
