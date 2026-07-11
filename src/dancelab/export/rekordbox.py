@@ -41,11 +41,17 @@ _CUE_COLOURS = [(40, 226, 20), (48, 90, 255), (255, 140, 0), (195, 47, 255),
 
 
 def _location_uri(source_path: str | None) -> str:
-    """Absolute file path → Rekordbox file URI (file://localhost/… percent-encoded)."""
+    """Absolute file path → Rekordbox file URI (file://localhost/…).
+
+    Encoding must mirror what Rekordbox itself writes, or its importer fails
+    to match the file and silently drops our hot cues (verified against a
+    real device library full of "(Original Mix)" / "O'Flynn" names — RB
+    leaves ()'!&+,;=@$~[] literal and percent-encodes spaces as %20).
+    XML-level escaping (& → &amp;) is handled by the XML writer, not here."""
     if not source_path:
         return ""
     p = Path(source_path).resolve()
-    return "file://localhost" + quote(str(p))
+    return "file://localhost" + quote(str(p), safe="/()'!&+,;=@$~[]")
 
 
 def _kind(source_path: str | None) -> str:
