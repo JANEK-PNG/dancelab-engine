@@ -270,11 +270,57 @@ class SimpleModeWindow(QMainWindow):
         layout.addLayout(buttons)
 
         self.import_list = QListWidget()
+        self.import_list.setSelectionMode(QListWidget.ExtendedSelection)
         layout.addWidget(self.import_list, stretch=1)
+
+        manage_row = QHBoxLayout()
+        remove_selected_button = QPushButton("Remove Selected")
+        remove_selected_button.setToolTip(
+            "Remove the highlighted track(s) from this import. Files on disk are untouched."
+        )
+        remove_selected_button.clicked.connect(self.remove_selected_imports)
+        manage_row.addWidget(remove_selected_button)
+        clear_button = QPushButton("Clear Import")
+        clear_button.setToolTip(
+            "Empty the import list and start over. Files on disk are untouched."
+        )
+        clear_button.clicked.connect(self.clear_import)
+        manage_row.addWidget(clear_button)
+        manage_row.addStretch(1)
+        layout.addLayout(manage_row)
+
         self.import_summary = QLabel("No tracks yet.")
         self.import_summary.setProperty("role", "hint")
         layout.addWidget(self.import_summary)
         return page
+
+    def clear_import(self) -> None:
+        if self._analysis_thread is not None and self._analysis_thread.isRunning():
+            self.import_summary.setText("Stop processing first.")
+            return
+        self.set_import_files([])
+        self.import_summary.setText("Import cleared. No tracks yet.")
+
+    def remove_selected_imports(self) -> None:
+        if self._analysis_thread is not None and self._analysis_thread.isRunning():
+            return
+        selected_rows = sorted(
+            (self.import_list.row(item) for item in self.import_list.selectedItems()),
+            reverse=True,
+        )
+        if not selected_rows:
+            self.import_summary.setText("Select track(s) in the list first.")
+            return
+        remaining = [
+            path for row, path in enumerate(self.files) if row not in set(selected_rows)
+        ]
+        removed = len(self.files) - len(remaining)
+        self.set_import_files(remaining)
+        self.import_summary.setText(
+            f"Removed {removed} track(s) · {len(remaining)} remaining."
+            if remaining
+            else "All tracks removed. Import a folder or files to continue."
+        )
 
     def _build_analyze_page(self) -> QWidget:
         page = QWidget()

@@ -262,3 +262,36 @@ def test_stop_processing_saves_progress_and_new_selection_works(tmp_path):
     assert {a.track.title for a in window.analyses} == {"Zeta", "Eta"}
 
     window.close()
+
+
+@pytest.mark.skipif(
+    not _qt_bootstrap_available(),
+    reason="Qt platform bootstrap unavailable in this shell",
+)
+def test_import_clear_and_remove_selected(tmp_path):
+    QApplication.instance() or QApplication([])
+    window = SimpleModeWindow()
+    files = []
+    for name in ("Alpha", "Beta", "Gamma"):
+        p = tmp_path / f"{name}.mp3"
+        p.write_bytes(b"stub")
+        files.append(p)
+    window.set_import_files(files)
+    window.go_to_step(1)
+    assert window.next_button.isEnabled()
+
+    # remove one selected track — files on disk untouched
+    window.import_list.setCurrentRow(1)  # Beta
+    window.remove_selected_imports()
+    assert [p.name for p in window.files] == ["Alpha.mp3", "Gamma.mp3"]
+    assert "Removed 1" in window.import_summary.text()
+    assert files[1].exists()
+
+    # clear whole import → step gating locks again
+    window.clear_import()
+    assert window.files == []
+    assert window.import_list.count() == 0
+    assert not window.next_button.isEnabled()
+    assert all(p.exists() for p in files)
+
+    window.close()
