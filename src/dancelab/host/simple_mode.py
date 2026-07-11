@@ -579,9 +579,12 @@ class SimpleModeWindow(QMainWindow):
             # duration unknown pre-analysis: honest 5-min assumption, labeled "~"
             stem_track_durations_sec=[300.0] * len(self.files) if stems else None,
         )
+        from dancelab.core.backend import backend_report
+
         parts = [f"Estimated cache: ~{format_bytes(estimate.total_bytes)}"]
         parts.append(f"Free disk: {format_bytes(manager.free_disk_bytes())}")
         parts.append(f"Cache: {manager.root}")
+        parts.append(backend_report()["label"])  # honest: actual device (§18)
         return " · ".join(parts)
 
     def run_analysis(self, *, wait: bool = False) -> None:

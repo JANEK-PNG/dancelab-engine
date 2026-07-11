@@ -9,6 +9,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from dancelab.core.audio_types import AudioSignal
+from dancelab.core.backend import preferred_torch_device
 from dancelab.core.config import EngineConfig
 from dancelab.core.models import (
     ArtifactFlag,
@@ -130,13 +131,13 @@ def _extract_demucs_channels(signal: AudioSignal) -> tuple[dict[StemType, AudioS
 
     wav = torch.tensor(stereo[None], dtype=torch.float32)
     with torch.no_grad():
-        raw = apply_model(model, wav, device="cpu")[0]
+        raw = apply_model(model, wav, device=preferred_torch_device())[0]
 
     channels: dict[StemType, AudioSignal] = {}
     for stem_type in StemType:
         if stem_type.value not in model.sources:
             continue
-        stem = raw[model.sources.index(stem_type.value)].numpy().mean(axis=0)
+        stem = raw[model.sources.index(stem_type.value)].cpu().numpy().mean(axis=0)
         if signal.sample_rate != model.samplerate:
             import librosa
 
