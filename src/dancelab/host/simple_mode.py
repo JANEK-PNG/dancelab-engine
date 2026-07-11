@@ -538,15 +538,48 @@ class SimpleModeWindow(QMainWindow):
             f"{len(self.files)} track(s) ready to analyze." if self.files else "No tracks yet."
         )
         self.analyze_progress.setValue(0)
-        self.analyze_status.setText("Not started.")
+        if self.files:
+            depth = str(self.analysis_depth_combo.currentData() or "normal")
+            self.analyze_status.setText(f"Not started. {self._analysis_estimate_text(depth)}")
+        else:
+            self.analyze_status.setText("Not started.")
         self.analyze_list.clear()
         self._sync_navigation()
+
+    def cache_manager(self):
+        from dancelab.storage.cache_manager import cache_manager_for
+
+        return cache_manager_for(self.config)
+
+    def _analysis_estimate_text(self, depth: str) -> str:
+        from dancelab.storage.cache_manager import CacheManager, format_bytes
+
+        manager = self.cache_manager()
+        stems = depth == "deep"
+        estimate = CacheManager.estimate(
+            new_track_count=len(self.files),
+            # duration unknown pre-analysis: honest 5-min assumption, labeled "~"
+            stem_track_durations_sec=[300.0] * len(self.files) if stems else None,
+        )
+        parts = [f"Estimated cache: ~{format_bytes(estimate.total_bytes)}"]
+        parts.append(f"Free disk: {format_bytes(manager.free_disk_bytes())}")
+        parts.append(f"Cache: {manager.root}")
+        return " · ".join(parts)
 
     def run_analysis(self, *, wait: bool = False) -> None:
         if not self.files:
             self.analyze_status.setText("Import tracks first.")
             return
         if self._analysis_thread is not None and self._analysis_thread.isRunning():
+            return
+        depth_choice = str(self.analysis_depth_combo.currentData() or "normal")
+        manager = self.cache_manager()
+        if depth_choice == "deep" and manager.low_disk():
+            # PRODUCT_SPEC §8: below the floor, heavy stem jobs are blocked
+            self.analyze_status.setText(
+                "Low disk space — Deep analysis blocked. Free space or clear cache "
+                f"({manager.root})."
+            )
             return
         self.analyze_button.setEnabled(False)
         self.analyze_progress.setMaximum(len(self.files))

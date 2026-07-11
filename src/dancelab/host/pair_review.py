@@ -452,8 +452,11 @@ class Deck(QWidget):
             self.stem_status.setText("source file missing — cannot isolate stems")
             return
         self.stem_status.setText("separating stems… (first run is slow)")
+        from dancelab.storage.cache_manager import cache_manager_for
+
+        # PRODUCT_SPEC §8: stems live in the visible cache root, not the repo
         out_root = str(
-            Path(self.config.paths.processed_dir).expanduser() / "stem_preview"
+            cache_manager_for(self.config).class_dir("stems")
         )
         thread = QThread(self)
         worker = _StemWorker(source, self.analysis.track.track_id, self.config, out_root)
