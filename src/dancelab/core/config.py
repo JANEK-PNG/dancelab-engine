@@ -51,8 +51,18 @@ class PathsConfig(BaseModel):
     examples_dir: str = "data/examples"
 
 
+class CacheConfig(BaseModel):
+    """PRODUCT_SPEC §8 — visible, bounded, relocatable cache."""
+
+    root: str = ""  # "" → platform default (~/Library/Application Support/DanceLab/cache)
+    max_bytes: int = 10 * 1024**3
+    low_disk_floor_bytes: int = 2 * 1024**3
+    keep_stem_cache: bool = True
+
+
 class EngineConfig(BaseModel):
     engine: EngineSection = Field(default_factory=EngineSection)
+    cache: CacheConfig = Field(default_factory=CacheConfig)
     audio: AudioConfig = Field(default_factory=AudioConfig)
     stems: StemConfig = Field(default_factory=StemConfig)
     bands: dict[str, list[float]] = Field(default_factory=lambda: {"bass": [20.0, 150.0]})
