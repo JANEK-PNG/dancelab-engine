@@ -91,6 +91,7 @@ class _AnalysisThread(QThread):
 
     progress = Signal(int, int, str)
     stage = Signal(str, str)  # (path, real pipeline stage — never simulated)
+    track_done = Signal(str, str)  # (path, "cached" | "done" | "failed")
     completed = Signal(object)  # (analyses, failures) | error string
 
     def __init__(self, files: list[Path], config: EngineConfig, analyze_fn, *, tier: str = "quick", workers: int = 1):
@@ -121,6 +122,7 @@ class _AnalysisThread(QThread):
                 workers=self._workers,
                 progress=lambda done, total, path: self.progress.emit(done, total, path),
                 stage_progress=lambda path, stage: self.stage.emit(path, stage),
+                track_done=lambda path, status: self.track_done.emit(path, status),
                 should_stop=lambda: self._stop_requested,
             )
         except Exception as exc:  # surfaced on the UI thread, never swallowed
@@ -684,6 +686,7 @@ class SimpleModeWindow(QMainWindow):
         )
         thread.progress.connect(self._on_analysis_progress)
         thread.stage.connect(self._on_analysis_stage)
+        thread.track_done.connect(self._on_track_done)
         thread.completed.connect(self._on_analysis_finished)
         self._analysis_thread = thread
         self.stop_button.setVisible(True)
@@ -731,6 +734,16 @@ class SimpleModeWindow(QMainWindow):
         self.analyze_progress.setValue(done)
         self.analyze_status.setText(f"Analyzing {done}/{total} · {Path(path).name}")
         self._set_analyze_row(path, f"▶  {Path(path).name} · starting…")
+
+    def _on_track_done(self, path: str, status: str) -> None:
+        # per-track ✓ the moment it happens — no waiting for the whole batch
+        name = Path(path).name
+        if status == "cached":
+            self._set_analyze_row(path, f"✓  {name} · from cache")
+        elif status == "done":
+            self._set_analyze_row(path, f"✓  {name} · analyzed")
+        else:
+            self._set_analyze_row(path, f"✗  {name}")
 
     def _on_analysis_stage(self, path: str, stage: str) -> None:
         # stage names come straight from the engine pipeline hook
