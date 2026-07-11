@@ -239,3 +239,24 @@ terms:
     missing_data_policy: no penalty applied when risk components are unavailable
     validation_required: DJ review of flagged high-risk transitions
     cannot_claim: a low penalty proves the transition is safe without validation
+
+  # --- Novelty penalties (§14 — soft, inside gate-passing candidates only) ---
+  repeat_edge_penalty:
+    formula_symbol: P_edge
+    name: repeated transition penalty
+    scientific_status: hypothesis
+    source_basis: ["playlist history fingerprints (edge hashes)"]
+    normalization_method: fixed subtraction per novelty mode (0.03-0.15)
+    missing_data_policy: no history -> no penalty
+    validation_required: DJ preference study on set-to-set variation
+    cannot_claim: avoiding a repeated edge improves the set musically
+
+  overuse_penalty:
+    formula_symbol: P_overuse
+    name: track overuse penalty
+    scientific_status: hypothesis
+    source_basis: ["track appearance counts across recent playlists"]
+    normalization_method: fixed subtraction when appearances exceed carryover allowance
+    missing_data_policy: no history -> no penalty; pinned/Must Have tracks exempt
+    validation_required: DJ carryover-habit study
+    cannot_claim: track rotation preferences generalize across DJs
