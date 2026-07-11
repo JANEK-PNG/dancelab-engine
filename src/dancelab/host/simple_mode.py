@@ -74,6 +74,14 @@ _PLANNER_CHOICES = [
     ("bpm", "BPM Match — prefer similar tempo and smoother beatmatching"),
 ]
 
+_NOVELTY_CHOICES = [
+    ("balanced", "Balanced — vary sets, keep up to 3 carryover tracks"),
+    ("conservative", "Conservative — small variation, up to 5 carryovers"),
+    ("fresh", "Fresh — strong variation, 1 carryover"),
+    ("exploratory", "Exploratory — max variation, no carryovers"),
+    ("deterministic", "Deterministic — same input, identical set every time"),
+]
+
 _ANALYSIS_DEPTH_CHOICES = [
     (
         "normal",
@@ -421,6 +429,25 @@ class SimpleModeWindow(QMainWindow):
         controls.addWidget(self.planner_mode_combo)
         controls.addStretch(1)
         layout.addLayout(controls)
+
+        novelty_row = QHBoxLayout()
+        novelty_row.addWidget(QLabel("Variation:"))
+        self.novelty_combo = QComboBox()
+        for mode_value, mode_label in _NOVELTY_CHOICES:
+            self.novelty_combo.addItem(mode_label, mode_value)
+        self.novelty_combo.setToolTip(
+            "How much regenerating varies the set. Variation only breaks ties "
+            "between similarly-strong options — BPM/key/risk rules always win."
+        )
+        novelty_row.addWidget(self.novelty_combo)
+        novelty_row.addWidget(QLabel("Seed:"))
+        self.seed_spin = QSpinBox()
+        self.seed_spin.setRange(0, 999999)
+        self.seed_spin.setValue(0)
+        self.seed_spin.setToolTip("0 = new variation each Generate; set a number to reproduce a set.")
+        novelty_row.addWidget(self.seed_spin)
+        novelty_row.addStretch(1)
+        layout.addLayout(novelty_row)
 
         self.generate_button = QPushButton("▶ Generate Set")
         self.generate_button.setProperty("role", "hero")
@@ -940,12 +967,39 @@ class SimpleModeWindow(QMainWindow):
         arc = str(self.arc_combo.currentData())
         planner_mode = str(self.planner_mode_combo.currentData() or "smart")
         weights = load_weights(self.config.weights_file)
+
+        # §14: history-aware variation. Seed 0 = fresh variation per click
+        # (session counter, recorded in the fingerprint — never untracked).
+        from dancelab.decision.history import HistoryStore, context_hash, fingerprint_plan
+
+        novelty_mode = str(self.novelty_combo.currentData() or "balanced")
+        seed_value = int(self.seed_spin.value())
+        if seed_value == 0 and novelty_mode != "deterministic":
+            self._auto_seed = getattr(self, "_auto_seed", 0) + 1
+            seed_value = self._auto_seed
+        ctx_hash = context_hash(
+            arc=arc, planner=planner_mode, count=target_count, mode=novelty_mode
+        )
+        store = HistoryStore(self.cache_manager().root / "history" / "playlists.jsonl")
+        recent = store.recent(ctx_hash, limit=10)
+
         self.plan = build_set(
             self.analyses,
             weights,
             arc=arc,
             target_track_count=target_count,
             planner_mode=planner_mode,
+            novelty_mode=novelty_mode,
+            history=recent,
+            seed=seed_value if novelty_mode != "deterministic" else None,
+        )
+        store.append(
+            fingerprint_plan(
+                self.plan.track_order,
+                ctx_hash=ctx_hash,
+                seed=seed_value if novelty_mode != "deterministic" else None,
+                novelty_mode=novelty_mode,
+            )
         )
         by_id = {analysis.track.track_id: analysis for analysis in self.analyses}
         self.selected_analyses = [by_id[tid] for tid in self.plan.track_order if tid in by_id]

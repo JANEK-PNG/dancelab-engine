@@ -353,3 +353,43 @@ def test_deep_on_demand_upgrades_only_set_tracks(tmp_path):
     assert calls["n"] == quick_calls + 4
 
     window.close()
+
+
+@pytest.mark.skipif(
+    not _qt_bootstrap_available(),
+    reason="Qt platform bootstrap unavailable in this shell",
+)
+def test_generate_writes_history_and_respects_variation_mode(tmp_path):
+    QApplication.instance() or QApplication([])
+    window = SimpleModeWindow()
+    window.config.paths.processed_dir = str(tmp_path / "processed")
+    window.config.cache.root = str(tmp_path / "cache")
+    window.analyze_fn = _stub_analysis
+    files = []
+    for name in ("Alpha", "Beta", "Gamma", "Delta"):
+        p = tmp_path / f"{name}.mp3"
+        p.write_bytes(b"stub")
+        files.append(p)
+    window.set_import_files(files)
+    window.run_analysis(wait=True)
+    QApplication.processEvents()
+
+    window.go_to_step(3)
+    window.count_radio.setChecked(True)
+    window.count_spin.setValue(4)
+    window.novelty_combo.setCurrentIndex(window.novelty_combo.findData("balanced"))
+    window.generate_set()
+    history_file = Path(window.config.cache.root) / "history" / "playlists.jsonl"
+    assert history_file.exists()
+    assert len(history_file.read_text().splitlines()) == 1
+    window.generate_set()
+    assert len(history_file.read_text().splitlines()) == 2  # fingerprint per run
+
+    # deterministic mode: byte-stable regardless of history
+    window.novelty_combo.setCurrentIndex(window.novelty_combo.findData("deterministic"))
+    window.generate_set()
+    first = list(window.plan.track_order)
+    window.generate_set()
+    assert list(window.plan.track_order) == first
+
+    window.close()
