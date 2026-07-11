@@ -150,3 +150,47 @@ def test_deep_analysis_depth_enables_demucs_stem_layer():
     assert cfg.stems.export_stems is True
     assert cfg.analysis.vocal_method == "demucs"
     assert cfg.analysis.transition_top_n >= 8
+
+
+def test_analyze_files_cooperative_stop(tmp_path):
+    # §9: should_stop checked between tracks; completed tracks already saved
+    from dancelab.workflows.smart_playlist import analyze_files
+
+    music_dir = tmp_path / "music"
+    music_dir.mkdir()
+    files = []
+    for i in range(1, 6):
+        p = music_dir / f"Track_{i}.wav"
+        p.write_bytes(b"fake")
+        files.append(p)
+
+    from dancelab.ingestion.metadata import make_track_id
+
+    calls = {"n": 0}
+
+    def analyze_counting(path, config):
+        calls["n"] += 1
+        result = _analysis_from_path(path, config)
+        # cache key is make_track_id(path) — align so the re-run hits cache
+        result.track.track_id = make_track_id(str(path))
+        return result
+
+    analyses, failures = analyze_files(
+        files,
+        EngineConfig(),
+        processed_dir=tmp_path / "processed",
+        analyze_fn=analyze_counting,
+        should_stop=lambda: calls["n"] >= 2,  # stop after two tracks complete
+    )
+    assert len(analyses) == 2 and not failures
+    assert calls["n"] == 2
+
+    # re-run without stop: continues from cache, analyzes only the remaining 3
+    analyses2, _ = analyze_files(
+        files,
+        EngineConfig(),
+        processed_dir=tmp_path / "processed",
+        analyze_fn=analyze_counting,
+    )
+    assert len(analyses2) == 5
+    assert calls["n"] == 5  # 2 cached + 3 new — nothing processed twice

@@ -125,6 +125,7 @@ def analyze_files(
     analyze_fn: Callable[..., AnalysisResult] = analyze_track,
     progress: Callable[[int, int, str], None] | None = None,
     stage_progress: Callable[[str, str], None] | None = None,
+    should_stop: Callable[[], bool] | None = None,
 ) -> tuple[list[AnalysisResult], list[SmartPlaylistFailure]]:
     """Analyze (or load cached) analyses for a list of audio files.
 
@@ -133,6 +134,11 @@ def analyze_files(
     before each file; `stage_progress(path, stage)` relays the pipeline's real
     per-stage hook (key detection, beat tracking, ...) when the analyze
     function supports it — stages are reported by the engine, never simulated.
+
+    Cooperative cancellation (PRODUCT_SPEC §9): `should_stop()` is checked
+    between tracks. On stop, everything analyzed so far is already committed
+    to the repository per track, so nothing is lost — the remainder simply
+    stays pending and a re-run continues from cache.
     """
     processed_root = (
         Path(processed_dir).expanduser() if processed_dir else _default_processed_dir(config)
@@ -148,6 +154,8 @@ def analyze_files(
     failures: list[SmartPlaylistFailure] = []
     total = len(source_files)
     for index, source_path in enumerate(source_files):
+        if should_stop is not None and should_stop():
+            break  # stop between tracks; completed work already saved per track
         path = Path(source_path)
         if progress is not None:
             progress(index + 1, total, str(path))

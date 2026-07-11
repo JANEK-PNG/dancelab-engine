@@ -206,3 +206,59 @@ def test_simple_mode_opens_graph_mode(tmp_path):
 
     graph.close()
     window.close()
+
+
+@pytest.mark.skipif(
+    not _qt_bootstrap_available(),
+    reason="Qt platform bootstrap unavailable in this shell",
+)
+def test_stop_processing_saves_progress_and_new_selection_works(tmp_path):
+    # PRODUCT_SPEC §9 hard rule: after stopping a job, selecting new tracks
+    # must always work; processed tracks stay saved; re-run continues.
+    app = QApplication.instance() or QApplication([])
+    window = SimpleModeWindow()
+    window.config.paths.processed_dir = str(tmp_path / "processed")
+
+    def stopping_stub(path, _config):
+        result = _stub_analysis(path, _config)
+        thread = window._analysis_thread
+        if thread is not None and "Beta" in str(path):
+            thread.request_stop()  # stop mid-batch, after 2nd track completes
+        return result
+
+    window.analyze_fn = stopping_stub
+    files = []
+    for name in ("Alpha", "Beta", "Gamma", "Delta", "Epsilon"):
+        p = tmp_path / f"{name}.mp3"
+        p.write_bytes(b"stub")
+        files.append(p)
+    window.set_import_files(files)
+    window.go_to_step(2)
+    window.run_analysis(wait=True)
+    app.processEvents()
+
+    assert len(window.analyses) == 2          # Alpha + Beta saved
+    assert "Stopped" in window.analyze_status.text()
+    assert "3 pending" in window.analyze_status.text()
+    assert not window.stop_button.isVisible()
+    assert window.analyze_button.isEnabled()
+
+    # re-run continues with the remaining tracks — nothing lost, nothing stuck
+    window.analyze_fn = _stub_analysis
+    window.run_analysis(wait=True)
+    app.processEvents()
+    assert len(window.analyses) == 5
+
+    # the reported bug: new selection after a stop must start a fresh job
+    new_files = []
+    for name in ("Zeta", "Eta"):
+        p = tmp_path / f"{name}.mp3"
+        p.write_bytes(b"stub")
+        new_files.append(p)
+    window.set_import_files(new_files)
+    window.run_analysis(wait=True)
+    app.processEvents()
+    assert len(window.analyses) == 2
+    assert {a.track.title for a in window.analyses} == {"Zeta", "Eta"}
+
+    window.close()
