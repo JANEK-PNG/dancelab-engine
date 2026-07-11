@@ -33,6 +33,7 @@ from dancelab.core.models import (
 from dancelab.core.provenance import provenance_for
 from dancelab.decision._common import tempo_proximity_score
 from dancelab.decision.harmonic import harmonic_compatibility, harmonic_relation, parse_camelot
+from dancelab.decision.history import NoveltyContext, PlaylistFingerprint
 from dancelab.decision.library_profile import bpm_in_range, normalize_style_list, style_matches
 from dancelab.decision.mixability import compute_mixability
 
@@ -376,8 +377,9 @@ def _best_successor(
     energy_range: float,
     planner_mode: str,
     context: ContextProfile | None,
+    novelty: "NoveltyContext | None" = None,
 ) -> str:
-    best_id, best_score = candidates[0], -1.0
+    scored: list[tuple[float, str]] = []
     for candidate in candidates:
         score, _, _ = transition_score(
             by_id[current],
@@ -390,9 +392,20 @@ def _best_successor(
             planner_mode,
             context,
         )
-        if score > best_score:
-            best_id, best_score = candidate, score
-    return best_id
+        if novelty is not None:
+            # §14: soft penalties inside the gate-passing candidate set —
+            # relevance ordering first, history discourages repeats
+            score -= novelty.penalty(current, candidate)
+        scored.append((score, candidate))
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    best_score = scored[0][0]
+    if novelty is not None and novelty.rng is not None and novelty.epsilon > 0:
+        # seeded tie-break ONLY among candidates within the honest score
+        # resolution — variation never sacrifices relevance
+        ties = [cand for score, cand in scored if best_score - score <= novelty.epsilon]
+        if len(ties) > 1:
+            return novelty.rng.choice(ties)
+    return scored[0][1]
 
 
 def _build_transition(
@@ -456,6 +469,7 @@ def _constrained_order(
     artist_tokens: dict[str, set[str]],
     planner_mode: str,
     context: ContextProfile | None,
+    novelty: "NoveltyContext | None" = None,
 ) -> list[str]:
     locked_slots = {position - 1: track_id for position, track_id in locked_positions.items()}
     locked_track_ids = set(locked_positions.values())
@@ -493,6 +507,7 @@ def _constrained_order(
                     energy_range=energy_range,
                     planner_mode=planner_mode,
                     context=context,
+                    novelty=novelty,
                 )
             remaining.remove(chosen)
 
@@ -515,12 +530,21 @@ def build_set(
     preferred_styles: Sequence[str] | None = None,
     bpm_min: float | None = None,
     bpm_max: float | None = None,
+    novelty_mode: str = "deterministic",
+    history: Sequence["PlaylistFingerprint"] | None = None,
+    seed: int | None = None,
 ) -> SetPlan:
     """Greedy harmonic/energy set ordering with optional lock/pin constraints.
 
     `locked_positions` uses 1-based final playlist slots. Pinned tracks must
     appear somewhere in the final plan; `target_track_count` lets the planner
     choose a constrained subset from a larger candidate pool.
+
+    §14 novelty: `novelty_mode` (deterministic/conservative/balanced/fresh/
+    exploratory) applies soft history penalties and a seeded ε tie-break.
+    Default "deterministic" = byte-stable, identical to pre-novelty behavior.
+    Pinned tracks are exempt from overuse penalties (§15.10 — intentional
+    carryover). Hard gates are never overridden by novelty pressure.
     """
     provenance = provenance_for("set_builder")
     planner_mode = _normalize_planner_mode(planner_mode)
@@ -608,20 +632,52 @@ def build_set(
     e_range = max(energy.values()) - min(energy.values()) or 1.0
     artist_tokens = {tid: _artist_tokens(analysis) for tid, analysis in by_id.items()}
 
-    order = _constrained_order(
-        by_id,
-        weights=weights,
-        arc=arc,
-        start_track_id=start_track_id,
-        target_count=target_count,
-        locked_positions=locked,
-        pinned_track_ids=pinned,
-        energy=energy,
-        energy_range=e_range,
-        artist_tokens=artist_tokens,
-        planner_mode=planner_mode,
-        context=context,
+    novelty = NoveltyContext.build(
+        mode=novelty_mode,
+        history=list(history or []),
+        seed=seed,
+        exempt_ids=set(pinned),
     )
+
+    def _run_order(active_novelty: NoveltyContext) -> list[str]:
+        return _constrained_order(
+            by_id,
+            weights=weights,
+            arc=arc,
+            start_track_id=start_track_id,
+            target_count=target_count,
+            locked_positions=locked,
+            pinned_track_ids=pinned,
+            energy=energy,
+            energy_range=e_range,
+            artist_tokens=artist_tokens,
+            planner_mode=planner_mode,
+            context=context,
+            novelty=active_novelty,
+        )
+
+    order = _run_order(novelty)
+    novelty_warnings: list[str] = []
+    if novelty_mode != "deterministic" and history:
+        last = history[-1]
+        if list(order) == list(last.track_ids_ordered):
+            # §14 same-sequence guard: one retry with next seed + doubled edge
+            # penalty; if STILL identical the library is too small to vary —
+            # keep the honest result, never fake-shuffle.
+            retry = NoveltyContext.build(
+                mode=novelty_mode,
+                history=list(history),
+                seed=(seed or 0) + 1,
+                exempt_ids=set(pinned),
+            )
+            retry.edge_penalty *= 2
+            retry_order = _run_order(retry)
+            if list(retry_order) == list(order):
+                novelty_warnings.append(
+                    "library too small to vary — identical set returned"
+                )
+            else:
+                order = retry_order
     transitions = [
         _build_transition(
             current,
@@ -641,6 +697,7 @@ def build_set(
         *preference_warnings,
         *constraint_warnings,
         *_artist_diversity_warnings(order, artist_tokens),
+        *novelty_warnings,
     ]
     if len(order) < 2:
         warnings.append("need >=2 tracks to build a set")

@@ -268,3 +268,72 @@ def test_build_set_deterministic_on_ties(weights, monkeypatch):
     # tie-break is lexicographic by id after the opener
     order = orders.pop()
     assert list(order[1:]) == sorted(order[1:])
+
+
+# ---------------------------------------------------------- §14 novelty
+
+
+def _tie_library(n=8):
+    # identical musical profile → every transition ties → ε tie-breaks decide
+    return [track(f"t{i}", "8A", 126.0, 0.30) for i in range(n)]
+
+
+def test_deterministic_mode_is_byte_stable(weights):
+    lib = _tie_library()
+    a = build_set(lib, weights)  # default novelty_mode="deterministic"
+    b = build_set(lib, weights)
+    assert a.track_order == b.track_order
+
+
+def test_seeded_variation_reproducible_and_varies(weights):
+    lib = _tie_library()
+    one = build_set(lib, weights, novelty_mode="balanced", seed=1)
+    one_again = build_set(lib, weights, novelty_mode="balanced", seed=1)
+    two = build_set(lib, weights, novelty_mode="balanced", seed=2)
+    assert one.track_order == one_again.track_order  # same seed → reproducible
+    assert one.track_order != two.track_order        # different seed → varies
+    # relevance intact: all-tie library, so any order has the same mean score
+    assert one.mean_transition_score == two.mean_transition_score
+
+
+def test_history_penalty_avoids_repeating_previous_sequence(weights):
+    from dancelab.decision.history import fingerprint_plan
+
+    lib = _tie_library()
+    first = build_set(lib, weights, novelty_mode="balanced", seed=7)
+    fp = fingerprint_plan(
+        first.track_order, ctx_hash="ctx", seed=7, novelty_mode="balanced"
+    )
+    second = build_set(
+        lib, weights, novelty_mode="balanced", seed=7, history=[fp]
+    )
+    # same seed, but history edge penalties push away from the previous run
+    assert second.track_order != first.track_order
+
+
+def test_tiny_library_returns_honest_identical_warning(weights):
+    from dancelab.decision.history import fingerprint_plan
+
+    lib = _tie_library(2)  # 2 tracks → only one possible order per opener
+    first = build_set(lib, weights, novelty_mode="fresh", seed=1,
+                      start_track_id="t0")
+    fp = fingerprint_plan(first.track_order, ctx_hash="c", seed=1, novelty_mode="fresh")
+    second = build_set(lib, weights, novelty_mode="fresh", seed=1,
+                       start_track_id="t0", history=[fp])
+    assert second.track_order == first.track_order
+    assert any("library too small to vary" in w for w in second.warnings)
+
+
+def test_pinned_tracks_exempt_from_overuse_penalty():
+    from dancelab.decision.history import NoveltyContext, fingerprint_plan
+
+    history = [
+        fingerprint_plan([f"x{j}", "pinme"], ctx_hash="c", seed=None, novelty_mode="fresh")
+        for j in range(6)  # "pinme" appeared 6× — over any allowance
+    ]
+    ctx = NoveltyContext.build(
+        mode="fresh", history=history, seed=None, exempt_ids={"pinme"}
+    )
+    assert ctx.penalty("prev", "pinme") == 0.0          # §15.10 exemption
+    ctx_no_pin = NoveltyContext.build(mode="fresh", history=history, seed=None)
+    assert ctx_no_pin.penalty("prev", "pinme") > 0.0    # penalized without pin
