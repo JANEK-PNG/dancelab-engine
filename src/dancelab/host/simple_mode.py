@@ -152,6 +152,11 @@ class SimpleModeWindow(QMainWindow):
         self.export_path: Path | None = None
         self.graph_window = None
         self._analysis_thread: QThread | None = None
+        # DJ control (§15-17): pin ≡ Must Have (cap 10, engine-exempt from
+        # overuse), lock = exact slot, Not Tonight = excluded this session.
+        self.must_have_ids: set[str] = set()
+        self.not_tonight_ids: set[str] = set()
+        self.locked_positions: dict[int, str] = {}
 
         self.setWindowTitle("DanceLab Pro")
         self.resize(1080, 720)
@@ -456,6 +461,25 @@ class SimpleModeWindow(QMainWindow):
 
         self.set_list = QListWidget()
         layout.addWidget(self.set_list, stretch=1)
+
+        dj_row = QHBoxLayout()
+        pin_button = QPushButton("📌 Pin")
+        pin_button.setToolTip("Must Have — always in the set; engine picks the slot. Max 10.")
+        pin_button.clicked.connect(self._on_pin_clicked)
+        dj_row.addWidget(pin_button)
+        lock_button = QPushButton("🔒 Lock")
+        lock_button.setToolTip("Keep this track exactly here through regenerates.")
+        lock_button.clicked.connect(self._on_lock_clicked)
+        dj_row.addWidget(lock_button)
+        rest_button = QPushButton("🌙 Rest")
+        rest_button.setToolTip("Not Tonight — keep out of this set. Never deletes the file.")
+        rest_button.clicked.connect(self._on_rest_clicked)
+        dj_row.addWidget(rest_button)
+        self.dj_control_status = QLabel("")
+        self.dj_control_status.setProperty("role", "hint")
+        dj_row.addWidget(self.dj_control_status, stretch=1)
+        layout.addLayout(dj_row)
+
         self.generate_status = QLabel("")
         self.generate_status.setProperty("role", "hint")
         layout.addWidget(self.generate_status)
@@ -476,6 +500,131 @@ class SimpleModeWindow(QMainWindow):
         deep_row.addWidget(self.deep_status, stretch=1)
         layout.addLayout(deep_row)
         return page
+
+    # ---------------------------------------------------- DJ control (§15-17)
+
+    MUST_HAVE_LIMIT = 10
+
+    def _selected_set_track_id(self) -> str | None:
+        item = self.set_list.currentItem()
+        return item.data(Qt.UserRole) if item is not None else None
+
+    def toggle_must_have(self, track_id: str) -> str:
+        """Returns: "added" | "limit" | "confirm_remove" | "conflict"."""
+        if track_id in self.must_have_ids:
+            return "confirm_remove"
+        if len(self.must_have_ids) >= self.MUST_HAVE_LIMIT:
+            return "limit"
+        if track_id in self.not_tonight_ids:
+            return "conflict"
+        self.must_have_ids.add(track_id)
+        return "added"
+
+    def remove_must_have(self, track_id: str) -> None:
+        self.must_have_ids.discard(track_id)
+
+    def toggle_not_tonight(self, track_id: str) -> str:
+        """Returns: "rested" | "restored" | "conflict"."""
+        if track_id in self.not_tonight_ids:
+            self.not_tonight_ids.discard(track_id)
+            return "restored"
+        if track_id in self.must_have_ids:
+            return "conflict"
+        self.not_tonight_ids.add(track_id)
+        return "rested"
+
+    def resolve_conflict(self, track_id: str, choice: str) -> None:
+        """choice: "keep" (Must Have wins) | "skip" (rest tonight) | "clear"."""
+        if choice == "keep":
+            self.not_tonight_ids.discard(track_id)
+            self.must_have_ids.add(track_id)
+        elif choice == "skip":
+            self.must_have_ids.discard(track_id)
+            self.not_tonight_ids.add(track_id)
+        else:
+            self.must_have_ids.discard(track_id)
+            self.not_tonight_ids.discard(track_id)
+
+    def toggle_lock_here(self, track_id: str) -> None:
+        """Lock the track to its current slot in the plan (or unlock)."""
+        current = {pos for pos, tid in self.locked_positions.items() if tid == track_id}
+        if current:
+            for pos in current:
+                del self.locked_positions[pos]
+            return
+        if self.plan and track_id in self.plan.track_order:
+            slot = self.plan.track_order.index(track_id) + 1
+            self.locked_positions = {
+                pos: tid for pos, tid in self.locked_positions.items() if tid != track_id
+            }
+            self.locked_positions[slot] = track_id
+
+    def _on_pin_clicked(self) -> None:
+        from PySide6.QtWidgets import QMessageBox
+
+        track_id = self._selected_set_track_id()
+        if track_id is None:
+            return
+        outcome = self.toggle_must_have(track_id)
+        if outcome == "limit":
+            QMessageBox.information(
+                self, "Must Have limit",
+                "You have to make a sacrifice.\nYou can only have "
+                f"{self.MUST_HAVE_LIMIT} Must Have tracks. Choose wisely.",
+            )
+        elif outcome == "confirm_remove":
+            box = QMessageBox(self)
+            box.setWindowTitle("Don't you love me?")
+            box.setText("Remove the Must Have flag? The file stays in your library.")
+            keep = box.addButton("Keep", QMessageBox.RejectRole)
+            remove = box.addButton("Remove", QMessageBox.AcceptRole)
+            box.setDefaultButton(keep)
+            box.exec()
+            if box.clickedButton() is remove:
+                self.remove_must_have(track_id)
+        elif outcome == "conflict":
+            self._conflict_dialog(track_id)
+        self._refresh_dj_control_ui()
+
+    def _on_rest_clicked(self) -> None:
+        track_id = self._selected_set_track_id()
+        if track_id is None:
+            return
+        if self.toggle_not_tonight(track_id) == "conflict":
+            self._conflict_dialog(track_id)
+        self._refresh_dj_control_ui()
+
+    def _on_lock_clicked(self) -> None:
+        track_id = self._selected_set_track_id()
+        if track_id is not None:
+            self.toggle_lock_here(track_id)
+        self._refresh_dj_control_ui()
+
+    def _conflict_dialog(self, track_id: str) -> None:
+        from PySide6.QtWidgets import QMessageBox
+
+        box = QMessageBox(self)
+        box.setWindowTitle("Two intentions")
+        box.setText("This track is both Must Have and Not Tonight.\nWhich should DanceLab follow?")
+        keep = box.addButton("Keep", QMessageBox.AcceptRole)
+        skip = box.addButton("Skip tonight", QMessageBox.DestructiveRole)
+        box.addButton("Clear both", QMessageBox.RejectRole)
+        box.setDefaultButton(keep)
+        box.exec()
+        clicked = box.clickedButton()
+        if clicked is keep:
+            self.resolve_conflict(track_id, "keep")
+        elif clicked is skip:
+            self.resolve_conflict(track_id, "skip")
+        else:
+            self.resolve_conflict(track_id, "clear")
+
+    def _refresh_dj_control_ui(self) -> None:
+        self.dj_control_status.setText(
+            f"Must Have {len(self.must_have_ids)}/{self.MUST_HAVE_LIMIT} · "
+            f"locked {len(self.locked_positions)} · "
+            f"Not Tonight {len(self.not_tonight_ids)} — Regenerate to apply."
+        )
 
     # ------------------------------------------------- deep-on-demand upgrade
 
@@ -983,16 +1132,37 @@ class SimpleModeWindow(QMainWindow):
         store = HistoryStore(self.cache_manager().root / "history" / "playlists.jsonl")
         recent = store.recent(ctx_hash, limit=10)
 
-        self.plan = build_set(
-            self.analyses,
-            weights,
-            arc=arc,
-            target_track_count=target_count,
-            planner_mode=planner_mode,
-            novelty_mode=novelty_mode,
-            history=recent,
-            seed=seed_value if novelty_mode != "deterministic" else None,
-        )
+        # §17: Not Tonight excluded from the candidate pool (Must Have wins a
+        # conflict only through the explicit dialog — never silently)
+        candidates = [
+            analysis
+            for analysis in self.analyses
+            if analysis.track.track_id not in self.not_tonight_ids
+        ]
+        pinned = [tid for tid in self.must_have_ids if tid not in self.not_tonight_ids]
+        target_count = min(target_count, len(candidates))
+        if target_count < 2:
+            self.generate_status.setText(
+                "Not enough tracks left after Not Tonight exclusions."
+            )
+            return
+        try:
+            self.plan = build_set(
+                candidates,
+                weights,
+                arc=arc,
+                target_track_count=target_count,
+                locked_positions=self.locked_positions or None,
+                pinned_track_ids=pinned or None,
+                planner_mode=planner_mode,
+                novelty_mode=novelty_mode,
+                history=recent,
+                seed=seed_value if novelty_mode != "deterministic" else None,
+            )
+        except ValueError as exc:
+            # §15 hard rule: impossible pins/locks fail loudly, never silently
+            self.generate_status.setText(f"Constraint problem: {exc}")
+            return
         store.append(
             fingerprint_plan(
                 self.plan.track_order,
@@ -1013,8 +1183,15 @@ class SimpleModeWindow(QMainWindow):
                 details.append(f"{track.bpm_estimate:.0f} BPM")
             if track.key_estimate:
                 details.append(track.key_estimate)
+            badges = []
+            if self.locked_positions.get(position) == track_id:
+                badges.append("🔒")
+            elif track_id in self.must_have_ids:
+                badges.append("📌")
+            prefix = f"{''.join(badges)} " if badges else ""
             suffix = f"  ·  {' · '.join(details)}" if details else ""
-            QListWidgetItem(f"{position:>2}. {label}{suffix}", self.set_list)
+            item = QListWidgetItem(f"{prefix}{position:>2}. {label}{suffix}", self.set_list)
+            item.setData(Qt.UserRole, track_id)
         mean = self.plan.mean_transition_score
         known_durations = [
             analysis.track.duration_sec

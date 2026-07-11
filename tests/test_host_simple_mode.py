@@ -393,3 +393,64 @@ def test_generate_writes_history_and_respects_variation_mode(tmp_path):
     assert list(window.plan.track_order) == first
 
     window.close()
+
+
+@pytest.mark.skipif(
+    not _qt_bootstrap_available(),
+    reason="Qt platform bootstrap unavailable in this shell",
+)
+def test_dj_control_pin_lock_rest(tmp_path):
+    QApplication.instance() or QApplication([])
+    window = SimpleModeWindow()
+    window.config.paths.processed_dir = str(tmp_path / "processed")
+    window.config.cache.root = str(tmp_path / "cache")
+    window.analyze_fn = _stub_analysis
+    files = []
+    for name in ("Alpha", "Beta", "Gamma", "Delta", "Epsilon"):
+        p = tmp_path / f"{name}.mp3"
+        p.write_bytes(b"stub")
+        files.append(p)
+    window.set_import_files(files)
+    window.run_analysis(wait=True)
+    QApplication.processEvents()
+    window.go_to_step(3)
+    window.count_radio.setChecked(True)
+    window.count_spin.setValue(3)
+
+    ids = [a.track.track_id for a in window.analyses]
+
+    # Must Have: pinned into every regenerate, cap enforced
+    assert window.toggle_must_have(ids[4]) == "added"      # Epsilon must appear
+    window.generate_set()
+    assert ids[4] in window.plan.track_order
+    assert ids[4] in window.plan.pinned_track_ids
+    for j in range(9):
+        window.must_have_ids.add(f"fake_{j}")
+    assert window.toggle_must_have(ids[0]) == "limit"      # 11th → sacrifice
+    window.must_have_ids = {ids[4]}
+
+    # Not Tonight: excluded from the pool; restore works
+    assert window.toggle_not_tonight(ids[1]) == "rested"
+    window.generate_set()
+    assert ids[1] not in window.plan.track_order
+    assert window.toggle_not_tonight(ids[1]) == "restored"
+
+    # conflict requires explicit resolution — no silent precedence
+    assert window.toggle_not_tonight(ids[4]) == "conflict"
+    window.resolve_conflict(ids[4], "skip")
+    assert ids[4] in window.not_tonight_ids
+    assert ids[4] not in window.must_have_ids
+    window.resolve_conflict(ids[4], "clear")
+
+    # Lock: track stays at its slot through a regenerate with a new seed
+    window.generate_set()
+    target = window.plan.track_order[1]
+    window.set_list.setCurrentRow(1)
+    window._on_lock_clicked()
+    assert window.locked_positions == {2: target}
+    window.seed_spin.setValue(0)
+    window.generate_set()
+    assert window.plan.track_order[1] == target
+    assert "🔒" in window.set_list.item(1).text()
+
+    window.close()
