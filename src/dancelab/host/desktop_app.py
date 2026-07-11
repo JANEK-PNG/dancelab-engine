@@ -30,6 +30,37 @@ from dancelab.host.project import (
 )
 from dancelab.workflows.smart_playlist import MIN_PLAYLIST_TRACKS, discover_audio_files
 
+
+def _prepare_qt_runtime() -> None:
+    """ENV-1 hardening: macOS provenance keeps re-hiding PySide6 dylibs, which
+    breaks Qt's plugin scan ("Could not find the Qt platform plugin 'cocoa'").
+    Unhide them and point Qt at the plugin dir explicitly — idempotent, cheap,
+    and a no-op on healthy installs."""
+    import os
+    import subprocess
+    import sys
+
+    try:
+        import PySide6
+    except ModuleNotFoundError:
+        return
+    qt_root = Path(PySide6.__file__).parent / "Qt"
+    plugins = qt_root / "plugins"
+    if plugins.is_dir():
+        os.environ.setdefault("QT_QPA_PLATFORM_PLUGIN_PATH", str(plugins / "platforms"))
+        os.environ.setdefault("QT_PLUGIN_PATH", str(plugins))
+    if sys.platform == "darwin":
+        try:
+            subprocess.run(
+                ["chflags", "-R", "nohidden", str(Path(PySide6.__file__).parent)],
+                capture_output=True, timeout=15, check=False,
+            )
+        except Exception:
+            pass  # cosmetic hardening only — never block launch
+
+
+_prepare_qt_runtime()
+
 try:  # optional desktop dependency
     from PySide6.QtCore import (
         QEvent,
