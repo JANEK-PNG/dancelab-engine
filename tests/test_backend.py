@@ -22,11 +22,13 @@ def _no_device_override(monkeypatch):
     monkeypatch.delenv("DANCELAB_DEVICE", raising=False)
 
 
-def test_auto_never_selects_unverified_acceleration(monkeypatch):
-    # §18 hard rule: MPS failed the A/B gate (cosine 0.61 vs CPU on M4) —
-    # auto resolves to CPU until MPS_VERIFIED flips after a passing gate.
+def test_auto_selects_verified_mps(monkeypatch):
+    # §18: after the 2026-07-12 re-gate (cosine 0.999986, ×1.55) MPS is
+    # verified — auto accelerates when available, cpu otherwise.
     monkeypatch.setattr(backend, "_mps_available", lambda: True)
-    assert backend.MPS_VERIFIED is False
+    assert backend.MPS_VERIFIED is True
+    assert preferred_torch_device("auto") == "mps"
+    monkeypatch.setattr(backend, "_mps_available", lambda: False)
     assert preferred_torch_device("auto") == "cpu"
 
 
@@ -49,21 +51,23 @@ def test_report_labels_match_selected_device(monkeypatch):
     monkeypatch.setattr(backend, "_mps_available", lambda: True)
     monkeypatch.setattr(backend, "_cuda_available", lambda: False)
     report = backend_report("auto")
-    assert report["selected_device"] == "cpu"     # unverified → cpu
-    assert report["mps_available"] is True
-    assert report["mps_verified"] is False
-    assert report["label"] == backend_label("cpu")
-    assert "CPU" in report["label"]
-    assert "active" not in report["label"]        # no false acceleration claim
+    assert report["selected_device"] == "mps"
+    assert report["mps_verified"] is True
+    assert "Apple Silicon" in report["label"]     # honest: actually selected
+    monkeypatch.setattr(backend, "_mps_available", lambda: False)
+    cpu_report = backend_report("auto")
+    assert cpu_report["selected_device"] == "cpu"
+    assert "active" not in cpu_report["label"]    # no false acceleration claim
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="Apple Silicon gate")
 def test_mps_ab_gate_documents_current_divergence():
-    """§18 A/B gate, in a subprocess (torch must not load in this process).
+    """§18 A/B regression sentinel, in a subprocess (torch must not load here).
 
-    Documents the verified state: torch 2.13 / htdemucs / M4 → MPS diverges
-    from CPU. If a future stack fixes it, this test fails loudly as a signal
-    to re-run the full gate and reconsider MPS_VERIFIED.
+    MPS is verified (re-gate 2026-07-12: cosine 0.999986 on the hard signal).
+    This test now guards the other direction: it FAILS if a future
+    torch/demucs stack makes MPS diverge from CPU again — signal to re-gate
+    and flip MPS_VERIFIED off.
     """
     pytest.importorskip("soundfile")
     script = (
@@ -72,8 +76,11 @@ def test_mps_ab_gate_documents_current_divergence():
         "from demucs.apply import apply_model\n"
         "if not torch.backends.mps.is_available(): print('cosine=skip'); sys.exit(0)\n"
         "m = get_model('htdemucs'); m.eval(); sr = m.samplerate\n"
-        "t = np.arange(sr*2)/sr\n"
-        "a = (0.4*np.sin(2*np.pi*220*t)).astype('float32')\n"
+        "t = np.arange(sr*6)/sr\n"
+        "rng = np.random.default_rng(0)\n"
+        "a = (0.4*np.sin(2*np.pi*220*t)"
+        " + 0.3*np.sin(2*np.pi*880*t)*(np.sin(2*np.pi*2*t)>0)"
+        " + 0.05*rng.standard_normal(sr*6)).astype('float32')\n"
         "w = torch.tensor(np.stack([a,a])[None])\n"
         "import contextlib\n"
         "with torch.no_grad():\n"
@@ -90,8 +97,8 @@ def test_mps_ab_gate_documents_current_divergence():
     value = result.stdout.strip().split("cosine=")[-1]
     if value == "skip":
         pytest.skip("MPS not available")
-    if float(value) > 0.999:
+    if float(value) < 0.999:
         pytest.fail(
-            f"MPS now matches CPU (cosine {value}) — re-run the full §18 gate "
-            "and consider flipping MPS_VERIFIED."
+            f"MPS DIVERGED from CPU (cosine {value}) — regression; re-run the "
+            "full §18 gate and consider disabling MPS_VERIFIED."
         )

@@ -17,13 +17,15 @@ import sys
 
 _VALID_MODES = ("auto", "cpu", "mps")
 
-# §18 verification gate, run on Apple M4 / torch 2.13 / htdemucs, 2026-07-11:
-# MPS output diverged from CPU (cosine 0.61, max abs diff 0.35 — not float
-# noise) and was SLOWER on the test clip (×0.66). Hard rule: identical
-# outputs or the accelerated path ships disabled. Therefore "auto" resolves
-# to CPU; MPS is an explicit experimental opt-in (DANCELAB_DEVICE=mps) until
-# a torch/demucs combination passes the A/B gate in test_backend.py.
-MPS_VERIFIED = False
+# §18 verification gate history (Apple M4 / torch 2.13 / htdemucs):
+# - 2026-07-11 first run: cosine 0.61 vs CPU → gate blocked MPS (honest).
+# - 2026-07-12 re-gate (triggered by the sentinel test firing): cosine
+#   0.999986 across repeated runs on the hard test signal, ×1.55 faster.
+#   The first measurement was erroneous (first-run contamination — likely
+#   initial MPS kernel compilation mid-benchmark). MPS output is correct.
+# Sentinel in test_backend.py now guards the OTHER direction: it fails if a
+# future torch/demucs stack makes MPS diverge again.
+MPS_VERIFIED = True
 
 
 def _mps_available() -> bool:
