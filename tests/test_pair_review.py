@@ -10,8 +10,12 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
 
-from dancelab.core.models import TransitionWindow, WindowType
-from dancelab.host.pair_review import beat_sync_rate, best_window, snap_to_grid
+from dancelab.core.config import load_config
+from dancelab.core.models import AnalysisResult, BeatGrid, Track, TransitionWindow, WindowType
+from dancelab.host.pair_review import Deck, beat_sync_rate, best_window, snap_to_grid
+
+from PySide6.QtCore import QUrl
+from PySide6.QtWidgets import QApplication
 
 
 def test_beat_sync_rate_matches_master_tempo():
@@ -64,3 +68,82 @@ def test_best_window_picks_highest_scoring_of_type():
     assert best_window(windows, WindowType.mix_out).transition_window_id == "w2"
     assert best_window(windows, WindowType.mix_in).transition_window_id == "w3"
     assert best_window(windows, WindowType.bridge) is None
+
+
+def test_deck_set_track_clears_previous_player_source():
+    QApplication.instance() or QApplication([])
+
+    class FakePlayer:
+        def __init__(self):
+            self.sources = [QUrl.fromLocalFile("/tmp/old-track.mp3")]
+            self.positions = []
+            self.stopped = False
+
+        def stop(self):
+            self.stopped = True
+
+        def setSource(self, source):
+            self.sources.append(source)
+
+        def setPosition(self, position):
+            self.positions.append(position)
+
+    deck = Deck("Deck")
+    fake = FakePlayer()
+    deck._player = fake
+    analysis = AnalysisResult(
+        engine_version="test",
+        track=Track(
+            track_id="new",
+            title="New Track",
+            source_path="/tmp/new-track.mp3",
+            duration_sec=180.0,
+            bpm_estimate=128.0,
+        ),
+    )
+
+    deck.set_track(analysis, load_config("configs/default.yaml"), [], WindowType.mix_in)
+
+    assert fake.stopped is True
+    assert fake.sources[-1].isEmpty()
+    assert fake.positions[-1] == 0
+
+
+def test_deck_quantize_ignores_unreliable_beatgrid():
+    QApplication.instance() or QApplication([])
+
+    class FakePlayer:
+        def __init__(self):
+            self.positions = []
+
+        def source(self):
+            return QUrl.fromLocalFile("/tmp/source.mp3")
+
+        def setPosition(self, position):
+            self.positions.append(position)
+
+    deck = Deck("Deck")
+    fake = FakePlayer()
+    deck._player = fake
+    deck.quantize = True
+    deck.analysis = AnalysisResult(
+        engine_version="test",
+        track=Track(
+            track_id="new",
+            title="New Track",
+            source_path="/tmp/new-track.mp3",
+            duration_sec=180.0,
+            bpm_estimate=120.0,
+        ),
+        beatgrid=BeatGrid(
+            bpm=120.0,
+            beat_times_sec=[0.0, 0.5, 1.0],
+            downbeats_sec=[0.0],
+            reliable=False,
+            diagnostic_flags=["grid_drift"],
+        ),
+    )
+
+    deck.seek(0.61)
+
+    assert fake.positions[-1] == 610

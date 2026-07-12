@@ -68,6 +68,22 @@ def test_beatgrid_on_silence_is_flagged_unreliable():
     assert bg.bpm > 0
 
 
+def test_beatgrid_diagnostics_flag_fixed_grid_drift():
+    from dancelab.preprocessing.beatgrid import _fixed_grid_diagnostics
+
+    regular = np.arange(0.0, 32.0, 0.5)
+    ok = _fixed_grid_diagnostics(regular, 120.0)
+    assert ok["reliable"] is True
+    assert ok["quality_score"] == pytest.approx(1.0)
+    assert "grid_drift" not in ok["diagnostic_flags"]
+
+    drifting = regular + np.linspace(0.0, 0.35, len(regular))
+    bad = _fixed_grid_diagnostics(drifting, 120.0)
+    assert bad["reliable"] is False
+    assert "grid_drift" in bad["diagnostic_flags"]
+    assert bad["bpm_mismatch_pct"] > 0.8
+
+
 def test_beatgrid_deterministic():
     from dancelab.preprocessing.beatgrid import estimate_beatgrid
 

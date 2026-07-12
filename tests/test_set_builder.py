@@ -18,7 +18,7 @@ def weights():
     return load_weights("configs/descriptor_weights.yaml")
 
 
-def track(tid, camelot, bpm, rms, *, title=None, artist=None):
+def track(tid, camelot, bpm, rms, *, title=None, artist=None, style=None):
     return AnalysisResult(
         engine_version="0.1.0",
         track=Track(
@@ -27,6 +27,7 @@ def track(tid, camelot, bpm, rms, *, title=None, artist=None):
             artist=artist,
             key_estimate=camelot,
             bpm_estimate=bpm,
+            style_label=style,
         ),
         features=[FeatureFrame(track_id=tid, timestamp_sec=float(t), rms=rms,
                                low_freq_energy_ratio=0.5, bass_energy=50.0) for t in range(30)],
@@ -215,6 +216,28 @@ def test_build_set_planner_mode_prefers_harmonic_or_bpm(weights):
     assert bpm_plan.planner_mode == "bpm"
     assert bpm_plan.track_order == ["opener", "bpm_fit"]
     assert "planner mode bpm" in bpm_plan.transitions[0].reasoning[0]
+
+
+def test_build_set_applies_style_and_bpm_brief(weights):
+    tracks = [
+        track("uk_a", "8A", 130, 0.20, style="uk-bass"),
+        track("uk_b", "9A", 134, 0.22, style="bass"),
+        track("hard", "10A", 142, 0.70, style="bass"),
+        track("house", "11A", 124, 0.25, style="deep-house"),
+    ]
+
+    plan = build_set(
+        tracks,
+        weights,
+        target_track_count=2,
+        preferred_styles=["uk bass", "bass"],
+        bpm_max=135,
+    )
+
+    assert set(plan.track_order) == {"uk_a", "uk_b"}
+    assert "hard" in plan.dropped_track_ids
+    assert any("style preference applied" in warning for warning in plan.warnings)
+    assert any("BPM range applied" in warning for warning in plan.warnings)
 
 
 def test_build_set_reports_constraint_conflicts(weights):

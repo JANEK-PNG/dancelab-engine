@@ -2269,6 +2269,63 @@ if _PYSIDE_IMPORT_ERROR is None:
             )
             self.inspector_layout.addWidget(planner_combo)
 
+            self.inspector_layout.addWidget(QLabel("Leading Style(s)"))
+            styles_field = QLineEdit(
+                ", ".join(config.get("preferred_styles") or [])
+                if isinstance(config.get("preferred_styles"), list)
+                else str(config.get("preferred_styles") or "")
+            )
+            styles_field.setPlaceholderText("bass, uk bass, garage, breaks")
+
+            def sync_styles(value: str) -> None:
+                config["preferred_styles"] = [
+                    part.strip()
+                    for part in value.replace(";", ",").split(",")
+                    if part.strip()
+                ]
+
+            styles_field.textChanged.connect(sync_styles)
+            sync_styles(styles_field.text())
+            self.inspector_layout.addWidget(styles_field)
+
+            self.inspector_layout.addWidget(QLabel("BPM Min / Max"))
+            bpm_row = QWidget()
+            bpm_layout = QHBoxLayout(bpm_row)
+            bpm_layout.setContentsMargins(0, 0, 0, 0)
+            bpm_layout.setSpacing(8)
+            bpm_min_field = QLineEdit("" if config.get("bpm_min") in (None, "") else str(config.get("bpm_min")))
+            bpm_min_field.setPlaceholderText("no min")
+            bpm_max_field = QLineEdit("" if config.get("bpm_max") in (None, "") else str(config.get("bpm_max")))
+            bpm_max_field.setPlaceholderText("no max")
+
+            def sync_bpm(key: str, value: str) -> None:
+                text = value.strip()
+                try:
+                    parsed = float(text) if text else ""
+                except ValueError:
+                    parsed = ""
+                config[key] = parsed
+
+            bpm_min_field.textChanged.connect(lambda value: sync_bpm("bpm_min", value))
+            bpm_max_field.textChanged.connect(lambda value: sync_bpm("bpm_max", value))
+            sync_bpm("bpm_min", bpm_min_field.text())
+            sync_bpm("bpm_max", bpm_max_field.text())
+            bpm_layout.addWidget(bpm_min_field)
+            bpm_layout.addWidget(bpm_max_field)
+            self.inspector_layout.addWidget(bpm_row)
+
+            context_profile = config.get("context_profile")
+            if isinstance(context_profile, dict):
+                context_bits = [
+                    str(context_profile.get("context_id") or "custom context"),
+                    str(context_profile.get("set_role") or ""),
+                    str(context_profile.get("crowd_energy") or ""),
+                ]
+                self._add_label(
+                    "Context brief: " + " · ".join(bit for bit in context_bits if bit),
+                    role="hint",
+                )
+
             self.inspector_layout.addWidget(QLabel("Target Track Count"))
             count_field = QLineEdit(
                 "" if config.get("target_track_count") in (None, "") else str(config.get("target_track_count"))
@@ -2305,7 +2362,7 @@ if _PYSIDE_IMPORT_ERROR is None:
         def _populate_export_rekordbox_form(self, node_item: NodeBoxItem) -> None:
             self._add_section_title("Export Rekordbox")
             self._add_label(
-                "Write a rekordbox XML playlist from analyses and an optional SetPlan. This is a host-side export path, not an engine-side persistence feature.",
+                "Write a rekordbox XML playlist from analyses and an optional SetPlan. Default export writes playlist order and hot cues only; Rekordbox remains responsible for native BPM/beatgrid.",
                 role="hint",
             )
             config = self.runtime.ensure_node_config(node_item.model.instance_id)
@@ -2314,6 +2371,7 @@ if _PYSIDE_IMPORT_ERROR is None:
             )
             config.setdefault("output_path", default_path)
             config.setdefault("playlist_name", "DanceLab Set")
+            config.setdefault("export_beatgrid", False)
 
             self.inspector_layout.addWidget(QLabel("Playlist Name"))
             playlist_field = QLineEdit(str(config.get("playlist_name", "")))
@@ -3067,6 +3125,10 @@ if _PYSIDE_IMPORT_ERROR is None:
             arc: str = "build",
             planner_mode: str = "smart",
             analysis_depth: str = "normal",
+            preferred_styles: list[str] | None = None,
+            bpm_min: float | None = None,
+            bpm_max: float | None = None,
+            context_profile: Any | None = None,
             playlist_name: str = "DanceLab Set",
             output_path: str = "",
         ) -> None:
@@ -3092,6 +3154,15 @@ if _PYSIDE_IMPORT_ERROR is None:
             build_config["target_track_count"] = target_count
             build_config["arc"] = arc
             build_config["planner_mode"] = planner_mode
+            build_config["preferred_styles"] = list(preferred_styles or [])
+            build_config["bpm_min"] = bpm_min or ""
+            build_config["bpm_max"] = bpm_max or ""
+            if context_profile is not None:
+                build_config["context_profile"] = (
+                    context_profile.model_dump(mode="json")
+                    if hasattr(context_profile, "model_dump")
+                    else dict(context_profile)
+                )
             export_config = self.runtime.ensure_node_config(export.model.instance_id)
             export_config["playlist_name"] = playlist_name
             if output_path:
@@ -3112,6 +3183,10 @@ if _PYSIDE_IMPORT_ERROR is None:
             arc: str = "build",
             planner_mode: str = "smart",
             analysis_depth: str = "normal",
+            preferred_styles: list[str] | None = None,
+            bpm_min: float | None = None,
+            bpm_max: float | None = None,
+            context_profile: Any | None = None,
             playlist_name: str = "DanceLab Set",
             output_path: str = "",
         ) -> None:
@@ -3127,6 +3202,10 @@ if _PYSIDE_IMPORT_ERROR is None:
                 arc=arc,
                 planner_mode=planner_mode,
                 analysis_depth=analysis_depth,
+                preferred_styles=preferred_styles,
+                bpm_min=bpm_min,
+                bpm_max=bpm_max,
+                context_profile=context_profile,
                 playlist_name=playlist_name,
                 output_path=output_path,
             )

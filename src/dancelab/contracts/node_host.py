@@ -669,6 +669,7 @@ def _nodes() -> list[NodeSpec]:
             summary="Builds a simple ordered set plan from analyzed tracks.",
             inputs=[
                 _in("analysis", ["analysis_set", "track_id_list"], "Analyzed tracks or their IDs."),
+                _in("context", ["context_profile"], "Optional set context/brief.", required=False),
             ],
             outputs=[
                 _out("set_plan", ["set_plan"], "SetPlan payload."),

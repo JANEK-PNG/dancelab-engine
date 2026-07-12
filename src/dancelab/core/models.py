@@ -254,6 +254,13 @@ class BeatGrid(BaseModel):
     bpm: float = Field(gt=0)
     beat_times_sec: list[float] = Field(default_factory=list)
     downbeats_sec: list[float] = Field(default_factory=list)
+    quality_score: float | None = Field(default=None, ge=0, le=1)
+    interval_cv: float | None = Field(default=None, ge=0)
+    mean_grid_error_sec: float | None = Field(default=None, ge=0)
+    max_grid_error_sec: float | None = Field(default=None, ge=0)
+    bpm_mismatch_pct: float | None = Field(default=None, ge=0)
+    coverage_sec: float | None = Field(default=None, ge=0)
+    diagnostic_flags: list[str] = Field(default_factory=list)
     # AUD-M2: False when no beats were detected (silence/untrackable) and the
     # bpm is a placeholder, not a measurement — downstream must not trust it.
     reliable: bool = True
@@ -724,6 +731,30 @@ class SetTransition(BaseModel):
     energy_delta: float | None = None
     reasoning: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+
+
+class TransitionCue(SchemaVersionedOutput):
+    """Edge-level transition cue (SPEC §13): where A hands off to B.
+
+    Rekordbox cues are track-level; recommendations are edge-level — this
+    bridges them. HARD RULE (ADR-005): no edge may claim "start Track B
+    here" unless b_cue_source is a verified cue with a real timestamp;
+    window_only edges always require a manual listen. mix_duration_beats is
+    None (never fabricated) when either beatgrid is unreliable.
+    """
+
+    from_track_id: str
+    to_track_id: str
+    transition_type: str = "unknown"
+    a_out_start_sec: float | None = None
+    a_window_source: str = "dancelab_transition_window"
+    b_in_start_sec: float | None = None
+    b_cue_source: str = "window_only"   # "rekordbox_hotcue" | "dancelab_written_hotcue" | "window_only"
+    b_cue_slot: int | None = None        # hot cue slot 1-8 (A-H) when rekordbox_hotcue
+    mix_duration_beats: int | None = None
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    requires_manual_listen: bool = True
+    reasoning: list[str] = Field(default_factory=list)
 
 
 class SetPlan(SchemaVersionedOutput):
