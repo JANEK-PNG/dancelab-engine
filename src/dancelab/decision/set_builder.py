@@ -707,7 +707,7 @@ def build_set(
         target_track_count=target_count,
         locked_positions=locked,
         pinned_track_ids=pinned,
-        dropped_track_ids=sorted(set(by_id) - set(order)),
+        dropped_track_ids=sorted(set(by_id_all) - set(order)),
         mean_transition_score=mean_score, model_version=MODEL_VERSION,
         warnings=warnings,
         provenance=provenance,

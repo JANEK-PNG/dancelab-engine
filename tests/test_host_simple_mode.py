@@ -43,6 +43,32 @@ def _stub_analysis(path: str | Path, _config) -> AnalysisResult:
     )
 
 
+def _brief_analysis(tid: str, bpm: float, style: str, rms: float) -> AnalysisResult:
+    return AnalysisResult(
+        engine_version="test-simple-mode",
+        track=Track(
+            track_id=tid,
+            title=tid,
+            source_path=f"/tmp/{tid}.mp3",
+            bpm_estimate=bpm,
+            key_estimate="8A",
+            style_label=style,
+            duration_sec=300.0,
+        ),
+        beatgrid=BeatGrid(bpm=bpm, beat_times_sec=[0.0, 0.5, 1.0], downbeats_sec=[0.0]),
+        features=[
+            FeatureFrame(
+                track_id=tid,
+                timestamp_sec=float(t),
+                rms=rms,
+                low_freq_energy_ratio=0.45,
+                bass_energy=50.0,
+            )
+            for t in range(10)
+        ],
+    )
+
+
 @pytest.mark.skipif(
     not _qt_bootstrap_available(),
     reason="Qt platform bootstrap unavailable in this shell",
@@ -73,12 +99,16 @@ def test_simple_mode_wizard_end_to_end(tmp_path):
     # step 2: gated until analysis ran
     window.go_to_step(2)
     assert not window.next_button.isEnabled()
+    assert window.analyze_button.text() == "▶ Run Initial Check"
+    assert window.analysis_depth_combo.count() == 1
+    assert window.analysis_depth_combo.currentData() == "normal"
+    assert window.analysis_depth_combo.isHidden()
     window.run_analysis(wait=True)
     app.processEvents()
     assert len(window.analyses) == 5
     assert not window.failures
     assert window.next_button.isEnabled()
-    assert "Analyzed 5" in window.analyze_status.text()
+    assert "Initial Check complete" in window.analyze_status.text()
 
     # per-track checklist: every row checked off with real results (BPM/key)
     rows = [window.analyze_list.item(i).text() for i in range(window.analyze_list.count())]
@@ -109,9 +139,6 @@ def test_simple_mode_wizard_end_to_end(tmp_path):
     window.count_spin.setValue(5)
     window.planner_mode_combo.setCurrentIndex(
         window.planner_mode_combo.findData("harmonic")
-    )
-    window.analysis_depth_combo.setCurrentIndex(
-        window.analysis_depth_combo.findData("deep")
     )
     window.generate_set()
     assert len(window.plan.track_order) == 5
@@ -153,8 +180,12 @@ def test_simple_mode_wizard_end_to_end(tmp_path):
     window.export_path_edit.setText(str(out))
     window.export_set()
     assert out.exists()
-    assert "DJ_PLAYLISTS" in out.read_text(encoding="utf-8")
+    exported_xml = out.read_text(encoding="utf-8")
+    assert "DJ_PLAYLISTS" in exported_xml
+    assert "AverageBpm" not in exported_xml
+    assert "<TEMPO" not in exported_xml
     assert "hot cue marker" in window.export_status.text()
+    assert "Let Rekordbox analyze BPM/beatgrid" in window.export_status.text()
     assert str(out) in window.export_status.text()
 
     # sidebar shows completed steps
@@ -183,7 +214,7 @@ def test_simple_mode_wizard_end_to_end(tmp_path):
         item for item in graph.node_items.values() if item.model.spec.node_id == "engine"
     )
     engine_config = graph.runtime.ensure_node_config(engine_item.model.instance_id)
-    assert engine_config["analysis_depth"] == "deep"
+    assert engine_config["analysis_depth"] == "normal"
     assert len(graph.runtime.analysis_index) == 5  # wizard analyses cached
     graph.close()
 
@@ -452,5 +483,86 @@ def test_dj_control_pin_lock_rest(tmp_path):
     window.generate_set()
     assert window.plan.track_order[1] == target
     assert "🔒" in window.set_list.item(1).text()
+
+    window.close()
+
+
+@pytest.mark.skipif(
+    not _qt_bootstrap_available(),
+    reason="Qt platform bootstrap unavailable in this shell",
+)
+def test_simple_mode_calm_uk_bass_brief_filters_set(tmp_path):
+    QApplication.instance() or QApplication([])
+    window = SimpleModeWindow()
+    window.config.cache.root = str(tmp_path / "cache")
+    window.analyses = [
+        _brief_analysis("uk_a", 130, "uk-bass", 0.20),
+        _brief_analysis("uk_b", 134, "bass", 0.22),
+        _brief_analysis("too_fast", 142, "bass", 0.55),
+        _brief_analysis("wrong_style", 124, "deep-house", 0.24),
+    ]
+
+    window.go_to_step(3)
+    window.set_brief_combo.setCurrentIndex(
+        window.set_brief_combo.findData("calm_uk_bass")
+    )
+    window.count_radio.setChecked(True)
+    window.count_spin.setValue(2)
+    window.generate_set()
+
+    assert window.plan is not None
+    assert set(window.plan.track_order) == {"uk_a", "uk_b"}
+    assert window.plan.arc == "flat"
+    assert "too_fast" in window.plan.dropped_track_ids
+    assert "brief style bass" in window.generate_status.text()
+    assert "135" in window.library_profile_label.text()
+
+    window.close()
+
+
+@pytest.mark.skipif(
+    not _qt_bootstrap_available(),
+    reason="Qt platform bootstrap unavailable in this shell",
+)
+def test_usb_import_brings_user_cues_into_review(tmp_path):
+    # §13 E2E: fake Rekordbox USB → import → the DJ's hot cue becomes the
+    # verified B start in review (Cue button says "YOUR hot ...").
+    from test_rekordbox_device import _ext_blob
+
+    QApplication.instance() or QApplication([])
+    window = SimpleModeWindow()
+    window.config.paths.processed_dir = str(tmp_path / "processed")
+    window.config.cache.root = str(tmp_path / "cache")
+    window.analyze_fn = _stub_analysis
+
+    usb = tmp_path / "usb"
+    for i, name in enumerate(("Alpha", "Beta", "Gamma")):
+        audio = usb / "Contents" / f"{name}.mp3"
+        audio.parent.mkdir(parents=True, exist_ok=True)
+        audio.write_bytes(b"stub")
+        anlz = usb / "PIONEER" / "USBANLZ" / "P001" / f"{i:04d}"
+        anlz.mkdir(parents=True)
+        (anlz / "ANLZ0000.EXT").write_bytes(_ext_blob(f"/Contents/{name}.mp3"))
+
+    imported = window.import_rekordbox_usb(usb)
+    assert imported == 3
+    assert "hot cues imported" in window.import_summary.text()
+    assert len(window.device_cues) == 3
+    assert window.device_cues["Beta.mp3"][0].list_type == "hot"
+
+    window.run_analysis(wait=True)
+    QApplication.processEvents()
+    window.go_to_step(3)
+    window.count_radio.setChecked(True)
+    window.count_spin.setValue(3)
+    window.generate_set()
+    window.go_to_step(4)
+    QApplication.processEvents()
+
+    # deck B cue button uses the DJ's verified hot cue, not a window guess
+    assert "YOUR hot" in window.review_widget.deck_b.cue_button.text()
+    assert window.review_widget.deck_b.user_cue_sec is not None
+    header = window.review_widget.header_label.text()
+    assert "YOUR hot cue" in header or "listen before trusting" in header
 
     window.close()

@@ -326,6 +326,8 @@ class Deck(QWidget):
         self.config: EngineConfig | None = None
         self.windows: list[TransitionWindow] = []
         self.cue_window_type = WindowType.mix_out
+        self.user_cue_sec: float | None = None   # DJ's verified Rekordbox hot cue
+        self.user_cue_label: str = ""
         self.quantize = True
         self.playback_rate = 1.0
         self._player = None
@@ -379,6 +381,12 @@ class Deck(QWidget):
         cue_window_type: WindowType,
     ) -> None:
         self.stop()
+        if self._player is not None:
+            # QMediaPlayer keeps its previous source after stop(). When the
+            # review row changes, leaving that source in place makes Play
+            # start the old audio while the UI already shows the new track.
+            self._player.setSource(QUrl())
+            self._player.setPosition(0)
         self.analysis = analysis
         self.config = config
         self.windows = windows
@@ -401,13 +409,27 @@ class Deck(QWidget):
             windows=windows,
             waveform=waveform_envelope_from_features(analysis),
         )
+        self.strip.set_playhead(None)
+        self.time_label.setText(
+            f"0:00 / {int((track.duration_sec or 0.0) // 60)}:{int((track.duration_sec or 0.0) % 60):02d}"
+        )
         self._rebuild_stem_buttons()
+        self.user_cue_sec = None
+        self.user_cue_label = ""
         cue = best_window(windows, cue_window_type)
         self.cue_button.setText(
             f"Cue {cue_window_type.value.replace('_', '-')}"
             + (f" ({cue.start_sec:.0f}s)" if cue else " (none found)")
         )
         self.cue_button.setEnabled(cue is not None)
+
+    def set_user_cue(self, sec: float, label: str) -> None:
+        """DJ's own verified Rekordbox hot cue — takes priority over windows."""
+        self.user_cue_sec = sec
+        self.user_cue_label = label
+        minutes, seconds = divmod(sec, 60)
+        self.cue_button.setText(f"Cue YOUR {label} @ {int(minutes)}:{seconds:04.1f}")
+        self.cue_button.setEnabled(True)
 
     def _rebuild_stem_buttons(self) -> None:
         while self.stem_row.count():
@@ -532,7 +554,11 @@ class Deck(QWidget):
     def seek(self, sec: float) -> None:
         if self.analysis is None:
             return
-        if self.quantize and self.analysis.beatgrid is not None:
+        if (
+            self.quantize
+            and self.analysis.beatgrid is not None
+            and self.analysis.beatgrid.reliable
+        ):
             sec = snap_to_grid(
                 sec,
                 self.analysis.beatgrid.beat_times_sec,
@@ -545,6 +571,9 @@ class Deck(QWidget):
         self.strip.set_playhead(sec)
 
     def cue_to_window(self) -> None:
+        if self.user_cue_sec is not None:
+            self.seek(self.user_cue_sec)  # verified cue beats window estimate
+            return
         cue = best_window(self.windows, self.cue_window_type)
         if cue is not None:
             self.seek(cue.start_sec)

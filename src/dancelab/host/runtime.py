@@ -777,6 +777,30 @@ class DesktopHostRuntime:
         start_track_id = str(config.get("start_track_id") or "").strip() or None
         raw_target_count = config.get("target_track_count")
         target_track_count = int(raw_target_count) if raw_target_count not in (None, "") else None
+        context_source = self._resolve_connected_value(index, connections, instance_id, "context", stack)
+        context = self._context_profile_from_source(context_source)
+        if context is None and isinstance(config.get("context_profile"), dict):
+            context = ContextProfile.model_validate(config["context_profile"])
+
+        raw_styles = config.get("preferred_styles") or config.get("preferred_styles_text") or []
+        if isinstance(raw_styles, str):
+            preferred_styles = [
+                part.strip()
+                for part in raw_styles.replace(";", ",").split(",")
+                if part.strip()
+            ]
+        else:
+            preferred_styles = [str(part).strip() for part in raw_styles if str(part).strip()]
+
+        def optional_float(value: Any) -> float | None:
+            if value in (None, ""):
+                return None
+            try:
+                parsed = float(value)
+            except (TypeError, ValueError):
+                return None
+            return parsed if parsed > 0 else None
+
         plan = build_set(
             analyses,
             self.weights(),
@@ -786,6 +810,10 @@ class DesktopHostRuntime:
             target_track_count=target_track_count,
             locked_positions=config.get("locked_positions") or {},
             pinned_track_ids=config.get("pinned_track_ids") or [],
+            context=context,
+            preferred_styles=preferred_styles,
+            bpm_min=optional_float(config.get("bpm_min")),
+            bpm_max=optional_float(config.get("bpm_max")),
         )
         return NodeExecutionResult(
             node_id="build_set",
@@ -839,6 +867,7 @@ class DesktopHostRuntime:
             set_plan=set_plan,
             windows_by_track=windows,
             playlist_name=playlist_name,
+            export_beatgrid=bool(config.get("export_beatgrid", False)),
         )
         written_path = write_rekordbox_xml(xml, output_path)
         config["output_path"] = str(written_path)

@@ -12,18 +12,16 @@ Schema (researched — pyrekordbox / Rekordbox 7 manual):
     PRODUCT
     COLLECTION Entries
       TRACK TrackID Location AverageBpm Tonality TotalTime Name Artist Kind ...
-        TEMPO Inizio Bpm Metro Battito         (beatgrid)
+        TEMPO Inizio Bpm Metro Battito         (optional diagnostic beatgrid)
         POSITION_MARK Name Type Start Num ...  (cues: Num -1 memory, 0-7 hot A-H)
     PLAYLISTS
       NODE Type=0 (ROOT) → NODE Type=1 (playlist) → TRACK Key=TrackID
 
 Stdlib only (xml.etree). Deterministic.
 
-AUD-L6 — constant-tempo assumption: we emit a single TEMPO node per track, so
-the exported grid is a fixed BPM anchored at the first (down)beat. This is
-correct for the steady four-on-the-floor material this engine targets but will
-misgrid genuinely tempo-automated tracks (ramps, rubato). Variable-tempo grids
-(one TEMPO per tempo change) are a later upgrade.
+AUD-L6 — constant-tempo assumption: diagnostic beatgrid export can emit a
+single TEMPO node per track, but production Rekordbox export leaves BPM/grid to
+Rekordbox and writes playlist order + hot cues only.
 """
 
 from __future__ import annotations
@@ -33,11 +31,20 @@ from pathlib import Path
 from urllib.parse import quote
 
 from dancelab import __version__
-from dancelab.core.models import AnalysisResult, SetPlan, TransitionWindow, WindowType
+from dancelab.core.models import AnalysisResult, BeatGrid, SetPlan, TransitionWindow, WindowType
 
 # hot-cue colours (Rekordbox RGB) cycled across cue points
 _CUE_COLOURS = [(40, 226, 20), (48, 90, 255), (255, 140, 0), (195, 47, 255),
                 (255, 18, 123), (0, 224, 224), (230, 40, 40), (180, 180, 0)]
+_CUE_PHRASE_DIVISIONS_BEATS = (64, 32, 16, 8, 4, 2)
+_CUE_PHRASE_SNAP_TOLERANCE_BEATS = {
+    64: 4.0,
+    32: 4.0,
+    16: 4.0,
+    8: 2.0,
+    4: 1.0,
+    2: 0.5,
+}
 
 
 def _location_uri(source_path: str | None) -> str:
@@ -60,23 +67,68 @@ def _kind(source_path: str | None) -> str:
             "wav": "WAV File", "flac": "FLAC File", "m4a": "M4A File"}.get(ext, "Audio File")
 
 
-def _nearest_grid_time(target_sec: float, grid: list[float], tolerance_sec: float) -> float | None:
-    if not grid:
+def _usable_export_grid(beatgrid: BeatGrid | None) -> BeatGrid | None:
+    """Only trusted grids should be exported or used for cue snapping."""
+    if beatgrid is None or not beatgrid.reliable or not beatgrid.beat_times_sec:
         return None
-    nearest = min(grid, key=lambda value: abs(value - target_sec))
-    return float(nearest) if abs(nearest - target_sec) <= tolerance_sec else None
+    return beatgrid
+
+
+def _grid_anchor_sec(beatgrid: BeatGrid) -> float:
+    return float((beatgrid.downbeats_sec or beatgrid.beat_times_sec)[0])
+
+
+def _cue_phrase_division(beatgrid: BeatGrid, cue_sec: float) -> int | None:
+    """Largest phrase division the cue sits on, measured from the grid anchor."""
+    if beatgrid.bpm <= 0:
+        return None
+    beat_period = 60.0 / beatgrid.bpm
+    beat_index = int(round((cue_sec - _grid_anchor_sec(beatgrid)) / beat_period))
+    if beat_index < 0:
+        return None
+    for division in _CUE_PHRASE_DIVISIONS_BEATS:
+        if beat_index % division == 0:
+            return division
+    return None
+
+
+def _snap_to_phrase_grid(beatgrid: BeatGrid, target_sec: float) -> float:
+    """Snap hot cues to phrase-aware beat boundaries, not arbitrary beats.
+
+    The exporter writes actionable DJ hot cues, so starts should land on
+    musically countable positions: 64/32/16/8/4/2-beat boundaries from the
+    first exported downbeat. This prevents cues landing on e.g. beat 3 when the
+    usable phrase point is beat 4.
+    """
+    if beatgrid.bpm <= 0:
+        return target_sec
+
+    beat_period = 60.0 / beatgrid.bpm
+    anchor = _grid_anchor_sec(beatgrid)
+    target_beat = (target_sec - anchor) / beat_period
+    if target_beat < 0:
+        return anchor
+
+    for division in _CUE_PHRASE_DIVISIONS_BEATS:
+        boundary = max(0, round(target_beat / division) * division)
+        offset_beats = abs(target_beat - boundary)
+        if boundary == 0 and target_beat > _CUE_PHRASE_SNAP_TOLERANCE_BEATS[2]:
+            continue
+        if offset_beats <= _CUE_PHRASE_SNAP_TOLERANCE_BEATS[division]:
+            return anchor + boundary * beat_period
+
+    # Last-resort safety: keep the cue on a 2-beat count rather than a random
+    # off-count. This branch should be rare because division=2 is already lenient.
+    boundary = max(0, round(target_beat / 2) * 2)
+    return anchor + boundary * beat_period
 
 
 def _snap_cue_start(analysis: AnalysisResult, start_sec: float) -> float:
-    """Snap cue starts to a musical grid when the analysis has one."""
-    beatgrid = analysis.beatgrid
+    """Snap cue starts to a reliable phrase grid when the analysis has one."""
+    beatgrid = _usable_export_grid(analysis.beatgrid)
     if beatgrid is None:
         return start_sec
-    downbeat = _nearest_grid_time(start_sec, beatgrid.downbeats_sec, tolerance_sec=8.0)
-    if downbeat is not None:
-        return downbeat
-    beat = _nearest_grid_time(start_sec, beatgrid.beat_times_sec, tolerance_sec=2.0)
-    return beat if beat is not None else start_sec
+    return _snap_to_phrase_grid(beatgrid, start_sec)
 
 
 def _cue_min_separation_sec(analysis: AnalysisResult) -> float:
@@ -163,6 +215,7 @@ def _track_element(
     windows: list[TransitionWindow] | None,
     *,
     cue_profile: str = "middle",
+    export_beatgrid: bool = False,
 ) -> ET.Element:
     t = analysis.track
     attrs = {
@@ -174,28 +227,23 @@ def _track_element(
         # AUD-L4: round, don't truncate (300.9s → "301", not "300").
         "TotalTime": str(round(t.duration_sec)) if t.duration_sec else "0",
     }
-    # AUD-L3: AverageBpm must agree with the grid tempo Rekordbox actually beat-
-    # matches to (the TEMPO Bpm below). When a beatgrid exists, use its bpm so the
-    # browser number and the grid can't diverge under a bpm_hint; else fall back
-    # to the track estimate.
-    grid_bpm = (
-        analysis.beatgrid.bpm
-        if analysis.beatgrid and analysis.beatgrid.beat_times_sec
-        else t.bpm_estimate
-    )
-    if grid_bpm:
-        attrs["AverageBpm"] = f"{grid_bpm:.2f}"
+    # Beat sync/grid belongs to DanceLab preview. The default Rekordbox export
+    # intentionally avoids AverageBpm/TEMPO so RB can keep or compute its own
+    # native grid. Set export_beatgrid=True only for explicit diagnostic exports.
+    export_grid = _usable_export_grid(analysis.beatgrid) if export_beatgrid else None
+    if export_grid:
+        attrs["AverageBpm"] = f"{export_grid.bpm:.2f}"
     if t.key_estimate:
         attrs["Tonality"] = t.key_estimate  # Camelot (e.g. "8A")
     if t.sample_rate:
         attrs["SampleRate"] = str(t.sample_rate)
     track_el = ET.Element("TRACK", attrs)
 
-    # beatgrid → single TEMPO at the first beat (constant-tempo assumption)
-    if analysis.beatgrid and analysis.beatgrid.beat_times_sec:
-        first = (analysis.beatgrid.downbeats_sec or analysis.beatgrid.beat_times_sec)[0]
+    # Optional beatgrid → single TEMPO at the first beat (diagnostic/legacy only).
+    if export_grid:
+        first = (export_grid.downbeats_sec or export_grid.beat_times_sec)[0]
         ET.SubElement(track_el, "TEMPO", {
-            "Inizio": f"{first:.3f}", "Bpm": f"{analysis.beatgrid.bpm:.2f}",
+            "Inizio": f"{first:.3f}", "Bpm": f"{export_grid.bpm:.2f}",
             "Metro": "4/4", "Battito": "1",
         })
 
@@ -218,11 +266,15 @@ def build_rekordbox_xml(
     set_plan: SetPlan | None = None,
     windows_by_track: dict[str, list[TransitionWindow]] | None = None,
     playlist_name: str = "DanceLab Set",
+    *,
+    export_beatgrid: bool = False,
 ) -> str:
     """Build a DJ_PLAYLISTS XML string.
 
     set_plan (optional) orders the playlist; otherwise input order is used.
     windows_by_track (optional) supplies hot-cue points per track_id.
+    export_beatgrid defaults to False: DanceLab exports playlist/hot cues, while
+    Rekordbox keeps responsibility for native BPM/beatgrid analysis.
     """
     order = set_plan.track_order if set_plan else [a.track.track_id for a in analyses]
     by_id = {a.track.track_id: a for a in analyses}
@@ -246,7 +298,11 @@ def build_rekordbox_xml(
         else:
             cue_profile = "middle"
         collection.append(_track_element(
-            by_id[tid], i, (windows_by_track or {}).get(tid), cue_profile=cue_profile
+            by_id[tid],
+            i,
+            (windows_by_track or {}).get(tid),
+            cue_profile=cue_profile,
+            export_beatgrid=export_beatgrid,
         ))
 
     playlists = ET.SubElement(root, "PLAYLISTS")

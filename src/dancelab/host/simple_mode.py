@@ -36,8 +36,9 @@ from PySide6.QtWidgets import (
 )
 
 from dancelab.core.config import EngineConfig, load_config, load_weights
-from dancelab.core.models import AnalysisResult, SetPlan
+from dancelab.core.models import AnalysisResult, ContextProfile, SetPlan
 from dancelab.core.pipeline import analyze_track
+from dancelab.decision.library_profile import build_library_profile, normalize_style_list
 from dancelab.decision.set_builder import build_set
 from dancelab.export.rekordbox import build_rekordbox_xml, write_rekordbox_xml
 from dancelab.host.import_dialogs import choose_audio_directories, confirm_suspicious_audio_files
@@ -56,7 +57,7 @@ from dancelab.workflows.smart_playlist import (
 
 _STEP_TITLES = [
     "1 · Import Tracks",
-    "2 · Analyze Library",
+    "2 · Initial Check",
     "3 · Generate Set",
     "4 · Review Transitions",
     "5 · Export",
@@ -82,15 +83,61 @@ _NOVELTY_CHOICES = [
     ("deterministic", "Deterministic — same input, identical set every time"),
 ]
 
-_ANALYSIS_DEPTH_CHOICES = [
-    (
-        "normal",
-        "Normal — fast cached full-mix analysis; HPSS vocal proxy, no Demucs stem separation.",
-    ),
-    (
-        "deep",
-        "Deep — slower Demucs stem-aware analysis for vocals/drums/bass/other and richer transition cues.",
-    ),
+_INITIAL_CHECK_DEPTH = "normal"
+_INITIAL_CHECK_LABEL = (
+    "Initial Check — fast cached BPM/key/energy/style scan. "
+    "Deep Demucs stem analysis happens later only for the generated set tracks."
+)
+
+_SET_ROLE_CHOICES = [
+    ("builder", "Build-up / regular set"),
+    ("bridge", "Continuation after previous DJ"),
+    ("opener", "Warm-up / low pressure"),
+    ("peak", "Peak-time"),
+    ("closer", "Closing / landing"),
+]
+
+_CROWD_ENERGY_CHOICES = [
+    ("low", "Low / relaxed"),
+    ("medium", "Medium / steady"),
+    ("high", "High / driving"),
+    ("descending", "Descending / cool-down"),
+]
+
+_SET_BRIEF_PRESETS = [
+    {
+        "id": "custom",
+        "label": "Custom / no style constraint",
+        "styles": "",
+        "bpm_min": 0.0,
+        "bpm_max": 0.0,
+        "arc": "build",
+        "planner_mode": "smart",
+        "set_role": "builder",
+        "crowd_energy": "medium",
+    },
+    {
+        "id": "calm_uk_bass",
+        "label": "Calm UK/Bass <=135 / continuation",
+        "styles": "bass, uk bass, uk-bass, bass-house, garage, breaks, dubstep",
+        "bpm_min": 0.0,
+        "bpm_max": 135.0,
+        "arc": "flat",
+        "planner_mode": "smart",
+        "set_role": "bridge",
+        "crowd_energy": "medium",
+    },
+    {
+        "id": "warmup_deep",
+        "label": "Warm-up deep/soft <=124",
+        "styles": "deep house, minimal, ambient-house, downtempo",
+        "bpm_min": 0.0,
+        "bpm_max": 124.0,
+        "arc": "build",
+        "planner_mode": "smart",
+        "set_role": "opener",
+        "crowd_energy": "low",
+    },
 ]
 
 
@@ -152,11 +199,14 @@ class SimpleModeWindow(QMainWindow):
         self.export_path: Path | None = None
         self.graph_window = None
         self._analysis_thread: QThread | None = None
+        self.review_analysis_depth = _INITIAL_CHECK_DEPTH
         # DJ control (§15-17): pin ≡ Must Have (cap 10, engine-exempt from
         # overuse), lock = exact slot, Not Tonight = excluded this session.
         self.must_have_ids: set[str] = set()
         self.not_tonight_ids: set[str] = set()
         self.locked_positions: dict[int, str] = {}
+        # DJ's real Rekordbox cues from a device import, keyed by filename
+        self.device_cues: dict[str, list] = {}
 
         self.setWindowTitle("DanceLab Pro")
         self.resize(1080, 720)
@@ -281,6 +331,13 @@ class SimpleModeWindow(QMainWindow):
         files_button = QPushButton("Choose Files…")
         files_button.clicked.connect(self.choose_import_files)
         buttons.addWidget(files_button)
+        usb_button = QPushButton("Import from USB…")
+        usb_button.setToolTip(
+            "Rekordbox performance USB: imports the audio AND your hot cues — "
+            "verified cue points become transition data."
+        )
+        usb_button.clicked.connect(self.choose_import_usb)
+        buttons.addWidget(usb_button)
         buttons.addStretch(1)
         layout.addLayout(buttons)
 
@@ -340,23 +397,26 @@ class SimpleModeWindow(QMainWindow):
     def _build_analyze_page(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
-        header = QLabel("Step 2 — Analyze library")
+        header = QLabel("Step 2 — Initial Check")
         header.setProperty("role", "title")
         layout.addWidget(header)
-        hint = QLabel("BPM, key, energy, vocals and transition windows for every track. Cached — re-runs are instant.")
+        hint = QLabel(
+            "Fast first pass over the full library: BPM, key, energy, source tags and transition windows. "
+            "Deep stem analysis stays on-demand after the set is generated."
+        )
         hint.setProperty("role", "hint")
         layout.addWidget(hint)
 
-        depth_row = QVBoxLayout()
-        depth_row.addWidget(QLabel("Analysis depth:"))
         self.analysis_depth_combo = QComboBox()
-        for depth_value, depth_label in _ANALYSIS_DEPTH_CHOICES:
-            self.analysis_depth_combo.addItem(depth_label, depth_value)
-        depth_row.addWidget(self.analysis_depth_combo)
-        layout.addLayout(depth_row)
+        self.analysis_depth_combo.addItem(_INITIAL_CHECK_LABEL, _INITIAL_CHECK_DEPTH)
+        self.analysis_depth_combo.setVisible(False)
+
+        initial_check_label = QLabel(_INITIAL_CHECK_LABEL)
+        initial_check_label.setProperty("role", "hint")
+        layout.addWidget(initial_check_label)
 
         analyze_row = QHBoxLayout()
-        self.analyze_button = QPushButton("▶ Analyze Tracks")
+        self.analyze_button = QPushButton("▶ Run Initial Check")
         self.analyze_button.setProperty("role", "hero")
         self.analyze_button.clicked.connect(self.run_analysis)
         analyze_row.addWidget(self.analyze_button)
@@ -453,6 +513,73 @@ class SimpleModeWindow(QMainWindow):
         novelty_row.addWidget(self.seed_spin)
         novelty_row.addStretch(1)
         layout.addLayout(novelty_row)
+
+        brief_title = QLabel("Set brief:")
+        brief_title.setProperty("role", "subtitle")
+        layout.addWidget(brief_title)
+
+        preset_row = QHBoxLayout()
+        preset_row.addWidget(QLabel("Preset:"))
+        self.set_brief_combo = QComboBox()
+        for preset in _SET_BRIEF_PRESETS:
+            self.set_brief_combo.addItem(str(preset["label"]), str(preset["id"]))
+        self.set_brief_combo.setToolTip(
+            "Fast event brief. Presets only fill the controls below; you can edit them before Generate."
+        )
+        preset_row.addWidget(self.set_brief_combo, stretch=1)
+        layout.addLayout(preset_row)
+
+        style_row = QHBoxLayout()
+        style_row.addWidget(QLabel("Leading style(s):"))
+        self.style_focus_edit = QLineEdit()
+        self.style_focus_edit.setPlaceholderText("e.g. bass, uk bass, garage, breaks")
+        self.style_focus_edit.setToolTip(
+            "Comma-separated style/genre focus. Uses source-backed file genre tags when available."
+        )
+        style_row.addWidget(self.style_focus_edit, stretch=1)
+        layout.addLayout(style_row)
+
+        bpm_row = QHBoxLayout()
+        bpm_row.addWidget(QLabel("BPM range:"))
+        self.bpm_min_spin = QDoubleSpinBox()
+        self.bpm_min_spin.setRange(0.0, 300.0)
+        self.bpm_min_spin.setDecimals(1)
+        self.bpm_min_spin.setSingleStep(1.0)
+        self.bpm_min_spin.setSpecialValueText("No min")
+        bpm_row.addWidget(self.bpm_min_spin)
+        bpm_row.addWidget(QLabel("to"))
+        self.bpm_max_spin = QDoubleSpinBox()
+        self.bpm_max_spin.setRange(0.0, 300.0)
+        self.bpm_max_spin.setDecimals(1)
+        self.bpm_max_spin.setSingleStep(1.0)
+        self.bpm_max_spin.setSpecialValueText("No max")
+        bpm_row.addWidget(self.bpm_max_spin)
+        bpm_row.addSpacing(18)
+        bpm_row.addWidget(QLabel("Set role:"))
+        self.set_role_combo = QComboBox()
+        for role_value, role_label in _SET_ROLE_CHOICES:
+            self.set_role_combo.addItem(role_label, role_value)
+        bpm_row.addWidget(self.set_role_combo)
+        bpm_row.addWidget(QLabel("Energy:"))
+        self.crowd_energy_combo = QComboBox()
+        for energy_value, energy_label in _CROWD_ENERGY_CHOICES:
+            self.crowd_energy_combo.addItem(energy_label, energy_value)
+        bpm_row.addWidget(self.crowd_energy_combo)
+        bpm_row.addStretch(1)
+        layout.addLayout(bpm_row)
+
+        self.library_profile_label = QLabel(
+            "Analyze tracks first. Then this panel will show detected styles and how many tracks match the brief."
+        )
+        self.library_profile_label.setProperty("role", "hint")
+        layout.addWidget(self.library_profile_label)
+
+        self.set_brief_combo.currentIndexChanged.connect(self._apply_set_brief_preset)
+        self.style_focus_edit.textChanged.connect(lambda _: self._update_library_profile_summary())
+        self.bpm_min_spin.valueChanged.connect(lambda _: self._update_library_profile_summary())
+        self.bpm_max_spin.valueChanged.connect(lambda _: self._update_library_profile_summary())
+        self.set_role_combo.currentIndexChanged.connect(lambda _: self._update_library_profile_summary())
+        self.crowd_energy_combo.currentIndexChanged.connect(lambda _: self._update_library_profile_summary())
 
         self.generate_button = QPushButton("▶ Generate Set")
         self.generate_button.setProperty("role", "hero")
@@ -702,6 +829,7 @@ class SimpleModeWindow(QMainWindow):
         ]
         _ = selected_ids
         self._review_windows_cache = {}  # windows recompute from stem-aware data
+        self.review_analysis_depth = "deep"
         was_stopped = bool(getattr(finished_thread, "stop_requested", False))
         note = " (stopped early — rest stays quick)" if was_stopped else ""
         fail_note = f" · {len(failures)} failed" if failures else ""
@@ -876,6 +1004,7 @@ class SimpleModeWindow(QMainWindow):
         self.analyses = []
         self.failures = []
         self.plan = None
+        self.review_analysis_depth = _INITIAL_CHECK_DEPTH
         self.import_list.clear()
         for path in self.files:
             QListWidgetItem(path.name, self.import_list)
@@ -884,11 +1013,13 @@ class SimpleModeWindow(QMainWindow):
         )
         self.analyze_progress.setValue(0)
         if self.files:
-            depth = str(self.analysis_depth_combo.currentData() or "normal")
-            self.analyze_status.setText(f"Not started. {self._analysis_estimate_text(depth)}")
+            self.analyze_status.setText(
+                f"Initial Check not started. {self._analysis_estimate_text(_INITIAL_CHECK_DEPTH)}"
+            )
         else:
             self.analyze_status.setText("Not started.")
         self.analyze_list.clear()
+        self._update_library_profile_summary()
         self._sync_navigation()
 
     def cache_manager(self):
@@ -920,22 +1051,12 @@ class SimpleModeWindow(QMainWindow):
             return
         if self._analysis_thread is not None and self._analysis_thread.isRunning():
             return
-        depth_choice = str(self.analysis_depth_combo.currentData() or "normal")
-        manager = self.cache_manager()
-        if depth_choice == "deep" and manager.low_disk():
-            # PRODUCT_SPEC §8: below the floor, heavy stem jobs are blocked
-            self.analyze_status.setText(
-                "Low disk space — Deep analysis blocked. Free space or clear cache "
-                f"({manager.root})."
-            )
-            return
         self.analyze_button.setEnabled(False)
         self.analyze_progress.setMaximum(len(self.files))
         self.analyze_progress.setValue(0)
-        depth = str(self.analysis_depth_combo.currentData() or "normal")
-        self.analyze_status.setText(
-            "Analyzing deeply…" if depth == "deep" else "Analyzing…"
-        )
+        depth = _INITIAL_CHECK_DEPTH
+        self.review_analysis_depth = _INITIAL_CHECK_DEPTH
+        self.analyze_status.setText("Running Initial Check…")
 
         self.analyze_list.clear()
         self._analyze_rows = {}
@@ -945,10 +1066,9 @@ class SimpleModeWindow(QMainWindow):
 
         analysis_config = self._config_for_analysis_depth(depth)
         analyze_fn = analysis_function_for_depth(self.analyze_fn, depth)
-        # §18: quick analysis fans out across performance cores; deep stays
-        # single-worker (demucs memory pressure). Custom/stub analyzers run
-        # sequentially inside analyze_files regardless.
-        workers = auto_analysis_workers() if depth != "deep" else 1
+        # §18: Initial Check fans out across performance cores. Demucs stays
+        # isolated in Deep-Analyze Set Tracks after a set has been generated.
+        workers = auto_analysis_workers()
         if workers > 1:
             self.analyze_status.setText(
                 self.analyze_status.text() + f" · {workers} CPU workers"
@@ -1048,12 +1168,12 @@ class SimpleModeWindow(QMainWindow):
             pending = len(self.files) - len(self.analyses) - len(self.failures)
             self.analyze_status.setText(
                 f"Stopped · {len(self.analyses)} analyzed, {pending} pending — "
-                "run Analyze Tracks again to continue."
+                "run Initial Check again to continue."
             )
         else:
             self.analyze_progress.setValue(self.analyze_progress.maximum())
             self.analyze_status.setText(
-                f"Analyzed {len(self.analyses)} track(s) · {len(self.failures)} failed."
+                f"Initial Check complete · {len(self.analyses)} track(s) · {len(self.failures)} failed."
             )
         for analysis in self.analyses:
             track = analysis.track
@@ -1072,6 +1192,7 @@ class SimpleModeWindow(QMainWindow):
                 failure.source_path,
                 f"✗  {Path(failure.source_path).name} — {failure.error}",
             )
+        self._update_library_profile_summary()
         self._sync_navigation()
 
     def _target_track_count(self) -> int | None:
@@ -1102,9 +1223,113 @@ class SimpleModeWindow(QMainWindow):
         return config_for_analysis_depth(self.config, depth)
 
     def _current_analysis_config(self) -> EngineConfig:
-        return self._config_for_analysis_depth(
-            str(self.analysis_depth_combo.currentData() or "normal")
+        return self._config_for_analysis_depth(self.review_analysis_depth)
+
+    def _set_combo_value(self, combo: QComboBox, value: str) -> None:
+        index = combo.findData(value)
+        if index >= 0:
+            combo.setCurrentIndex(index)
+
+    def _apply_set_brief_preset(self) -> None:
+        preset_id = str(self.set_brief_combo.currentData() or "custom")
+        preset = next(
+            (item for item in _SET_BRIEF_PRESETS if item["id"] == preset_id),
+            _SET_BRIEF_PRESETS[0],
         )
+        self.style_focus_edit.setText(str(preset["styles"]))
+        self.bpm_min_spin.setValue(float(preset["bpm_min"]))
+        self.bpm_max_spin.setValue(float(preset["bpm_max"]))
+        self._set_combo_value(self.arc_combo, str(preset["arc"]))
+        self._set_combo_value(self.planner_mode_combo, str(preset["planner_mode"]))
+        self._set_combo_value(self.set_role_combo, str(preset["set_role"]))
+        self._set_combo_value(self.crowd_energy_combo, str(preset["crowd_energy"]))
+        self._update_library_profile_summary()
+
+    def _preferred_styles(self) -> list[str]:
+        if not hasattr(self, "style_focus_edit"):
+            return []
+        raw = self.style_focus_edit.text().replace(";", ",")
+        return normalize_style_list([part.strip() for part in raw.split(",") if part.strip()])
+
+    def _selected_bpm_min(self) -> float | None:
+        if not hasattr(self, "bpm_min_spin"):
+            return None
+        value = float(self.bpm_min_spin.value())
+        return value if value > 0 else None
+
+    def _selected_bpm_max(self) -> float | None:
+        if not hasattr(self, "bpm_max_spin"):
+            return None
+        value = float(self.bpm_max_spin.value())
+        return value if value > 0 else None
+
+    def _selected_set_context(self) -> ContextProfile | None:
+        styles = self._preferred_styles()
+        bpm_min = self._selected_bpm_min()
+        bpm_max = self._selected_bpm_max()
+        role = str(self.set_role_combo.currentData() or "builder") if hasattr(self, "set_role_combo") else "builder"
+        crowd = (
+            str(self.crowd_energy_combo.currentData() or "medium")
+            if hasattr(self, "crowd_energy_combo")
+            else "medium"
+        )
+        preset_id = str(self.set_brief_combo.currentData() or "custom") if hasattr(self, "set_brief_combo") else "custom"
+        if not styles and bpm_min is None and bpm_max is None and role == "builder" and crowd == "medium":
+            return None
+        return ContextProfile(
+            context_id=f"simple_mode_{preset_id}",
+            venue_type="event",
+            set_role=role,
+            crowd_energy=crowd,
+            style_focus=styles,
+            bpm_min=bpm_min,
+            bpm_max=bpm_max,
+        )
+
+    def _update_library_profile_summary(self) -> None:
+        label = getattr(self, "library_profile_label", None)
+        if label is None:
+            return
+        if not self.analyses:
+            label.setText(
+                "Analyze tracks first. Then this panel will show detected styles and how many tracks match the brief."
+            )
+            return
+        styles = self._preferred_styles()
+        bpm_min = self._selected_bpm_min()
+        bpm_max = self._selected_bpm_max()
+        context = self._selected_set_context()
+        profile = build_library_profile(
+            self.analyses,
+            context=context,
+            preferred_styles=styles,
+            bpm_min=bpm_min,
+            bpm_max=bpm_max,
+        )
+        style_bits = [
+            f"{style} ({count})"
+            for style, count in list(profile.style_counts.items())[:6]
+        ]
+        detected = ", ".join(style_bits) if style_bits else "no source-backed genre/style tags"
+        match_bits: list[str] = []
+        if profile.preferred_styles:
+            match_bits.append(
+                f"{profile.preferred_style_track_count}/{profile.track_count} match style"
+            )
+        if profile.bpm_preference_min is not None or profile.bpm_preference_max is not None:
+            bpm_min_text = profile.bpm_preference_min if profile.bpm_preference_min is not None else "-∞"
+            bpm_max_text = profile.bpm_preference_max if profile.bpm_preference_max is not None else "+∞"
+            match_bits.append(
+                f"{profile.bpm_preference_track_count}/{profile.track_count} inside {bpm_min_text}-{bpm_max_text} BPM"
+            )
+        bpm_text = (
+            f"BPM library {profile.bpm_min:g}-{profile.bpm_max:g}, mean {profile.bpm_mean:g}"
+            if profile.bpm_min is not None and profile.bpm_max is not None and profile.bpm_mean is not None
+            else "BPM library unknown"
+        )
+        warning = f" · {profile.warnings[0]}" if profile.warnings else ""
+        matches = " · ".join(match_bits) if match_bits else "no active style/BPM limit"
+        label.setText(f"{bpm_text} · styles: {detected} · {matches}{warning}")
 
     def generate_set(self) -> None:
         if not self.analyses:
@@ -1115,6 +1340,10 @@ class SimpleModeWindow(QMainWindow):
             return
         arc = str(self.arc_combo.currentData())
         planner_mode = str(self.planner_mode_combo.currentData() or "smart")
+        preferred_styles = self._preferred_styles()
+        bpm_min = self._selected_bpm_min()
+        bpm_max = self._selected_bpm_max()
+        context = self._selected_set_context()
         weights = load_weights(self.config.weights_file)
 
         # §14: history-aware variation. Seed 0 = fresh variation per click
@@ -1127,7 +1356,16 @@ class SimpleModeWindow(QMainWindow):
             self._auto_seed = getattr(self, "_auto_seed", 0) + 1
             seed_value = self._auto_seed
         ctx_hash = context_hash(
-            arc=arc, planner=planner_mode, count=target_count, mode=novelty_mode
+            arc=arc,
+            planner=planner_mode,
+            count=target_count,
+            mode=novelty_mode,
+            styles=preferred_styles,
+            bpm_min=bpm_min,
+            bpm_max=bpm_max,
+            context=context.context_id if context is not None else None,
+            set_role=context.set_role if context is not None else None,
+            crowd_energy=context.crowd_energy if context is not None else None,
         )
         store = HistoryStore(self.cache_manager().root / "history" / "playlists.jsonl")
         recent = store.recent(ctx_hash, limit=10)
@@ -1155,6 +1393,10 @@ class SimpleModeWindow(QMainWindow):
                 locked_positions=self.locked_positions or None,
                 pinned_track_ids=pinned or None,
                 planner_mode=planner_mode,
+                context=context,
+                preferred_styles=preferred_styles,
+                bpm_min=bpm_min,
+                bpm_max=bpm_max,
                 novelty_mode=novelty_mode,
                 history=recent,
                 seed=seed_value if novelty_mode != "deterministic" else None,
@@ -1183,6 +1425,8 @@ class SimpleModeWindow(QMainWindow):
                 details.append(f"{track.bpm_estimate:.0f} BPM")
             if track.key_estimate:
                 details.append(track.key_estimate)
+            if track.style_label:
+                details.append(track.style_label)
             badges = []
             if self.locked_positions.get(position) == track_id:
                 badges.append("🔒")
@@ -1203,13 +1447,23 @@ class SimpleModeWindow(QMainWindow):
             total_min = sum(known_durations) / 60.0
             duration_text = f" · ≈{int(total_min // 60)}h {int(total_min % 60):02d}m"
         warning_text = f" · warning: {self.plan.warnings[0]}" if self.plan.warnings else ""
+        brief_bits: list[str] = []
+        if preferred_styles:
+            brief_bits.append("style " + ", ".join(preferred_styles[:3]))
+        if bpm_min is not None or bpm_max is not None:
+            brief_bits.append(
+                f"BPM {bpm_min if bpm_min is not None else '-∞'}-{bpm_max if bpm_max is not None else '+∞'}"
+            )
+        if context is not None and context.set_role:
+            brief_bits.append(str(context.set_role))
+        brief_text = f" · brief {' / '.join(brief_bits)}" if brief_bits else ""
         self.deep_upgrade_button.setEnabled(True)
         self.deep_status.setText(
             "Tip: Deep-Analyze Set Tracks separates stems for just these "
             f"{len(self.plan.track_order)} tracks — minutes, not an overnight run."
         )
         self.generate_status.setText(
-            f"{len(self.plan.track_order)}-track set · mode {planner_mode} · arc {arc}{duration_text}"
+            f"{len(self.plan.track_order)}-track set · mode {planner_mode} · arc {arc}{brief_text}{duration_text}"
             + (f" · mean transition score {mean:.2f}" if mean is not None else "")
             + warning_text
         )
@@ -1248,6 +1502,40 @@ class SimpleModeWindow(QMainWindow):
         self._review_windows_cache = cache
         return cache[track_id]
 
+    def choose_import_usb(self) -> None:
+        root = QFileDialog.getExistingDirectory(self, "Choose Rekordbox USB", "/Volumes")
+        if root:
+            self.import_rekordbox_usb(root)
+
+    def import_rekordbox_usb(self, root: str | Path) -> int:
+        """Scan a Rekordbox USB: audio files + the DJ's verified hot cues."""
+        from dancelab.ingestion.rekordbox_device import scan_device
+
+        device_root = Path(root)
+        tracks = scan_device(device_root)
+        files: list[Path] = []
+        for track in tracks:
+            rel = track.source_path.lstrip("/")
+            audio = device_root / rel
+            if audio.exists():
+                files.append(audio)
+                self.device_cues[audio.name] = track.cues
+        if not files:
+            self.import_summary.setText(
+                "No Rekordbox tracks with cues found on that drive "
+                "(expected PIONEER/USBANLZ)."
+            )
+            return 0
+        self._set_import_files_after_preflight(files)
+        hot_total = sum(
+            1 for t in tracks for c in t.cues if c.list_type == "hot"
+        )
+        self.import_summary.setText(
+            f"{len(files)} track(s) from USB · {hot_total} of your hot cues imported "
+            "— they become verified transition points."
+        )
+        return len(files)
+
     def _on_review_row_changed(self, row: int) -> None:
         if self.plan is None or row < 0 or row >= len(self.plan.transitions):
             return
@@ -1257,14 +1545,42 @@ class SimpleModeWindow(QMainWindow):
         analysis_b = by_id.get(transition.to_track_id)
         if analysis_a is None or analysis_b is None:
             return
+        windows_a = self._windows_for(analysis_a)
+        windows_b = self._windows_for(analysis_b)
         self.review_widget.set_transition(
             analysis_a,
             analysis_b,
             transition,
             self.config,
-            self._windows_for(analysis_a),
-            self._windows_for(analysis_b),
+            windows_a,
+            windows_b,
         )
+        # §13: the DJ's own hot cue near the mix-in becomes the verified B start
+        from dancelab.decision.transition_cues import build_transition_cue
+
+        user_cues_b = self.device_cues.get(
+            Path(analysis_b.track.source_path or "").name
+        )
+        cue = build_transition_cue(
+            transition,
+            analysis_a=analysis_a,
+            analysis_b=analysis_b,
+            windows_a=windows_a,
+            windows_b=windows_b,
+            user_cues_b=user_cues_b,
+        )
+        if cue.b_cue_source == "rekordbox_hotcue" and cue.b_in_start_sec is not None:
+            slot_name = chr(ord("A") + (cue.b_cue_slot or 1) - 1)
+            self.review_widget.deck_b.set_user_cue(
+                cue.b_in_start_sec, f"hot {slot_name}"
+            )
+        extra = " · ".join(cue.reasoning[:1])
+        if cue.requires_manual_listen:
+            extra = (extra + " · " if extra else "") + "⚠ listen before trusting this handoff"
+        if extra:
+            self.review_widget.header_label.setText(
+                self.review_widget.header_label.text() + f"<br><i>{extra}</i>"
+            )
 
     def choose_export_path(self) -> None:
         selected, _ = QFileDialog.getSaveFileName(
@@ -1287,6 +1603,7 @@ class SimpleModeWindow(QMainWindow):
             set_plan=self.plan,
             windows_by_track=windows,
             playlist_name=playlist_name,
+            export_beatgrid=False,
         )
         self.export_path = write_rekordbox_xml(xml, self.export_path_edit.text())
         hot_cue_count = len(ET.fromstring(xml).findall("./COLLECTION/TRACK/POSITION_MARK"))
@@ -1294,7 +1611,8 @@ class SimpleModeWindow(QMainWindow):
             f"Exported · {self.export_path}\n"
             f"Rekordbox XML contains {hot_cue_count} hot cue marker(s).\n"
             "In Rekordbox: Preferences → Advanced → Imported Library, then right-click "
-            "the playlist to import. Uncheck re-analysis to keep the DanceLab beatgrid."
+            "the playlist to import. Let Rekordbox analyze BPM/beatgrid; DanceLab exports "
+            "playlist order and hot cues only."
         )
 
     # -------------------------------------------------------------- graph mode
@@ -1320,7 +1638,11 @@ class SimpleModeWindow(QMainWindow):
                     target_count=target_count,
                     arc=str(self.arc_combo.currentData()),
                     planner_mode=str(self.planner_mode_combo.currentData() or "smart"),
-                    analysis_depth=str(self.analysis_depth_combo.currentData() or "normal"),
+                    analysis_depth=_INITIAL_CHECK_DEPTH,
+                    preferred_styles=self._preferred_styles(),
+                    bpm_min=self._selected_bpm_min(),
+                    bpm_max=self._selected_bpm_max(),
+                    context_profile=self._selected_set_context(),
                     playlist_name=self.playlist_name_edit.text().strip() or "DanceLab Set",
                     output_path=self.export_path_edit.text().strip(),
                 )
