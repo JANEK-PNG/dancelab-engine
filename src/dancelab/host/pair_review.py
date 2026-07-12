@@ -514,7 +514,26 @@ class Deck(QWidget):
             self._player.setAudioOutput(self._audio_output)
             self._player.positionChanged.connect(self._on_position)
             self._player.playbackStateChanged.connect(self._on_state)
+            # silent audio failures are a lie of omission — surface them
+            self._player.errorOccurred.connect(self._on_player_error)
         return self._player
+
+    def _on_player_error(self, error, message: str) -> None:
+        source = self._player.source().toLocalFile() if self._player else ""
+        missing = source and not Path(source).exists()
+        detail = "file missing — re-import or re-mount the drive" if missing else (message or str(error))
+        self.stem_status.setText(f"⚠ playback failed: {detail}")
+
+    def playback_problem(self) -> str | None:
+        """Pre-flight check: why Play would silently fail, or None."""
+        if self.analysis is None:
+            return "no track loaded"
+        source = self.analysis.track.source_path
+        if not source:
+            return "analysis has no source path"
+        if not Path(source).exists():
+            return f"file missing: {source}"
+        return None
 
     def _source_for(self, label: str) -> str | None:
         if label == "Mix":
@@ -708,6 +727,15 @@ class TransitionReviewWidget(QWidget):
         )
 
     def preview_transition(self) -> None:
+        problems = []
+        for name, deck in (("A", self.deck_a), ("B", self.deck_b)):
+            issue = deck.playback_problem()
+            if issue:
+                problems.append(f"deck {name}: {issue}")
+        if problems:
+            # never fail silently — state exactly what blocks the preview
+            self.sync_status.setText("⚠ " + " · ".join(problems))
+            return
         self.deck_a.cue_to_window()
         self.deck_b.cue_to_window()
         self.deck_a.toggle_play()
