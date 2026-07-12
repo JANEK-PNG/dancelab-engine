@@ -516,6 +516,12 @@ class Deck(QWidget):
             self._player.playbackStateChanged.connect(self._on_state)
             # silent audio failures are a lie of omission — surface them
             self._player.errorOccurred.connect(self._on_player_error)
+            if not self._player.isAvailable():
+                # ENV-1 can hide Qt's multimedia backend ("No QtMultimedia
+                # backends found") — player constructs but never plays
+                self.stem_status.setText(
+                    "⚠ audio backend unavailable — quit and relaunch via ./run_app.sh"
+                )
         return self._player
 
     def _on_player_error(self, error, message: str) -> None:

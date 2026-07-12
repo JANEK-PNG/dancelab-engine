@@ -51,9 +51,14 @@ def _prepare_qt_runtime() -> None:
         os.environ.setdefault("QT_PLUGIN_PATH", str(plugins))
     if sys.platform == "darwin":
         try:
+            pyside_dir = str(Path(PySide6.__file__).parent)
             subprocess.run(
-                ["chflags", "-R", "nohidden", str(Path(PySide6.__file__).parent)],
-                capture_output=True, timeout=15, check=False,
+                ["chflags", "-R", "nohidden", pyside_dir],
+                capture_output=True, timeout=30, check=False,
+            )
+            subprocess.run(
+                ["xattr", "-rd", "com.apple.provenance", pyside_dir],
+                capture_output=True, timeout=30, check=False,
             )
         except Exception:
             pass  # cosmetic hardening only — never block launch
