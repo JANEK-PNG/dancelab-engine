@@ -605,6 +605,7 @@ class TransitionReviewWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
 
+        self.blind = False  # validation mode: hide engine opinions, keep audio
         self.header_label = QLabel("Select a transition to review it.")
         self.header_label.setWordWrap(True)
         layout.addWidget(self.header_label)
@@ -672,6 +673,9 @@ class TransitionReviewWidget(QWidget):
             ),
         ]
         header.extend(f"⚠ {warning}" for warning in transition.warnings)
+        if self.blind:
+            # validation mode: no engine opinions may anchor the rater
+            header = [header[0], "<i>Blind rating — engine opinions hidden. Listen and judge.</i>"]
         self.header_label.setText("<br>".join(header))
 
         self.deck_a.set_track(analysis_a, config, windows_a, WindowType.mix_out)

@@ -566,3 +566,57 @@ def test_usb_import_brings_user_cues_into_review(tmp_path):
     assert "YOUR hot cue" in header or "listen before trusting" in header
 
     window.close()
+
+
+@pytest.mark.skipif(
+    not _qt_bootstrap_available(),
+    reason="Qt platform bootstrap unavailable in this shell",
+)
+def test_validation_mode_blind_rating_and_report(tmp_path):
+    # Weight-calibration study tooling: blind hides engine opinions, ratings
+    # land in CSV, full pass yields an honest engine-vs-rater report.
+    QApplication.instance() or QApplication([])
+    window = SimpleModeWindow()
+    window.config.paths.processed_dir = str(tmp_path / "processed")
+    window.config.cache.root = str(tmp_path / "cache")
+    window.analyze_fn = _stub_analysis
+    files = []
+    for name in ("Alpha", "Beta", "Gamma", "Delta"):
+        p = tmp_path / f"{name}.mp3"
+        p.write_bytes(b"stub")
+        files.append(p)
+    window.set_import_files(files)
+    window.run_analysis(wait=True)
+    QApplication.processEvents()
+    window.go_to_step(3)
+    window.count_radio.setChecked(True)
+    window.count_spin.setValue(4)
+    window.generate_set()
+    window.go_to_step(4)
+    QApplication.processEvents()
+
+    # blind ON: list rows and header hide engine scores
+    window.annotator_edit.setText("Jan Tester")
+    window.blind_check.setChecked(True)
+    QApplication.processEvents()
+    row_text = window.review_list.item(0).text()
+    assert "0." not in row_text  # no score like "· 0.82"
+    assert "Blind rating" in window.review_widget.header_label.text()
+    assert "score" not in window.review_widget.header_label.text()
+
+    # rate all three transitions; auto-advance; report at the end
+    window.review_list.setCurrentRow(0)
+    for rating in (4, 3, 5):
+        window.rate_current_transition(rating)
+        QApplication.processEvents()
+    assert "Rated 3/3" in window.validation_status.text()
+    assert "engine vs you" in window.validation_status.text()
+
+    csv_path = Path(window.config.cache.root) / "validation" / "Jan_Tester_transition_ratings.csv"
+    assert csv_path.exists()
+    lines = csv_path.read_text().splitlines()
+    assert len(lines) == 4  # header + 3 ratings
+    assert lines[0].startswith("pair_id,track_id_a,track_id_b,engine_score")
+    assert lines[1].endswith(",4,,1")  # rating 4, no comment, blind=1
+
+    window.close()
