@@ -14,7 +14,7 @@ import sys
 import pytest
 
 from dancelab.core import backend
-from dancelab.core.backend import backend_label, backend_report, preferred_torch_device
+from dancelab.core.backend import backend_report, preferred_torch_device
 
 
 @pytest.fixture(autouse=True)
