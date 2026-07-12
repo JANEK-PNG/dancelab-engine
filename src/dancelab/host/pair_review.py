@@ -5,7 +5,7 @@ Everything shown here is engine data, not decoration:
   groove/outro) and transition windows the analysis produced;
 - beat sync computes the playback rate from the two tracks' estimated BPMs
   (half/double-time aware, same octave-folding as the decision layer);
-- quantize snaps seeks to the track's tracked beatgrid;
+- quantize snaps seeks to the track's 8-beat phrase grid;
 - stem isolation runs real source separation (demucs when installed) or an
   honest DSP fallback (HPSS harmonic/percussive split + low-pass bass) and is
   labeled accordingly.
@@ -38,6 +38,7 @@ from dancelab.core.models import (
 )
 from dancelab.decision._common import nearest_bpm_variant
 from dancelab.decision.transition_windows import detect_transition_windows
+from dancelab.host.preview_timing import snap_to_grid
 from dancelab.ingestion.loader import load_audio
 
 SEGMENT_COLORS = {
@@ -75,21 +76,6 @@ def beat_sync_rate(bpm_master: float | None, bpm_other: float | None) -> float |
         return None
     rate = float(bpm_master) / float(effective_other)
     return float(min(2.0, max(0.5, rate)))
-
-
-def snap_to_grid(
-    t_sec: float,
-    beat_times: list[float] | None,
-    downbeats: list[float] | None = None,
-    *,
-    bars: bool = False,
-) -> float:
-    """Snap a position to the nearest tracked beat (or downbeat when bars)."""
-    grid = downbeats if bars and downbeats else beat_times
-    if not grid:
-        return t_sec
-    arr = np.asarray(grid, dtype=np.float64)
-    return float(arr[int(np.argmin(np.abs(arr - t_sec)))])
 
 
 def best_window(
@@ -353,7 +339,7 @@ class Deck(QWidget):
         self.play_button.clicked.connect(self.toggle_play)
         transport.addWidget(self.play_button)
         self.cue_button = QPushButton("Cue Window")
-        self.cue_button.setToolTip("Jump to the best transition window (snapped to the beatgrid).")
+        self.cue_button.setToolTip("Jump to the best transition window (snapped to the 8-beat grid).")
         self.cue_button.clicked.connect(self.cue_to_window)
         transport.addWidget(self.cue_button)
         self.time_label = QLabel("0:00 / 0:00")
@@ -640,7 +626,7 @@ class TransitionReviewWidget(QWidget):
         self.beat_sync_check.setChecked(True)
         self.beat_sync_check.toggled.connect(self._apply_beat_sync)
         controls.addWidget(self.beat_sync_check)
-        self.quantize_check = QCheckBox("Quantize seeks to beatgrid")
+        self.quantize_check = QCheckBox("Quantize seeks to 8-beat grid")
         self.quantize_check.setChecked(True)
         self.quantize_check.toggled.connect(self._apply_quantize)
         controls.addWidget(self.quantize_check)

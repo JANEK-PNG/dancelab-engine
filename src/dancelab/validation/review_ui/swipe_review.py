@@ -16,6 +16,11 @@ from math import sqrt
 from pathlib import Path
 
 from dancelab.contracts.telemetry import DecisionTelemetryManifest
+from dancelab.host.preview_timing import (
+    GRID_QUANTIZE_BEATS,
+    PREVIEW_LEAD_BEATS,
+    quantized_cue_and_start,
+)
 
 
 def _read_csv_rows(path: str | Path) -> tuple[list[str], list[dict[str, str]]]:
@@ -356,7 +361,6 @@ _PREVIEW_SYNC_TOLERANCE = 0.08
 _PREVIEW_LEAD_IN_SEC = 8.0
 _PREVIEW_MIN_DURATION_SEC = 18
 _PREVIEW_MAX_DURATION_SEC = 32
-_PREVIEW_QUANTIZE_LEAD_BEATS = 16
 
 
 def _clamp(value: float, lower: float, upper: float) -> float:
@@ -404,21 +408,6 @@ def _load_processed_preview_meta(
         "downbeats_sec": [float(value) for value in downbeats],
     }
     return cache[track_id]
-
-
-def _previous_anchor_time(target_sec: float, anchors: list[float]) -> float:
-    if not anchors:
-        return target_sec
-    previous = [value for value in anchors if value <= target_sec]
-    if previous:
-        return float(previous[-1])
-    return float(anchors[0])
-
-
-def _nearest_anchor_index(target_sec: float, anchors: list[float]) -> int | None:
-    if not anchors:
-        return None
-    return min(range(len(anchors)), key=lambda index: abs(anchors[index] - target_sec))
 
 
 def _format_timecode(seconds: float | None) -> str:
@@ -480,32 +469,48 @@ def _build_pair_preview_data(
     meta_b = _load_processed_preview_meta(track_id_b, processed_dir=processed_dir, cache=processed_cache)
     beat_times_a = list(meta_a.get("beat_times_sec") or [])
     beat_times_b = list(meta_b.get("beat_times_sec") or [])
+    downbeats_a = list(meta_a.get("downbeats_sec") or [])
+    downbeats_b = list(meta_b.get("downbeats_sec") or [])
 
     preview_cue_a = cue_a_sec or 0.0
     preview_cue_b = cue_b_sec or 0.0
-    raw_start_a = max(preview_cue_a - _PREVIEW_LEAD_IN_SEC, 0.0)
-    raw_start_b = max(preview_cue_b - _PREVIEW_LEAD_IN_SEC, 0.0)
-    preview_start_a = _previous_anchor_time(raw_start_a, beat_times_a)
-    preview_start_b = _previous_anchor_time(raw_start_b, beat_times_b)
+    preview_start_a = max(preview_cue_a - _PREVIEW_LEAD_IN_SEC, 0.0)
+    preview_start_b = max(preview_cue_b - _PREVIEW_LEAD_IN_SEC, 0.0)
     quantize_status = "fallback"
     quantize_label = "fallback"
-    quantize_note = "Grid quantize unavailable, so preview falls back to second-based cueing."
+    quantize_note = "8-beat grid quantize unavailable, so preview falls back to second-based cueing."
     quantize_lead_beats = 0
 
-    cue_index_a = _nearest_anchor_index(preview_cue_a, beat_times_a)
-    cue_index_b = _nearest_anchor_index(preview_cue_b, beat_times_b)
-    if cue_index_a is not None and cue_index_b is not None:
-        preview_cue_a = float(beat_times_a[cue_index_a])
-        preview_cue_b = float(beat_times_b[cue_index_b])
-        quantize_lead_beats = min(_PREVIEW_QUANTIZE_LEAD_BEATS, cue_index_a, cue_index_b)
-        preview_start_a = float(beat_times_a[cue_index_a - quantize_lead_beats])
-        preview_start_b = float(beat_times_b[cue_index_b - quantize_lead_beats])
-        quantize_status = "grid"
-        quantize_label = f"grid -{quantize_lead_beats} beats"
-        quantize_note = (
-            f"Quantize snaps both decks to the nearest beatgrid cue and starts them "
-            f"{quantize_lead_beats} beats before the transition point."
+    if beat_times_a and beat_times_b:
+        preview_cue_a, preview_start_a, lead_a = quantized_cue_and_start(
+            preview_cue_a,
+            beat_times_a,
+            downbeats_a,
+            lead_beats=PREVIEW_LEAD_BEATS,
+            grid_beats=GRID_QUANTIZE_BEATS,
         )
+        preview_cue_b, preview_start_b, lead_b = quantized_cue_and_start(
+            preview_cue_b,
+            beat_times_b,
+            downbeats_b,
+            lead_beats=PREVIEW_LEAD_BEATS,
+            grid_beats=GRID_QUANTIZE_BEATS,
+        )
+        quantize_lead_beats = min(lead_a, lead_b)
+        quantize_status = "grid"
+        if quantize_lead_beats > 0:
+            quantize_label = f"8-beat grid -{quantize_lead_beats} beats"
+            quantize_note = (
+                f"Quantize snaps cue points and preview starts to {GRID_QUANTIZE_BEATS}-beat "
+                f"grid boundaries; preview starts {quantize_lead_beats} beats before the "
+                "transition point when enough lead-in exists."
+            )
+        else:
+            quantize_label = "8-beat grid cue"
+            quantize_note = (
+                f"Quantize snaps cue points to {GRID_QUANTIZE_BEATS}-beat grid boundaries; "
+                "preview starts at the cue because one deck has no earlier 8-beat lead-in."
+            )
 
     bpm_a = meta_a.get("bpm")
     bpm_b = meta_b.get("bpm")

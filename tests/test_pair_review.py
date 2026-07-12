@@ -13,6 +13,7 @@ pytest.importorskip("PySide6")
 from dancelab.core.config import load_config
 from dancelab.core.models import AnalysisResult, BeatGrid, Track, TransitionWindow, WindowType
 from dancelab.host.pair_review import Deck, beat_sync_rate, best_window, snap_to_grid
+from dancelab.host.preview_timing import quantized_cue_and_start
 
 from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import QApplication
@@ -40,14 +41,27 @@ def test_beat_sync_rate_honest_none_and_clamped():
     assert 0.5 <= beat_sync_rate(60.0, 100.0) <= 2.0
 
 
-def test_snap_to_grid_snaps_to_nearest_beat_and_bar():
-    beats = [0.0, 0.5, 1.0, 1.5, 2.0]
-    downbeats = [0.0, 2.0]
-    assert snap_to_grid(0.61, beats, downbeats) == 0.5
-    assert snap_to_grid(1.9, beats, downbeats) == 2.0
-    assert snap_to_grid(1.2, beats, downbeats, bars=True) == 2.0
+def test_snap_to_grid_defaults_to_eight_beat_boundaries():
+    beats = [index * 0.5 for index in range(33)]  # 120 BPM, 16 seconds
+    downbeats = [0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0]
+    assert snap_to_grid(0.61, beats, downbeats) == 0.0
+    assert snap_to_grid(3.1, beats, downbeats) == 4.0
+    assert snap_to_grid(6.2, beats, downbeats) == 8.0
+    # nearest-beat mode still exists, but only when explicitly requested for diagnostics
+    assert snap_to_grid(0.61, beats, downbeats, grid_beats=1) == 0.5
     # no grid → position unchanged, never invented
     assert snap_to_grid(3.3, [], []) == 3.3
+
+
+def test_quantized_cue_and_start_stays_on_eight_beat_grid():
+    beats = [index * 0.5 for index in range(81)]  # 40 seconds at 120 BPM
+    downbeats = [index * 2.0 for index in range(21)]
+
+    cue, start, lead = quantized_cue_and_start(20.1, beats, downbeats)
+
+    assert cue == 20.0       # beat 40, divisible by 8
+    assert start == 12.0     # beat 24, 16-beat lead and still divisible by 8
+    assert lead == 16
 
 
 def test_best_window_picks_highest_scoring_of_type():

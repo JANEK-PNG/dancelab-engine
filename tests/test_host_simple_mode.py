@@ -167,12 +167,12 @@ def test_simple_mode_wizard_end_to_end(tmp_path):
         assert window.review_widget.deck_a.analysis.track.track_id == transition.from_track_id
         assert window.review_widget.deck_b.analysis.track.track_id == transition.to_track_id
 
-    # quantized seek snaps to the stub beatgrid (beats at 0.0/0.5/1.0)
+    # quantized seek snaps to the host's 8-beat grid, not an arbitrary nearest beat.
     window.review_widget.deck_b.quantize = True
     from dancelab.host.pair_review import snap_to_grid
 
     grid = window.review_widget.deck_b.analysis.beatgrid
-    assert snap_to_grid(0.61, grid.beat_times_sec, grid.downbeats_sec) == 0.5
+    assert snap_to_grid(0.61, grid.beat_times_sec, grid.downbeats_sec) == 0.0
 
     # step 5: export writes the XML
     window.go_to_step(5)
