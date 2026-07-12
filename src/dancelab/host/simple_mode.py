@@ -17,6 +17,7 @@ import xml.etree.ElementTree as ET
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QFileDialog,
@@ -861,7 +862,114 @@ class SimpleModeWindow(QMainWindow):
         self.review_widget = TransitionReviewWidget()
         split.addWidget(self.review_widget, stretch=1)
         layout.addLayout(split, stretch=1)
+
+        # Validation Mode (weight-calibration study): blind rating so engine
+        # scores can't anchor the rater; A/B decks stay fully usable.
+        validation_row = QHBoxLayout()
+        self.blind_check = QCheckBox("Blind rating (hide engine scores)")
+        self.blind_check.toggled.connect(self._on_blind_toggled)
+        validation_row.addWidget(self.blind_check)
+        validation_row.addWidget(QLabel("Rater:"))
+        self.annotator_edit = QLineEdit("")
+        self.annotator_edit.setPlaceholderText("your name")
+        self.annotator_edit.setMaximumWidth(140)
+        validation_row.addWidget(self.annotator_edit)
+        validation_row.addWidget(QLabel("Rate:"))
+        self.rating_buttons: list[QPushButton] = []
+        for value in (1, 2, 3, 4, 5):
+            button = QPushButton(str(value))
+            button.setMaximumWidth(36)
+            button.clicked.connect(lambda checked=False, v=value: self.rate_current_transition(v))
+            validation_row.addWidget(button)
+            self.rating_buttons.append(button)
+        self.rating_comment = QLineEdit("")
+        self.rating_comment.setPlaceholderText("optional comment")
+        validation_row.addWidget(self.rating_comment, stretch=1)
+        layout.addLayout(validation_row)
+        self.validation_status = QLabel("")
+        self.validation_status.setProperty("role", "hint")
+        layout.addWidget(self.validation_status)
         return page
+
+    # -------------------------------------------- validation mode (§ weights)
+
+    def _on_blind_toggled(self, enabled: bool) -> None:
+        self.review_widget.blind = enabled
+        row = max(self.review_list.currentRow(), 0)
+        given = getattr(self, "_ratings_given", set())
+        self._populate_review()  # list rows re-render without scores in blind
+        self._ratings_given = given  # toggling blind must not wipe progress
+        if self.review_list.count():
+            self.review_list.setCurrentRow(min(row, self.review_list.count() - 1))
+
+    def _validation_csv_path(self) -> Path:
+        annotator = (self.annotator_edit.text().strip() or "anonymous").replace(" ", "_")
+        root = Path(self.cache_manager().root) / "validation"
+        root.mkdir(parents=True, exist_ok=True)
+        return root / f"{annotator}_transition_ratings.csv"
+
+    def rate_current_transition(self, rating: int) -> None:
+        import csv
+
+        row = self.review_list.currentRow()
+        if self.plan is None or row < 0 or row >= len(self.plan.transitions):
+            self.validation_status.setText("Select a transition first.")
+            return
+        transition = self.plan.transitions[row]
+        path = self._validation_csv_path()
+        is_new = not path.exists()
+        with open(path, "a", newline="", encoding="utf-8") as handle:
+            writer = csv.writer(handle)
+            if is_new:
+                writer.writerow([
+                    "pair_id", "track_id_a", "track_id_b", "engine_score",
+                    "dj_mixability_rating", "comment", "blind",
+                ])
+            writer.writerow([
+                f"{transition.from_track_id}__{transition.to_track_id}",
+                transition.from_track_id,
+                transition.to_track_id,
+                f"{transition.transition_score:.4f}",
+                rating,
+                self.rating_comment.text().strip(),
+                int(self.blind_check.isChecked()),
+            ])
+        self.rating_comment.clear()
+        self._ratings_given = getattr(self, "_ratings_given", set())
+        self._ratings_given.add(row)
+        total = len(self.plan.transitions)
+        done = len(self._ratings_given)
+        if done < total:
+            self.validation_status.setText(
+                f"Rated {done}/{total} · saved to {path.name}"
+            )
+            if row + 1 < total:
+                self.review_list.setCurrentRow(row + 1)  # flow: next transition
+        else:
+            self.validation_status.setText(
+                f"Rated {done}/{total} · {self._validation_report(path)}"
+            )
+
+    def _validation_report(self, csv_path: Path) -> str:
+        """Honest engine-vs-human agreement from this rater's file."""
+        import csv
+
+        from dancelab.validation.dj_decision_metrics import (
+            kendall_tau,
+            rating_correlation,
+        )
+
+        engine_scores: list[float] = []
+        ratings: list[float] = []
+        with open(csv_path, encoding="utf-8") as handle:
+            for record in csv.DictReader(handle):
+                engine_scores.append(float(record["engine_score"]))
+                ratings.append(float(record["dj_mixability_rating"]))
+        rho = rating_correlation(engine_scores, ratings)
+        tau = kendall_tau(engine_scores, ratings)
+        rho_text = f"ρ={rho:.2f}" if rho is not None else "ρ=n/a (low n or no variance)"
+        tau_text = f"τ={tau:.2f}" if tau is not None else "τ=n/a"
+        return f"engine vs you: {rho_text} · {tau_text} (n={len(ratings)}) — {csv_path}"
 
     def _build_export_page(self) -> QWidget:
         page = QWidget()
@@ -1471,6 +1579,7 @@ class SimpleModeWindow(QMainWindow):
         self._sync_navigation()
 
     def _populate_review(self) -> None:
+        self._ratings_given = set()
         self.review_list.clear()
         self._review_windows_cache = {}
         if self.plan is None:
@@ -1482,10 +1591,12 @@ class SimpleModeWindow(QMainWindow):
             return (analysis.track.title if analysis else None) or track_id
 
         for position, transition in enumerate(self.plan.transitions, start=1):
-            warn = " ⚠" if transition.warnings else ""
+            blind = getattr(self, "blind_check", None) is not None and self.blind_check.isChecked()
+            warn = " ⚠" if (transition.warnings and not blind) else ""
+            score_text = "" if blind else f" · {transition.transition_score:.2f}"
             QListWidgetItem(
                 f"{position}. {name(transition.from_track_id)}\n"
-                f"    → {name(transition.to_track_id)} · {transition.transition_score:.2f}{warn}",
+                f"    → {name(transition.to_track_id)}{score_text}{warn}",
                 self.review_list,
             )
         if self.plan.transitions:
@@ -1574,6 +1685,8 @@ class SimpleModeWindow(QMainWindow):
             self.review_widget.deck_b.set_user_cue(
                 cue.b_in_start_sec, f"hot {slot_name}"
             )
+        if self.blind_check.isChecked():
+            return  # blind: no engine commentary; the DJ's own cue stays usable
         extra = " · ".join(cue.reasoning[:1])
         if cue.requires_manual_listen:
             extra = (extra + " · " if extra else "") + "⚠ listen before trusting this handoff"
