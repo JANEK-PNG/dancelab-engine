@@ -11,6 +11,7 @@ import pytest
 from dancelab.core.models import AnalysisResult, FeatureFrame, Track
 from dancelab.storage.repositories import FileAnalysisRepository
 from dancelab.validation.pilot_pack import build_validation_pack
+from dancelab.validation.review_ui.swipe_review import _build_pair_preview_data
 
 
 def write_csv(path: Path, header: list[str], rows: list[list[object]]) -> None:
@@ -202,3 +203,40 @@ def test_build_validation_pack_uses_pair_review_when_available(tmp_path):
     assert "Engine Control Center" in control_html
     assert "validation_pack_summary.json" in control_html
     assert "Auto Refresh: On" in control_html
+
+
+def test_listen_board_preview_quantizes_to_eight_beat_grid(tmp_path):
+    processed = tmp_path / "processed"
+    processed.mkdir()
+    beatgrid = {
+        "bpm": 120.0,
+        "beat_times_sec": [index * 0.5 for index in range(81)],
+        "downbeats_sec": [index * 2.0 for index in range(21)],
+        "reliable": True,
+    }
+    for track_id in ("a", "b"):
+        (processed / f"{track_id}.json").write_text(json.dumps({"beatgrid": beatgrid}))
+
+    payload = _build_pair_preview_data(
+        {
+            "track_id_a": "a",
+            "track_id_b": "b",
+            "title_a": "A",
+            "title_b": "B",
+            "engine_pair_window_a(mm:ss)": "0:20-0:36",
+            "engine_pair_window_b(mm:ss)": "0:09-0:25",
+            "engine_tempo_relation": "direct",
+        },
+        repo_root=tmp_path,
+        output_dir=tmp_path,
+        processed_dir=processed,
+        processed_cache={},
+    )
+
+    assert payload["preview_a_cue_sec"] == pytest.approx(20.0)
+    assert payload["preview_a_start_sec"] == pytest.approx(12.0)
+    assert payload["preview_b_cue_sec"] == pytest.approx(8.0)
+    assert payload["preview_b_start_sec"] == pytest.approx(0.0)
+    assert payload["quantize_lead_beats"] == 16
+    assert payload["quantize_label"] == "8-beat grid -16 beats"
+    assert "8-beat grid boundaries" in payload["quantize_note"]

@@ -208,6 +208,41 @@ def validation_pack(
     typer.echo(f"Wrote {paths['summary_md']}")
 
 
+@app.command(name="validation-benchmark")
+def validation_benchmark(
+    ratings_path: list[Path] | None = typer.Argument(
+        None,
+        help="Rating CSV files or directories. Defaults to the DanceLab validation cache.",
+    ),
+    output_dir: Path = typer.Option(Path("data/reports/dj_benchmark"), "--output-dir", "-o"),
+    min_sessions: int = typer.Option(5, "--min-sessions", help="Minimum complete DJ sessions"),
+    min_ratings: int = typer.Option(
+        30,
+        "--min-ratings",
+        help="Minimum rated transitions required for a complete session",
+    ),
+) -> None:
+    """Aggregate DJ transition rating CSVs into a 5-session benchmark report."""
+    from dancelab.validation.dj_benchmark import (
+        build_benchmark_summary,
+        default_validation_cache_dir,
+        write_benchmark_report,
+    )
+
+    paths = ratings_path or [default_validation_cache_dir()]
+    summary = build_benchmark_summary(
+        paths,
+        min_sessions=min_sessions,
+        min_rated_transitions_per_session=min_ratings,
+    )
+    outputs = write_benchmark_report(summary, output_dir)
+    status = "READY FOR TUNING" if summary.is_ready_for_tuning else "NOT READY FOR TUNING"
+    typer.echo(f"{status}: {summary.complete_session_count}/{summary.min_sessions} complete sessions")
+    typer.echo(f"Rated transitions: {summary.total_rated_count}")
+    typer.echo(f"Wrote {outputs['summary_json']}")
+    typer.echo(f"Wrote {outputs['summary_md']}")
+
+
 # batch is registered from cli.batch to keep files per blueprint
 from dancelab.cli.batch import batch as _batch  # noqa: E402
 from dancelab.cli.report import decision_report as _decision_report  # noqa: E402

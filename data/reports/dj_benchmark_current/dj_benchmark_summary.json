@@ -1,0 +1,101 @@
+{
+  "generated_from": [
+    "/Users/jantrybus/Library/Application Support/DanceLab/cache/validation/Janek_transition_ratings.csv"
+  ],
+  "min_sessions": 5,
+  "min_rated_transitions_per_session": 30,
+  "session_count": 1,
+  "complete_session_count": 1,
+  "required_additional_sessions": 4,
+  "total_rated_count": 36,
+  "total_comment_count": 30,
+  "overall_mean_engine_score": 0.6534861111111111,
+  "overall_mean_dj_rating": 2.7777777777777777,
+  "overall_pearson_r": 0.30161041551409246,
+  "overall_spearman_rho": 0.3301232632114841,
+  "overall_kendall_tau": 0.2481575281325544,
+  "rating_counts": {
+    "1": 11,
+    "2": 5,
+    "3": 8,
+    "4": 5,
+    "5": 7
+  },
+  "topic_counts": {
+    "bpm_grid_sync": 12,
+    "duplicates_same_album": 2,
+    "energy_curve": 8,
+    "playlist_context": 6,
+    "style_genre_mood": 15,
+    "transition_timing": 14
+  },
+  "false_positive_count": 3,
+  "sessions": [
+    {
+      "session_id": "Janek",
+      "source_path": "/Users/jantrybus/Library/Application Support/DanceLab/cache/validation/Janek_transition_ratings.csv",
+      "rated_count": 36,
+      "comment_count": 30,
+      "blind_count": 0,
+      "mean_engine_score": 0.6534861111111111,
+      "mean_dj_rating": 2.7777777777777777,
+      "median_dj_rating": 3.0,
+      "pearson_r": 0.30161041551409246,
+      "spearman_rho": 0.3301232632114841,
+      "kendall_tau": 0.2481575281325544,
+      "rating_counts": {
+        "1": 11,
+        "2": 5,
+        "3": 8,
+        "4": 5,
+        "5": 7
+      },
+      "duplicate_pair_count": 1,
+      "false_positive_count": 3,
+      "topic_counts": {
+        "bpm_grid_sync": 12,
+        "style_genre_mood": 15,
+        "energy_curve": 8,
+        "transition_timing": 14,
+        "duplicates_same_album": 2,
+        "playlist_context": 6
+      },
+      "complete": true
+    }
+  ],
+  "top_false_positives": [
+    {
+      "session_id": "Janek",
+      "source_path": "/Users/jantrybus/Library/Application Support/DanceLab/cache/validation/Janek_transition_ratings.csv",
+      "row_number": 18,
+      "pair_id": "09d7ab7363292cf2__accae828e67e6c7f",
+      "track_id_a": "09d7ab7363292cf2",
+      "track_id_b": "accae828e67e6c7f",
+      "engine_score": 0.8274,
+      "dj_mixability_rating": 1.0,
+      "comment": "oj tutaj niedopuszczalny bład. Nie porównany chyba zostały waveformy bo sa dwa te same utwory. Czasem tak sie dziele ze ktos nie wie i kupi paczke i na dysku bedzie mial duplikaty."
+    },
+    {
+      "session_id": "Janek",
+      "source_path": "/Users/jantrybus/Library/Application Support/DanceLab/cache/validation/Janek_transition_ratings.csv",
+      "row_number": 25,
+      "pair_id": "439e6c9e233bdec6__afa186e74bdee374",
+      "track_id_a": "439e6c9e233bdec6",
+      "track_id_b": "afa186e74bdee374",
+      "engine_score": 0.7153,
+      "dj_mixability_rating": 1.0,
+      "comment": "zaczeło nam sie robic znowu melancholinie i bardziej electronic a tutaj wchodzi Tessela - With Patsy utwór i zabija cały klimat."
+    },
+    {
+      "session_id": "Janek",
+      "source_path": "/Users/jantrybus/Library/Application Support/DanceLab/cache/validation/Janek_transition_ratings.csv",
+      "row_number": 15,
+      "pair_id": "a704f54cbf31a22d__642d7e50ff06a522",
+      "track_id_a": "a704f54cbf31a22d",
+      "track_id_b": "642d7e50ff06a522",
+      "engine_score": 0.7329,
+      "dj_mixability_rating": 2.0,
+      "comment": "OK kolejny przypadek gdzie utwory sa z tej samej plłyty. Tutaj już może być ryzyko że ktoś nas oskarzy o puszczanie całych płyt zamiast robienia orginalnych setów. No te utwory super do siebie pasuja. Przejscie jako takie do nasladowania ale problem lezy gdzie indziej."
+    }
+  ]
+}

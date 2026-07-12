@@ -22,6 +22,52 @@ Goal: turn candidate models into testable hypotheses. v0 is a
 - improvement list,
 - versioned experiment results (weights version ↔ results version).
 
+## DJ benchmark before tuning
+
+Do not tune pair weights from a single listening pass. A single CSV is a useful
+bug report, but it is not enough evidence to change the engine.
+
+Minimum benchmark gate:
+
+- 5 independent transition-rating sessions,
+- at least 30 rated transitions per session,
+- comments encouraged for ratings 1–2 and surprising 5s,
+- one session may be open review, but at least one should use blind rating mode,
+- export every session as `*_transition_ratings.csv`.
+
+The desktop host writes these files to:
+
+```bash
+~/Library/Application Support/DanceLab/cache/validation/
+```
+
+After each pass, aggregate the benchmark:
+
+```bash
+dancelab validation-benchmark
+```
+
+or point it at explicit files/directories:
+
+```bash
+dancelab validation-benchmark \
+  "/path/to/Janek_transition_ratings.csv" \
+  "/path/to/another_validation_folder"
+```
+
+The report is written to `data/reports/dj_benchmark/` and stays deliberately
+diagnostic: it reports correlations, rating distribution, issue topics, repeated
+pairs, and high-confidence false positives. Tuning should begin only when the
+report says `READY FOR TUNING`.
+
+Recommended 5-pass design:
+
+1. Calm / UK bass / <=135 BPM continuation set.
+2. Similar BPM preference set.
+3. Similar key / harmonic preference set.
+4. Style-constrained set with artist and album diversity pressure.
+5. Blind review pass over mixed-confidence transitions.
+
 For pair-level pilot review, `dancelab decision-report` now emits:
 
 - `edge_decision_review.csv` for fast DJ review / comments,
