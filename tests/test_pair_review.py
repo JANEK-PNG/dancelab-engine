@@ -147,3 +147,22 @@ def test_deck_quantize_ignores_unreliable_beatgrid():
     deck.seek(0.61)
 
     assert fake.positions[-1] == 610
+
+
+def test_preview_transition_states_problem_instead_of_silent_failure(tmp_path):
+    QApplication.instance() or QApplication([])
+    from dancelab.host.pair_review import TransitionReviewWidget
+    from dancelab.core.models import SetTransition
+
+    widget = TransitionReviewWidget()
+    missing = AnalysisResult(
+        engine_version="t",
+        track=Track(track_id="gone", title="Gone", source_path=str(tmp_path / "gone.wav"),
+                    duration_sec=180.0, bpm_estimate=128.0),
+    )
+    transition = SetTransition(from_track_id="gone", to_track_id="gone",
+                               transition_score=0.5, harmonic_relation="exact")
+    widget.set_transition(missing, missing, transition, load_config("configs/default.yaml"), [], [])
+    widget.preview_transition()
+    assert "file missing" in widget.sync_status.text()  # loud, not silent
+    assert widget.deck_a._player is None                # nothing half-started
