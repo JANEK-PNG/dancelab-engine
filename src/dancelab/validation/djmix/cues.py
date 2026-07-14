@@ -77,8 +77,10 @@ def extract_cue_candidates(
         qualifying = [run for run in runs if run[2] >= tier]
         if not qualifying:
             continue
-        entry_point = points[qualifying[0][0]]
-        exit_point = points[qualifying[-1][1]]
+        entry_run = qualifying[0]
+        exit_run = qualifying[-1]
+        entry_point = points[entry_run[0]]
+        exit_point = points[exit_run[1]]
         track_in, mix_in = (int(entry_point[0]), int(entry_point[1]))
         track_out, mix_out = (int(exit_point[0]), int(exit_point[1]))
         candidates.append(CueCandidate(
@@ -91,5 +93,7 @@ def extract_cue_candidates(
             mix_cue_out_sec=_time_at(mix_beat_times_sec, mix_out),
             track_cue_in_sec=_time_at(track_beat_times_sec, track_in),
             track_cue_out_sec=_time_at(track_beat_times_sec, track_out),
+            cue_in_run_beats=entry_run[2],
+            cue_out_run_beats=exit_run[2],
         ))
     return tuple(candidates)

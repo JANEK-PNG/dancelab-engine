@@ -16,8 +16,16 @@ import numpy as np
 from dancelab.core.audio_types import AudioSignal
 from dancelab.preprocessing.beatgrid import estimate_beatgrid
 from dancelab.validation.djmix.alignment import align_feature_sequences
+from dancelab.validation.djmix.confidence import score_cue_candidates
 from dancelab.validation.djmix.cues import extract_cue_candidates
 from dancelab.validation.djmix.features import extract_beat_synchronous_features
+from dancelab.validation.djmix.identity import identify_audio_file
+from dancelab.validation.djmix.models import (
+    M11_CODE_VERSION,
+    M11_FORMULA_VERSION,
+    M11_SOURCE_BASIS,
+)
+from dancelab.validation.djmix.transitions import assemble_transition_evidence
 
 
 def _load_audio(path: Path, sample_rate: int) -> AudioSignal:
@@ -77,9 +85,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     if missing:
         raise SystemExit("missing audio file(s): " + ", ".join(str(path) for path in missing))
 
+    mix_identity = identify_audio_file(args.mix)
+    track_identities = [identify_audio_file(path) for path in args.track]
+    fingerprints = [identity.sha256 for identity in track_identities]
+    duplicate_fingerprints = sorted({value for value in fingerprints if fingerprints.count(value) > 1})
+    if duplicate_fingerprints:
+        duplicate_paths = [
+            identity.resolved_path
+            for identity in track_identities
+            if identity.sha256 in duplicate_fingerprints
+        ]
+        raise SystemExit(
+            "duplicate track audio identities are not valid in one M11 run: "
+            + ", ".join(duplicate_paths)
+        )
+
     mix_features, mix_grid = _feature_sequence(args.mix, args.sample_rate, feature_names)
     results: list[dict[str, object]] = []
-    for track_path in args.track:
+    alignment_records = []
+    for track_path, track_identity in zip(args.track, track_identities, strict=True):
         track_features, track_grid = _feature_sequence(
             track_path,
             args.sample_rate,
@@ -98,9 +122,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             mix_beat_times_sec=mix_features.beat_times_sec,
             track_beat_times_sec=track_features.beat_times_sec,
         )
+        cues = score_cue_candidates(
+            cues,
+            alignment,
+            track=track_features,
+            mix=mix_features,
+        )
+        alignment_records.append((track_identity, alignment, cues))
         results.append({
-            "track_id": track_path.stem,
-            "track_path": str(track_path.resolve()),
+            "track_id": track_identity.source_id,
+            "display_name": track_identity.display_name,
+            "audio_identity": track_identity.as_dict(),
             "track_beatgrid": {
                 "bpm": track_grid.bpm,
                 "reliable": track_grid.reliable,
@@ -111,12 +143,29 @@ def main(argv: Sequence[str] | None = None) -> int:
             "cue_candidates": [candidate.as_dict() for candidate in cues],
         })
 
+    transitions = []
+    for previous, following in zip(alignment_records, alignment_records[1:], strict=False):
+        previous_identity, previous_alignment, previous_cues = previous
+        next_identity, next_alignment, next_cues = following
+        transitions.extend(assemble_transition_evidence(
+            mix=mix_identity,
+            previous_track=previous_identity,
+            next_track=next_identity,
+            previous_alignment=previous_alignment,
+            next_alignment=next_alignment,
+            previous_cues=previous_cues,
+            next_cues=next_cues,
+        ))
+
     report = {
-        "schema_version": "1.0.0",
+        "schema_version": "1.1.0",
         "method": "beat-synchronous mix-to-track subsequence DTW",
-        "source_basis": ["DLASOT-13", "mir-aidj/djmix-analysis@a2ae903"],
+        "formula_version": M11_FORMULA_VERSION,
+        "code_version": M11_CODE_VERSION,
+        "source_basis": list(M11_SOURCE_BASIS),
         "scope": "offline local validation; no engine mutation",
-        "mix_path": str(args.mix.resolve()),
+        "confidence_status": "diagnostic_equal_weights_untuned_not_probability",
+        "mix_identity": mix_identity.as_dict(),
         "mix_beatgrid": {
             "bpm": mix_grid.bpm,
             "reliable": mix_grid.reliable,
@@ -124,6 +173,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "warnings": mix_grid.diagnostic_flags,
         },
         "results": results,
+        "transitions": [transition.as_dict() for transition in transitions],
     }
     payload = json.dumps(report, indent=2, ensure_ascii=False)
     if args.output:
