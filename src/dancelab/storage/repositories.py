@@ -14,6 +14,10 @@ from pathlib import Path
 from dancelab.core.errors import DanceLabError
 from dancelab.core.models import DANCELAB_SCHEMA_VERSION, AnalysisResult
 from dancelab.storage.artifact_store import load_json, save_json
+from dancelab.storage.library_manifest import MANIFEST_NAME
+
+
+_NON_ANALYSIS_STEMS = {"manifest", Path(MANIFEST_NAME).stem}
 
 
 class TrackNotFoundError(DanceLabError):
@@ -56,4 +60,8 @@ class FileAnalysisRepository:
         return load_json(AnalysisResult, p)
 
     def list_track_ids(self) -> list[str]:
-        return sorted(p.stem for p in self.directory.glob("*.json") if p.stem != "manifest")
+        return sorted(
+            path.stem
+            for path in self.directory.glob("*.json")
+            if path.stem not in _NON_ANALYSIS_STEMS
+        )
