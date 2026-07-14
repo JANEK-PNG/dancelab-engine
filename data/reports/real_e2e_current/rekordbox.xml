@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DJ_PLAYLISTS Version="1.0.0">
+  <PRODUCT Name="DanceLab Engine" Version="0.1.0" Company="DanceLab" />
+  <COLLECTION Entries="5">
+    <TRACK TrackID="1" Name="Srekye (Extended Mix)" Artist="O'Flynn" Location="file://localhost/Users/jantrybus/Music/LEKCJA%20nr5/O_Flynn%20-%20Srekye%20(Extended%20Mix).mp3" Kind="MP3 File" TotalTime="297" Tonality="8B" SampleRate="44100">
+      <POSITION_MARK Name="Mix Out" Type="0" Start="196.316" Num="0" Red="40" Green="226" Blue="20" />
+      <POSITION_MARK Name="Bridge" Type="0" Start="122.058" Num="1" Red="48" Green="90" Blue="255" />
+      <POSITION_MARK Name="Mix In" Type="0" Start="7.953" Num="2" Red="255" Green="140" Blue="0" />
+      <POSITION_MARK Name="Mix In 2" Type="0" Start="55.044" Num="3" Red="195" Green="47" Blue="255" />
+    </TRACK>
+    <TRACK TrackID="2" Name="Schlecker (Original Mix)" Artist="Butch" Location="file://localhost/Users/jantrybus/Music/LEKCJA%20nr5/Butch%20-%20Schlecker%20(Original%20Mix).mp3" Kind="MP3 File" TotalTime="382" Tonality="5A" SampleRate="44100">
+      <POSITION_MARK Name="Mix In" Type="0" Start="38.533" Num="0" Red="40" Green="226" Blue="20" />
+      <POSITION_MARK Name="Mix Out" Type="0" Start="343.174" Num="1" Red="48" Green="90" Blue="255" />
+      <POSITION_MARK Name="Bridge" Type="0" Start="160.389" Num="2" Red="255" Green="140" Blue="0" />
+    </TRACK>
+    <TRACK TrackID="3" Name="433Mhz (Original Mix)" Artist="Bodhi" Location="file://localhost/Users/jantrybus/Music/LEKCJA%20nr5/Bodhi%20-%20433Mhz%20(Original%20Mix).mp3" Kind="MP3 File" TotalTime="314" Tonality="11A" SampleRate="44100">
+      <POSITION_MARK Name="Mix In" Type="0" Start="21.861" Num="0" Red="40" Green="226" Blue="20" />
+      <POSITION_MARK Name="Mix Out" Type="0" Start="275.979" Num="1" Red="48" Green="90" Blue="255" />
+      <POSITION_MARK Name="Bridge" Type="0" Start="163.038" Num="2" Red="255" Green="140" Blue="0" />
+      <POSITION_MARK Name="Mix In 2" Type="0" Start="64.214" Num="3" Red="195" Green="47" Blue="255" />
+    </TRACK>
+    <TRACK TrackID="4" Name="CHROMA 004 ROLA (Original Mix)" Artist="Bicep" Location="file://localhost/Users/jantrybus/Music/LEKCJA%20nr5/Bicep%20-%20CHROMA%20004%20ROLA%20(Original%20Mix).mp3" Kind="MP3 File" TotalTime="289" Tonality="11A" SampleRate="44100">
+      <POSITION_MARK Name="Mix In" Type="0" Start="6.989" Num="0" Red="40" Green="226" Blue="20" />
+      <POSITION_MARK Name="Bridge" Type="0" Start="144.456" Num="1" Red="48" Green="90" Blue="255" />
+      <POSITION_MARK Name="Mix In 2" Type="0" Start="75.723" Num="2" Red="255" Green="140" Blue="0" />
+    </TRACK>
+    <TRACK TrackID="5" Name="Rave Cycle (Original Mix)" Artist="Airod" Location="file://localhost/Users/jantrybus/Music/LEKCJA%20nr5/AIROD%20-%20Rave%20Cycle%20(Original%20Mix).mp3" Kind="MP3 File" TotalTime="329" Tonality="11A" SampleRate="44100">
+      <POSITION_MARK Name="Mix In" Type="0" Start="22.512" Num="0" Red="40" Green="226" Blue="20" />
+      <POSITION_MARK Name="Bridge" Type="0" Start="111.676" Num="1" Red="48" Green="90" Blue="255" />
+      <POSITION_MARK Name="Mix Out" Type="0" Start="282.574" Num="2" Red="255" Green="140" Blue="0" />
+    </TRACK>
+  </COLLECTION>
+  <PLAYLISTS>
+    <NODE Type="0" Name="ROOT" Count="1">
+      <NODE Type="1" Name="DanceLab Real E2E" KeyType="0" Entries="5">
+        <TRACK Key="1" />
+        <TRACK Key="2" />
+        <TRACK Key="3" />
+        <TRACK Key="4" />
+        <TRACK Key="5" />
+      </NODE>
+    </NODE>
+  </PLAYLISTS>
+</DJ_PLAYLISTS>

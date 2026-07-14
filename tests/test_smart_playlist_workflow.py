@@ -76,6 +76,18 @@ def test_build_smart_playlist_from_folder_writes_rekordbox_xml(tmp_path):
     assert xml.count("TrackID=") == 5
 
 
+def test_analysis_repository_ignores_incremental_library_manifest(tmp_path):
+    from dancelab.storage.repositories import FileAnalysisRepository
+
+    repo = FileAnalysisRepository(tmp_path)
+    analysis = _analysis_from_path(tmp_path / "Track_1.wav", EngineConfig())
+    repo.save(analysis)
+    (tmp_path / "library_manifest.json").write_text('{"tracks": {}}', encoding="utf-8")
+
+    assert repo.list_track_ids() == [analysis.track.track_id]
+    assert repo.get(repo.list_track_ids()[0]).track.track_id == analysis.track.track_id
+
+
 def test_build_smart_playlist_rejects_too_small_count(tmp_path):
     # Any count >= 2 is valid (no fixed 5/10/15/20 presets); below that a set
     # has no transitions to plan.

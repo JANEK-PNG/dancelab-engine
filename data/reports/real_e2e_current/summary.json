@@ -1,0 +1,145 @@
+{
+  "status": "PASS",
+  "check_count": 12,
+  "passed_checks": 12,
+  "checks": [
+    {
+      "name": "analysis_count",
+      "passed": true,
+      "detail": "5 analyses"
+    },
+    {
+      "name": "unique_track_ids",
+      "passed": true,
+      "detail": "5 analyses"
+    },
+    {
+      "name": "unique_source_paths",
+      "passed": true,
+      "detail": "5 mapped sources"
+    },
+    {
+      "name": "xml_identity_mapping",
+      "passed": true,
+      "detail": "xml=5, mapped=5, missing=[]"
+    },
+    {
+      "name": "rekordbox_keeps_native_bpm_grid",
+      "passed": true,
+      "detail": "AverageBpm and TEMPO must be absent by default"
+    },
+    {
+      "name": "hot_cues_present",
+      "passed": true,
+      "detail": "{'746c8b4d1e3e2170': 4, '79546d3aca6524a4': 3, 'dcef7529aed88969': 4, '93f13752d4036bb2': 3, '59dd48d8f50eeedc': 3}"
+    },
+    {
+      "name": "hot_cues_unique_per_track",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "hot_cues_phrase_aligned",
+      "passed": true,
+      "detail": "[]"
+    },
+    {
+      "name": "preview_file_written",
+      "passed": true,
+      "detail": "data/reports/real_e2e_current/transition_preview.wav"
+    },
+    {
+      "name": "preview_pcm24_stereo",
+      "passed": true,
+      "detail": "PCM_24, 2 channels"
+    },
+    {
+      "name": "preview_has_no_silent_tail",
+      "passed": true,
+      "detail": "tail RMS=0.19193195"
+    },
+    {
+      "name": "renderable_transition_pair",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "tracks": [
+    {
+      "track_id": "746c8b4d1e3e2170",
+      "title": "Srekye (Extended Mix)",
+      "artist": "O'Flynn",
+      "source_path": "/tmp/dancelab-real-e2e.ozYD2h/input/O_Flynn - Srekye (Extended Mix).mp3",
+      "bpm": 132.51,
+      "beatgrid_reliable": true,
+      "beatgrid_quality": 0.6694,
+      "hot_cues": 4
+    },
+    {
+      "track_id": "79546d3aca6524a4",
+      "title": "Schlecker (Original Mix)",
+      "artist": "Butch",
+      "source_path": "/tmp/dancelab-real-e2e.ozYD2h/input/Butch - Schlecker (Original Mix).mp3",
+      "bpm": 126.05,
+      "beatgrid_reliable": true,
+      "beatgrid_quality": 0.6782,
+      "hot_cues": 3
+    },
+    {
+      "track_id": "dcef7529aed88969",
+      "title": "433Mhz (Original Mix)",
+      "artist": "Bodhi",
+      "source_path": "/tmp/dancelab-real-e2e.ozYD2h/input/Bodhi - 433Mhz (Original Mix).mp3",
+      "bpm": 136.0,
+      "beatgrid_reliable": true,
+      "beatgrid_quality": 0.7767,
+      "hot_cues": 4
+    },
+    {
+      "track_id": "93f13752d4036bb2",
+      "title": "CHROMA 004 ROLA (Original Mix)",
+      "artist": "Bicep",
+      "source_path": "/tmp/dancelab-real-e2e.ozYD2h/input/Bicep - CHROMA 004 ROLA (Original Mix).mp3",
+      "bpm": 139.67,
+      "beatgrid_reliable": true,
+      "beatgrid_quality": 0.6649,
+      "hot_cues": 3
+    },
+    {
+      "track_id": "59dd48d8f50eeedc",
+      "title": "Rave Cycle (Original Mix)",
+      "artist": "Airod",
+      "source_path": "/tmp/dancelab-real-e2e.ozYD2h/input/AIROD - Rave Cycle (Original Mix).mp3",
+      "bpm": 129.2,
+      "beatgrid_reliable": true,
+      "beatgrid_quality": 0.7073,
+      "hot_cues": 3
+    }
+  ],
+  "preview": {
+    "track_a": "Srekye (Extended Mix)",
+    "track_b": "Schlecker (Original Mix)",
+    "source_a": "/tmp/dancelab-real-e2e.ozYD2h/input/O_Flynn - Srekye (Extended Mix).mp3",
+    "source_b": "/tmp/dancelab-real-e2e.ozYD2h/input/Butch - Schlecker (Original Mix).mp3",
+    "cue_a_sec": 198.1127,
+    "cue_b_sec": 38.5451,
+    "duration_beats": 64,
+    "duration_sec": 28.97893424036281,
+    "preview_bpm": 132.51,
+    "playback_rate_b": 1.0512495041650138,
+    "octave_b": 0,
+    "channels": 2,
+    "sample_rate": 44100,
+    "output_subtype": "PCM_24",
+    "tail_rms": 0.19193195055079038,
+    "output_path": "data/reports/real_e2e_current/transition_preview.wav",
+    "duration_plan": {
+      "requested_beats": 64,
+      "selected_beats": 64,
+      "max_feasible_beats": 210.94914405000003,
+      "outgoing_guard_beats": 8
+    }
+  },
+  "processed_dir": "/tmp/dancelab-real-e2e.ozYD2h/processed",
+  "rekordbox_xml": "data/reports/real_e2e_current/rekordbox.xml"
+}
