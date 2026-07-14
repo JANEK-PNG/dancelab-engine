@@ -48,7 +48,7 @@ class StemConfig(BaseModel):
 
 
 class EngineSection(BaseModel):
-    version: str = "0.1.0"
+    version: str = "0.1.1"
     random_seed: int = 42
 
 

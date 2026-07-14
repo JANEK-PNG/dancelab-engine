@@ -84,7 +84,19 @@ def _kind(source_path: str | None) -> str:
 
 
 def _usable_export_grid(beatgrid: BeatGrid | None) -> BeatGrid | None:
-    """Only trusted grids should be exported or used for cue snapping."""
+    """Only grids with verified bar phase may become Rekordbox TEMPO data."""
+    if (
+        beatgrid is None
+        or not beatgrid.reliable
+        or not beatgrid.downbeat_phase_verified
+        or not beatgrid.beat_times_sec
+    ):
+        return None
+    return beatgrid
+
+
+def _usable_beat_grid(beatgrid: BeatGrid | None) -> BeatGrid | None:
+    """A reliable beat sequence may snap cues to beats without claiming phrases."""
     if beatgrid is None or not beatgrid.reliable or not beatgrid.beat_times_sec:
         return None
     return beatgrid
@@ -140,11 +152,13 @@ def _snap_to_phrase_grid(beatgrid: BeatGrid, target_sec: float) -> float:
 
 
 def _snap_cue_start(analysis: AnalysisResult, start_sec: float) -> float:
-    """Snap cue starts to a reliable phrase grid when the analysis has one."""
-    beatgrid = _usable_export_grid(analysis.beatgrid)
+    """Snap to a phrase only with verified phase; otherwise to the nearest beat."""
+    beatgrid = _usable_beat_grid(analysis.beatgrid)
     if beatgrid is None:
         return start_sec
-    return _snap_to_phrase_grid(beatgrid, start_sec)
+    if beatgrid.downbeat_phase_verified:
+        return _snap_to_phrase_grid(beatgrid, start_sec)
+    return float(min(beatgrid.beat_times_sec, key=lambda beat: abs(beat - start_sec)))
 
 
 def _cue_min_separation_sec(analysis: AnalysisResult) -> float:

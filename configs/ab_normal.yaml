@@ -1,6 +1,6 @@
 # DanceLab Engine — default configuration
 engine:
-  version: "0.1.0"
+  version: "0.1.1"
   # deterministic outputs are a hard requirement (Prompt Pack, Prompt 2)
   random_seed: 42
 
