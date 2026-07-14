@@ -39,7 +39,7 @@
       "detail": "[]"
     },
     {
-      "name": "hot_cues_phrase_aligned",
+      "name": "hot_cues_on_detected_beats",
       "passed": true,
       "detail": "[]"
     },
@@ -56,7 +56,7 @@
     {
       "name": "preview_has_no_silent_tail",
       "passed": true,
-      "detail": "tail RMS=0.19193195"
+      "detail": "tail RMS=0.19536900"
     },
     {
       "name": "renderable_transition_pair",
@@ -69,27 +69,27 @@
       "track_id": "746c8b4d1e3e2170",
       "title": "Srekye (Extended Mix)",
       "artist": "O'Flynn",
-      "source_path": "/tmp/dancelab-real-e2e.ozYD2h/input/O_Flynn - Srekye (Extended Mix).mp3",
-      "bpm": 132.51,
+      "source_file": "O_Flynn - Srekye (Extended Mix).mp3",
+      "bpm": 131.04,
       "beatgrid_reliable": true,
-      "beatgrid_quality": 0.6694,
+      "beatgrid_quality": 0.7568,
       "hot_cues": 4
     },
     {
       "track_id": "79546d3aca6524a4",
       "title": "Schlecker (Original Mix)",
       "artist": "Butch",
-      "source_path": "/tmp/dancelab-real-e2e.ozYD2h/input/Butch - Schlecker (Original Mix).mp3",
-      "bpm": 126.05,
+      "source_file": "Butch - Schlecker (Original Mix).mp3",
+      "bpm": 125.95,
       "beatgrid_reliable": true,
-      "beatgrid_quality": 0.6782,
+      "beatgrid_quality": 0.7767,
       "hot_cues": 3
     },
     {
       "track_id": "dcef7529aed88969",
       "title": "433Mhz (Original Mix)",
       "artist": "Bodhi",
-      "source_path": "/tmp/dancelab-real-e2e.ozYD2h/input/Bodhi - 433Mhz (Original Mix).mp3",
+      "source_file": "Bodhi - 433Mhz (Original Mix).mp3",
       "bpm": 136.0,
       "beatgrid_reliable": true,
       "beatgrid_quality": 0.7767,
@@ -99,47 +99,47 @@
       "track_id": "93f13752d4036bb2",
       "title": "CHROMA 004 ROLA (Original Mix)",
       "artist": "Bicep",
-      "source_path": "/tmp/dancelab-real-e2e.ozYD2h/input/Bicep - CHROMA 004 ROLA (Original Mix).mp3",
-      "bpm": 139.67,
+      "source_file": "Bicep - CHROMA 004 ROLA (Original Mix).mp3",
+      "bpm": 140.03,
       "beatgrid_reliable": true,
-      "beatgrid_quality": 0.6649,
+      "beatgrid_quality": 0.7203,
       "hot_cues": 3
     },
     {
       "track_id": "59dd48d8f50eeedc",
       "title": "Rave Cycle (Original Mix)",
       "artist": "Airod",
-      "source_path": "/tmp/dancelab-real-e2e.ozYD2h/input/AIROD - Rave Cycle (Original Mix).mp3",
-      "bpm": 129.2,
+      "source_file": "AIROD - Rave Cycle (Original Mix).mp3",
+      "bpm": 130.01,
       "beatgrid_reliable": true,
-      "beatgrid_quality": 0.7073,
+      "beatgrid_quality": 0.7981,
       "hot_cues": 3
     }
   ],
   "preview": {
     "track_a": "Srekye (Extended Mix)",
     "track_b": "Schlecker (Original Mix)",
-    "source_a": "/tmp/dancelab-real-e2e.ozYD2h/input/O_Flynn - Srekye (Extended Mix).mp3",
-    "source_b": "/tmp/dancelab-real-e2e.ozYD2h/input/Butch - Schlecker (Original Mix).mp3",
+    "source_file_a": "O_Flynn - Srekye (Extended Mix).mp3",
+    "source_file_b": "Butch - Schlecker (Original Mix).mp3",
     "cue_a_sec": 198.1127,
     "cue_b_sec": 38.5451,
     "duration_beats": 64,
-    "duration_sec": 28.97893424036281,
-    "preview_bpm": 132.51,
-    "playback_rate_b": 1.0512495041650138,
+    "duration_sec": 29.304036281179137,
+    "preview_bpm": 131.04,
+    "playback_rate_b": 1.0404128622469233,
     "octave_b": 0,
     "channels": 2,
     "sample_rate": 44100,
     "output_subtype": "PCM_24",
-    "tail_rms": 0.19193195055079038,
+    "tail_rms": 0.1953690023292195,
     "output_path": "data/reports/real_e2e_current/transition_preview.wav",
     "duration_plan": {
       "requested_beats": 64,
       "selected_beats": 64,
-      "max_feasible_beats": 210.94914405000003,
+      "max_feasible_beats": 208.52023120000004,
       "outgoing_guard_beats": 8
     }
   },
-  "processed_dir": "/tmp/dancelab-real-e2e.ozYD2h/processed",
-  "rekordbox_xml": "data/reports/real_e2e_current/rekordbox.xml"
+  "analysis_cache_track_count": 5,
+  "rekordbox_xml_file": "rekordbox.xml"
 }

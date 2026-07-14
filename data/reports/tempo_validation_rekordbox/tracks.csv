@@ -1,0 +1,167 @@
+track_id,title,match_method,reference_bpm,raw_bpm,raw_error_pct,refined_bpm,refined_error_pct,refinement_accepted,refinement_reason,refinement_robust_cv,metric_relation,phase_p90_error_beats,first_proxy_reference_beat,first_proxy_is_downbeat
+00bb1f93ad0ffd25,Ben Lukas Boysen - Quasar,exact_path,120.0,120.19,0.158333,120.011251,0.009376,True,accepted,9e-06,1:1,0.0452,3,False
+00ce2a87f4deadc8,Warren Blake - The Race (Extended Mix),exact_path,132.0,132.51,0.386364,131.983255,0.012686,True,accepted,0.0,1:1,0.477992,3,False
+09c92981a740db47,O'Flynn - Medjool,exact_path,127.0,126.05,0.748031,127.016049,0.012637,True,accepted,0.001138,1:1,0.462534,1,True
+0b462451d6a9b615,Oscar Farrell - Burning From -with Goya Gumbani-,exact_path,136.0,136.0,0.0,135.99949,0.000375,True,accepted,0.001208,1:1,0.45208,3,False
+0bdf9c512ae8fc61,Glory (Original Mix),exact_path,140.0,139.67,0.235714,139.911098,0.063501,True,accepted,0.001264,1:1,0.496877,2,False
+0c90a9bcacdc675a,Duckett - Punch And Judy  (Original Mix),exact_path,125.0,126.05,0.84,125.0,0.0,True,accepted,0.0,1:1,0.485833,4,False
+0ecf9503e6b27455,Jamie xx feat. Oona Doherty - Falling Together,exact_path,123.0,123.05,0.04065,123.046162,0.03753,True,accepted,0.001093,1:1,0.464136,3,False
+1167327451e8f86d,Sex Life feat. Riko Dan (Original Mix),exact_path,139.0,139.67,0.482014,138.970317,0.021355,True,accepted,1.1e-05,1:1,0.04115,3,False
+1433411218ea0492,Mercy System - Steppers Arc (Original Mix),exact_path,132.0,132.51,0.386364,131.983255,0.012686,True,accepted,0.0,1:1,0.079186,3,False
+1555e358d5a98c52,Barry Can_t Swim - Different (Original Mix),exact_path,135.0,136.0,0.740741,135.000211,0.000156,True,accepted,1e-05,1:1,0.45251,2,False
+15d33cf384907471,Throwing Snow - K9,exact_path,133.0,132.51,0.368421,132.938211,0.046458,True,accepted,0.001191,1:1,0.475027,4,False
+15d9e7fa071ca428,Glue (Original Mix),exact_path,130.0,129.2,0.615385,130.011715,0.009011,True,accepted,0.0,1:1,0.49316,1,True
+18cb9ea964efc91b,Jeigo - Act Like You're Strong,exact_path,135.0,136.0,0.740741,135.000211,0.000156,True,accepted,0.0,1:1,0.45622,3,False
+192597fb7d9c5da1,"SICARIA, Lou Nour - BE THE GLITCH (Original Mix)",exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.0,1:1,0.07067,4,False
+1c088b0fd1c2859e,Chef Boyarbeatz - Steady Slurkin_ (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,1.1e-05,1:1,0.112133,3,False
+1e752449467bc758,BELLOWS (Original Mix),exact_path,134.0,178.21,32.992537,178.21,32.992537,False,unstable_long_span_tempo,0.015225,3:4,0.486457,1,True
+20ceac7007e60864,"Daniel Avery, Cecile Believe - Rapture in Blue (Midnight Version)",exact_path,130.0,129.2,0.615385,130.011715,0.009011,True,accepted,0.0,1:1,0.46921,1,True
+219c32e28f2aae87,Underworld - Pearl's Girl (r18_for2026),exact_path,142.0,143.55,1.091549,141.953037,0.033072,True,accepted,1.1e-05,1:1,0.449033,1,True
+24bd8246e9115994,Josi Devil - No More (Original Mix),exact_path,132.0,132.51,0.386364,131.983255,0.012686,True,accepted,0.0,1:1,0.46108,2,False
+2979e87fc848221b,Floating Points - Del Oro - 01 Del Oro,exact_path,129.0,129.2,0.155039,128.997581,0.001875,True,accepted,0.0,1:1,0.051752,2,False
+2d2ba0cc43a7da19,05 Smoke (feat. Jamie xx),exact_path,136.0,68.0,50.0,68.027452,49.979815,True,accepted,0.009151,2:1,0.448691,3,False
+2fbd30d4f485ecb8,Peach Discs - moodii - Topcat Cinema,exact_path,135.0,136.0,0.740741,135.000211,0.000156,True,accepted,0.0,1:1,0.4628,2,False
+31c0756fe6d01182,LEVOS - Focus,exact_path,138.0,92.29,33.123188,92.02851,33.312674,True,accepted,0.007426,3:2,0.460542,1,True
+3250e2291343929b,"RHR & Skrillex feat. Me Jesmay, Lucas Swatch - SYRINX",exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.001254,1:1,0.2302,1,True
+33438e1118989162,NIGHT manoeuvres - Resurge (Extended),exact_path,136.0,136.0,0.0,135.99949,0.000375,True,accepted,1.1e-05,1:1,0.480035,1,True
+3595c29d5b5d9622,En_vy - Alert (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.001254,1:1,0.458187,3,False
+36d48d0faea1d84e,CHROMA 001 HELIUM (Original Mix),exact_path,137.0,136.0,0.729927,137.012695,0.009266,True,accepted,1.1e-05,1:1,0.495507,1,True
+39a67a4b04ec8b5c,"Dombresky, Disco Dom - Funky Flights (Original Mix)",exact_path,130.0,129.2,0.615385,130.011715,0.009011,True,accepted,0.0,1:1,0.46,1,True
+39f7b3a7b1678cd3,Anthony Naples - Perk (Original Mix),exact_path,126.0,126.05,0.039683,125.95202,0.038079,True,accepted,0.0,1:1,0.048902,2,False
+3b89ffe18cb3822b,Asa Moto - Twee Dikke Nekken,exact_path,133.0,132.51,0.368421,133.045069,0.033886,True,accepted,0.0,1:1,0.064407,1,True
+3df52f013c3c7350,Bicep - Opal (Four Tet Remix),exact_path,127.0,126.05,0.748031,127.016049,0.012637,True,accepted,0.0,1:1,0.471683,2,False
+3efba973be8d7bcd,Dj Babatr - Sunshine Tribe (Original Mix),exact_path,138.0,139.67,1.210145,138.042103,0.030509,True,accepted,1.1e-05,1:1,0.057484,2,False
+414cd4866fcf732f,"General Levy, M-Beat, Isgwan - Incredible Dub (Extended Mix)",exact_path,143.0,143.55,0.384615,143.057253,0.040037,True,accepted,0.00127,1:1,0.470536,1,True
+415a0984b41edb30,Ross from Friends - Life In A Mind (Original Mix),exact_path,135.0,136.0,0.740741,135.000211,0.000156,True,accepted,0.001209,1:1,0.459995,1,True
+4358cdee20c36acd,Marusa Drum (Original Mix),exact_path,128.0,129.2,0.9375,127.999147,0.000667,True,accepted,0.0,1:1,0.226133,1,True
+439e6c9e233bdec6,Floating Points - Last Bloom,exact_path,135.0,107.67,20.244444,107.67,20.244444,False,unstable_long_span_tempo,0.017219,5:4,0.454275,2,False
+447c18d7e89a3e7d,Srekye (Extended Mix),exact_path,131.0,132.51,1.152672,131.04192,0.032,True,accepted,0.001174,1:1,0.494598,2,False
+44c364c3bd3c2a07,Falle Nioke - Heaviness (Hagop Tchaparian remix),exact_path,134.0,132.51,1.11194,134.01551,0.011574,True,accepted,1e-05,1:1,0.456313,1,True
+47077cbb6b367720,Schlecker (Original Mix),exact_path,125.94,126.05,0.087343,125.95202,0.009544,True,accepted,0.0,1:1,0.4525,1,True
+474828609532e000,"Paul C, Manuel De La Mare, BAPP - Angra (Extended Mix)",exact_path,130.0,129.2,0.615385,130.011715,0.009011,True,accepted,0.0,1:1,0.470475,3,False
+4992e2220d4aae8b,Ploy - When In Room (Original Mix),exact_path,126.0,126.05,0.039683,125.95202,0.038079,True,accepted,0.001128,1:1,0.46349,1,True
+49c45faf02770e76,Overmono - Lockup,exact_path,130.0,129.2,0.615385,130.011715,0.009011,True,accepted,0.001175,1:1,0.428523,2,False
+49e52dfde5454bed,Bicep - CHROMA 010 BRILLO (Original Mix),exact_path,136.0,136.0,0.0,135.99949,0.000375,True,accepted,1.1e-05,1:1,0.437705,1,True
+4b5a3c4db1ca2bde,Burial - Archangel,exact_path,135.18,136.0,0.606599,135.110411,0.051479,True,accepted,0.00121,1:1,0.476354,2,False
+4e7e82ad6ec17ed9,Ahadadream - Hydration (Original Mix),exact_path,130.0,129.2,0.615385,130.011715,0.009011,True,accepted,0.0,1:1,0.0479,1,True
+4f30f0b70fcfa9e5,Got No <3 (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,1.1e-05,1:1,0.279547,1,True
+518a3e27592bb215,Brenda - Leila,exact_path,136.0,136.0,0.0,135.99949,0.000375,True,accepted,0.001218,1:1,0.47744,3,False
+52493a78bd03b931,Little Snitch (Original Mix),exact_path,135.0,136.0,0.740741,135.000211,0.000156,True,accepted,1e-05,1:1,0.494715,2,False
+5559b17e3528f480,Borne - Silence (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.001254,1:1,0.46333,3,False
+5b0dfce2fe0e2ffc,"Gabe, Marco Strous - Snogo (Extended Mix)",exact_path,132.0,132.51,0.386364,131.983255,0.012686,True,accepted,0.001182,1:1,0.47488,1,True
+5b5930e79d232a8f,Ahadadream - Peak (Original Mix),exact_path,126.0,126.05,0.039683,125.95202,0.038079,True,accepted,0.001128,1:1,0.475686,1,True
+5d803e9da3c74932,YARAO (Original Mix),exact_path,135.0,136.0,0.740741,135.000211,0.000156,True,accepted,0.0,1:1,0.484175,1,True
+5fe31e542c5ebb07,Danny Goliger - Gimme That  (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.0,1:1,0.473623,2,False
+62507983e77f2d8f,JLZ - DZ7 (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.0,1:1,0.092253,1,True
+65dd5b6c16f430a5,I Luv U (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.001254,1:1,0.497893,4,False
+6611cbb6d6063e4a,"Rafiki (IN), Squidworks - Steps (Original Mix)",exact_path,132.0,132.51,0.386364,131.983255,0.012686,True,accepted,5e-06,1:1,0.466042,1,True
+66a2de2113868d94,Boys Noize - Let_s Buy Happiness (Original Mix),exact_path,126.98,126.05,0.732399,127.016049,0.02839,True,accepted,0.001138,1:1,0.105403,1,True
+67f6aecfebadb99a,Daphni - Waiting So Long (Original Mix),exact_path,133.3,132.51,0.592648,133.2593,0.030532,True,accepted,0.001194,1:1,0.464142,1,True
+6979204e3331e961,Business (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.001254,1:1,0.497067,2,False
+6a3f325961f26203,Morpei - Without Your Love (Original Mix),exact_path,129.0,129.2,0.155039,128.997581,0.001875,True,accepted,0.0,1:1,0.496388,2,False
+6ad524d5292ac2c1,Borne - My Mind (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.001254,1:1,0.43823,2,False
+6c8da3a9fe770799,Les Petits Pilous - Russian Forest (Original Mix),exact_path,130.0,129.2,0.615385,130.011715,0.009011,True,accepted,0.001165,1:1,0.390622,1,True
+6f04492b72c00b2f,Jamie xx - Breather,exact_path,160.0,159.01,0.61875,159.937358,0.039151,True,accepted,0.001433,1:1,0.396533,1,True
+71bbd873a4542a38,JIALING - MELTING POINT 溶點,exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,1.1e-05,1:1,0.456687,2,False
+7259eb605f509709,Militant Don (Vocal),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,1.1e-05,1:1,0.038343,2,False
+730928e68b2bf704,"Kettama, Fred again.., Shady Nasty - HARDSTYLE 2 (Original Mix)",exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.002509,1:1,0.426813,2,False
+74e3ad2a71dd6c81,TAKA (PEEKABOO Remix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,1.1e-05,1:1,0.492473,1,True
+74e999f717d1478e,Tom VR - FUNCTION VIP,exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.0,1:1,0.46676,1,True
+7505e0b90dce71a8,"Waleed, Villager - Pig (Original Mix)",exact_path,136.0,90.67,33.330882,90.67,33.330882,False,unstable_long_span_tempo,0.024224,3:2,0.472083,3,False
+766d1fde7a8a58a4,Broken English Club - Crawling (Original Mix),exact_path,133.0,132.51,0.368421,132.938211,0.046458,True,accepted,0.001191,1:1,0.459833,1,True
+77fb579aedca9612,Floating Points - LesAlpx (Original Mix),exact_path,130.0,129.2,0.615385,130.011715,0.009011,True,accepted,1e-05,1:1,0.462413,2,False
+79115e6e1a76d8d7,Daphni - Clap Your Hands - 01 Clap Your Hands,exact_path,136.0,136.0,0.0,135.99949,0.000375,True,accepted,1.1e-05,1:1,0.448624,1,True
+7c45725ad18f159f,Pugilist - Monument (Original Mix),exact_path,136.0,136.0,0.0,135.99949,0.000375,True,accepted,0.0,1:1,0.039787,1,True
+7cb62009c6cb13b4,Unidos (Original Mix),exact_path,133.0,132.51,0.368421,133.045069,0.033886,True,accepted,0.0,1:1,0.498153,1,True
+7e6755744809393b,Borne - Give It To Me (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.0,1:1,0.062543,4,False
+7f1609c702bd7ab5,433Mhz (Original Mix),exact_path,136.0,136.0,0.0,135.99949,0.000375,True,accepted,1.1e-05,1:1,0.491256,2,False
+8296d8e884a03737,Groovboy - Body Now (Original Mix),exact_path,130.0,129.2,0.615385,130.011715,0.009011,True,accepted,0.0,1:1,0.047515,1,True
+83431756b7333478,future·sight (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.001254,1:1,0.239053,1,True
+8361a942c1bbd47c,"Skrillex, Ahadadream, Priya Ragu - TAKA (Caribou Remix)",exact_path,136.0,136.0,0.0,135.99949,0.000375,True,accepted,1.1e-05,1:1,0.452387,1,True
+8f2c9ca16a52009f,Pull The Trigger (Original Mix),exact_path,141.0,139.67,0.943262,140.98469,0.010858,True,accepted,0.0,1:1,0.495055,1,True
+8f4171d0caad905b,Doing Something (feat. KRMA) (Original Mix),exact_path,140.0,139.67,0.235714,139.67,0.235714,False,unstable_long_span_tempo,0.013181,1:1,0.493227,2,False
+90fa13b0acc7e0d9,Thirst (Original Mix),exact_path,137.0,136.0,0.729927,137.013673,0.00998,True,accepted,1.1e-05,1:1,0.034325,1,True
+91b8c2d774ed917f,Breaka - Berry Baby Cheeto,exact_path,131.0,87.59,33.137405,87.315194,33.34718,True,accepted,0.000782,3:2,0.467095,2,False
+92da2c54c5073a1e,Mercedes (Original Mix),exact_path,132.09,132.51,0.317965,132.088582,0.001074,True,accepted,0.0,1:1,0.481919,1,True
+94ec5e36515cbf1a,JIALING - BIG J FALLS (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.0,1:1,0.46475,1,True
+979e9c1838e26883,"Gentlemens Club, Zoey808 - DADADA (Original Mix)",exact_path,138.0,139.67,1.210145,138.042103,0.030509,True,accepted,1.1e-05,1:1,0.47097,2,False
+9903e1abda87d227,"Kettama, Fred again.., SICARIA, Shady Nasty, Lou Nour - HARDSTYLE 2 (Lou Nour remix)",exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.001254,1:1,0.455507,2,False
+99f51e24c0453953,CHROMA 004 ROLA (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,1.1e-05,1:1,0.493547,1,True
+9e310b75bb6e2f9c,Jacques Greene - I Won_t (Original Mix),exact_path,132.0,132.51,0.386364,131.983255,0.012686,True,accepted,0.001182,1:1,0.444188,2,False
+9ee602d17d69fab2,Hassan Abou Alam - Mahzooz,exact_path,144.0,143.55,0.3125,144.054381,0.037764,True,accepted,0.001279,1:1,0.067416,1,True
+9f48ef10ecdc49a2,Demo Track 1,exact_path,128.0,129.2,0.9375,127.999147,0.000667,True,accepted,0.0,1:1,0.473387,1,True
+9fbd44b94ea43c1c,01 The Edge,exact_path,112.0,112.35,0.3125,112.042203,0.037681,True,accepted,0.000995,1:1,0.478504,2,False
+a48fab0c9ebf6eb7,Bite the Hand (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.0,1:1,0.038853,4,False
+a69b4b89a336b420,Part II (Original Mix),exact_path,125.0,126.05,0.84,125.0,0.0,True,accepted,0.0,1:1,0.496458,1,True
+ab8b98e9fbf012ec,Srekye (Extended Mix),exact_path,131.0,132.51,1.152672,131.04192,0.032,True,accepted,0.001174,1:1,0.494598,2,False
+ac56ba08cbcee686,Timelapse - Unfold (Original Mix),exact_path,124.0,123.05,0.766129,123.969343,0.024723,True,accepted,0.00111,1:1,0.450669,1,True
+accae828e67e6c7f,03-Daniel_Avery_-_Movement,exact_path,120.0,120.19,0.158333,120.011251,0.009376,True,accepted,0.001084,1:1,0.4594,1,True
+ad62c4631c8ab01d,JD. REID - smoke (Original Mix),exact_path,140.0,69.84,50.114286,69.985128,50.010623,True,accepted,0.000632,2:1,0.447473,3,False
+afa186e74bdee374,Tessela - With Patsy,exact_path,131.0,105.47,19.48855,105.47,19.48855,False,unstable_long_span_tempo,0.017111,5:4,0.47457,1,True
+b014a6d6e7af270b,Bicep - CHROMA 012 TANGZ II,exact_path,164.0,109.96,32.95122,109.374911,33.307981,True,accepted,0.00098,3:2,0.445355,1,True
+b1dadb2f29d4d70b,Jacques Greene - Believe,exact_path,132.0,132.51,0.386364,131.983255,0.012686,True,accepted,0.0,1:1,0.45953,2,False
+b3efd01c05a1d67a,"Buraka Som Sistema, Chris Lorenzo, Marco Strous - BaBaBa (Hangover) (Extended Mix)",exact_path,130.0,129.2,0.615385,130.011715,0.009011,True,accepted,1e-05,1:1,0.463663,1,True
+b45d67a8f2535ff0,Demo Track 2,exact_path,120.0,120.19,0.158333,120.010501,0.008751,True,accepted,9e-06,1:1,0.04122,1,True
+b51b8ed0123d53ef,KC Lights - SOL (Extended Mix),exact_path,125.0,126.05,0.84,125.0,0.0,True,accepted,0.0,1:1,0.469375,2,False
+b61b576efc14091b,borne - For A Minute - 01 For A Minute,exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.0,1:1,0.0729,1,True
+baed2527a5c80d42,Caribou - Honey,exact_path,136.0,136.0,0.0,135.99949,0.000375,True,accepted,1.1e-05,1:1,0.448999,1,True
+bd30947415a4777d,"David Amo, Julio Navas, Gustavo Bravetti - Raw (Tony Romera Extended Mix)",exact_path,128.0,129.2,0.9375,127.999147,0.000667,True,accepted,0.0,1:1,0.47616,3,False
+bda563686501a81f,TMSV - Hangplant,exact_path,132.0,132.51,0.386364,131.983255,0.012686,True,accepted,0.0,1:1,0.457016,2,False
+becb2e095a41f411,Parallx - The Unseen (Original Mix),exact_path,135.0,136.0,0.740741,135.000211,0.000156,True,accepted,0.0,1:1,0.460385,1,True
+bf2be204f9a7f59b,"Brazy, KILIMANJARO - CULTURE CLUB (Original Mix)",exact_path,134.0,132.51,1.11194,134.01551,0.011574,True,accepted,0.0012,1:1,0.451641,1,True
+c0e6160a34adcb8b,altrice - bda creature,exact_path,126.0,126.05,0.039683,125.95202,0.038079,True,accepted,0.0,1:1,0.054336,3,False
+c30fd257842753e4,Surusinghe - BAD GIRLS,exact_path,128.0,129.2,0.9375,127.999147,0.000667,True,accepted,0.0,1:1,0.460053,3,False
+c4865631c668466d,Prozak - Shine (Original Mix),exact_path,136.0,136.0,0.0,135.99949,0.000375,True,accepted,1.1e-05,1:1,0.074911,3,False
+c59f484f33e66ab7,Marco Strous - In the Park (Extended Mix),exact_path,132.0,132.51,0.386364,131.983255,0.012686,True,accepted,0.0,1:1,0.126668,1,True
+cc1e20a3c49556be,M.e.S (feat. TSVI) (feat. TSVI),exact_path,142.0,143.55,1.091549,141.953037,0.033072,True,accepted,0.001261,1:1,0.497643,2,False
+ce184655d7721aa7,RHR - A2. RHR & LOGAN_OLM - DIAGONAL (Dub Mix),exact_path,145.0,143.55,1.0,144.938477,0.04243,True,accepted,0.009743,1:1,0.487424,2,False
+cfc0e08535f33a12,Tessela - Helter Skelter,exact_path,130.0,86.13,33.746154,83.649378,35.654324,True,accepted,0.007496,3:2,0.465175,1,True
+d46c213634321c6f,Hush (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.001254,1:1,0.486513,2,False
+d4d24b30eda6b471,"Lee Foss, paskman - Tuko Tuko (Original Mix)",exact_path,126.0,126.05,0.039683,126.047938,0.038046,True,accepted,0.001129,1:1,0.455159,2,False
+d6daaaaabd719d19,COIDO - Irreversible (Original Mix),exact_path,138.0,139.67,1.210145,138.043095,0.031228,True,accepted,0.008666,1:1,0.462396,2,False
+d7547135e19ed601,Mod Break (Original Mix),exact_path,132.0,132.51,0.386364,131.983255,0.012686,True,accepted,0.0,1:1,0.490912,1,True
+d7afe11593e61063,Mercy System - If I Were You (Original Mix),exact_path,135.0,136.0,0.740741,135.000211,0.000156,True,accepted,0.001209,1:1,0.465525,1,True
+d96b358170b483f5,Detlef - Lil Bunny,exact_path,130.0,129.2,0.615385,130.011715,0.009011,True,accepted,0.0,1:1,0.46542,1,True
+d9f1359256ffbcc2,Hacked Lime (Original Mix),exact_path,129.0,129.2,0.155039,128.997581,0.001875,True,accepted,0.001155,1:1,0.493441,2,False
+da96ac3646b22997,Harba - Despair,exact_path,142.0,93.96,33.830986,93.96,33.830986,False,unstable_long_span_tempo,0.016125,3:2,0.458429,1,True
+e7535ca587a069b0,Drone - Burnt Lungs (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.001254,1:1,0.09178,1,True
+ebcf32d3f2b96b90,CHONKIBOI (Original Mix),exact_path,132.0,132.51,0.386364,131.983255,0.012686,True,accepted,0.001182,1:1,0.491744,1,True
+ec0ce0068504ab92,"Olof Dreijer, Diva Cruz - Acuyuye (Original Mix)",exact_path,127.0,126.05,0.748031,127.016049,0.012637,True,accepted,0.001138,1:1,0.479224,1,True
+ece20ab248b11442,"Wost, Entranas - Selvática (Pangaea Remix)",exact_path,137.0,136.0,0.729927,137.013673,0.00998,True,accepted,1.1e-05,1:1,0.058149,1,True
+ef3a9b79958123d9,Rave Cycle (Original Mix),exact_path,130.0,129.2,0.615385,130.011715,0.009011,True,accepted,0.0,1:1,0.10075,1,True
+f0c6dbd52afbedce,Hodge - Wiggler,exact_path,135.0,136.0,0.740741,135.000211,0.000156,True,accepted,0.0,1:1,0.46416,1,True
+f479ae202718106e,433Mhz (Original Mix),exact_path,136.0,136.0,0.0,135.99949,0.000375,True,accepted,1.1e-05,1:1,0.491256,2,False
+f54870791ae2cfc2,YAANO - Cicada (Original Mix),exact_path,170.0,112.35,33.911765,112.35,33.911765,False,unstable_long_span_tempo,0.015238,3:2,0.457763,1,True
+f66a3dbd732dd522,Josi Devil - Restless Sleep (Original Mix),exact_path,137.0,136.0,0.729927,137.013673,0.00998,True,accepted,1.1e-05,1:1,0.056823,3,False
+f6f40a99ee87472c,Jasper Tygner - Before Me (Original Mix),exact_path,132.0,132.51,0.386364,131.983255,0.012686,True,accepted,0.0,1:1,0.435316,3,False
+fa31e950b8188358,Flava D - Dem Not Ready (Original Mix),exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.0,1:1,0.452427,2,False
+fa4912dc7913b72f,Bicep - Siena (feat. Clara La San),exact_path,127.0,126.05,0.748031,127.016049,0.012637,True,accepted,0.0,1:1,0.468802,1,True
+fbc0f274342d798f,Cameo Blush - Crimson Arch (Original Mix),exact_path,135.0,136.0,0.740741,135.000211,0.000156,True,accepted,1e-05,1:1,0.4574,1,True
+fee56745081efca3,Arriba (Original Mix),exact_path,136.0,136.0,0.0,135.99949,0.000375,True,accepted,1.1e-05,1:1,0.040949,2,False
+ff593d63e84702a2,"Anish Kumar - Come On, Let's Get It",exact_path,126.0,126.05,0.039683,126.047938,0.038046,True,accepted,0.001129,1:1,0.47,2,False
+ff66195561ae7bc0,O'Flynn - Sekete (ft. Swordman Kitala),exact_path,133.0,132.51,0.368421,133.045069,0.033886,True,accepted,0.001192,1:1,0.469228,1,True
+ffec746e0d8057f9,"Flava D, Stush - Energy (Original Mix)",exact_path,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.0,1:1,0.065457,1,True
+0193ea9e408aba13,Sex Life feat. Riko Dan (Original Mix),unique_name_fallback,139.0,139.67,0.482014,138.970317,0.021355,True,accepted,1.1e-05,1:1,0.04115,3,False
+02e3e3c770c7cd34,Until The Morning (Extended Mix),unique_name_fallback,135.0,136.0,0.740741,135.000211,0.000156,True,accepted,1e-05,1:1,0.485235,1,True
+0947fed3b26cd48a,Rave Cycle (Original Mix),unique_name_fallback,130.0,129.2,0.615385,130.011715,0.009011,True,accepted,0.0,1:1,0.10075,1,True
+0beb5a276bf2ddce,Mod Break (Original Mix),unique_name_fallback,132.0,132.51,0.386364,131.983255,0.012686,True,accepted,0.0,1:1,0.490912,1,True
+10af8e31d3f4c855,YARAO (Original Mix),unique_name_fallback,135.0,136.0,0.740741,135.000211,0.000156,True,accepted,0.0,1:1,0.484175,1,True
+1dbec564875abaa5,01 The Edge,unique_name_fallback,112.0,112.35,0.3125,112.042203,0.037681,True,accepted,0.000995,1:1,0.478504,2,False
+1f641570d5c82a72,Got No <3 (Original Mix),unique_name_fallback,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,1.1e-05,1:1,0.279547,1,True
+301fc2a5b0b1dc51,Mercedes (Original Mix),unique_name_fallback,132.09,132.51,0.317965,132.088582,0.001074,True,accepted,0.0,1:1,0.481919,1,True
+53426b2155fdeae7,Places & Spaces (Original Mix),unique_name_fallback,122.0,123.05,0.860656,122.047344,0.038807,True,accepted,0.001084,1:1,0.496215,1,True
+5d865d688e50799f,Pull The Trigger (Original Mix),unique_name_fallback,141.0,139.67,0.943262,140.98469,0.010858,True,accepted,0.0,1:1,0.495055,1,True
+68e38eef58a75a9a,Rowdy (BLAOW!) (Extended Mix),unique_name_fallback,175.0,175.19,0.108571,175.000456,0.00026,True,accepted,0.000784,1:1,0.06175,1,True
+860ad88705480bcf,Business (Original Mix),unique_name_fallback,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,0.001254,1:1,0.497067,2,False
+9598cec1570f8567,M.e.S (feat. TSVI) (feat. TSVI),unique_name_fallback,142.0,143.55,1.091549,141.953037,0.033072,True,accepted,0.001261,1:1,0.497643,2,False
+a296dafde189c77b,Rave Cycle (Original Mix),unique_name_fallback,130.0,129.2,0.615385,130.011715,0.009011,True,accepted,0.0,1:1,0.10075,1,True
+b98d81c3bf3550b9,CHROMA 004 ROLA (Original Mix),unique_name_fallback,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,1.1e-05,1:1,0.493547,1,True
+c2d8da7ec2e028b0,Raw (Extended Mix),unique_name_fallback,132.0,132.51,0.386364,131.983255,0.012686,True,accepted,0.0,1:1,0.4768,4,False
+c2e1d8bdce0b4367,AY AY (Original Mix),unique_name_fallback,124.0,123.05,0.766129,123.969343,0.024723,True,accepted,0.0,1:1,0.498156,1,True
+cb342d77dd750aa8,Thirst (Original Mix),unique_name_fallback,137.0,136.0,0.729927,137.013673,0.00998,True,accepted,1.1e-05,1:1,0.034325,1,True
+d54e180dbac7ab07,Hacked Lime (Original Mix),unique_name_fallback,129.0,129.2,0.155039,128.997581,0.001875,True,accepted,0.001155,1:1,0.493441,2,False
+daf2fa893db9cf76,CHROMA 004 ROLA (Original Mix),unique_name_fallback,140.0,139.67,0.235714,140.029465,0.021046,True,accepted,1.1e-05,1:1,0.493547,1,True
+e13937f6c562a4f8,Rave Cycle (Original Mix),unique_name_fallback,130.0,129.2,0.615385,130.011715,0.009011,True,accepted,0.0,1:1,0.10075,1,True
+eb41b55f7e3b5b5f,Desert Storm (Original Mix),unique_name_fallback,120.0,120.19,0.158333,120.010501,0.008751,True,accepted,9e-06,1:1,0.2664,2,False
+f3623c1f7ff0252a,IM NOT GOD [RAGETRAIN x GEWOONRAVES SCHRANZ EDIT],unique_name_fallback,160.0,161.5,0.9375,160.092053,0.057533,True,accepted,0.001434,1:1,0.444213,1,True
+f9933c95f4a4a854,Schlecker (Original Mix),unique_name_fallback,125.94,126.05,0.087343,125.95202,0.009544,True,accepted,0.0,1:1,0.4525,1,True

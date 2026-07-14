@@ -99,17 +99,17 @@ def _quantized_cue(analysis: AnalysisResult, cue_sec: float) -> float:
     )
 
 
-def _check_phrase_alignment(analysis: AnalysisResult, cue_sec: float) -> tuple[bool, str]:
+def _check_beat_alignment(analysis: AnalysisResult, cue_sec: float) -> tuple[bool, str]:
     beatgrid = analysis.beatgrid
     if beatgrid is None or not beatgrid.reliable or not beatgrid.beat_times_sec:
         return False, "reliable beatgrid unavailable"
-    anchor = float((beatgrid.downbeats_sec or beatgrid.beat_times_sec)[0])
-    beat_period = 60.0 / float(beatgrid.bpm)
-    beat_position = (float(cue_sec) - anchor) / beat_period
-    nearest = int(round(beat_position))
-    timing_error_sec = abs(beat_position - nearest) * beat_period
-    aligned = timing_error_sec <= 0.025 and nearest >= 0 and nearest % 2 == 0
-    return aligned, f"beat={nearest}, error={timing_error_sec:.4f}s"
+    nearest_index = min(
+        range(len(beatgrid.beat_times_sec)),
+        key=lambda index: abs(beatgrid.beat_times_sec[index] - float(cue_sec)),
+    )
+    timing_error_sec = abs(beatgrid.beat_times_sec[nearest_index] - float(cue_sec))
+    aligned = timing_error_sec <= 0.025
+    return aligned, f"tracked_beat={nearest_index}, error={timing_error_sec:.4f}s"
 
 
 def _markdown(report: dict[str, object]) -> str:
@@ -222,7 +222,7 @@ def main() -> int:
         if len({round(value, 3) for value in starts}) != len(starts):
             duplicate_cue_tracks.append(analysis.track.track_id)
         for cue_sec in starts:
-            aligned, detail = _check_phrase_alignment(analysis, cue_sec)
+            aligned, detail = _check_beat_alignment(analysis, cue_sec)
             if not aligned:
                 cue_alignment_failures.append(
                     f"{analysis.track.track_id}@{cue_sec:.3f}s ({detail})"
@@ -238,7 +238,7 @@ def main() -> int:
         str(duplicate_cue_tracks),
     )
     check(
-        "hot_cues_phrase_aligned",
+        "hot_cues_on_detected_beats",
         not cue_alignment_failures,
         str(cue_alignment_failures[:8]),
     )
@@ -314,8 +314,8 @@ def main() -> int:
         preview_payload = {
             "track_a": analysis_a.track.title or analysis_a.track.track_id,
             "track_b": analysis_b.track.title or analysis_b.track.track_id,
-            "source_a": str(source_a),
-            "source_b": str(source_b),
+            "source_file_a": source_a.name,
+            "source_file_b": source_b.name,
             "cue_a_sec": rendered.cue_a_sec,
             "cue_b_sec": rendered.cue_b_sec,
             "duration_beats": rendered.envelope.duration_beats,
@@ -350,7 +350,7 @@ def main() -> int:
                 "track_id": analysis.track.track_id,
                 "title": analysis.track.title or "",
                 "artist": analysis.track.artist or "",
-                "source_path": analysis.track.source_path or "",
+                "source_file": Path(analysis.track.source_path or "").name,
                 "bpm": _bpm(analysis),
                 "beatgrid_reliable": bool(beatgrid and beatgrid.reliable),
                 "beatgrid_quality": beatgrid.quality_score if beatgrid else None,
@@ -365,8 +365,8 @@ def main() -> int:
         "checks": checks,
         "tracks": track_rows,
         "preview": preview_payload,
-        "processed_dir": str(args.processed_dir),
-        "rekordbox_xml": str(args.rekordbox_xml),
+        "analysis_cache_track_count": len(analyses),
+        "rekordbox_xml_file": args.rekordbox_xml.name,
     }
     json_path = args.output_dir / "summary.json"
     markdown_path = args.output_dir / "summary.md"

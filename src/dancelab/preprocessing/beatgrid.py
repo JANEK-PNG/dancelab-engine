@@ -16,6 +16,7 @@ import numpy as np
 from dancelab.core.audio_types import AudioSignal
 from dancelab.core.errors import MissingDependencyError
 from dancelab.core.models import BeatGrid
+from dancelab.preprocessing.tempo_precision import refine_bpm_from_beat_times
 
 _DOUBLE_TIME_MAX_GRACE_BPM = 6.0
 _DOUBLE_TIME_MIN_COVERAGE = 0.55
@@ -258,7 +259,12 @@ def _fixed_grid_diagnostics(beat_times: np.ndarray, bpm: float) -> dict[str, obj
     interval_cv = float(np.std(intervals) / interval_mean) if interval_mean > 0 else None
     mean_error_beats = mean_error / beat_period
     max_error_beats = max_error / beat_period
-    inferred_bpm = 60.0 / interval_median if interval_median > 0 else 0.0
+    long_span = refine_bpm_from_beat_times(beat_times, bpm)
+    inferred_bpm = (
+        float(long_span["bpm"])
+        if long_span["accepted"]
+        else (60.0 / interval_median if interval_median > 0 else 0.0)
+    )
     bpm_mismatch_pct = abs(inferred_bpm - bpm) / bpm * 100.0 if inferred_bpm > 0 else 100.0
 
     if len(beat_times) < 8:
@@ -340,17 +346,31 @@ def estimate_beatgrid(
         bpm *= fold_factor
         beat_times = _refit_beats(beat_times, fold_factor)
 
+    refinement = refine_bpm_from_beat_times(beat_times, bpm)
+    if refinement["accepted"]:
+        raw_bpm = bpm
+        bpm = float(refinement["bpm"])
+        fold_flags.append(
+            "bpm_refined_from_32_beat_spans"
+            f"(raw={raw_bpm:.4f},cv={refinement['robust_cv']:.5f})"
+        )
+
     # AUD-M2: no detected beats → the 120 is a placeholder, not a measurement.
     # Keep a positive bpm (schema requires >0) but flag it unreliable so
     # downstream never treats fabricated silence as a real tempo.
     diagnostics = _fixed_grid_diagnostics(beat_times, bpm)
-    diagnostics["diagnostic_flags"] = [*fold_flags, *diagnostics["diagnostic_flags"]]
+    diagnostics["diagnostic_flags"] = [
+        *fold_flags,
+        "downbeat_phase_unverified_proxy",
+        *diagnostics["diagnostic_flags"],
+    ]
     reliable = bool(diagnostics["reliable"])
     downbeats = [float(t) for t in beat_times[::beats_per_bar]]
     return BeatGrid(
         bpm=round(bpm, 2) if bpm > 0 else 120.0,
         beat_times_sec=[round(float(t), 4) for t in beat_times],
         downbeats_sec=[round(t, 4) for t in downbeats],
+        downbeat_phase_verified=False,
         reliable=reliable,
         quality_score=diagnostics["quality_score"],
         interval_cv=diagnostics["interval_cv"],

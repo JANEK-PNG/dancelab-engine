@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dancelab-engine"
-version = "0.1.0"
+version = "0.1.1"
 description = "DanceLab Engine v0 — universal analytical engine for electronic music and DJ decisions"
 readme = "README.md"
 requires-python = ">=3.11"

@@ -261,6 +261,10 @@ class BeatGrid(BaseModel):
     bpm_mismatch_pct: float | None = Field(default=None, ge=0)
     coverage_sec: float | None = Field(default=None, ge=0)
     diagnostic_flags: list[str] = Field(default_factory=list)
+    # True only when beat 1 of the bar comes from a verified source. The
+    # baseline tracker finds beats, not bar phase; beat_times[::4] is a visual
+    # proxy and must not authorize phrase-grid export or hot-cue claims.
+    downbeat_phase_verified: bool = False
     # AUD-M2: False when no beats were detected (silence/untrackable) and the
     # bpm is a placeholder, not a measurement — downstream must not trust it.
     reliable: bool = True

@@ -32,7 +32,12 @@ def make_track(tid, title, bpm, key, path, dur=300.0):
             duration_sec=dur,
             sample_rate=44100,
         ),
-        beatgrid=BeatGrid(bpm=bpm, beat_times_sec=[0.1, 0.5, 0.9], downbeats_sec=[0.1]),
+        beatgrid=BeatGrid(
+            bpm=bpm,
+            beat_times_sec=[0.1, 0.5, 0.9],
+            downbeats_sec=[0.1],
+            downbeat_phase_verified=True,
+        ),
         features=[FeatureFrame(track_id=tid, timestamp_sec=0.0, rms=0.3)],
     )
 
@@ -56,6 +61,7 @@ def make_phrase_track(tid="t1", bpm=120.0):
             bpm=bpm,
             beat_times_sec=beats,
             downbeats_sec=beats[::4],
+            downbeat_phase_verified=True,
         ),
         features=[FeatureFrame(track_id=tid, timestamp_sec=0.0, rms=0.3)],
     )
@@ -152,6 +158,29 @@ def test_unreliable_grid_is_not_exported_or_used_for_cue_snap():
     )
     assert track.find("TEMPO") is None
     assert track.find("POSITION_MARK").get("Start") == "250.200"
+
+
+def test_unverified_downbeat_phase_snaps_to_beat_without_exporting_tempo():
+    analysis = make_phrase_track(bpm=120.0)
+    analysis.beatgrid.downbeat_phase_verified = False
+    windows = {
+        "t1": [
+            TransitionWindow(
+                start_sec=1.6,
+                end_sec=17.6,
+                score=0.9,
+                window_type=WindowType.mix_in,
+            )
+        ]
+    }
+
+    track = ET.fromstring(
+        build_rekordbox_xml([analysis], windows_by_track=windows, export_beatgrid=True)
+    ).find("COLLECTION/TRACK")
+
+    assert track.get("AverageBpm") is None
+    assert track.find("TEMPO") is None
+    assert track.find("POSITION_MARK").get("Start") == "1.500"
 
 
 def test_transition_windows_become_hot_cues():
