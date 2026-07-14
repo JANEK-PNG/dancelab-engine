@@ -15,13 +15,17 @@ and confidence is scaled by input coverage.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
+
 import numpy as np
 
-from dancelab.context.conditioning import track_context_score
+from dancelab.context.conditioning import ContextScoreSummary, track_context_score
 from dancelab.core.config import WeightGroup
 from dancelab.core.models import (
     AnalysisResult,
     BeatGrid,
+    ContextProfile,
     MixabilityInput,
     MixabilityOutput,
     PairWindow,
@@ -40,6 +44,49 @@ COMPONENTS = ("tempo", "phrase", "energy", "bass", "vocal", "tension", "style", 
 
 _NEUTRAL = 0.5
 _BPM_TOLERANCE = 0.08  # ±8% pitch-fader range for full tempo compatibility
+_MEAN_FEATURE_NAMES = (
+    "rms",
+    "low_freq_energy_ratio",
+    "vocal_density_proxy",
+    "tension_proxy",
+)
+
+
+@dataclass(frozen=True)
+class MixabilityPrecomputation:
+    """Pair-invariant descriptor values for one set-planning run."""
+
+    feature_means: Mapping[str, Mapping[str, float | None]]
+    context_scores: Mapping[str, ContextScoreSummary]
+    context: ContextProfile | None
+
+
+def precompute_mixability_inputs(
+    analyses: Iterable[AnalysisResult],
+    *,
+    context: ContextProfile | None = None,
+) -> MixabilityPrecomputation:
+    """Compute values reused by every candidate pair exactly once per track."""
+    feature_means: dict[str, dict[str, float | None]] = {}
+    context_scores: dict[str, ContextScoreSummary] = {}
+    for analysis in analyses:
+        values: dict[str, list[float]] = {name: [] for name in _MEAN_FEATURE_NAMES}
+        for frame in analysis.features:
+            for name in _MEAN_FEATURE_NAMES:
+                value = getattr(frame, name)
+                if value is not None:
+                    values[name].append(float(value))
+        feature_means[analysis.track.track_id] = {
+            name: float(np.mean(series)) if series else None
+            for name, series in values.items()
+        }
+        if context is not None:
+            context_scores[analysis.track.track_id] = track_context_score(analysis, context)
+    return MixabilityPrecomputation(
+        feature_means=feature_means,
+        context_scores=context_scores,
+        context=context,
+    )
 
 
 def _append_unique(items: list[str], extra: list[str]) -> None:
@@ -58,7 +105,15 @@ def tempo_fit(bpm_a: float | None, bpm_b: float | None) -> float | None:
     return float(np.clip(1.0 - best / (2 * _BPM_TOLERANCE), 0.0, 1.0))
 
 
-def _mean_feature(analysis: AnalysisResult, name: str) -> float | None:
+def _mean_feature(
+    analysis: AnalysisResult,
+    name: str,
+    precomputed: MixabilityPrecomputation | None = None,
+) -> float | None:
+    if precomputed is not None:
+        track_values = precomputed.feature_means.get(analysis.track.track_id)
+        if track_values is not None and name in track_values:
+            return track_values[name]
     vals = [getattr(f, name) for f in analysis.features]
     vals = [v for v in vals if v is not None]
     return float(np.mean(vals)) if vals else None
@@ -80,30 +135,43 @@ def _window_feature_mean(
     return float(np.mean(values)) if values else None
 
 
-def energy_fit(analysis_a: AnalysisResult, analysis_b: AnalysisResult) -> float | None:
+def energy_fit(
+    analysis_a: AnalysisResult,
+    analysis_b: AnalysisResult,
+    precomputed: MixabilityPrecomputation | None = None,
+) -> float | None:
     """Controlled energy difference: similar mean RMS → high fit."""
-    a, b = _mean_feature(analysis_a, "rms"), _mean_feature(analysis_b, "rms")
+    a = _mean_feature(analysis_a, "rms", precomputed)
+    b = _mean_feature(analysis_b, "rms", precomputed)
     if a is None or b is None:
         return None
     return float(1.0 - abs(a - b) / max(a, b, 1e-9))
 
 
-def bass_conflict(analysis_a: AnalysisResult, analysis_b: AnalysisResult) -> float | None:
+def bass_conflict(
+    analysis_a: AnalysisResult,
+    analysis_b: AnalysisResult,
+    precomputed: MixabilityPrecomputation | None = None,
+) -> float | None:
     """Conflict risk in [0,1]: high only when BOTH tracks are bass-heavy
     (min of mean LFERs) — one bass-light track defuses the conflict."""
-    a = _mean_feature(analysis_a, "low_freq_energy_ratio")
-    b = _mean_feature(analysis_b, "low_freq_energy_ratio")
+    a = _mean_feature(analysis_a, "low_freq_energy_ratio", precomputed)
+    b = _mean_feature(analysis_b, "low_freq_energy_ratio", precomputed)
     if a is None or b is None:
         return None
     return float(np.clip(min(a, b), 0.0, 1.0))
 
 
-def vocal_conflict(analysis_a: AnalysisResult, analysis_b: AnalysisResult) -> float | None:
+def vocal_conflict(
+    analysis_a: AnalysisResult,
+    analysis_b: AnalysisResult,
+    precomputed: MixabilityPrecomputation | None = None,
+) -> float | None:
     """Vocal clash risk in [0,1]: high only when BOTH tracks carry vocals
     (min of mean vocal density) — an instrumental defuses the clash. Mirrors
     bass_conflict. None if either track lacks the proxy."""
-    a = _mean_feature(analysis_a, "vocal_density_proxy")
-    b = _mean_feature(analysis_b, "vocal_density_proxy")
+    a = _mean_feature(analysis_a, "vocal_density_proxy", precomputed)
+    b = _mean_feature(analysis_b, "vocal_density_proxy", precomputed)
     if a is None or b is None:
         return None
     return float(np.clip(min(a, b), 0.0, 1.0))
@@ -159,12 +227,13 @@ def tension_fit(
     analysis_b: AnalysisResult,
     windows_a: list[TransitionWindow],
     windows_b: list[TransitionWindow],
+    precomputed: MixabilityPrecomputation | None = None,
 ) -> float | None:
     outs = [window for window in windows_a if window.window_type == WindowType.mix_out] or windows_a
     ins = [window for window in windows_b if window.window_type == WindowType.mix_in] or windows_b
     if not outs or not ins:
-        mean_a = _mean_feature(analysis_a, "tension_proxy")
-        mean_b = _mean_feature(analysis_b, "tension_proxy")
+        mean_a = _mean_feature(analysis_a, "tension_proxy", precomputed)
+        mean_b = _mean_feature(analysis_b, "tension_proxy", precomputed)
         if mean_a is None or mean_b is None:
             return None
         return float(np.clip(1.0 - abs(mean_a - mean_b), 0.0, 1.0))
@@ -207,6 +276,7 @@ def compute_mixability(
     weights: WeightGroup,
     conflict_weights: WeightGroup | None = None,
     top_pairs: int = 3,
+    precomputed: MixabilityPrecomputation | None = None,
 ) -> MixabilityOutput:
     """Main entry (ticket DoD). Output always carries reasoning, risks,
     best_pair_windows, confidence and warnings."""
@@ -229,7 +299,7 @@ def compute_mixability(
 
     put("tempo", tempo_fit(a.track.bpm_estimate, b.track.bpm_estimate),
         "tempo fit unavailable (missing BPM estimate) — neutral", "tempo fit {:.2f}")
-    put("energy", energy_fit(a, b),
+    put("energy", energy_fit(a, b, precomputed),
         "energy fit unavailable (no rms) — neutral", "energy fit {:.2f}")
 
     phrase_value = phrase_fit(a, b, inp.transition_windows_a, inp.transition_windows_b)
@@ -242,7 +312,7 @@ def compute_mixability(
     if phrase_value is not None and phrase_value < 0.45:
         risks.append(f"weak phrase alignment ({phrase_value:.2f})")
 
-    bass_risk = bass_conflict(a, b)
+    bass_risk = bass_conflict(a, b, precomputed)
     if bass_risk is None:
         components["bass"] = _NEUTRAL
         available["bass"] = False
@@ -260,7 +330,7 @@ def compute_mixability(
         "style fit unavailable (missing style labels) — neutral", "style fit {:.2f}")
 
     # S_vocal — compatibility = 1 − clash risk (both-vocal tracks clash)
-    vocal_risk = vocal_conflict(a, b)
+    vocal_risk = vocal_conflict(a, b, precomputed)
     if vocal_risk is None:
         components["vocal"] = _NEUTRAL
         available["vocal"] = False
@@ -275,8 +345,8 @@ def compute_mixability(
     # S_harmonic — Camelot key compatibility (Sprint 5.1 hotfix). Exposure proxy
     # = mean vocal density of both tracks (vocals expose harmonic content).
     exposure = None
-    va = _mean_feature(a, "vocal_density_proxy")
-    vb = _mean_feature(b, "vocal_density_proxy")
+    va = _mean_feature(a, "vocal_density_proxy", precomputed)
+    vb = _mean_feature(b, "vocal_density_proxy", precomputed)
     if va is not None and vb is not None:
         exposure = (va + vb) / 2
     harm = harmonic_compatibility(
@@ -299,7 +369,13 @@ def compute_mixability(
         if harm.harmonic_warning:
             warnings.append(harm.harmonic_warning)
 
-    tension_value = tension_fit(a, b, inp.transition_windows_a, inp.transition_windows_b)
+    tension_value = tension_fit(
+        a,
+        b,
+        inp.transition_windows_a,
+        inp.transition_windows_b,
+        precomputed,
+    )
     put(
         "tension",
         tension_value,
@@ -315,8 +391,13 @@ def compute_mixability(
         available["context"] = False
         warnings.append("context fit unavailable (no context profile) — neutral")
     else:
-        ctx_a = track_context_score(a, inp.context)
-        ctx_b = track_context_score(b, inp.context)
+        context_cache = precomputed if precomputed is not None and precomputed.context == inp.context else None
+        ctx_a = context_cache.context_scores.get(a.track.track_id) if context_cache is not None else None
+        ctx_b = context_cache.context_scores.get(b.track.track_id) if context_cache is not None else None
+        if ctx_a is None:
+            ctx_a = track_context_score(a, inp.context)
+        if ctx_b is None:
+            ctx_b = track_context_score(b, inp.context)
         ctx_value = (ctx_a.value + ctx_b.value) / 2
         context_fit_score = round(ctx_value, 4)
         components["context"] = context_fit_score
