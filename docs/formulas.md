@@ -16,7 +16,7 @@
 | 5.1 | T_audio = Σ βᵢZᵢ | `descriptors/tension.py` | candidate | ✅ (candidate cue fusion from rise/delay/spectral/instability/expectation proxies) |
 | 5.2 | R(t) = max(0, T_eff(t⁻)−T_eff(t⁺)) | `descriptors/release.py` | candidate | ✅ (candidate release map from local tension drop after peaks) |
 | 5.x | breakdown / drop candidate detectors | `descriptors/breakdown_drop.py` | candidate | ✅ (candidate likelihood curves from energy/bass/onset/tension/release; used to refine non-edge segment labels) |
-| 6 | PE(t) = d(E_obs, E_pred) — v0 proxies | `descriptors/prediction_error.py` | candidate | — |
+| 6 | PE(t) = d(E_obs, E_pred) — v0 proxies | — | deferred | ❌ (no runtime placeholder) |
 | 7 → **TW v0.1** | W = γ₁S_struct+γ₂S_rhythm+γ₃S_energy+γ₄S_phrase+γ₅S_bass−γ₆S_vocal−γ₇S_tension; TopK(localmax) + NMS | `decision/transition_windows.py` | candidate | ✅ (Sprint 2; components from available inputs, missing → neutral+warning) |
 | 8 → **Mix v0.1** | M_ix = ΣλᵢSᵢ (tempo,phrase,energy,bass,vocal,tension,style,context); M_pair = M_ix+Wₐ+W_b−R_conflict | `decision/mixability.py` | candidate | ✅ (phrase-aware windows + tension/release coverage now feed pair scoring when analyses carry Phase 2 descriptors) |
 | SF v0.1 | F_set = argmax_r S_r(x,c); S_r = w_r·φ(x)+b_r−R_r; conf=softmax | `decision/set_function.py` | candidate | ✅ (Sprint 2 Final; rule-based priors, φ from energy shape/LFER/windows) |
@@ -34,9 +34,11 @@ curves for groove, bass salience, tension, release, and explicit
 `breakdown_likelihood` / `drop_likelihood`; non-edge segment labels are refined
 with those detectors after the baseline segmentation pass.
 
-**Beatgrid** (`preprocessing/beatgrid.py`, stable): librosa DP beat tracker → BPM +
-beat times + 4/4 downbeat proxy; feeds phrase alignment. Octave-folds half/double-time
-errors into [90,180) with phase-preserving beat refit (`--bpm` hint overrides).
+**Beatgrid** (`preprocessing/beatgrid.py`, candidate): librosa DP beat tracker → BPM +
+beat times + an unverified 4/4 downbeat proxy; feeds phrase alignment. Octave-folds
+half/double-time candidates into [90,180) and applies a 32-beat tempo refinement.
+Beat timing has operational benchmark coverage; downbeat phase is not ground truth
+and is not exported as a Rekordbox tempo grid.
 **Phrase awareness** (`core/phrasing.py`, candidate): phrase anchors now combine
 beatgrid regularity with snapped segment boundaries, so transition/mixability
 logic is less rigid than a plain 32-beat grid.
@@ -49,5 +51,6 @@ boundaries (reliable) + heuristic type labels (unvalidated); feeds structural sc
 
 Weights: `configs/descriptor_weights.yaml` (versioned; initial values are untuned priors).
 
-**ADR-005 discipline:** every module carries `STATUS`; unimplemented computation raises
-`NotImplementedFeature(feature, status)` — surfaced as CLI exit 3 / HTTP 501.
+**ADR-005 discipline:** implemented candidate modules carry explicit status and
+provenance. Deferred ideas are documented here rather than exposed as importable
+functions that can only raise `NotImplementedFeature`.

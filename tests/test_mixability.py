@@ -3,6 +3,7 @@ pair window scoring, JSON schema, API, edge cases (no key, very different BPM)."
 
 import pytest
 
+import dancelab.decision.mixability as mixability_module
 from dancelab.core.config import load_weights
 from dancelab.core.models import (
     AnalysisResult,
@@ -22,6 +23,7 @@ from dancelab.decision.mixability import (
     bass_conflict,
     compute_mixability,
     pair_window_score,
+    precompute_mixability_inputs,
     tempo_fit,
 )
 
@@ -186,6 +188,87 @@ def test_context_component_activates_when_profile_present(weights):
     assert not any("context fit unavailable" in w for w in out.warnings)
     assert any("context fit" in r for r in out.reasoning)
     assert out.context_fit_score is not None
+
+
+def test_precomputation_preserves_complete_mixability_payload(weights):
+    a = make_phrase_analysis("a", 128, tension_start=0.45, tension_end=0.65)
+    b = make_phrase_analysis("b", 129, tension_start=0.42, tension_end=0.62)
+    context = ContextProfile(
+        context_id="club_peak",
+        venue_type="club",
+        set_role="peak",
+        style_focus=["techno"],
+    )
+    inp = MixabilityInput(track_a=a, track_b=b, context=context)
+
+    baseline = compute_mixability(
+        inp,
+        weights.mixability,
+        weights.mixability_conflict,
+    )
+    cached = compute_mixability(
+        inp,
+        weights.mixability,
+        weights.mixability_conflict,
+        precomputed=precompute_mixability_inputs([a, b], context=context),
+    )
+
+    assert cached.model_dump(mode="json") == baseline.model_dump(mode="json")
+
+
+def test_precomputation_scores_context_once_per_track(weights, monkeypatch):
+    a = make_analysis("a", bpm=128, style="techno")
+    b = make_analysis("b", bpm=129, style="techno")
+    context = ContextProfile(
+        context_id="club_peak",
+        venue_type="club",
+        set_role="peak",
+        style_focus=["techno"],
+    )
+    calls: list[str] = []
+    original = mixability_module.track_context_score
+
+    def counting_context_score(analysis, profile):
+        calls.append(analysis.track.track_id)
+        return original(analysis, profile)
+
+    monkeypatch.setattr(mixability_module, "track_context_score", counting_context_score)
+    precomputed = precompute_mixability_inputs([a, b], context=context)
+    assert calls == ["a", "b"]
+
+    for _ in range(3):
+        compute_mixability(
+            MixabilityInput(track_a=a, track_b=b, context=context),
+            weights.mixability,
+            weights.mixability_conflict,
+            precomputed=precomputed,
+        )
+
+    assert calls == ["a", "b"]
+
+
+def test_precomputation_does_not_reuse_a_different_context(weights, monkeypatch):
+    a = make_analysis("a", bpm=128, style="techno")
+    b = make_analysis("b", bpm=129, style="techno")
+    cached_context = ContextProfile(context_id="club", venue_type="club", set_role="peak")
+    requested_context = ContextProfile(context_id="cafe", venue_type="cafe", set_role="opener")
+    precomputed = precompute_mixability_inputs([a, b], context=cached_context)
+    calls: list[str] = []
+    original = mixability_module.track_context_score
+
+    def counting_context_score(analysis, profile):
+        calls.append(analysis.track.track_id)
+        return original(analysis, profile)
+
+    monkeypatch.setattr(mixability_module, "track_context_score", counting_context_score)
+    compute_mixability(
+        MixabilityInput(track_a=a, track_b=b, context=requested_context),
+        weights.mixability,
+        weights.mixability_conflict,
+        precomputed=precomputed,
+    )
+
+    assert calls == ["a", "b"]
 
 
 def test_phrase_and_tension_components_activate_with_descriptor_coverage(weights):

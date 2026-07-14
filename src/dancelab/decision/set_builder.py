@@ -35,7 +35,11 @@ from dancelab.decision._common import tempo_proximity_score
 from dancelab.decision.harmonic import harmonic_compatibility, harmonic_relation, parse_camelot
 from dancelab.decision.history import NoveltyContext, PlaylistFingerprint
 from dancelab.decision.library_profile import bpm_in_range, normalize_style_list, style_matches
-from dancelab.decision.mixability import compute_mixability
+from dancelab.decision.mixability import (
+    MixabilityPrecomputation,
+    compute_mixability,
+    precompute_mixability_inputs,
+)
 
 MODEL_VERSION = "set_builder_v0.2"
 PLANNER_MODE_SMART = "smart"
@@ -375,6 +379,7 @@ def transition_score(
     energy_range: float,
     planner_mode: str = PLANNER_MODE_SMART,
     context: ContextProfile | None = None,
+    mixability_precomputation: MixabilityPrecomputation | None = None,
 ) -> tuple[float, str, list[str]]:
     """Combined A→B transition score in [0,1] + harmonic relation + reasoning."""
     planner_mode = _normalize_planner_mode(planner_mode)
@@ -391,6 +396,7 @@ def transition_score(
         MixabilityInput(track_a=a, track_b=b, context=context),
         weights.mixability,
         weights.mixability_conflict,
+        precomputed=mixability_precomputation,
     ).mixability_score
 
     w = _planner_component_weights(weights, planner_mode)
@@ -494,6 +500,7 @@ def _best_successor(
     energy_range: float,
     planner_mode: str,
     context: ContextProfile | None,
+    mixability_precomputation: MixabilityPrecomputation,
     novelty: "NoveltyContext | None" = None,
 ) -> str:
     scored: list[tuple[float, str]] = []
@@ -508,6 +515,7 @@ def _best_successor(
             energy_range,
             planner_mode,
             context,
+            mixability_precomputation,
         )
         if novelty is not None:
             # §14: soft penalties inside the gate-passing candidate set —
@@ -536,6 +544,7 @@ def _build_transition(
     energy_range: float,
     planner_mode: str,
     context: ContextProfile | None,
+    mixability_precomputation: MixabilityPrecomputation,
 ) -> SetTransition:
     a = by_id[from_track_id]
     b = by_id[to_track_id]
@@ -549,6 +558,7 @@ def _build_transition(
         energy_range,
         planner_mode,
         context,
+        mixability_precomputation,
     )
     d_bpm = None
     if a.track.bpm_estimate and b.track.bpm_estimate:
@@ -588,6 +598,7 @@ def _constrained_order(
     artist_tokens: dict[str, set[str]],
     planner_mode: str,
     context: ContextProfile | None,
+    mixability_precomputation: MixabilityPrecomputation,
     novelty: "NoveltyContext | None" = None,
 ) -> list[str]:
     locked_slots = {position - 1: track_id for position, track_id in locked_positions.items()}
@@ -646,6 +657,7 @@ def _constrained_order(
                     energy_range=energy_range,
                     planner_mode=planner_mode,
                     context=context,
+                    mixability_precomputation=mixability_precomputation,
                     novelty=novelty,
                 )
             remaining.remove(chosen)
@@ -767,7 +779,14 @@ def build_set(
         pinned_track_ids=pinned,
         start_track_id=start_track_id,
     )
-    energy = {tid: track_energy(a) for tid, a in by_id.items()}
+    mixability_precomputation = precompute_mixability_inputs(
+        by_id.values(),
+        context=context,
+    )
+    energy: dict[str, float] = {}
+    for track_id in by_id:
+        mean_rms = mixability_precomputation.feature_means[track_id]["rms"]
+        energy[track_id] = float(mean_rms) if mean_rms is not None else 0.0
     e_min = min(energy.values())
     e_range = max(energy.values()) - e_min or 1.0
     forced_opener_id = locked.get(1) or (start_track_id if start_track_id in by_id else None)
@@ -804,6 +823,7 @@ def build_set(
             artist_tokens=artist_tokens,
             planner_mode=planner_mode,
             context=context,
+            mixability_precomputation=mixability_precomputation,
             novelty=active_novelty,
         )
 
@@ -840,6 +860,7 @@ def build_set(
             energy_range=e_range,
             planner_mode=planner_mode,
             context=context,
+            mixability_precomputation=mixability_precomputation,
         )
         for current, successor in zip(order, order[1:], strict=False)
     ]
