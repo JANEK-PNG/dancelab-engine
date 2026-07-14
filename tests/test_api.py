@@ -146,7 +146,7 @@ def test_build_set_endpoint_uses_stored_analyses(client, monkeypatch, tmp_path):
     assert r.status_code == 200
     body = r.json()
     assert body["schema_version"] == DANCELAB_SCHEMA_VERSION
-    assert body["model_version"] == "set_builder_v0.1"
+    assert body["model_version"] == "set_builder_v0.2"
     assert body["track_order"][0] == "track_alpha"
     assert set(body["track_order"]) == {"track_alpha", "track_beta"}
     assert body["locked_positions"] == {"1": "track_alpha"}

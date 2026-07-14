@@ -28,8 +28,8 @@ analysis:
   segment_min_len_sec: 8.0
   transition_top_n: 3          # top-N local maxima of W_transition (spec 7)
   vocal_method: demucs     # pilot: accurate vocal separation
-  tempo_min: 90.0              # octave-fold beat tracker into [tempo_min, tempo_max)
-  tempo_max: 180.0             # 180 (not 160) so DnB ~174 stays, 88→176 folds up
+  tempo_min: 90.0              # preferred octave-fold floor; fold-up needs audio evidence
+  tempo_max: 180.0             # soft ceiling; small tracker grace keeps ~182 BPM material real
 
 paths:
   data_dir: data

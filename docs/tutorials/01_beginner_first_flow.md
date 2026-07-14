@@ -1,41 +1,26 @@
-# Beginner Tutorial: First Flow
+# Beginner Tutorial: Build Your First Set
 
 ## Goal
 
-Understand the difference between the engine, the node host, and a runnable
-graph by completing the first working DanceLab flow.
+Create, review, save, and export a small DanceLab set through the guided
+desktop workflow.
 
 ## What You Touch
 
-- the Qt desktop host
-- the node library
-- the inspector
-- one minimal graph
-
-## What You Learn
-
-- the engine is the core, not the UI
-- input nodes bring tracks into the system
-- compute nodes ask the engine for decisions
-- screen nodes display results without changing the engine
-
-## Flow
-
-`Upload Tracks -> Analyze Tracks -> Select Pair -> Edge Decision -> Telemetry Screen`
+- DanceLab Pro Simple Mode
+- audio import and Initial Check
+- set brief and generated sequence
+- transition review
+- project save and Rekordbox XML export
 
 ## Input
 
-Use two short tracks you already know well.
-
-Good beginner choice:
-
-- two tracks with stable 4/4 pulse
-- similar tempo range
-- clear intros or outros
+Use one or more folders containing at least five tracks you know well. Stable
+4/4 tracks with clear intros and outros make the first review easier.
 
 ## Steps
 
-### Exercise 1: Open the host
+### Exercise 1: Open DanceLab Pro
 
 Run:
 
@@ -45,87 +30,69 @@ dancelab-host
 
 Pass check:
 
-- you see the graph canvas
-- the `Engine` node is visible
-- the left node library and right inspector are visible
+- the DanceLab Pro window opens
+- the left stepper starts at `Import Tracks`
+- the project bar reports whether the project is saved
 
-### Exercise 2: Add the first flow
+### Exercise 2: Import tracks
 
-Create or build the minimal graph:
-
-- `Upload Tracks`
-- `Analyze Tracks`
-- `Select Pair`
-- `Edge Decision`
-- `Telemetry Screen`
-
-Connect them in order.
+Choose one or more music folders. Review any warning for audio shorter than
+2 minutes or longer than 10 minutes before accepting it.
 
 Pass check:
 
-- each connection is valid
-- no node shows an error before the run
+- the import page lists the selected audio files
+- non-audio files are ignored
+- the next action is clear
 
-### Exercise 3: Queue two tracks
+### Exercise 3: Run Initial Check
 
-Select `Upload Tracks`.
-
-Use the inspector to:
-
-- click `Choose Files`, or
-- paste one server-visible path per line
+Start Initial Check and wait for analysis to complete. You can stop between
+tracks; completed analyses stay cached.
 
 Pass check:
 
-- the inspector confirms that 2 files are queued
+- every successful track appears in the analyzed library
+- BPM, key, energy, and available style metadata are visible
+- failures are reported instead of silently disappearing
 
-### Exercise 4: Run the graph
+### Exercise 4: Generate a set
 
-Run the flow from the host.
-
-Expected output:
-
-- `Analyze Tracks` completes
-- `Select Pair` resolves `Track A` and `Track B`
-- `Edge Decision` produces a decision payload
-- `Telemetry Screen` shows score, strategy, profile, and warning summary
+Choose 5 tracks, select a starting brief, and adjust style, BPM, role, or
+energy only when needed. Select `Generate Set`.
 
 Pass check:
 
-- node states end at `done`
-- the telemetry screen shows a pair label
-- the telemetry screen shows a compatibility score instead of `--`
+- an ordered sequence appears
+- the energy timeline is visible
+- the context panel explains the active constraints
 
-### Exercise 5: Change the pair
+### Exercise 5: Review transitions
 
-Select `Select Pair` and switch `Track A` and `Track B`.
-
-Run again.
+Open `Review Transitions`, select each pair, and preview the proposed handoff.
 
 Pass check:
 
-- the graph re-runs cleanly
-- the decision can change when the order changes
-- you understand that pair direction matters
+- Deck A and Deck B show the correct track names
+- cue positions and waveforms change with the selected pair
+- the incoming deck uses preview-only beat sync and 8-beat quantization
 
-## What Success Means
+### Exercise 6: Save and export
 
-The beginner has passed this tutorial when they can explain:
+Save the project as a `.dlproj`, then export the set as Rekordbox XML.
 
-- where tracks enter the system
-- which node asks the engine for pair logic
-- which node only visualizes output
+Pass check:
+
+- reopening the project restores the session
+- the XML file exists and contains the playlist order and hot cues
+- DanceLab does not overwrite Rekordbox BPM or beatgrid data
 
 ## Common Failure Signals
 
-- `Upload Tracks is empty`
-  Cause: no audio paths were queued
-- `Analyze Tracks needs upstream track files`
-  Cause: missing connection from `Upload Tracks`
-- `Select Pair needs at least two analyzed tracks`
-  Cause: only one track was analyzed or analysis failed
-- telemetry shows `--`
-  Cause: downstream decision did not complete
+- No tracks found: the selected folder contains no supported audio files.
+- Analysis failed: inspect the reported file instead of retrying the whole library.
+- Generate Set disabled: Initial Check or the minimum candidate count is incomplete.
+- Export disabled: a set has not been generated yet.
 
 ## What To Do Next
 

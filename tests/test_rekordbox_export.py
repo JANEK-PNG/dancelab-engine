@@ -11,14 +11,27 @@ from dancelab.core.models import (
     TransitionWindow,
     WindowType,
 )
-from dancelab.export.rekordbox import _cue_phrase_division, _location_uri, build_rekordbox_xml
+from dancelab.export.rekordbox import (
+    _cue_phrase_division,
+    _location_uri,
+    build_rekordbox_xml,
+    track_windows_as_cues,
+)
 
 
 def make_track(tid, title, bpm, key, path, dur=300.0):
     return AnalysisResult(
         engine_version="0.1.0",
-        track=Track(track_id=tid, title=title, artist="A", bpm_estimate=bpm,
-                    key_estimate=key, source_path=path, duration_sec=dur, sample_rate=44100),
+        track=Track(
+            track_id=tid,
+            title=title,
+            artist="A",
+            bpm_estimate=bpm,
+            key_estimate=key,
+            source_path=path,
+            duration_sec=dur,
+            sample_rate=44100,
+        ),
         beatgrid=BeatGrid(bpm=bpm, beat_times_sec=[0.1, 0.5, 0.9], downbeats_sec=[0.1]),
         features=[FeatureFrame(track_id=tid, timestamp_sec=0.0, rms=0.3)],
     )
@@ -49,8 +62,10 @@ def make_phrase_track(tid="t1", bpm=120.0):
 
 
 def test_xml_is_valid_and_has_structure():
-    tracks = [make_track("t1", "One", 128, "8A", "/Music/one.mp3"),
-              make_track("t2", "Two", 130, "9A", "/Music/two.aiff")]
+    tracks = [
+        make_track("t1", "One", 128, "8A", "/Music/one.mp3"),
+        make_track("t2", "Two", 130, "9A", "/Music/two.aiff"),
+    ]
     xml = build_rekordbox_xml(tracks)
     root = ET.fromstring(xml)
     assert root.tag == "DJ_PLAYLISTS"
@@ -63,7 +78,7 @@ def test_xml_is_valid_and_has_structure():
 def test_default_export_does_not_override_rekordbox_bpm_or_beatgrid():
     xml = build_rekordbox_xml([make_track("t1", "One", 128, "8A", "/Music/one.mp3")])
     track = ET.fromstring(xml).find("COLLECTION/TRACK")
-    assert track.get("Tonality") == "8A"          # Camelot → Rekordbox Tonality
+    assert track.get("Tonality") == "8A"  # Camelot → Rekordbox Tonality
     assert track.get("AverageBpm") is None
     assert track.find("TEMPO") is None
 
@@ -77,7 +92,7 @@ def test_diagnostic_export_can_carry_bpm_key_beatgrid_when_explicit():
     assert track.get("AverageBpm") == "128.00"
     tempo = track.find("TEMPO")
     assert tempo.get("Bpm") == "128.00" and tempo.get("Metro") == "4/4"
-    assert tempo.get("Inizio") == "0.100"          # first downbeat
+    assert tempo.get("Inizio") == "0.100"  # first downbeat
 
 
 def test_hot_cues_snap_to_phrase_boundaries_not_third_beat():
@@ -132,21 +147,29 @@ def test_unreliable_grid_is_not_exported_or_used_for_cue_snap():
         ]
     }
 
-    track = ET.fromstring(build_rekordbox_xml([analysis], windows_by_track=windows)).find("COLLECTION/TRACK")
+    track = ET.fromstring(build_rekordbox_xml([analysis], windows_by_track=windows)).find(
+        "COLLECTION/TRACK"
+    )
     assert track.find("TEMPO") is None
     assert track.find("POSITION_MARK").get("Start") == "250.200"
 
 
 def test_transition_windows_become_hot_cues():
     tracks = [make_track("t1", "One", 128, "8A", "/Music/one.mp3")]
-    windows = {"t1": [
-        TransitionWindow(start_sec=250.0, end_sec=266.0, score=0.9, window_type=WindowType.mix_out),
-        TransitionWindow(start_sec=16.0, end_sec=32.0, score=0.7, window_type=WindowType.mix_in),
-    ]}
+    windows = {
+        "t1": [
+            TransitionWindow(
+                start_sec=250.0, end_sec=266.0, score=0.9, window_type=WindowType.mix_out
+            ),
+            TransitionWindow(
+                start_sec=16.0, end_sec=32.0, score=0.7, window_type=WindowType.mix_in
+            ),
+        ]
+    }
     xml = build_rekordbox_xml(tracks, windows_by_track=windows)
     marks = ET.fromstring(xml).findall("COLLECTION/TRACK/POSITION_MARK")
     assert len(marks) == 2
-    assert marks[0].get("Name") == "Mix Out"       # highest score first → Num 0 (hot cue A)
+    assert marks[0].get("Name") == "Mix Out"  # highest score first → Num 0 (hot cue A)
     assert marks[0].get("Num") == "0" and marks[0].get("Start") == "250.412"
     assert marks[0].get("Type") == "0"
 
@@ -155,10 +178,18 @@ def test_playlist_hot_cues_are_role_aware_and_not_clustered():
     tracks = [make_track("t1", "One", 128, "8A", "/Music/one.mp3")]
     windows = {
         "t1": [
-            TransitionWindow(start_sec=250.0, end_sec=266.0, score=0.95, window_type=WindowType.mix_out),
-            TransitionWindow(start_sec=252.0, end_sec=268.0, score=0.93, window_type=WindowType.mix_out),
-            TransitionWindow(start_sec=16.0, end_sec=32.0, score=0.80, window_type=WindowType.mix_in),
-            TransitionWindow(start_sec=120.0, end_sec=136.0, score=0.70, window_type=WindowType.bridge),
+            TransitionWindow(
+                start_sec=250.0, end_sec=266.0, score=0.95, window_type=WindowType.mix_out
+            ),
+            TransitionWindow(
+                start_sec=252.0, end_sec=268.0, score=0.93, window_type=WindowType.mix_out
+            ),
+            TransitionWindow(
+                start_sec=16.0, end_sec=32.0, score=0.80, window_type=WindowType.mix_in
+            ),
+            TransitionWindow(
+                start_sec=120.0, end_sec=136.0, score=0.70, window_type=WindowType.bridge
+            ),
         ]
     }
     plan = SetPlan(track_order=["t1"])
@@ -169,13 +200,71 @@ def test_playlist_hot_cues_are_role_aware_and_not_clustered():
     assert len(marks) == 3
     assert [mark.get("Name") for mark in marks] == ["Mix Out", "Mix In", "Bridge"]
     assert 252.0 not in starts
-    assert min(abs(a - b) for index, a in enumerate(starts) for b in starts[index + 1:]) >= 32.0
+    assert min(abs(a - b) for index, a in enumerate(starts) for b in starts[index + 1 :]) >= 32.0
+
+
+def test_export_demotes_mix_out_cue_that_cannot_hold_baseline_transition():
+    analysis = make_track("t1", "One", 120, "8A", "/Music/one.mp3", dur=300.0)
+    analysis.beatgrid.reliable = False
+    windows = [
+        TransitionWindow(
+            start_sec=285.0,
+            end_sec=299.0,
+            score=0.96,
+            window_type=WindowType.mix_out,
+        ),
+        TransitionWindow(
+            start_sec=180.0,
+            end_sec=196.0,
+            score=0.72,
+            window_type=WindowType.mix_out,
+        ),
+    ]
+
+    cues = track_windows_as_cues(
+        analysis,
+        windows,
+        cue_profile="first",
+        max_cues=1,
+    )
+
+    assert cues == [("Mix Out", 180.0, 0)]
+
+
+def test_export_omits_mix_out_when_only_candidate_would_exhaust_track():
+    analysis = make_track("t1", "One", 120, "8A", "/Music/one.mp3", dur=300.0)
+    analysis.beatgrid.reliable = False
+    windows = [
+        TransitionWindow(
+            start_sec=285.0,
+            end_sec=299.0,
+            score=0.96,
+            window_type=WindowType.mix_out,
+        ),
+        TransitionWindow(
+            start_sec=160.0,
+            end_sec=176.0,
+            score=0.70,
+            window_type=WindowType.bridge,
+        ),
+    ]
+
+    cues = track_windows_as_cues(
+        analysis,
+        windows,
+        cue_profile="first",
+        max_cues=4,
+    )
+
+    assert cues == [("Bridge", 160.0, 0)]
 
 
 def test_set_plan_orders_playlist():
-    tracks = [make_track("t1", "One", 128, "8A", "/Music/one.mp3"),
-              make_track("t2", "Two", 130, "9A", "/Music/two.mp3"),
-              make_track("t3", "Three", 126, "8B", "/Music/three.mp3")]
+    tracks = [
+        make_track("t1", "One", 128, "8A", "/Music/one.mp3"),
+        make_track("t2", "Two", 130, "9A", "/Music/two.mp3"),
+        make_track("t3", "Three", 126, "8B", "/Music/three.mp3"),
+    ]
     plan = SetPlan(track_order=["t2", "t3", "t1"])
     xml = build_rekordbox_xml(tracks, set_plan=plan, playlist_name="My Set")
     root = ET.fromstring(xml)

@@ -1,7 +1,8 @@
-"""Execution runtime for the desktop node host.
+"""Headless execution runtime for integration and diagnostic adapters.
 
-The desktop UI should be a control surface over this runtime rather than the
-place where graph execution logic lives.
+Simple Mode calls the engine primitives directly. This compatibility runtime
+keeps the established machine-facing signal contract available without
+exposing a visual graph editor in the desktop product.
 """
 
 from __future__ import annotations

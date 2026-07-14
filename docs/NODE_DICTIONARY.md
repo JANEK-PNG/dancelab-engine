@@ -1,17 +1,17 @@
-# Node Dictionary
+# Integration Signal Dictionary
 
 ## Purpose
 
 This is the human-readable companion to the machine contract in
 `src/dancelab/contracts/node_host.py`.
 
-Use it to decide which nodes are real now, which ones are host-only helpers,
-and which ones are approved placeholders waiting for a cleaner adapter.
+The historical node IDs are stable machine-facing adapter keys. They are not
+visual UI components and do not imply a graph editor in DanceLab Pro.
 
 ## Status Legend
 
 - `implemented`: backed by current engine code or a stable public endpoint
-- `adapter_needed`: engine capability exists, but the node wrapper or route is not yet formalized
+- `adapter_needed`: engine capability exists, but its adapter or route is not yet formalized
 - `host_only`: belongs to the host shell, not the engine core
 - `planned`: approved direction, not yet built
 
@@ -19,8 +19,7 @@ and which ones are approved placeholders waiting for a cleaner adapter.
 
 - `Engine`
   - status: `implemented`
-  - role: pinned graph anchor
-  - boot rule: this is the only node that should exist on an empty canvas
+  - role: root runtime dependency for headless adapter execution
 
 ## Input
 
@@ -209,7 +208,7 @@ They must not push utility state back into the engine.
 
 - `Save Snapshot`
   - status: `planned`
-  - role: persist host-side visual state outside the engine
+  - role: persist external host state outside the engine
 
 ## First Real Host Chains
 

@@ -1,7 +1,8 @@
-# Desktop Host
+# DanceLab Pro Desktop
 
-The node-based host is now a real Python desktop app backed directly by the
-engine runtime, not by the prototype HTML shell.
+DanceLab Pro is a Python/PySide6 desktop application with one guided Simple
+Mode workflow. It is backed directly by the engine and does not expose the
+former visual graph editor or prototype HTML shell.
 
 ## Install
 
@@ -39,28 +40,29 @@ dancelab-host-build --dry-run
 codesign/xattr preflight, so you can inspect the bundle command even from a
 blocked shell.
 
-## Implemented in the Qt host
+## Implemented in the Qt app
 
-- Registry-driven node library sourced from `src/dancelab/contracts/node_host.py`
-- Real node instances on a zoomable/pannable canvas
-- Real port handles and bezier edge connections
-- First runnable desktop flow:
-  `Upload Tracks -> Analyze Tracks -> Select Pair -> Edge Decision -> Telemetry Screen`
-- Host-side inspector forms for:
-  - `Upload Tracks`
-  - `Select Pair`
-- Direct engine execution through `src/dancelab/host/runtime.py`
-- No dependency on the prototype web shell for graph execution
+- Guided import, Initial Check, set generation, transition review, and export
+- Multi-folder audio import and suspicious-duration confirmation
+- Cached analysis library with set constraints
+- Mixability map, energy timeline, and A/B transition review
+- Quick initial analysis plus optional Deep/Demucs analysis for selected set tracks
+- DanceLab project save, open, autosave, and recovery
+- Rekordbox XML playlist and hot-cue export
+- Direct use of engine analysis, planning, decision, and export modules
+
+`src/dancelab/host/runtime.py` and `src/dancelab/contracts/node_host.py` remain
+headless compatibility adapters for external diagnostics. They are not a
+second desktop mode.
 
 ## Known environment note
 
-`src/dancelab/host/desktop_app.py` now sets Qt plugin paths automatically from
-the installed PySide6 package. In this Codex shell on macOS, Qt platform
-bootstrap still fails before a full GUI smoke test can complete, so the Qt test
-suite skips the live window test when the shell cannot create a `QApplication`.
+`src/dancelab/host/desktop_app.py` sets Qt plugin paths automatically from the
+installed PySide6 package. The Qt test suite skips live window tests when the
+current shell cannot create a `QApplication`.
 
-The runtime flow is still covered by automated tests, and the Qt host code
-compiles cleanly.
+The engine/runtime adapters and the Simple Mode workflow are covered separately
+by automated tests.
 
 The packaging layer for macOS is handled through `pyside6-deploy` and
 `pysidedeploy.spec`, with the desktop launcher rooted at

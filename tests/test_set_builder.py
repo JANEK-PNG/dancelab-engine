@@ -1,4 +1,4 @@
-"""Set Builder v0.1 — harmonic rules, ordering, provenance."""
+"""Set Builder v0.2 - harmonic rules, set-level energy shape, provenance."""
 
 import pytest
 
@@ -108,6 +108,53 @@ def test_energy_build_arc_rises(weights):
                 for t in tracks if t.track.track_id == tid]
     # build arc should not start at the highest-energy track
     assert energies[0] == min(energies)
+
+
+def test_build_arc_uses_one_broad_climb_instead_of_repeated_large_drops(weights):
+    tracks = [
+        track("low_8a", "8A", 128, 0.10),
+        track("high_9a", "9A", 128, 0.85),
+        track("low_3b", "3B", 128, 0.20),
+        track("high_10a", "10A", 128, 0.75),
+        track("low_4b", "4B", 128, 0.30),
+        track("high_11a", "11A", 128, 0.65),
+        track("mid_5b", "5B", 128, 0.40),
+        track("mid_12a", "12A", 128, 0.55),
+    ]
+
+    plan = build_set(tracks, weights, arc="build")
+    energy_by_id = {
+        analysis.track.track_id: analysis.features[0].rms
+        for analysis in tracks
+    }
+    ordered = [energy_by_id[track_id] for track_id in plan.track_order]
+    energy_range = max(ordered) - min(ordered)
+    relative_deltas = [
+        (right - left) / energy_range
+        for left, right in zip(ordered, ordered[1:], strict=False)
+    ]
+
+    assert min(relative_deltas) >= -0.08
+    assert not any("build arc relaxed" in warning for warning in plan.warnings)
+
+
+def test_locked_tracks_can_break_build_shape_but_surface_a_warning(weights):
+    tracks = [
+        track("low", "8A", 128, 0.10),
+        track("high", "9A", 128, 0.90),
+        track("forced_low", "10A", 128, 0.20),
+        track("middle", "11A", 128, 0.50),
+    ]
+
+    plan = build_set(
+        tracks,
+        weights,
+        arc="build",
+        locked_positions={2: "high", 3: "forced_low"},
+    )
+
+    assert plan.track_order[1:3] == ["high", "forced_low"]
+    assert any("build arc relaxed" in warning for warning in plan.warnings)
 
 
 def test_start_track_override(weights):
@@ -272,7 +319,7 @@ def test_dissonant_transition_warns(weights):
 def test_set_plan_provenance(weights):
     plan = build_set([track("a", "8A", 128, 0.2), track("b", "9A", 128, 0.25)], weights)
     assert plan.provenance is not None
-    assert plan.provenance.model_card_id == "set_builder_model_card_v0.1"
+    assert plan.provenance.model_card_id == "set_builder_model_card_v0.2"
     assert "this is the best possible set order" in plan.provenance.cannot_claim
 
 

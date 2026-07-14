@@ -137,7 +137,7 @@ terms:
     validation_required: context-specific DJ ratings
     cannot_claim: context fit predicts crowd response
 
-  # --- Set Builder components (transition_score, Set Builder v0.1) ---
+  # --- Set Builder components (transition_score, Set Builder v0.2) ---
   # harmonic + energy above are reused; these are the set-builder-only keys.
   bpm:
     formula_symbol: S_bpm

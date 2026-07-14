@@ -15,7 +15,7 @@ def _bootstrap_repo_src() -> None:
 
 _bootstrap_repo_src()
 
-from dancelab.host.desktop_app import main
+from dancelab.host.desktop_app import main  # noqa: E402
 
 
 if __name__ == "__main__":

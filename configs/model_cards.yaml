@@ -172,8 +172,8 @@ cards:
     allowed_ui_wording: "Suggested transition strategy under the current model."
 
   set_builder:
-    model_card_id: set_builder_model_card_v0.1
-    model_version: set_builder_v0.1
+    model_card_id: set_builder_model_card_v0.2
+    model_version: set_builder_v0.2
     intended_use: "Propose a candidate ordered DJ set from analyzed tracks."
     scientific_status: candidate
     evidence_grade: E4
@@ -184,10 +184,11 @@ cards:
       - "mixability engine v0.1"
     dance_lab_inference: >-
       A good set order balances harmonic compatibility, tempo proximity, an
-      energy arc and pairwise mixability — but the weighting and arc model are
-      candidate and must be validated against DJ-built sets.
+      energy arc and pairwise mixability. Set-level RMS targets bound the arc,
+      while pair compatibility ranks nearby candidates. The weighting and arc
+      model remain candidate and must be validated against DJ-built sets.
     limitations:
-      - "greedy ordering is not globally optimal"
+      - "greedy pair ranking inside the set-level energy profile is not globally optimal"
       - "energy arc is a coarse RMS proxy"
       - "key detection is unreliable on atonal/percussive tracks"
       - "does not account for track familiarity, crowd, or narrative intent"

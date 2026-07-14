@@ -1,153 +1,77 @@
-# Intermediate Tutorial: Corpus, Set, and Export
+# Intermediate Tutorial: Shape and Validate a Set
 
 ## Goal
 
-Use DanceLab like a real working tool:
-
-- load a processed corpus
-- build a set plan
-- ask for a next-track recommendation
-- export a Rekordbox artifact
-
-## What You Touch
-
-- corpus bridge
-- set-building flow
-- recommend-next flow
-- export node
+Use the analyzed library and planner controls to build a set for a real event,
+then validate its transitions before export.
 
 ## Before You Start
 
-This tutorial assumes:
+Complete the beginner tutorial and open a project with an analyzed library.
 
-- the corpus has already been analyzed
-- the processed repository is visible to the host
-- you already understand the beginner flow
+## Workflow A: Constrain the Library
 
-## Workflow A: Load Corpus
-
-### Graph
-
-`Load Corpus -> Build Set`
-
-### Steps
-
-1. Add `Load Corpus`.
-2. Point it to the processed directory.
-3. Choose a load mode:
-   - `Track IDs + Manifest`
-   - `Track IDs + Analyses + Manifest`
-4. Connect `Load Corpus` to `Build Set`.
+1. Filter or sort the analyzed library by BPM, style, energy, or key.
+2. Mark essential tracks as `Must Have`.
+3. Mark unsuitable tracks as `Not Tonight`.
+4. Confirm that enough eligible tracks remain for the requested set length.
 
 Pass check:
 
-- `Load Corpus` returns a manifest
-- you can see track count and processed path in the inspector output
+- Must Have tracks survive regeneration
+- Not Tonight tracks never enter the generated sequence
+- constraints remain visible in the session brief
 
-## Workflow B: Build Set
+## Workflow B: Express DJ Intent
 
-### Graph
-
-`Load Corpus -> Build Set`
-
-### Steps
-
-1. Select `Build Set`.
-2. Choose an arc:
-   - `build`
-   - `flat`
-   - `peak`
-3. Optionally pick a start track.
-4. Run the flow.
-
-Expected output:
-
-- a `SetPlan`
-- track order
-- mean transition score
+1. Choose a preset or start from Custom.
+2. Set the target track count or duration.
+3. Add a leading style and BPM range when the event requires them.
+4. Choose set role, energy, planner preference, and energy arc.
+5. Generate the sequence.
 
 Pass check:
 
-- `Build Set` finishes cleanly
-- the output contains an ordered track list
-- changing the arc can change the plan
+- the generated set respects hard BPM and exclusion constraints
+- repeated artists are avoided when the library allows it
+- the energy timeline reflects the selected role and arc
 
-## Workflow C: Recommend Next
+## Workflow C: Deep-Analyze the Shortlist
 
-### Graph
-
-`Load Corpus -> Select Track -> Recommend Next`
-
-Optional:
-
-`Select Context -> Recommend Next`
-
-### Steps
-
-1. Use `Load Corpus` as the candidate pool source.
-2. Use `Select Track` to choose the current track.
-3. Add `Recommend Next`.
-4. If needed, choose `arc_mode` and add recent history in the inspector.
-5. Optionally wire `Select Context`.
-6. Run the flow.
-
-Expected output:
-
-- current track id
-- ranked candidates
-- recommendation policy
-- warnings or suppressed ids when applicable
+After the sequence exists, run Deep Analysis for its tracks when stem-aware
+review is worth the additional time and storage.
 
 Pass check:
 
-- current track is not returned as its own best candidate
-- the ranking is visible in the inspector
-- changing context or arc mode can change the recommendation
+- Deep Analysis is limited to the shortlisted set
+- Demucs/stem status is explicit
+- the quick Initial Check cache remains reusable
 
-## Workflow D: Export Rekordbox
+## Workflow D: Review and Rate Transitions
 
-### Graph
-
-`Load Corpus -> Build Set -> Export Rekordbox`
-
-### Steps
-
-1. Add `Export Rekordbox`.
-2. Set playlist name.
-3. Set output XML path.
-4. Connect:
-   - `Load Corpus.analysis` or `Load Corpus.track_ids`
-   - `Build Set.set_plan`
-5. Run the flow.
-
-Expected output:
-
-- XML preview in the inspector
-- written artifact path on disk
+1. Review every adjacent pair.
+2. Confirm the displayed names match the audio on both decks.
+3. Check waveform timing, 8-beat cue quantization, key risk, and BPM behavior.
+4. Record a rating and note when a recommendation is weak.
 
 Pass check:
 
-- the output file exists
-- playlist name is correct
-- track count matches the expected set
+- no track ID resolves to the wrong audio file
+- transition ratings are saved outside the engine
+- preview beat sync never changes exported Rekordbox BPM values
 
-## Intermediate Skill Check
+## Workflow E: Export Rekordbox XML
 
-The user passes this level when they can:
+1. Name the playlist.
+2. Choose the XML output path.
+3. Export and inspect the summary.
+4. Import the XML through Rekordbox's Imported Library workflow.
 
-- bridge a repository into the graph
-- build a set without re-uploading raw audio
-- ask for a contextual next-track suggestion
-- export something they can use outside DanceLab
+Pass check:
 
-## Common Failure Signals
-
-- `Build Set needs upstream analyses or repository-backed track IDs`
-  Cause: corpus not connected or not visible
-- `Recommend Next needs candidate tracks to rank`
-  Cause: candidate pool is empty or miswired
-- `Export Rekordbox needs upstream analyses or repository-backed track IDs`
-  Cause: export node has no track source
+- playlist order matches DanceLab
+- hot cues exist on intended phrase/grid positions
+- Rekordbox remains responsible for device BPM and beatgrid analysis
 
 ## What To Do Next
 

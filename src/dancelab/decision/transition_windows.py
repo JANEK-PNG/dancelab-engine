@@ -99,13 +99,25 @@ def compute_components(
         comp["rhythm"] = np.full(n, _NEUTRAL_POSITIVE)
         warnings.append("rhythm component unavailable (no spectral_flux) — neutral")
 
-    # S_struct — proximity to segment boundaries (segments = intro/build/drop/... map)
+    # S_struct — proximity to interior section changes. File start/end are not
+    # transitions by themselves and otherwise create artificial maxima at the
+    # exact track edges.
     if inp.segments:
-        boundaries = sorted({s.start_sec for s in inp.segments} | {s.end_sec for s in inp.segments})
-        dist = np.min(
-            np.abs(times[:, None] - np.array(boundaries)[None, :]), axis=1
+        boundaries = sorted(
+            boundary
+            for boundary in (
+                {s.start_sec for s in inp.segments} | {s.end_sec for s in inp.segments}
+            )
+            if float(times[0]) < boundary < float(times[-1])
         )
-        comp["structural"] = np.exp(-dist / 8.0)  # within ~8 s of a boundary scores high
+        if boundaries:
+            dist = np.min(np.abs(times[:, None] - np.array(boundaries)[None, :]), axis=1)
+            comp["structural"] = np.exp(-dist / 8.0)
+        else:
+            comp["structural"] = np.full(n, _NEUTRAL_POSITIVE)
+            warnings.append(
+                "structural component unavailable (no interior segment boundaries) — neutral"
+            )
     else:
         comp["structural"] = np.full(n, _NEUTRAL_POSITIVE)
         warnings.append("structural component unavailable (no segment map) — neutral")
@@ -179,11 +191,15 @@ def top_k_windows(
     if len(peaks) == 0:
         return []
     min_sep = 2 * half_width_sec if min_separation_sec is None else min_separation_sec
+    # Keep the model score as the only global ranking signal. Role-specific
+    # source-runway safety is applied later, once track duration, BPM and the
+    # requested transition length are known.
+    ranked = peaks[np.argsort(score[peaks])[::-1]]
     selected: list[int] = []
-    for idx in peaks[np.argsort(score[peaks])[::-1]]:
+    for idx in ranked:
         if any(abs(times[idx] - times[j]) < min_sep for j in selected):
             continue
-        selected.append(int(idx))
+        selected.append(idx)
         if len(selected) == k:
             break
     out = []
@@ -206,6 +222,52 @@ def _window_type(peak_sec: float, duration_sec: float) -> WindowType:
     return WindowType.bridge
 
 
+def rank_windows_for_role(
+    windows: list[TransitionWindow],
+    window_type: WindowType,
+    *,
+    track_duration_sec: float | None = None,
+    bpm: float | None = None,
+    transition_beats: int | None = None,
+    outgoing_guard_beats: int = 8,
+    allow_infeasible_fallback: bool = True,
+) -> list[TransitionWindow]:
+    """Rank role-compatible windows with an optional source-runway guardrail.
+
+    Scores still decide among feasible candidates. For an outgoing deck, a
+    higher-scoring cue that cannot contain the requested transition plus one
+    8-beat safety block is demoted behind feasible cues. Review tools may keep
+    it as a fallback so they can shorten or block explicitly; strict exporters
+    can reject infeasible fallbacks.
+    """
+    matching = [window for window in windows if window.window_type == window_type]
+    by_score = sorted(matching, key=lambda window: window.score, reverse=True)
+    if (
+        not by_score
+        or track_duration_sec is None
+        or track_duration_sec <= 0
+        or bpm is None
+        or bpm <= 0
+        or transition_beats is None
+        or transition_beats <= 0
+    ):
+        return by_score
+
+    guard = outgoing_guard_beats if window_type == WindowType.mix_out else 0
+    required_beats = float(transition_beats + guard)
+
+    def runway_beats(window: TransitionWindow) -> float:
+        remaining_sec = max(float(track_duration_sec) - window.start_sec, 0.0)
+        return remaining_sec * float(bpm) / 60.0
+
+    feasible = [window for window in by_score if runway_beats(window) >= required_beats]
+    if not allow_infeasible_fallback:
+        return feasible
+    fallback = [window for window in by_score if window not in feasible]
+    fallback.sort(key=lambda window: (runway_beats(window), window.score), reverse=True)
+    return [*feasible, *fallback]
+
+
 def _role_window_fit(
     profile: ContextProfile,
     *,
@@ -217,18 +279,64 @@ def _role_window_fit(
     risk: float,
 ) -> float:
     role = (profile.set_role or "").strip().lower() or "builder"
-    mix_in = 1.0 if window_type == WindowType.mix_in else 0.45 if window_type == WindowType.bridge else 0.1
-    mix_out = 1.0 if window_type == WindowType.mix_out else 0.45 if window_type == WindowType.bridge else 0.1
+    mix_in = (
+        1.0
+        if window_type == WindowType.mix_in
+        else 0.45
+        if window_type == WindowType.bridge
+        else 0.1
+    )
+    mix_out = (
+        1.0
+        if window_type == WindowType.mix_out
+        else 0.45
+        if window_type == WindowType.bridge
+        else 0.1
+    )
     bridge = 1.0 if window_type == WindowType.bridge else 0.2
     low_risk = 1.0 - risk
     low_vocal = 1.0 - vocal_risk
     if role == "opener":
-        return float(np.clip(0.35 * mix_in + 0.25 * energy + 0.20 * bass_freedom + 0.20 * low_vocal, 0.0, 1.0))
+        return float(
+            np.clip(
+                0.35 * mix_in + 0.25 * energy + 0.20 * bass_freedom + 0.20 * low_vocal, 0.0, 1.0
+            )
+        )
     if role == "peak":
-        return float(np.clip(0.30 * max(mix_out, bridge) + 0.25 * score_norm + 0.15 * energy + 0.15 * bass_freedom + 0.15 * low_risk, 0.0, 1.0))
+        return float(
+            np.clip(
+                0.30 * max(mix_out, bridge)
+                + 0.25 * score_norm
+                + 0.15 * energy
+                + 0.15 * bass_freedom
+                + 0.15 * low_risk,
+                0.0,
+                1.0,
+            )
+        )
     if role == "closer":
-        return float(np.clip(0.35 * mix_out + 0.20 * bass_freedom + 0.20 * low_vocal + 0.15 * low_risk + 0.10 * energy, 0.0, 1.0))
-    return float(np.clip(0.25 * max(mix_in, bridge) + 0.25 * energy + 0.20 * bass_freedom + 0.15 * score_norm + 0.15 * low_risk, 0.0, 1.0))
+        return float(
+            np.clip(
+                0.35 * mix_out
+                + 0.20 * bass_freedom
+                + 0.20 * low_vocal
+                + 0.15 * low_risk
+                + 0.10 * energy,
+                0.0,
+                1.0,
+            )
+        )
+    return float(
+        np.clip(
+            0.25 * max(mix_in, bridge)
+            + 0.25 * energy
+            + 0.20 * bass_freedom
+            + 0.15 * score_norm
+            + 0.15 * low_risk,
+            0.0,
+            1.0,
+        )
+    )
 
 
 def _infer_compatible_contexts(
@@ -265,8 +373,14 @@ def _infer_compatible_contexts(
         if best_fit >= 0.52:
             compatible = [best_id]
     if current_context is not None:
-        current_fit = next((fit for context_id, fit in scored if context_id == current_context.context_id), None)
-        if current_fit is not None and current_fit >= 0.55 and current_context.context_id not in compatible:
+        current_fit = next(
+            (fit for context_id, fit in scored if context_id == current_context.context_id), None
+        )
+        if (
+            current_fit is not None
+            and current_fit >= 0.55
+            and current_context.context_id not in compatible
+        ):
             compatible.append(current_context.context_id)
     return sorted(set(compatible))
 
@@ -325,10 +439,14 @@ def detect_transition_windows(
         top_k_windows(score, times, top_k, half_width_sec), start=1
     ):
         window_type = _window_type(float(times[idx]), duration)
-        reasoning = [
-            f"{name}={components[name][idx]:.2f}" for name in POSITIVE_COMPONENTS
-        ] + [f"{name} penalty={components[name][idx]:.2f}" for name in PENALTY_COMPONENTS]
+        reasoning = [f"{name}={components[name][idx]:.2f}" for name in POSITIVE_COMPONENTS] + [
+            f"{name} penalty={components[name][idx]:.2f}" for name in PENALTY_COMPONENTS
+        ]
         w_warnings = []
+        if start <= float(times[0]) or end >= float(times[-1]):
+            w_warnings.append(
+                "candidate touches a track edge — use only when no interior window is suitable"
+            )
         vocal_at = float(components["vocal_risk"][idx])
         if vocal_at > 0.6:
             w_warnings.append(f"high vocal density in window ({vocal_at:.2f})")

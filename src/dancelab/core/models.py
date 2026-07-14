@@ -771,7 +771,7 @@ class SetPlan(SchemaVersionedOutput):
     pinned_track_ids: list[str] = Field(default_factory=list)
     dropped_track_ids: list[str] = Field(default_factory=list)
     mean_transition_score: float | None = None
-    model_version: str = "set_builder_v0.1"
+    model_version: str = "set_builder_v0.2"
     warnings: list[str] = Field(default_factory=list)
     provenance: OutputProvenance | None = None
 

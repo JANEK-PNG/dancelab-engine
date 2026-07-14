@@ -32,10 +32,19 @@ from urllib.parse import quote
 
 from dancelab import __version__
 from dancelab.core.models import AnalysisResult, BeatGrid, SetPlan, TransitionWindow, WindowType
+from dancelab.decision.transition_windows import rank_windows_for_role
 
 # hot-cue colours (Rekordbox RGB) cycled across cue points
-_CUE_COLOURS = [(40, 226, 20), (48, 90, 255), (255, 140, 0), (195, 47, 255),
-                (255, 18, 123), (0, 224, 224), (230, 40, 40), (180, 180, 0)]
+_CUE_COLOURS = [
+    (40, 226, 20),
+    (48, 90, 255),
+    (255, 140, 0),
+    (195, 47, 255),
+    (255, 18, 123),
+    (0, 224, 224),
+    (230, 40, 40),
+    (180, 180, 0),
+]
 _CUE_PHRASE_DIVISIONS_BEATS = (64, 32, 16, 8, 4, 2)
 _CUE_PHRASE_SNAP_TOLERANCE_BEATS = {
     64: 4.0,
@@ -45,6 +54,7 @@ _CUE_PHRASE_SNAP_TOLERANCE_BEATS = {
     4: 1.0,
     2: 0.5,
 }
+_CUE_TRANSITION_BASELINE_BEATS = 64
 
 
 def _location_uri(source_path: str | None) -> str:
@@ -63,8 +73,14 @@ def _location_uri(source_path: str | None) -> str:
 
 def _kind(source_path: str | None) -> str:
     ext = Path(source_path).suffix.lower().lstrip(".") if source_path else ""
-    return {"mp3": "MP3 File", "aiff": "AIFF File", "aif": "AIFF File",
-            "wav": "WAV File", "flac": "FLAC File", "m4a": "M4A File"}.get(ext, "Audio File")
+    return {
+        "mp3": "MP3 File",
+        "aiff": "AIFF File",
+        "aif": "AIFF File",
+        "wav": "WAV File",
+        "flac": "FLAC File",
+        "m4a": "M4A File",
+    }.get(ext, "Audio File")
 
 
 def _usable_export_grid(beatgrid: BeatGrid | None) -> BeatGrid | None:
@@ -178,19 +194,43 @@ def _track_windows_as_cues(
 
     def try_add(window: TransitionWindow) -> bool:
         cue_start = _snap_cue_start(analysis, window.start_sec)
-        if any(abs(cue_start - _snap_cue_start(analysis, item.start_sec)) < min_sep for item in selected):
+        if any(
+            abs(cue_start - _snap_cue_start(analysis, item.start_sec)) < min_sep
+            for item in selected
+        ):
             return False
         selected.append(window)
         return True
 
     sorted_windows = sorted(windows, key=lambda window: window.score, reverse=True)
+    beatgrid = _usable_export_grid(analysis.beatgrid)
+    safe_mix_outs = rank_windows_for_role(
+        sorted_windows,
+        WindowType.mix_out,
+        track_duration_sec=analysis.track.duration_sec,
+        bpm=analysis.track.bpm_estimate or (beatgrid.bpm if beatgrid else None),
+        transition_beats=_CUE_TRANSITION_BASELINE_BEATS,
+        allow_infeasible_fallback=False,
+    )
+    eligible_windows = [
+        window
+        for window in sorted_windows
+        if window.window_type != WindowType.mix_out or window in safe_mix_outs
+    ]
     for window_type in _cue_priority(cue_profile):
-        candidates = [window for window in sorted_windows if window.window_type == window_type]
+        candidates = rank_windows_for_role(
+            eligible_windows,
+            window_type,
+            track_duration_sec=analysis.track.duration_sec,
+            bpm=analysis.track.bpm_estimate or (beatgrid.bpm if beatgrid else None),
+            transition_beats=_CUE_TRANSITION_BASELINE_BEATS,
+            allow_infeasible_fallback=False,
+        )
         if candidates and try_add(candidates[0]) and len(selected) >= max_cues:
             break
 
     if len(selected) < max_cues:
-        for window in sorted_windows:
+        for window in eligible_windows:
             if window in selected:
                 continue
             try_add(window)
@@ -201,12 +241,30 @@ def _track_windows_as_cues(
     cues: list[tuple[str, float, int]] = []
     for num, window in enumerate(selected[:max_cues]):
         type_counts[window.window_type] = type_counts.get(window.window_type, 0) + 1
-        cues.append((
-            _cue_label(window.window_type, type_counts[window.window_type]),
-            _snap_cue_start(analysis, window.start_sec),
-            num,
-        ))
+        cues.append(
+            (
+                _cue_label(window.window_type, type_counts[window.window_type]),
+                _snap_cue_start(analysis, window.start_sec),
+                num,
+            )
+        )
     return cues
+
+
+def track_windows_as_cues(
+    analysis: AnalysisResult,
+    windows: list[TransitionWindow],
+    *,
+    cue_profile: str = "middle",
+    max_cues: int = 4,
+) -> list[tuple[str, float, int]]:
+    """Public preview of the exact hot cues the Rekordbox exporter will use."""
+    return _track_windows_as_cues(
+        analysis,
+        windows,
+        cue_profile=cue_profile,
+        max_cues=max_cues,
+    )
 
 
 def _track_element(
@@ -242,10 +300,16 @@ def _track_element(
     # Optional beatgrid → single TEMPO at the first beat (diagnostic/legacy only).
     if export_grid:
         first = (export_grid.downbeats_sec or export_grid.beat_times_sec)[0]
-        ET.SubElement(track_el, "TEMPO", {
-            "Inizio": f"{first:.3f}", "Bpm": f"{export_grid.bpm:.2f}",
-            "Metro": "4/4", "Battito": "1",
-        })
+        ET.SubElement(
+            track_el,
+            "TEMPO",
+            {
+                "Inizio": f"{first:.3f}",
+                "Bpm": f"{export_grid.bpm:.2f}",
+                "Metro": "4/4",
+                "Battito": "1",
+            },
+        )
 
     # transition windows → hot cues at mix points
     for label, start, num in _track_windows_as_cues(
@@ -254,10 +318,19 @@ def _track_element(
         cue_profile=cue_profile,
     ):
         r, g, b = _CUE_COLOURS[num % len(_CUE_COLOURS)]
-        ET.SubElement(track_el, "POSITION_MARK", {
-            "Name": label, "Type": "0", "Start": f"{start:.3f}",
-            "Num": str(num), "Red": str(r), "Green": str(g), "Blue": str(b),
-        })
+        ET.SubElement(
+            track_el,
+            "POSITION_MARK",
+            {
+                "Name": label,
+                "Type": "0",
+                "Start": f"{start:.3f}",
+                "Num": str(num),
+                "Red": str(r),
+                "Green": str(g),
+                "Blue": str(b),
+            },
+        )
     return track_el
 
 
@@ -281,9 +354,15 @@ def build_rekordbox_xml(
     order = [tid for tid in order if tid in by_id]  # keep only known tracks
 
     root = ET.Element("DJ_PLAYLISTS", {"Version": "1.0.0"})
-    ET.SubElement(root, "PRODUCT", {
-        "Name": "DanceLab Engine", "Version": __version__, "Company": "DanceLab",
-    })
+    ET.SubElement(
+        root,
+        "PRODUCT",
+        {
+            "Name": "DanceLab Engine",
+            "Version": __version__,
+            "Company": "DanceLab",
+        },
+    )
 
     collection = ET.SubElement(root, "COLLECTION", {"Entries": str(len(order))})
     id_map: dict[str, int] = {}
@@ -297,19 +376,28 @@ def build_rekordbox_xml(
             cue_profile = "last"
         else:
             cue_profile = "middle"
-        collection.append(_track_element(
-            by_id[tid],
-            i,
-            (windows_by_track or {}).get(tid),
-            cue_profile=cue_profile,
-            export_beatgrid=export_beatgrid,
-        ))
+        collection.append(
+            _track_element(
+                by_id[tid],
+                i,
+                (windows_by_track or {}).get(tid),
+                cue_profile=cue_profile,
+                export_beatgrid=export_beatgrid,
+            )
+        )
 
     playlists = ET.SubElement(root, "PLAYLISTS")
     root_node = ET.SubElement(playlists, "NODE", {"Type": "0", "Name": "ROOT", "Count": "1"})
-    pl = ET.SubElement(root_node, "NODE", {
-        "Type": "1", "Name": playlist_name, "KeyType": "0", "Entries": str(len(order)),
-    })
+    pl = ET.SubElement(
+        root_node,
+        "NODE",
+        {
+            "Type": "1",
+            "Name": playlist_name,
+            "KeyType": "0",
+            "Entries": str(len(order)),
+        },
+    )
     for tid in order:
         ET.SubElement(pl, "TRACK", {"Key": str(id_map[tid])})
 

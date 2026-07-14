@@ -587,14 +587,14 @@ default.
 
 ## 19. UI State Model
 
-Layout (Simple Mode, default): LEFT stepper (10 steps, status icons +
+Layout (DanceLab Pro desktop): LEFT stepper (5 steps, status icons +
 counts) · CENTER active-step workspace (title, description, required
 input, primary CTA, secondary actions, running state, results, errors,
 next-step line) · RIGHT context panel (what this step does, why, required
 input, expected output, common mistakes, engine status, cache status, next
 action) · TOP bar minimal: DanceLab Pro · project name · saved/unsaved ·
-New/Open/Save · Run/Stop when relevant. Advanced Graph Mode hidden behind
-"Open Advanced Graph Mode" (exists; keeps session handoff).
+New/Open/Save · Run/Stop when relevant. There is one guided product surface;
+headless integration adapters are not exposed as a second editing mode.
 
 Step-state transitions:
 

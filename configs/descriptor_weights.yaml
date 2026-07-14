@@ -78,10 +78,10 @@ mixability_conflict:
     tension: 0.15          # rho4
 
 set_builder:
-  # transition_score = harmonic*h + bpm*b + energy*e + mixability*m (Set Builder v0.1)
+  # transition_score = harmonic*h + bpm*b + energy*e + mixability*m (Set Builder v0.2)
   # harmonic weighted highest: key clash is the most audible set-flow error.
   status: candidate
-  model_version: set_builder_v0.1
+  model_version: set_builder_v0.2
   weights:
     harmonic: 0.35
     bpm: 0.25

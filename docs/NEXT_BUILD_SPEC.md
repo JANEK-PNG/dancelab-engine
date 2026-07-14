@@ -95,7 +95,7 @@ Source audio is **never** copied into cache; we store paths + content hash.
 - Config: `paths.cache_root`, `cache.max_bytes` (default 10 GB),
   `cache.low_disk_floor_bytes` (default 2 GB free).
 
-**UX states (Simple Mode settings page + graph File menu → "Cache…"):**
+**UX states (Simple Mode settings and processing surfaces):**
 - cache estimate line on Analyze and stem-export steps ("~1.2 GB of stems
   will be written to <path>");
 - low-disk banner when free space < floor: block new stem jobs, allow
@@ -333,20 +333,15 @@ touches the developer's real cache.
 not expose it anywhere. `build_set` accepts `pinned_track_ids` (track must
 appear somewhere in the set) and `locked_positions` (track fixed to a
 1-based slot, with conflict validation and swap handling); both are on the
-`/sets/build` and `/sets/export-rekordbox` API and readable from the graph
-node config — but the graph inspector has no form fields for them and
-Simple Mode has no pin/lock controls at all. Tested engine feature, zero
-clickable surface.
+`/sets/build` and `/sets/export-rekordbox` API. Simple Mode now exposes
+Must Have and locked-position controls and persists them in project state.
 
 **UX:**
 - Simple Mode Step 3 (set list) and Step 4 (review list): right-click /
   per-row buttons — **Pin to set** (📌 keep this track in every regenerate),
   **Lock position** (🔒 keep exactly here, e.g. opener at #1), unpin/unlock.
   Pinned/locked rows get visible markers; regenerating preserves them.
-- Graph inspector `Generate Set Sequence` form: pinned-tracks multi-select
-  (from upstream analyses) + locked-positions editor (slot → track).
-- Locks/pins persist in the `.dlproj` node config (already serialized —
-  free).
+- Locks and pins persist in `.dlproj` Simple Mode project state.
 
 **Interaction with §6 (uniqueness) — rules:**
 - pinned tracks are user-forced carryover: **exempt from

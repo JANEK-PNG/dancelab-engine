@@ -56,6 +56,42 @@ def test_beatgrid_recovers_bpm():
     assert bg.reliable is True  # real beats tracked
 
 
+def test_beatgrid_hint_does_not_block_double_time_fold():
+    from dancelab.preprocessing.beatgrid import estimate_beatgrid
+
+    y, _ = click_track(bpm=182.0, duration=24.0)
+    bg = estimate_beatgrid(AudioSignal(samples=y, sample_rate=SR), bpm_hint=91.0)
+
+    assert bg.bpm == pytest.approx(182.0, abs=4.0)
+    assert any("octave_folded_x2_double_time_evidence" in flag for flag in bg.diagnostic_flags)
+
+
+def test_beatgrid_preserves_real_low_bpm_without_double_time_evidence():
+    from dancelab.preprocessing.beatgrid import estimate_beatgrid
+
+    y_91, _ = click_track(bpm=91.0, duration=24.0)
+    bg_91 = estimate_beatgrid(AudioSignal(samples=y_91, sample_rate=SR), bpm_hint=91.0)
+    assert bg_91.bpm == pytest.approx(91.0, abs=3.0)
+    assert not any("octave_folded_x2" in flag for flag in bg_91.diagnostic_flags)
+
+    y_50, _ = click_track(bpm=50.0, duration=24.0)
+    bg_50 = estimate_beatgrid(AudioSignal(samples=y_50, sample_rate=SR), bpm_hint=50.0)
+    assert bg_50.bpm == pytest.approx(50.0, abs=3.0)
+    assert any("low_bpm_preserved_no_double_time_evidence" in flag for flag in bg_50.diagnostic_flags)
+
+
+def test_beatgrid_folds_common_half_time_reads_only_with_evidence():
+    from dancelab.preprocessing.beatgrid import estimate_beatgrid
+
+    y_176, _ = click_track(bpm=176.0, duration=24.0)
+    bg_176 = estimate_beatgrid(AudioSignal(samples=y_176, sample_rate=SR), bpm_hint=88.0)
+    assert bg_176.bpm == pytest.approx(176.0, abs=4.0)
+
+    y_140, _ = click_track(bpm=140.0, duration=24.0)
+    bg_140 = estimate_beatgrid(AudioSignal(samples=y_140, sample_rate=SR), bpm_hint=70.0)
+    assert bg_140.bpm == pytest.approx(140.0, abs=4.0)
+
+
 def test_beatgrid_on_silence_is_flagged_unreliable():
     # AUD-M2: silence yields no trackable beats. The bpm stays a positive
     # placeholder (schema requires >0) but reliable=False so downstream never
