@@ -106,6 +106,15 @@ def align_feature_sequences(
     # Stable ordering ensures a lower semitone shift wins an exact cost tie.
     best_cost, best_shift, best_path = min(candidates, key=lambda item: (item[0], item[1]))
     match_rate = diagonal_match_rate(best_path)
+    track_beat_count = int(track_combined.matrix.shape[1])
+    mix_beat_count = int(mix_combined.matrix.shape[1])
+    covered_track_beats = np.unique(best_path[:, 0])
+    track_path_coverage = len(covered_track_beats) / max(track_beat_count, 1)
+    finite_feature_coverage = min(
+        float(np.isfinite(track_combined.matrix).mean()),
+        float(np.isfinite(mix_combined.matrix).mean()),
+    )
+    feature_coverage = min(track_path_coverage, finite_feature_coverage)
     return AlignmentResult(
         feature_names=names,
         normalization=normalization,
@@ -116,5 +125,9 @@ def align_feature_sequences(
         match_rate=round(match_rate, 8),
         match_threshold=float(match_threshold),
         matched=match_rate >= match_threshold,
+        track_beat_count=track_beat_count,
+        mix_beat_count=mix_beat_count,
+        track_path_coverage=round(float(track_path_coverage), 8),
+        feature_coverage=round(float(feature_coverage), 8),
         path=tuple((int(track_i), int(mix_i)) for track_i, mix_i in best_path),
     )
