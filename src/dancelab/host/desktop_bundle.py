@@ -16,6 +16,7 @@ def is_project_root(path: Path) -> bool:
     return (
         (path / "pyproject.toml").exists()
         and (path / "pysidedeploy.spec").exists()
+        and (path / "dancelab_host.pyproject").exists()
         and (path / "scripts" / "dancelab_host_app.py").exists()
         and (path / "src" / "dancelab").exists()
     )
@@ -43,6 +44,10 @@ def repo_root() -> Path:
 
 def spec_path() -> Path:
     return repo_root() / "pysidedeploy.spec"
+
+
+def project_manifest_path() -> Path:
+    return repo_root() / "dancelab_host.pyproject"
 
 
 def launcher_path() -> Path:
@@ -90,6 +95,7 @@ def xattr_cleanup_targets() -> list[Path]:
         repo_root() / "src",
         repo_root() / "scripts",
         spec_path(),
+        project_manifest_path(),
         repo_root() / "pyproject.toml",
         site_packages_dir(),
         dist_dir(),
@@ -108,6 +114,7 @@ def xattr_sentinel_paths() -> list[Path]:
     candidates = [
         repo_root() / "pyproject.toml",
         spec_path(),
+        project_manifest_path(),
         Path(sys.executable),
         builder_python_path(),
         repo_root() / "src" / "dancelab" / "host" / "desktop_app.py",
@@ -380,16 +387,6 @@ def build_command(
     dry_run: bool = False,
     keep_deployment_files: bool = False,
     verbose: bool = False,
-    extra_ignore_dirs: tuple[str, ...] = (
-        ".venv",
-        ".pytest_cache",
-        ".ruff_cache",
-        "data",
-        "dist",
-        "docs",
-        "tests",
-        "tmp",
-    ),
 ) -> list[str]:
     command = [
         deploy_executable(),
@@ -405,13 +402,6 @@ def build_command(
         command.append("--keep-deployment-files")
     if verbose:
         command.append("-v")
-    if extra_ignore_dirs:
-        command.extend(
-            [
-                "--extra-ignore-dirs",
-                ",".join(extra_ignore_dirs),
-            ]
-        )
     return command
 
 
@@ -421,16 +411,6 @@ def build_desktop_bundle(
     dry_run: bool = False,
     keep_deployment_files: bool = False,
     verbose: bool = False,
-    extra_ignore_dirs: tuple[str, ...] = (
-        ".venv",
-        ".pytest_cache",
-        ".ruff_cache",
-        "data",
-        "dist",
-        "docs",
-        "tests",
-        "tmp",
-    ),
 ) -> subprocess.CompletedProcess[str]:
     if not dry_run:
         ensure_signable_macos_environment()
@@ -439,7 +419,6 @@ def build_desktop_bundle(
         dry_run=dry_run,
         keep_deployment_files=keep_deployment_files,
         verbose=verbose,
-        extra_ignore_dirs=extra_ignore_dirs,
     )
     result = subprocess.run(
         command,

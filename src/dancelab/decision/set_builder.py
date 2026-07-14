@@ -1,4 +1,4 @@
-"""Set Builder v0.1 — order a library of analyzed tracks into a DJ set.
+"""Set Builder v0.2 - order a library of analyzed tracks into a DJ set.
 
 Greedy harmonic/energy chain: start from an opener, then at each step pick the
 unplayed track that maximizes a transition score combining
@@ -37,11 +37,17 @@ from dancelab.decision.history import NoveltyContext, PlaylistFingerprint
 from dancelab.decision.library_profile import bpm_in_range, normalize_style_list, style_matches
 from dancelab.decision.mixability import compute_mixability
 
-MODEL_VERSION = "set_builder_v0.1"
+MODEL_VERSION = "set_builder_v0.2"
 PLANNER_MODE_SMART = "smart"
 PLANNER_MODE_HARMONIC = "harmonic"
 PLANNER_MODE_BPM = "bpm"
 PLANNER_MODES = (PLANNER_MODE_SMART, PLANNER_MODE_HARMONIC, PLANNER_MODE_BPM)
+
+# Set-level shape constraints reuse the normalized RMS energy domain already
+# used by the long-horizon sequence planner. Pair scoring remains unchanged;
+# these constants only bound which energy-near candidates compete at a slot.
+_ARC_PROFILE_SLACK = 0.08
+_BUILD_MAX_DROP_FRACTION = 0.08
 
 # AUD-M10: every weighted term resolves to a formula_terms.yaml entry (no
 # anonymous variables). Test-enforced by test_every_set_builder_component_has_a_term.
@@ -214,6 +220,117 @@ def _energy_score(delta: float, arc: str) -> float:
     if arc == "peak":               # keep energy high/flat
         return float(np.clip(1.0 - 6.0 * abs(delta), 0.0, 1.0))
     return float(np.clip(1.0 - 5.0 * abs(delta), 0.0, 1.0))  # "flat": small changes
+
+
+def _normalized_energy(value: float, e_min: float, e_range: float) -> float:
+    return float(np.clip((value - e_min) / max(e_range, 1e-9), 0.0, 1.0))
+
+
+def _set_arc_target_profile(
+    energy: Mapping[str, float],
+    *,
+    target_count: int,
+    arc: str,
+    e_min: float,
+    e_range: float,
+    forced_opener_id: str | None,
+) -> list[float]:
+    """Return a bounded set-level target in normalized RMS space.
+
+    Build is a single broad climb, peak stays in the upper energy region, and
+    flat stays near the median. This is a ranking target, not a fabricated
+    measurement and not a claim about crowd response.
+    """
+    count = max(int(target_count), 1)
+    values = sorted(_normalized_energy(value, e_min, e_range) for value in energy.values())
+    if not values:
+        return [0.5] * count
+
+    opener = (
+        _normalized_energy(energy[forced_opener_id], e_min, e_range)
+        if forced_opener_id in energy
+        else None
+    )
+    p15, p50, p80, p85 = [float(value) for value in np.percentile(values, [15, 50, 80, 85])]
+    if arc == "build":
+        start = opener if opener is not None else (values[0] if count >= len(values) else p15)
+        end = values[-1] if count >= len(values) else p85
+        end = max(start, end)
+        if count == 1:
+            return [start]
+        return [
+            float(np.clip(start + (end - start) * ((index / (count - 1)) ** 1.15), 0.0, 1.0))
+            for index in range(count)
+        ]
+    if arc == "peak":
+        target = max(p80, opener if opener is not None else 0.0)
+        return [float(np.clip(target, 0.0, 1.0))] * count
+
+    target = opener if opener is not None else p50
+    return [float(np.clip(target, 0.0, 1.0))] * count
+
+
+def _arc_profile_candidates(
+    candidates: list[str],
+    *,
+    current: str | None,
+    index: int,
+    arc: str,
+    target_profile: Sequence[float],
+    energy: Mapping[str, float],
+    e_min: float,
+    e_range: float,
+) -> list[str]:
+    """Keep energy-near choices, then let transition scoring break the tie."""
+    if not candidates:
+        return candidates
+    shaped = list(candidates)
+
+    if arc == "build" and current is not None:
+        current_norm = _normalized_energy(energy[current], e_min, e_range)
+        no_large_drop = [
+            track_id
+            for track_id in shaped
+            if _normalized_energy(energy[track_id], e_min, e_range)
+            >= current_norm - _BUILD_MAX_DROP_FRACTION
+        ]
+        if no_large_drop:
+            shaped = no_large_drop
+
+    target = target_profile[min(index, len(target_profile) - 1)]
+    errors = {
+        track_id: abs(_normalized_energy(energy[track_id], e_min, e_range) - target)
+        for track_id in shaped
+    }
+    best_error = min(errors.values())
+    return [
+        track_id
+        for track_id in shaped
+        if errors[track_id] <= best_error + _ARC_PROFILE_SLACK
+    ]
+
+
+def _arc_shape_warnings(
+    order: Sequence[str],
+    *,
+    arc: str,
+    energy: Mapping[str, float],
+    e_range: float,
+) -> list[str]:
+    if arc != "build" or len(order) < 2:
+        return []
+    large_drop_positions = [
+        index + 2
+        for index, (left, right) in enumerate(zip(order, order[1:], strict=False))
+        if (energy[right] - energy[left]) / max(e_range, 1e-9)
+        < -_BUILD_MAX_DROP_FRACTION
+    ]
+    if not large_drop_positions:
+        return []
+    return [
+        "build arc relaxed - energy drop exceeded 8% before position(s): "
+        + ", ".join(str(position) for position in large_drop_positions)
+    ]
 
 
 def _normalize_planner_mode(planner_mode: str | None) -> str:
@@ -465,7 +582,9 @@ def _constrained_order(
     locked_positions: dict[int, str],
     pinned_track_ids: list[str],
     energy: dict[str, float],
+    e_min: float,
     energy_range: float,
+    target_profile: Sequence[float],
     artist_tokens: dict[str, set[str]],
     planner_mode: str,
     context: ContextProfile | None,
@@ -492,10 +611,30 @@ def _constrained_order(
                 locked_slots=locked_slots,
                 artist_tokens=artist_tokens,
             )
+            candidates = _arc_profile_candidates(
+                candidates,
+                current=current,
+                index=index,
+                arc=arc,
+                target_profile=target_profile,
+                energy=energy,
+                e_min=e_min,
+                e_range=energy_range,
+            )
             if not candidates:
                 raise ValueError("constraints left no candidate track for an unlocked position")
             if current is None:
-                chosen = start_track_id if start_track_id in candidates else min(candidates, key=lambda tid: (energy[tid], tid))
+                if start_track_id in candidates:
+                    chosen = start_track_id
+                else:
+                    target = target_profile[min(index, len(target_profile) - 1)]
+                    chosen = min(
+                        candidates,
+                        key=lambda tid: (
+                            abs(_normalized_energy(energy[tid], e_min, energy_range) - target),
+                            tid,
+                        ),
+                    )
             else:
                 chosen = _best_successor(
                     current,
@@ -629,7 +768,17 @@ def build_set(
         start_track_id=start_track_id,
     )
     energy = {tid: track_energy(a) for tid, a in by_id.items()}
-    e_range = max(energy.values()) - min(energy.values()) or 1.0
+    e_min = min(energy.values())
+    e_range = max(energy.values()) - e_min or 1.0
+    forced_opener_id = locked.get(1) or (start_track_id if start_track_id in by_id else None)
+    target_profile = _set_arc_target_profile(
+        energy,
+        target_count=target_count,
+        arc=arc,
+        e_min=e_min,
+        e_range=e_range,
+        forced_opener_id=forced_opener_id,
+    )
     artist_tokens = {tid: _artist_tokens(analysis) for tid, analysis in by_id.items()}
 
     novelty = NoveltyContext.build(
@@ -649,7 +798,9 @@ def build_set(
             locked_positions=locked,
             pinned_track_ids=pinned,
             energy=energy,
+            e_min=e_min,
             energy_range=e_range,
+            target_profile=target_profile,
             artist_tokens=artist_tokens,
             planner_mode=planner_mode,
             context=context,
@@ -697,6 +848,7 @@ def build_set(
         *preference_warnings,
         *constraint_warnings,
         *_artist_diversity_warnings(order, artist_tokens),
+        *_arc_shape_warnings(order, arc=arc, energy=energy, e_range=e_range),
         *novelty_warnings,
     ]
     if len(order) < 2:

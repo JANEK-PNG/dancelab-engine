@@ -1,8 +1,7 @@
-"""Node-host contracts for external graph shells.
+"""Stable headless signal contracts for external DanceLab integrations.
 
-This registry is the source of truth for the first DanceLab node host.
-It names the real engine-backed nodes, the host-only helper nodes, and the
-planned placeholders that are approved directionally but not yet runnable.
+The historical node identifiers remain API-compatible keys for bridge and
+diagnostic clients. They no longer describe a visual editor in DanceLab Pro.
 """
 
 from __future__ import annotations
@@ -85,7 +84,7 @@ class NodeSpec(BaseModel):
 
 class NodeHostRegistry(BaseModel):
     version: str = "node_host_v0.1"
-    design_contract: str = "docs/NODE_HOST_DESIGN_CONTRACT.md"
+    design_contract: str = "docs/architecture/diagnostic-boundary.md"
     dictionary_doc: str = "docs/NODE_DICTIONARY.md"
     port_types: list[PortTypeSpec] = Field(default_factory=list)
     nodes: list[NodeSpec] = Field(default_factory=list)

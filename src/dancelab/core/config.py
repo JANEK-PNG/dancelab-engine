@@ -22,8 +22,8 @@ class AnalysisConfig(BaseModel):
     onset_window_sec: float = 4.0
     segment_min_len_sec: float = 8.0
     transition_top_n: int = 3
-    tempo_min: float = 90.0   # octave-fold target range [tempo_min, tempo_max)
-    tempo_max: float = 180.0
+    tempo_min: float = 90.0   # preferred octave-fold range; fold-up is evidence-gated
+    tempo_max: float = 180.0  # soft ceiling with small tracker grace for ~182 BPM material
     # vocal proxy backend when the stem layer is off: "hpss" (fast, default) |
     # "demucs" (slow, accurate) | "auto" (demucs if installed). Keeps a plain
     # analyze fast (~seconds); opt into demucs for quality.

@@ -17,6 +17,10 @@ from dancelab.core.audio_types import AudioSignal
 from dancelab.core.errors import MissingDependencyError
 from dancelab.core.models import BeatGrid
 
+_DOUBLE_TIME_MAX_GRACE_BPM = 6.0
+_DOUBLE_TIME_MIN_COVERAGE = 0.55
+_DOUBLE_TIME_MIN_STRENGTH_RATIO = 0.35
+
 
 def octave_fold_factor(bpm: float, tempo_min: float, tempo_max: float) -> float:
     """Power-of-2 factor that brings bpm into [tempo_min, tempo_max).
@@ -55,6 +59,140 @@ def _refit_beats(beat_times: np.ndarray, factor: float) -> np.ndarray:
         return np.array(out)
     step = int(round(1.0 / factor))  # keep every step-th beat
     return beat_times[::step]
+
+
+def _sample_curve_max(curve: np.ndarray, frame_indices: np.ndarray, radius: int = 1) -> np.ndarray:
+    values = np.zeros(len(frame_indices), dtype=np.float64)
+    if len(curve) == 0:
+        return values
+    last = len(curve) - 1
+    for idx, frame in enumerate(frame_indices):
+        center = int(np.clip(frame, 0, last))
+        lo = max(0, center - radius)
+        hi = min(last + 1, center + radius + 1)
+        values[idx] = float(np.max(curve[lo:hi])) if hi > lo else 0.0
+    return values
+
+
+def _double_time_subdivision_supported(
+    x: np.ndarray,
+    sample_rate: int,
+    hop_size: int,
+    beat_times: np.ndarray,
+) -> tuple[bool, dict[str, float]]:
+    """Evidence gate for folding low/ambiguous tempos upward.
+
+    A real slow track can live at 50-90 BPM. We only double it when the audio
+    shows regular onset energy halfway between the current beats, which is the
+    telltale sign that the tracker latched onto half-time.
+    """
+    beats = np.sort(np.asarray(beat_times, dtype=np.float64))
+    beats = beats[np.isfinite(beats)]
+    if len(beats) < 4 or sample_rate <= 0 or hop_size <= 0:
+        return False, {"coverage": 0.0, "strength_ratio": 0.0}
+
+    intervals = np.diff(beats)
+    valid = intervals > 1e-6
+    if not np.any(valid):
+        return False, {"coverage": 0.0, "strength_ratio": 0.0}
+
+    beats = beats[:-1][valid]
+    intervals = intervals[valid]
+    midpoints = beats + intervals / 2.0
+
+    try:
+        import librosa
+    except ImportError:  # pragma: no cover - estimate_beatgrid already checks this.
+        return False, {"coverage": 0.0, "strength_ratio": 0.0}
+
+    envelope = librosa.onset.onset_strength(
+        y=np.asarray(x, dtype=np.float32),
+        sr=sample_rate,
+        hop_length=hop_size,
+    )
+    envelope = np.nan_to_num(np.asarray(envelope, dtype=np.float64), nan=0.0, posinf=0.0, neginf=0.0)
+    if len(envelope) == 0 or np.allclose(envelope, 0.0):
+        return False, {"coverage": 0.0, "strength_ratio": 0.0}
+
+    beat_frames = np.rint(beats * sample_rate / hop_size).astype(int)
+    midpoint_frames = np.rint(midpoints * sample_rate / hop_size).astype(int)
+    beat_strength = _sample_curve_max(envelope, beat_frames, radius=1)
+    midpoint_strength = _sample_curve_max(envelope, midpoint_frames, radius=1)
+
+    beat_ref = float(np.median(beat_strength[beat_strength > 0.0])) if np.any(beat_strength > 0.0) else 0.0
+    if beat_ref <= 0.0:
+        return False, {"coverage": 0.0, "strength_ratio": 0.0}
+
+    midpoint_ref = float(np.median(midpoint_strength))
+    global_floor = float(np.percentile(envelope, 75)) if len(envelope) else 0.0
+    threshold = max(0.18 * beat_ref, 0.25 * global_floor)
+    coverage = float(np.mean(midpoint_strength >= threshold)) if len(midpoint_strength) else 0.0
+    strength_ratio = midpoint_ref / beat_ref
+    supported = (
+        coverage >= _DOUBLE_TIME_MIN_COVERAGE
+        and strength_ratio >= _DOUBLE_TIME_MIN_STRENGTH_RATIO
+    )
+    return supported, {
+        "coverage": round(coverage, 4),
+        "strength_ratio": round(strength_ratio, 4),
+    }
+
+
+def _evidence_gated_octave_fold_factor(
+    bpm: float,
+    beat_times: np.ndarray,
+    x: np.ndarray,
+    sample_rate: int,
+    hop_size: int,
+    tempo_min: float,
+    tempo_max: float,
+) -> tuple[float, list[str]]:
+    """Choose a DJ-usable tempo octave without blindly destroying real slow BPMs."""
+    if bpm <= 0 or tempo_max <= tempo_min:
+        return 1.0, []
+
+    factor = 1.0
+    flags: list[str] = []
+    folded_bpm = float(bpm)
+    folded_beats = np.asarray(beat_times, dtype=np.float64)
+    upper_with_grace = tempo_max + _DOUBLE_TIME_MAX_GRACE_BPM
+
+    # Double only when (a) the doubled tempo remains in a realistic DJ ceiling
+    # and (b) the audio supports a regular midpoint pulse.
+    guard = 0
+    while folded_bpm * 2.0 <= upper_with_grace and guard < 4:
+        supported, evidence = _double_time_subdivision_supported(
+            x,
+            sample_rate,
+            hop_size,
+            folded_beats,
+        )
+        if not supported:
+            if folded_bpm < tempo_min:
+                flags.append(
+                    "low_bpm_preserved_no_double_time_evidence"
+                    f"(coverage={evidence['coverage']:.2f},ratio={evidence['strength_ratio']:.2f})"
+                )
+            break
+        factor *= 2.0
+        folded_bpm *= 2.0
+        folded_beats = _refit_beats(folded_beats, 2.0)
+        flags.append(
+            "octave_folded_x2_double_time_evidence"
+            f"(coverage={evidence['coverage']:.2f},ratio={evidence['strength_ratio']:.2f})"
+        )
+        if folded_bpm >= tempo_min:
+            break
+        guard += 1
+
+    guard = 0
+    while folded_bpm > upper_with_grace and folded_bpm > 0 and guard < 8:
+        factor /= 2.0
+        folded_bpm /= 2.0
+        guard += 1
+        flags.append("octave_folded_x0.5_above_ceiling")
+
+    return factor, flags
 
 
 def _fixed_grid_diagnostics(beat_times: np.ndarray, bpm: float) -> dict[str, object]:
@@ -163,11 +301,10 @@ def estimate_beatgrid(
     tempo_min: float = 90.0,
     tempo_max: float = 180.0,
 ) -> BeatGrid:
-    """Estimate BPM + beat times + (proxy) downbeats, octave-folded into
-    [tempo_min, tempo_max).
+    """Estimate BPM + beat times + (proxy) downbeats.
 
-    bpm_hint, when given, is librosa's start_bpm prior AND disables octave
-    folding (the user's BPM is authoritative).
+    bpm_hint, when given, is only librosa's start_bpm prior. It never disables
+    octave handling; file tags are hints, not proof of the musical tempo.
     """
     try:
         import librosa
@@ -187,17 +324,27 @@ def estimate_beatgrid(
     beat_times = librosa.frames_to_time(beat_frames, sr=signal.sample_rate, hop_length=hop_size)
     bpm = float(np.atleast_1d(tempo)[0])
 
-    # user hint is authoritative; otherwise fold octave errors into range
-    if bpm_hint is None and bpm > 0:
-        factor = octave_fold_factor(bpm, tempo_min, tempo_max)
-        if factor != 1.0:
-            bpm *= factor
-            beat_times = _refit_beats(beat_times, factor)
+    # Tags/hints inform the tracker but never bypass octave handling. Folding
+    # upward is evidence-gated so real slow tracks (50/70/80 BPM) stay slow
+    # unless the audio shows a regular double-time midpoint pulse.
+    fold_factor, fold_flags = _evidence_gated_octave_fold_factor(
+        bpm,
+        beat_times,
+        x,
+        signal.sample_rate,
+        hop_size,
+        tempo_min,
+        tempo_max,
+    )
+    if fold_factor != 1.0:
+        bpm *= fold_factor
+        beat_times = _refit_beats(beat_times, fold_factor)
 
     # AUD-M2: no detected beats → the 120 is a placeholder, not a measurement.
     # Keep a positive bpm (schema requires >0) but flag it unreliable so
     # downstream never treats fabricated silence as a real tempo.
     diagnostics = _fixed_grid_diagnostics(beat_times, bpm)
+    diagnostics["diagnostic_flags"] = [*fold_flags, *diagnostics["diagnostic_flags"]]
     reliable = bool(diagnostics["reliable"])
     downbeats = [float(t) for t in beat_times[::beats_per_bar]]
     return BeatGrid(

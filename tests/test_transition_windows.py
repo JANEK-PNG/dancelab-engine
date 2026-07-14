@@ -16,14 +16,17 @@ from dancelab.core.models import (
     FeatureFrame,
     Segment,
     Track,
+    TransitionWindow,
     TransitionWindowInput,
     TransitionWindowOutput,
     WindowType,
 )
 from dancelab.decision.transition_windows import (
     MODEL_VERSION,
+    compute_components,
     detect_transition_windows,
     local_maxima,
+    rank_windows_for_role,
     score_transition,
     top_k_windows,
 )
@@ -58,18 +61,34 @@ def make_frames(n=60, vocal=None, tension=None):
 
 def test_score_transition_weighted_sum(weights):
     n = 5
-    comps = {name: np.full(n, 1.0) for name in
-             ("structural", "rhythm", "energy", "phrase", "bass", "vocal_risk", "tension_conflict")}
+    comps = {
+        name: np.full(n, 1.0)
+        for name in (
+            "structural",
+            "rhythm",
+            "energy",
+            "phrase",
+            "bass",
+            "vocal_risk",
+            "tension_conflict",
+        )
+    }
     w = weights.weights
-    expected = (w["structural"] + w["rhythm"] + w["energy"] + w["phrase"] + w["bass"]
-                - w["vocal_risk"] - w["tension_conflict"])
+    expected = (
+        w["structural"]
+        + w["rhythm"]
+        + w["energy"]
+        + w["phrase"]
+        + w["bass"]
+        - w["vocal_risk"]
+        - w["tension_conflict"]
+    )
     assert np.allclose(score_transition(comps, weights), expected)
 
 
 def test_penalties_reduce_score(weights):
     n = 5
-    base = {name: np.full(n, 0.5) for name in
-            ("structural", "rhythm", "energy", "phrase", "bass")}
+    base = {name: np.full(n, 0.5) for name in ("structural", "rhythm", "energy", "phrase", "bass")}
     clean = dict(base, vocal_risk=np.zeros(n), tension_conflict=np.zeros(n))
     vocal = dict(base, vocal_risk=np.ones(n), tension_conflict=np.zeros(n))
     assert score_transition(vocal, weights).mean() < score_transition(clean, weights).mean()
@@ -94,6 +113,90 @@ def test_top_k_orders_by_score():
     wins = top_k_windows(s, t, k=2, half_width_sec=1.0)
     assert [w[0] for w in wins] == [3, 5]  # best first
     assert wins[0][1] == 2.0 and wins[0][2] == 4.0  # ±1 s around peak
+
+
+def test_top_k_keeps_model_score_order_for_edge_candidate():
+    score = np.array([0.0, 9.0, 0.0, 0.0, 0.0, 4.0, 0.0, 0.0, 0.0])
+    times = np.arange(score.size, dtype=float)
+
+    windows = top_k_windows(score, times, k=2, half_width_sec=2.0)
+
+    assert [window[0] for window in windows] == [1, 5]
+
+
+def test_role_ranking_demotes_outgoing_cue_without_transition_runway():
+    windows = [
+        TransitionWindow(
+            transition_window_id="late-high",
+            start_sec=170.0,
+            end_sec=186.0,
+            score=0.95,
+            window_type=WindowType.mix_out,
+        ),
+        TransitionWindow(
+            transition_window_id="safe-earlier",
+            start_sec=120.0,
+            end_sec=136.0,
+            score=0.72,
+            window_type=WindowType.mix_out,
+        ),
+    ]
+
+    ranked = rank_windows_for_role(
+        windows,
+        WindowType.mix_out,
+        track_duration_sec=200.0,
+        bpm=120.0,
+        transition_beats=64,
+    )
+
+    assert [window.transition_window_id for window in ranked] == [
+        "safe-earlier",
+        "late-high",
+    ]
+
+
+def test_strict_role_ranking_rejects_infeasible_outgoing_fallback():
+    late = TransitionWindow(
+        transition_window_id="late",
+        start_sec=180.0,
+        end_sec=196.0,
+        score=0.95,
+        window_type=WindowType.mix_out,
+    )
+
+    ranked = rank_windows_for_role(
+        [late],
+        WindowType.mix_out,
+        track_duration_sec=200.0,
+        bpm=120.0,
+        transition_beats=64,
+        allow_infeasible_fallback=False,
+    )
+
+    assert ranked == []
+
+
+def test_file_edges_alone_do_not_count_as_structural_boundaries():
+    frames = make_frames(n=20)
+    components, _, warnings = compute_components(
+        TransitionWindowInput(
+            track_id="t1",
+            feature_frames=frames,
+            segments=[
+                Segment(
+                    segment_id="whole",
+                    track_id="t1",
+                    start_sec=0.0,
+                    end_sec=19.0,
+                    segment_type="groove",
+                )
+            ],
+        )
+    )
+
+    assert np.allclose(components["structural"], 0.5)
+    assert any("no interior segment boundaries" in warning for warning in warnings)
 
 
 # ------------------------------------------------------------------- end-to-end
@@ -122,10 +225,10 @@ def test_window_type_position_heuristic(weights):
 
 def test_segments_boost_boundary_scores(weights):
     frames = make_frames()
-    seg = [Segment(segment_id="s1", track_id="t1", start_sec=0, end_sec=42.0,
-                   segment_type="build"),
-           Segment(segment_id="s2", track_id="t1", start_sec=42.0, end_sec=59.0,
-                   segment_type="outro")]
+    seg = [
+        Segment(segment_id="s1", track_id="t1", start_sec=0, end_sec=42.0, segment_type="build"),
+        Segment(segment_id="s2", track_id="t1", start_sec=42.0, end_sec=59.0, segment_type="outro"),
+    ]
     out = detect_transition_windows(
         TransitionWindowInput(track_id="t1", feature_frames=frames, segments=seg), weights
     )
@@ -158,9 +261,27 @@ def test_segments_enable_phrase_fallback_without_beatgrid(weights):
             track_id="t1",
             feature_frames=make_frames(),
             segments=[
-                Segment(segment_id="s1", track_id="t1", start_sec=0.0, end_sec=16.0, segment_type="build"),
-                Segment(segment_id="s2", track_id="t1", start_sec=16.0, end_sec=32.0, segment_type="groove"),
-                Segment(segment_id="s3", track_id="t1", start_sec=32.0, end_sec=59.0, segment_type="outro"),
+                Segment(
+                    segment_id="s1",
+                    track_id="t1",
+                    start_sec=0.0,
+                    end_sec=16.0,
+                    segment_type="build",
+                ),
+                Segment(
+                    segment_id="s2",
+                    track_id="t1",
+                    start_sec=16.0,
+                    end_sec=32.0,
+                    segment_type="groove",
+                ),
+                Segment(
+                    segment_id="s3",
+                    track_id="t1",
+                    start_sec=32.0,
+                    end_sec=59.0,
+                    segment_type="outro",
+                ),
             ],
         ),
         weights,
@@ -243,8 +364,10 @@ def test_api_transition_windows_endpoint(monkeypatch, tmp_path):
     FileAnalysisRepository(tmp_path).save(analysis)
 
     client = TestClient(app)
-    r = client.post("/tracks/apitest1/transition-windows",
-                    json={"context_id": "club_peak", "previous_track_id": "x"})
+    r = client.post(
+        "/tracks/apitest1/transition-windows",
+        json={"context_id": "club_peak", "previous_track_id": "x"},
+    )
     assert r.status_code == 200
     body = r.json()
     assert body["model_version"] == MODEL_VERSION

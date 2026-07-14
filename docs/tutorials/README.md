@@ -43,10 +43,9 @@ That keeps the material useful both as onboarding and as regression testing.
 Beginner lessons teach the mental model:
 
 - what the engine is
-- what the host is
-- what a node does
-- what a screen does
-- what a valid first flow looks like
+- what the guided desktop workflow does
+- where analysis is cached
+- how to build, review, save, and export a first set
 
 The beginner should not need to understand formulas, weighting, validation
 theory, or annotation logic.
@@ -55,10 +54,10 @@ theory, or annotation logic.
 
 Intermediate lessons teach operational use:
 
-- load a corpus
-- build a set
-- ask for a next-track recommendation
-- export a tangible artifact
+- constrain the analyzed library
+- express event and DJ intent
+- deep-analyze a shortlist
+- validate transitions and export a tangible artifact
 
 This is where DanceLab stops being a demo and starts acting like a real tool.
 
@@ -77,8 +76,8 @@ This layer is about disciplined use, not just button-clicking.
 
 | Lesson | Level | Focus | Status |
 |---|---|---|---|
-| `01_beginner_first_flow.md` | Beginner | Host basics and first runnable graph | Ready now |
-| `02_intermediate_corpus_set_workflows.md` | Intermediate | Corpus, set build, recommend-next, export | Ready now |
+| `01_beginner_first_flow.md` | Beginner | First guided set, review, save, export | Ready now |
+| `02_intermediate_corpus_set_workflows.md` | Intermediate | Library constraints, intent, deep analysis, validation | Ready now |
 | `03_advanced_validation_review.md` | Advanced | Validation pack, review boards, human audit loop | Ready now |
 
 ## Recommended User Journey
@@ -92,7 +91,7 @@ This layer is about disciplined use, not just button-clicking.
 The engine stays clean and headless.
 
 - engine = computes signals and decisions
-- host = control surface
+- DanceLab Pro = guided control surface
 - review boards = diagnostics and testing surfaces
 
 That means tutorial material should never imply that a review board is "the
@@ -102,5 +101,4 @@ engine." It is a window into the engine.
 
 - [README.md](/Users/jantrybus/Desktop/AI/dancelab-engine/README.md)
 - [DESKTOP_HOST.md](/Users/jantrybus/Desktop/AI/dancelab-engine/docs/DESKTOP_HOST.md)
-- [NODE_HOST_MVP.md](/Users/jantrybus/Desktop/AI/dancelab-engine/docs/NODE_HOST_MVP.md)
 - [validation.md](/Users/jantrybus/Desktop/AI/dancelab-engine/docs/validation.md)

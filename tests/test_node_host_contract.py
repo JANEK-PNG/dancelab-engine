@@ -92,10 +92,7 @@ def test_node_host_contract_endpoint():
     assert engine["host_execution_status"] == "runnable"
 
 
-def test_node_host_shell_route():
+def test_removed_visual_node_shell_is_not_served():
     client = TestClient(app)
     response = client.get("/host/node-shell")
-    assert response.status_code == 200
-    assert "text/html" in response.headers["content-type"]
-    assert "/contracts/node-host" in response.text
-    assert "SIGNAL GRAPH" in response.text
+    assert response.status_code == 404

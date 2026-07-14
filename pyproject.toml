@@ -64,13 +64,3 @@ pythonpath = ["src"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-
-[tool.pyside6-project]
-files = [
-    "scripts/dancelab_host_app.py",
-    "src/dancelab/contracts/node_host.py",
-    "src/dancelab/host/__init__.py",
-    "src/dancelab/host/desktop_app.py",
-    "src/dancelab/host/desktop_bundle.py",
-    "src/dancelab/host/runtime.py",
-]

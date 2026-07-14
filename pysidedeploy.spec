@@ -3,7 +3,7 @@ title = DanceLab Host
 project_dir = .
 input_file = scripts/dancelab_host_app.py
 exec_directory = dist/desktop
-project_file = pyproject.toml
+project_file = dancelab_host.pyproject
 icon = /Users/jantrybus/Desktop/AI/dancelab-engine/.venv/lib/python3.12/site-packages/PySide6/scripts/deploy_lib/pyside_icon.icns
 
 [python]
@@ -35,4 +35,3 @@ ndk_path =
 sdk_path = 
 local_libs = 
 arch = 
-

@@ -1,0 +1,12 @@
+{
+  "files": [
+    "scripts/dancelab_host_app.py",
+    "src/dancelab/host/desktop_app.py",
+    "src/dancelab/host/simple_mode.py",
+    "src/dancelab/host/analyzed_library.py",
+    "src/dancelab/host/energy_timeline.py",
+    "src/dancelab/host/import_dialogs.py",
+    "src/dancelab/host/mixability_map.py",
+    "src/dancelab/host/pair_review.py"
+  ]
+}

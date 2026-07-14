@@ -12,6 +12,7 @@ data/raw/*
 data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+data/reports/ui_*.png
 *.npy
 *.npz
 .DS_Store

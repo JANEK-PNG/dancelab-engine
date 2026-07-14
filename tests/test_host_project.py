@@ -10,6 +10,7 @@ from dancelab.host.project import (
     ProjectConnection,
     ProjectFileError,
     ProjectNode,
+    SimpleModeProjectState,
     load_project,
     save_project,
 )
@@ -18,6 +19,7 @@ from dancelab.host.project import (
 def _sample_project() -> DanceLabProject:
     return DanceLabProject(
         name="Friday Set",
+        workspace="graph",
         nodes=[
             ProjectNode(instance_id="desktop_engine_1", node_id="engine", x=560.0, y=120.0),
             ProjectNode(instance_id="desktop_upload_tracks_2", node_id="upload_tracks", x=120.0, y=390.0),
@@ -35,7 +37,7 @@ def _sample_project() -> DanceLabProject:
     )
 
 
-def test_project_roundtrip(tmp_path):
+def test_legacy_visual_project_roundtrip_remains_readable(tmp_path):
     saved = save_project(_sample_project(), tmp_path / "friday")
     assert saved.suffix == PROJECT_FILE_SUFFIX
 
@@ -49,6 +51,37 @@ def test_project_roundtrip(tmp_path):
     assert loaded.nodes[1].x == 120.0 and loaded.nodes[1].y == 390.0
     assert loaded.connections[0].to_port_key == "tracks"
     assert loaded.node_configs["desktop_upload_tracks_2"]["paths_text"].endswith("b.mp3")
+
+
+def test_simple_mode_project_roundtrip_keeps_cache_references_external(tmp_path):
+    project = DanceLabProject(
+        name="Garden Continuation",
+        workspace="simple",
+        simple_mode=SimpleModeProjectState(
+            source_files=["/music/a.mp3", "/music/b.mp3"],
+            analysis_track_ids={"/music/a.mp3": "track-a", "/music/b.mp3": "track-b"},
+            current_step=3,
+            target_track_count=10,
+            style_focus="uk bass, garage",
+            bpm_max=135.0,
+            set_role="bridge",
+            must_have_ids=["track-a"],
+            locked_positions={1: "track-a"},
+            plan={"track_order": ["track-a", "track-b"]},
+        ),
+    )
+
+    saved = save_project(project, tmp_path / "garden")
+    raw = json.loads(saved.read_text(encoding="utf-8"))
+    assert raw["workspace"] == "simple"
+    assert "analyses" not in raw["simple_mode"]
+
+    loaded = load_project(saved)
+    assert loaded.workspace == "simple"
+    assert loaded.simple_mode is not None
+    assert loaded.simple_mode.style_focus == "uk bass, garage"
+    assert loaded.simple_mode.bpm_max == 135.0
+    assert loaded.simple_mode.locked_positions == {1: "track-a"}
 
 
 def test_missing_project_fails_loud(tmp_path):

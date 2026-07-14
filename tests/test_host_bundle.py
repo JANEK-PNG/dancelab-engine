@@ -12,6 +12,7 @@ from dancelab.host.desktop_bundle import (
     is_project_root,
     launcher_path,
     mirror_verified_app_bundle_to_fallback,
+    project_manifest_path,
     spec_path,
     strip_root_bundle_metadata,
     xattr_cleanup_targets,
@@ -22,6 +23,7 @@ from dancelab.host.desktop_bundle import (
 def test_desktop_bundle_paths_and_command_are_repo_stable():
     assert is_project_root(desktop_bundle.repo_root())
     assert spec_path().name == "pysidedeploy.spec"
+    assert project_manifest_path().name == "dancelab_host.pyproject"
     assert launcher_path().name == "dancelab_host_app.py"
     assert app_bundle_path().name == "DanceLab Host.app"
     assert builder_python_path().name.startswith("python")
@@ -33,7 +35,7 @@ def test_desktop_bundle_paths_and_command_are_repo_stable():
     assert "-f" in command
     assert "--dry-run" in command
     assert "-v" in command
-    assert "--extra-ignore-dirs" in command
+    assert "--extra-ignore-dirs" not in command
 
 
 def test_desktop_bundle_exposes_cleanup_targets_and_build_env():
@@ -45,6 +47,7 @@ def test_desktop_bundle_exposes_cleanup_targets_and_build_env():
     sentinels = xattr_sentinel_paths()
     assert any(path.name == "pyproject.toml" for path in sentinels)
     assert any(path.name == "pysidedeploy.spec" for path in sentinels)
+    assert any(path.name == "dancelab_host.pyproject" for path in sentinels)
     assert any(path == builder_python_path() for path in sentinels)
 
     env = build_environment()
