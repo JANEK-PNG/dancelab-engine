@@ -33,6 +33,7 @@ from dancelab.core.models import (
 )
 from dancelab.core.provenance import provenance_for
 from dancelab.decision._common import nearest_bpm_variant, tempo_proximity_score
+from dancelab.decision.dedup import dedupe_by_audio
 from dancelab.decision.harmonic import harmonic_compatibility, harmonic_relation, parse_camelot
 from dancelab.decision.history import NoveltyContext, PlaylistFingerprint
 from dancelab.decision.library_profile import bpm_in_range, normalize_style_list, style_matches
@@ -730,6 +731,9 @@ def build_set(
     planner_mode = _normalize_planner_mode(planner_mode)
     locked = _normalize_locked_positions(locked_positions)
     pinned = _normalize_pinned_track_ids(pinned_track_ids)
+    # Collapse byte-identical audio to one entry so the same track can't appear
+    # twice in a set under two filenames (see decision/dedup.py).
+    analyses, dedup_warnings = dedupe_by_audio(analyses)
     by_id_all = {a.track.track_id: a for a in analyses}
     by_id = by_id_all
     if not by_id:
@@ -895,6 +899,7 @@ def build_set(
     ]
     mean_score = round(float(np.mean([t.transition_score for t in transitions])), 4) if transitions else None
     warnings = [
+        *dedup_warnings,
         *preference_warnings,
         *constraint_warnings,
         *_artist_diversity_warnings(order, artist_tokens),
