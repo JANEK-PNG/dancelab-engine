@@ -28,6 +28,7 @@ from dancelab.core.models import (
     AnalysisResult,
     ContextProfile,
     MixabilityInput,
+    SetCoherence,
     SetPlan,
     SetTransition,
 )
@@ -342,6 +343,65 @@ def _arc_profile_candidates(
         for track_id in shaped
         if errors[track_id] <= best_error + _ARC_PROFILE_SLACK
     ]
+
+
+def compute_set_coherence(
+    order: Sequence[str],
+    *,
+    arc: str,
+    energy: Mapping[str, float],
+    e_min: float,
+    e_range: float,
+    target_profile: Sequence[float],
+    bpm_by_id: Mapping[str, float | None],
+) -> SetCoherence | None:
+    """Whole-set shape as one number: arc adherence + tempo continuity.
+
+    A report, not a ranking input (measure first, like the octave preference).
+    - arc_adherence: how closely the set's normalised energy curve follows the
+      intended arc target — this is the "energy curve exists / follows intent"
+      measure directly answering set-level complaints.
+    - tempo_continuity: smoothness of the raw BPM progression; the corpus shows
+      DJs keep adjacent tracks within ~2% (median 1.8%), so big raw jumps read
+      as a less coherent whole (octave jumps count as jumps here, on purpose).
+    """
+    if len(order) < 2:
+        return None
+
+    actual = [_normalized_energy(energy[t], e_min, e_range) for t in order]
+    target = list(target_profile)[: len(actual)]
+    if len(target) == len(actual) and target:
+        mae = float(np.mean([abs(a - t) for a, t in zip(actual, target)]))
+        arc_adherence = float(np.clip(1.0 - 2.0 * mae, 0.0, 1.0))
+    else:  # no usable target → reward monotonic rise for build, flatness else
+        deltas = np.diff(actual)
+        arc_adherence = (
+            float(np.clip(0.5 + 2.0 * float(np.mean(deltas)), 0.0, 1.0))
+            if arc == "build"
+            else float(np.clip(1.0 - 2.0 * float(np.mean(np.abs(deltas))), 0.0, 1.0))
+        )
+
+    bpms = [bpm_by_id.get(t) for t in order]
+    jumps = [
+        abs(b - a) / a
+        for a, b in zip(bpms, bpms[1:])
+        if a and b and a > 0
+    ]
+    tempo_continuity = (
+        float(np.clip(1.0 - float(np.mean(jumps)) / 0.10, 0.0, 1.0)) if jumps else 0.5
+    )
+
+    overall = round(0.5 * arc_adherence + 0.5 * tempo_continuity, 4)
+    note = (
+        f"{arc} arc adherence {arc_adherence:.2f}, tempo continuity "
+        f"{tempo_continuity:.2f} — whole-set report, not a ranking input"
+    )
+    return SetCoherence(
+        overall=overall,
+        arc_adherence=round(arc_adherence, 4),
+        tempo_continuity=round(tempo_continuity, 4),
+        note=note,
+    )
 
 
 def _arc_shape_warnings(
@@ -898,6 +958,15 @@ def build_set(
         for current, successor in zip(order, order[1:], strict=False)
     ]
     mean_score = round(float(np.mean([t.transition_score for t in transitions])), 4) if transitions else None
+    coherence = compute_set_coherence(
+        order,
+        arc=arc,
+        energy=energy,
+        e_min=e_min,
+        e_range=e_range,
+        target_profile=target_profile,
+        bpm_by_id={tid: by_id[tid].track.bpm_estimate for tid in order},
+    )
     warnings = [
         *dedup_warnings,
         *preference_warnings,
@@ -915,7 +984,8 @@ def build_set(
         locked_positions=locked,
         pinned_track_ids=pinned,
         dropped_track_ids=sorted(set(by_id_all) - set(order)),
-        mean_transition_score=mean_score, model_version=MODEL_VERSION,
+        mean_transition_score=mean_score, set_coherence=coherence,
+        model_version=MODEL_VERSION,
         warnings=warnings,
         provenance=provenance,
     )
