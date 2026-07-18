@@ -16,6 +16,7 @@ possible set order, or that it will work live.
 
 from __future__ import annotations
 
+import math
 import re
 import unicodedata
 from collections.abc import Mapping, Sequence
@@ -31,7 +32,7 @@ from dancelab.core.models import (
     SetTransition,
 )
 from dancelab.core.provenance import provenance_for
-from dancelab.decision._common import tempo_proximity_score
+from dancelab.decision._common import nearest_bpm_variant, tempo_proximity_score
 from dancelab.decision.harmonic import harmonic_compatibility, harmonic_relation, parse_camelot
 from dancelab.decision.history import NoveltyContext, PlaylistFingerprint
 from dancelab.decision.library_profile import bpm_in_range, normalize_style_list, style_matches
@@ -205,9 +206,37 @@ def _artist_diversity_warnings(
     return warnings
 
 
+# How strongly the engine favours staying in the same tempo octave. The corpus
+# (2026-07-17, n=6142 adjacent pairs) shows DJs keep the same octave in 99.1% of
+# transitions — a same-octave match is what "belongs together". Calibrated on
+# Janek's 35 blind ratings: sweeping this preference rose rho 0.272→0.344
+# monotonically; set to 0.9 (strong, matching the corpus). Thin leverage (2/35
+# pairs crossed octaves, both rated 1/5) — revisit with the 5-rater study.
+# 0.0 restores the old octave-agnostic behaviour.
+SAME_OCTAVE_PREFERENCE = 0.9
+
+
+def _crosses_octave(bpm_a: float | None, bpm_b: float | None) -> bool:
+    """True when the best BPM match needs a half/double-time fold (octave jump)."""
+    if not bpm_a or not bpm_b:
+        return False
+    variant = nearest_bpm_variant(bpm_a, bpm_b)
+    if variant is None or variant <= 0:
+        return False
+    return abs(round(math.log2(variant / bpm_b))) >= 1
+
+
 def bpm_score(bpm_a: float | None, bpm_b: float | None, tolerance_pct: float = 0.06) -> float:
-    """1.0 at equal BPM → 0 beyond 2×tolerance, half/double-time aware."""
-    return tempo_proximity_score(bpm_a, bpm_b, tolerance_pct)
+    """1.0 at equal BPM → 0 beyond 2×tolerance, half/double-time aware.
+
+    Same-octave matches score full; octave-equivalent ones (e.g. 90↔180) keep
+    only ``1 - SAME_OCTAVE_PREFERENCE`` of the score, because the corpus shows
+    DJs overwhelmingly keep tracks in one tempo family.
+    """
+    base = tempo_proximity_score(bpm_a, bpm_b, tolerance_pct)
+    if SAME_OCTAVE_PREFERENCE and _crosses_octave(bpm_a, bpm_b):
+        base *= 1.0 - SAME_OCTAVE_PREFERENCE
+    return base
 
 
 def track_energy(analysis: AnalysisResult) -> float:
