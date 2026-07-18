@@ -52,7 +52,7 @@ def test_build_smart_playlist_from_folder_writes_rekordbox_xml(tmp_path):
     music_dir = tmp_path / "music"
     music_dir.mkdir()
     for index in range(1, 7):
-        (music_dir / f"Track_{index}.wav").write_bytes(b"fake wav")
+        (music_dir / f"Track_{index}.wav").write_bytes(f"fake wav {index}".encode())
 
     output_path = tmp_path / "exports" / "tomorrow.xml"
     result = build_smart_playlist_from_folder(
@@ -179,7 +179,7 @@ def test_analyze_files_cooperative_stop(tmp_path):
     files = []
     for i in range(1, 6):
         p = music_dir / f"Track_{i}.wav"
-        p.write_bytes(b"fake")
+        p.write_bytes(f"fake {i}".encode())
         files.append(p)
 
     from dancelab.ingestion.metadata import make_track_id

@@ -761,6 +761,20 @@ class TransitionCue(SchemaVersionedOutput):
     reasoning: list[str] = Field(default_factory=list)
 
 
+class SetCoherence(BaseModel):
+    """Whole-set shape as one measured number, decomposed and honest.
+
+    A report, not a ranking input: it measures whether the finished set holds
+    together as a whole (the DJ's "does this belong together"), separate from
+    the pairwise transition scores. None of these are crowd-response claims.
+    """
+
+    overall: float = Field(ge=0.0, le=1.0)
+    arc_adherence: float = Field(ge=0.0, le=1.0)  # energy curve vs intended arc
+    tempo_continuity: float = Field(ge=0.0, le=1.0)  # smoothness of BPM progression
+    note: str = ""
+
+
 class SetPlan(SchemaVersionedOutput):
     """An ordered DJ set proposed by the set-builder (candidate)."""
 
@@ -775,6 +789,7 @@ class SetPlan(SchemaVersionedOutput):
     pinned_track_ids: list[str] = Field(default_factory=list)
     dropped_track_ids: list[str] = Field(default_factory=list)
     mean_transition_score: float | None = None
+    set_coherence: SetCoherence | None = None
     model_version: str = "set_builder_v0.2"
     warnings: list[str] = Field(default_factory=list)
     provenance: OutputProvenance | None = None

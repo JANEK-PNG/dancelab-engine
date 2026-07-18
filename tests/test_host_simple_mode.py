@@ -90,7 +90,7 @@ def test_simple_mode_wizard_end_to_end(tmp_path):
     files = []
     for name in ("Alpha", "Beta", "Gamma", "Delta", "Epsilon"):
         p = tmp_path / f"{name}.mp3"
-        p.write_bytes(b"stub")
+        p.write_bytes(f"stub {name}".encode())
         files.append(p)
     window.set_import_files(files)
     assert window.next_button.isEnabled()
@@ -384,7 +384,7 @@ def test_simple_mode_project_roundtrip_restores_cached_session(tmp_path):
     cache = tmp_path / "cache"
     files = [tmp_path / f"{name}.mp3" for name in ("Garage A", "Bass B", "Breaks C")]
     for path in files:
-        path.write_bytes(b"stub")
+        path.write_bytes(str(path).encode())
 
     analyses = []
     for path, bpm, style, rms in zip(
@@ -454,7 +454,7 @@ def test_simple_mode_project_roundtrip_restores_cached_session(tmp_path):
 def test_simple_mode_autosave_can_be_recovered(tmp_path):
     QApplication.instance() or QApplication([])
     source = tmp_path / "Recovery Track.mp3"
-    source.write_bytes(b"stub")
+    source.write_bytes(str(source).encode())
     autosave = tmp_path / "autosave" / "simple_mode_recovery.dlproj"
 
     window = SimpleModeWindow()
@@ -498,7 +498,7 @@ def test_stop_processing_saves_progress_and_new_selection_works(tmp_path):
     files = []
     for name in ("Alpha", "Beta", "Gamma", "Delta", "Epsilon"):
         p = tmp_path / f"{name}.mp3"
-        p.write_bytes(b"stub")
+        p.write_bytes(str(p).encode())
         files.append(p)
     window.set_import_files(files)
     window.go_to_step(2)
@@ -521,7 +521,7 @@ def test_stop_processing_saves_progress_and_new_selection_works(tmp_path):
     new_files = []
     for name in ("Zeta", "Eta"):
         p = tmp_path / f"{name}.mp3"
-        p.write_bytes(b"stub")
+        p.write_bytes(str(p).encode())
         new_files.append(p)
     window.set_import_files(new_files)
     window.run_analysis(wait=True)
@@ -542,7 +542,7 @@ def test_import_clear_and_remove_selected(tmp_path):
     files = []
     for name in ("Alpha", "Beta", "Gamma"):
         p = tmp_path / f"{name}.mp3"
-        p.write_bytes(b"stub")
+        p.write_bytes(str(p).encode())
         files.append(p)
     window.set_import_files(files)
     window.go_to_step(1)
@@ -592,7 +592,7 @@ def test_deep_on_demand_upgrades_only_set_tracks(tmp_path):
     files = []
     for name in ("Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta"):
         p = tmp_path / f"{name}.mp3"
-        p.write_bytes(b"stub")
+        p.write_bytes(str(p).encode())
         files.append(p)
     window.set_import_files(files)
     window.run_analysis(wait=True)
@@ -636,7 +636,7 @@ def test_generate_writes_history_and_respects_variation_mode(tmp_path):
     files = []
     for name in ("Alpha", "Beta", "Gamma", "Delta"):
         p = tmp_path / f"{name}.mp3"
-        p.write_bytes(b"stub")
+        p.write_bytes(str(p).encode())
         files.append(p)
     window.set_import_files(files)
     window.run_analysis(wait=True)
@@ -676,7 +676,7 @@ def test_dj_control_pin_lock_rest(tmp_path):
     files = []
     for name in ("Alpha", "Beta", "Gamma", "Delta", "Epsilon"):
         p = tmp_path / f"{name}.mp3"
-        p.write_bytes(b"stub")
+        p.write_bytes(str(p).encode())
         files.append(p)
     window.set_import_files(files)
     window.run_analysis(wait=True)
@@ -776,7 +776,7 @@ def test_usb_import_brings_user_cues_into_review(tmp_path):
     for i, name in enumerate(("Alpha", "Beta", "Gamma")):
         audio = usb / "Contents" / f"{name}.mp3"
         audio.parent.mkdir(parents=True, exist_ok=True)
-        audio.write_bytes(b"stub")
+        audio.write_bytes(str(audio).encode())
         anlz = usb / "PIONEER" / "USBANLZ" / "P001" / f"{i:04d}"
         anlz.mkdir(parents=True)
         (anlz / "ANLZ0000.EXT").write_bytes(_ext_blob(f"/Contents/{name}.mp3"))
@@ -820,7 +820,7 @@ def test_validation_mode_blind_rating_and_report(tmp_path):
     files = []
     for name in ("Alpha", "Beta", "Gamma", "Delta"):
         p = tmp_path / f"{name}.mp3"
-        p.write_bytes(b"stub")
+        p.write_bytes(str(p).encode())
         files.append(p)
     window.set_import_files(files)
     window.run_analysis(wait=True)
@@ -874,7 +874,7 @@ def test_waveform_corrections_map_to_exact_pair_and_restore(tmp_path):
     files = []
     for name in ("Alpha", "Beta", "Gamma"):
         path = tmp_path / f"{name}.mp3"
-        path.write_bytes(b"stub")
+        path.write_bytes(str(path).encode())
         files.append(path)
     window.set_import_files(files)
     window.run_analysis(wait=True)
