@@ -71,9 +71,12 @@ def test_harmonic_distance2_is_symmetric():
 
 
 def test_bpm_score_halftime():
-    assert bpm_score(128, 128) == 1.0
-    assert bpm_score(140, 70) == 1.0        # half-time compatible
+    assert bpm_score(128, 128) == 1.0       # same octave, no penalty
     assert bpm_score(128, 100) == 0.0       # too far
+    # Same-octave preference: corpus shows DJs keep one tempo family in 99.1%
+    # of transitions, so 140<->70 is technically syncable but strongly
+    # dispreferred (SAME_OCTAVE_PREFERENCE=0.9 → 1.0 * 0.1).
+    assert bpm_score(140, 70) == pytest.approx(0.1)
 
 
 # ------------------------------------------------------------------- ordering
