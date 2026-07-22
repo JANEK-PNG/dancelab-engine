@@ -104,3 +104,7 @@ sequence:
     set_memory: 0.08
     transition_quality: 0.10
     risk_penalty: 0.15
+
+# Corpus-measured transition priors (6,144 real DJ transitions vs chance).
+# Measured 2026-07-21; see data/reports/corpus_priors/priors_v1.json.
+corpus_priors_weight: 1.0

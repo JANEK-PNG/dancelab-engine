@@ -102,6 +102,9 @@ class DescriptorWeights(BaseModel):
     mixability_conflict: WeightGroup | None = None
     set_builder: WeightGroup | None = None
     sequence: WeightGroup | None = None
+    # corpus-measured transition priors (decision/corpus_priors.py):
+    # 0 = off, 1 = full measured strength; explicit + versioned, never hidden
+    corpus_priors_weight: float = 0.0
 
 
 def _read_yaml(path: str | Path) -> dict:
