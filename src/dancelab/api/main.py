@@ -10,6 +10,7 @@ import os
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from dancelab import __version__
 from dancelab.api import (
@@ -21,6 +22,7 @@ from dancelab.api import (
     routes_tracks,
 )
 from dancelab.api.schemas import HealthResponse, NotImplementedResponse
+from dancelab.api.security import RequestBodyLimitMiddleware
 from dancelab.core.config import load_config, load_weights
 from dancelab.core.errors import (
     ConfigError,
@@ -28,13 +30,23 @@ from dancelab.core.errors import (
     MissingDependencyError,
     NotImplementedFeature,
 )
-from dancelab.storage.repositories import TrackNotFoundError
+from dancelab.storage.repositories import InvalidTrackIdError, TrackNotFoundError
 
 app = FastAPI(
     title="DanceLab Engine API",
     version=__version__,
     description="audio → features → descriptors → context conditioning → decision outputs",
 )
+
+_allowed_hosts = [
+    host.strip()
+    for host in os.environ.get(
+        "DANCELAB_API_ALLOWED_HOSTS", "127.0.0.1,localhost,testserver"
+    ).split(",")
+    if host.strip()
+]
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=_allowed_hosts)
+app.add_middleware(RequestBodyLimitMiddleware)
 
 app.include_router(routes_tracks.router)
 app.include_router(routes_pairs.router)
@@ -60,6 +72,11 @@ async def not_implemented_handler(request: Request, exc: NotImplementedFeature):
 @app.exception_handler(TrackNotFoundError)
 async def track_not_found_handler(request: Request, exc: TrackNotFoundError):
     return JSONResponse(status_code=404, content={"error": "not_found", "detail": str(exc)})
+
+
+@app.exception_handler(InvalidTrackIdError)
+async def invalid_track_id_handler(request: Request, exc: InvalidTrackIdError):
+    return JSONResponse(status_code=422, content={"error": "invalid_track_id", "detail": str(exc)})
 
 
 @app.exception_handler(IngestionError)

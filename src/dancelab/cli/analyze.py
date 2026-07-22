@@ -245,10 +245,12 @@ def validation_benchmark(
 
 # batch is registered from cli.batch to keep files per blueprint
 from dancelab.cli.batch import batch as _batch  # noqa: E402
+from dancelab.cli.corpus_ordering import app as _corpus_ordering_app  # noqa: E402
 from dancelab.cli.report import decision_report as _decision_report  # noqa: E402
 
 app.command(name="batch")(_batch)
 app.command(name="decision-report")(_decision_report)
+app.add_typer(_corpus_ordering_app, name="corpus-ordering")
 
 
 if __name__ == "__main__":

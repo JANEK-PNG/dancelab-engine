@@ -85,9 +85,7 @@ def deploy_executable() -> str:
     resolved = shutil.which("pyside6-deploy")
     if resolved:
         return resolved
-    raise FileNotFoundError(
-        "Could not find `pyside6-deploy`. Install desktop tooling with `pip install .[desktop-build]`."
-    )
+    return "pyside6-deploy"
 
 
 def xattr_cleanup_targets() -> list[Path]:
@@ -320,65 +318,63 @@ def salvage_macos_signed_app_bundle(app_bundle: Path) -> bool:
     if sys.platform != "darwin" or not app_bundle.exists():
         return False
 
-    sanitized_bundle = Path("/tmp") / f"{app_bundle.stem}.__sanitized__.app"
-    if sanitized_bundle.exists():
-        shutil.rmtree(sanitized_bundle)
-
+    temporary_root = Path(tempfile.mkdtemp(prefix="dancelab-host-sanitized-"))
+    sanitized_bundle = temporary_root / f"{app_bundle.stem}.__sanitized__.app"
     try:
-        subprocess.run(
-            ["ditto", "--noextattr", "--noqtn", str(app_bundle), str(sanitized_bundle)],
-            check=True,
-            text=True,
-        )
-        for attribute_name in (
-            "com.apple.FinderInfo",
-            "com.apple.fileprovider.fpfs#P",
-        ):
+        try:
             subprocess.run(
-                ["xattr", "-d", attribute_name, str(sanitized_bundle)],
-                check=False,
+                ["ditto", "--noextattr", "--noqtn", str(app_bundle), str(sanitized_bundle)],
+                check=True,
                 text=True,
-                capture_output=True,
             )
-        subprocess.run(
-            [
-                "codesign",
-                "-s",
-                "-",
-                "--force",
-                "--deep",
-                "--preserve-metadata=entitlements",
-                str(sanitized_bundle),
-            ],
-            check=True,
-            text=True,
+            for attribute_name in (
+                "com.apple.FinderInfo",
+                "com.apple.fileprovider.fpfs#P",
+            ):
+                subprocess.run(
+                    ["xattr", "-d", attribute_name, str(sanitized_bundle)],
+                    check=False,
+                    text=True,
+                    capture_output=True,
+                )
+            subprocess.run(
+                [
+                    "codesign",
+                    "-s",
+                    "-",
+                    "--force",
+                    "--deep",
+                    "--preserve-metadata=entitlements",
+                    str(sanitized_bundle),
+                ],
+                check=True,
+                text=True,
+            )
+            verify_codesigned_app_bundle(sanitized_bundle)
+        except (OSError, subprocess.CalledProcessError):
+            return False
+
+        install_targets = [
+            app_bundle,
+            fallback_app_bundle_path(app_bundle.stem),
+        ]
+        final_target: Path | None = None
+        for target_bundle in install_targets:
+            if install_verified_app_bundle(sanitized_bundle, target_bundle):
+                final_target = target_bundle
+                break
+
+        if final_target is None:
+            return False
+
+        print(
+            "dancelab-host-build recovered the generated app bundle with a post-build macOS "
+            f"sanitize+codesign pass at {final_target}.",
+            file=sys.stderr,
         )
-        verify_codesigned_app_bundle(sanitized_bundle)
-    except (OSError, subprocess.CalledProcessError):
-        if sanitized_bundle.exists():
-            shutil.rmtree(sanitized_bundle, ignore_errors=True)
-        return False
-
-    install_targets = [
-        app_bundle,
-        fallback_app_bundle_path(app_bundle.stem),
-    ]
-    final_target: Path | None = None
-    for target_bundle in install_targets:
-        if install_verified_app_bundle(sanitized_bundle, target_bundle):
-            final_target = target_bundle
-            break
-
-    shutil.rmtree(sanitized_bundle, ignore_errors=True)
-    if final_target is None:
-        return False
-
-    print(
-        "dancelab-host-build recovered the generated app bundle with a post-build macOS "
-        f"sanitize+codesign pass at {final_target}.",
-        file=sys.stderr,
-    )
-    return True
+        return True
+    finally:
+        shutil.rmtree(temporary_root, ignore_errors=True)
 
 
 def build_command(
@@ -420,13 +416,19 @@ def build_desktop_bundle(
         keep_deployment_files=keep_deployment_files,
         verbose=verbose,
     )
-    result = subprocess.run(
-        command,
-        cwd=repo_root(),
-        env=build_environment(),
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            command,
+            cwd=repo_root(),
+            env=build_environment(),
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            "Could not find `pyside6-deploy`. Install desktop tooling with "
+            "`pip install .[desktop-build]`."
+        ) from exc
     if dry_run:
         return result
 

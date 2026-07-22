@@ -14,8 +14,8 @@ from __future__ import annotations
 from dataclasses import asdict
 from pathlib import Path
 import sys
-import xml.etree.ElementTree as ET
 
+from defusedxml import ElementTree as ET
 from PySide6.QtCore import QSettings, QSize, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QAction, QBrush, QCloseEvent, QColor
 from PySide6.QtWidgets import (
@@ -61,6 +61,7 @@ from dancelab.host.project import (
     save_project,
 )
 from dancelab.ingestion.rekordbox_device import DeviceCue
+from dancelab.security import spreadsheet_safe_value
 from dancelab.storage.repositories import FileAnalysisRepository, TrackNotFoundError
 from dancelab.validation.transition_edits import (
     TransitionEditEvent,
@@ -2669,15 +2670,19 @@ class SimpleModeWindow(QMainWindow):
                     "pair_id", "track_id_a", "track_id_b", "engine_score",
                     "dj_mixability_rating", "comment", "blind",
                 ])
-            writer.writerow([
-                f"{transition.from_track_id}__{transition.to_track_id}",
-                transition.from_track_id,
-                transition.to_track_id,
-                f"{transition.transition_score:.4f}",
-                rating,
-                self.rating_comment.text().strip(),
-                int(self.blind_check.isChecked()),
-            ])
+            writer.writerow(
+                [
+                    spreadsheet_safe_value(
+                        f"{transition.from_track_id}__{transition.to_track_id}"
+                    ),
+                    spreadsheet_safe_value(transition.from_track_id),
+                    spreadsheet_safe_value(transition.to_track_id),
+                    f"{transition.transition_score:.4f}",
+                    rating,
+                    spreadsheet_safe_value(self.rating_comment.text().strip()),
+                    int(self.blind_check.isChecked()),
+                ]
+            )
         self.rating_comment.clear()
         self._ratings_given = getattr(self, "_ratings_given", set())
         self._ratings_given.add(row)

@@ -7,6 +7,8 @@ JSON write is implemented now — it is the primary exchange format (ADR-004).
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -20,7 +22,24 @@ def save_json(model: BaseModel, path: str | Path) -> Path:
     cp1252/Windows hosts."""
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(model.model_dump_json(indent=2), encoding="utf-8")
+    temporary_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=p.parent,
+            prefix=f".{p.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as temporary:
+            temporary_name = temporary.name
+            temporary.write(model.model_dump_json(indent=2))
+            temporary.flush()
+            os.fsync(temporary.fileno())
+        Path(temporary_name).replace(p)
+    finally:
+        if temporary_name is not None:
+            Path(temporary_name).unlink(missing_ok=True)
     return p
 
 

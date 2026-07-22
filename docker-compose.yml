@@ -1,8 +1,9 @@
 services:
   api:
     build: .
+    command: ["uvicorn", "dancelab.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       DANCELAB_CONFIG: configs/default.yaml
       DANCELAB_DB_URL: postgresql://dancelab:dancelab@db:5432/dancelab

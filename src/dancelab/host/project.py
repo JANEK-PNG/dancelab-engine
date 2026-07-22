@@ -17,10 +17,40 @@ from dancelab.core.errors import DanceLabError
 
 PROJECT_FILE_SUFFIX = ".dlproj"
 PROJECT_FORMAT_VERSION = 1
+MAX_PROJECT_BYTES = 10 * 1024 * 1024
+MAX_PROJECT_TEXT_LENGTH = 4096
+MAX_PROJECT_SOURCE_FILES = 5000
+MAX_PROJECT_NODES = 2000
+MAX_PROJECT_CONNECTIONS = 10_000
+MAX_PROJECT_DEVICE_TRACKS = 5000
+MAX_PROJECT_CUES_PER_TRACK = 64
 
 
 class ProjectFileError(DanceLabError):
     """Project file is missing, unreadable, or from an unsupported format."""
+
+
+def _bounded_list(value: object, label: str, limit: int) -> list[Any]:
+    if not isinstance(value, list):
+        raise TypeError(f"{label} must be an array")
+    if len(value) > limit:
+        raise ValueError(f"{label} exceeds the limit of {limit}")
+    return value
+
+
+def _bounded_mapping(value: object, label: str, limit: int) -> dict[Any, Any]:
+    if not isinstance(value, dict):
+        raise TypeError(f"{label} must be an object")
+    if len(value) > limit:
+        raise ValueError(f"{label} exceeds the limit of {limit}")
+    return value
+
+
+def _bounded_text(value: object, label: str) -> str:
+    text = str(value)
+    if len(text) > MAX_PROJECT_TEXT_LENGTH:
+        raise ValueError(f"{label} exceeds {MAX_PROJECT_TEXT_LENGTH} characters")
+    return text
 
 
 @dataclass
@@ -90,10 +120,12 @@ def save_project(project: DanceLabProject, path: str | Path) -> Path:
         p = p.with_suffix(PROJECT_FILE_SUFFIX)
     p.parent.mkdir(parents=True, exist_ok=True)
     temporary = p.with_suffix(p.suffix + ".tmp")
-    temporary.write_text(
-        json.dumps(asdict(project), indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
+    payload = json.dumps(asdict(project), indent=2, ensure_ascii=False)
+    if len(payload.encode("utf-8")) > MAX_PROJECT_BYTES:
+        raise ProjectFileError(
+            f"Project exceeds the maximum size of {MAX_PROJECT_BYTES} bytes"
+        )
+    temporary.write_text(payload, encoding="utf-8")
     temporary.replace(p)
     return p
 
@@ -103,9 +135,17 @@ def load_project(path: str | Path) -> DanceLabProject:
     if not p.exists():
         raise ProjectFileError(f"Project file not found: {p}")
     try:
+        if p.stat().st_size > MAX_PROJECT_BYTES:
+            raise ProjectFileError(
+                f"Project file exceeds the maximum size of {MAX_PROJECT_BYTES} bytes"
+            )
         data = json.loads(p.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+    except ProjectFileError:
+        raise
+    except (OSError, json.JSONDecodeError, RecursionError) as exc:
         raise ProjectFileError(f"Cannot read project file {p}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ProjectFileError(f"Malformed project file {p}: root must be an object")
     version = data.get("format_version")
     if version != PROJECT_FORMAT_VERSION:
         raise ProjectFileError(
@@ -117,18 +157,67 @@ def load_project(path: str | Path) -> DanceLabProject:
         if simple_mode_data is not None:
             if not isinstance(simple_mode_data, dict):
                 raise TypeError("simple_mode must be an object")
+            source_files = _bounded_list(
+                simple_mode_data.get("source_files", []),
+                "simple_mode.source_files",
+                MAX_PROJECT_SOURCE_FILES,
+            )
+            analysis_track_ids_data = _bounded_mapping(
+                simple_mode_data.get("analysis_track_ids", {}),
+                "simple_mode.analysis_track_ids",
+                MAX_PROJECT_SOURCE_FILES,
+            )
+            must_have_ids = _bounded_list(
+                simple_mode_data.get("must_have_ids", []),
+                "simple_mode.must_have_ids",
+                MAX_PROJECT_SOURCE_FILES,
+            )
+            not_tonight_ids = _bounded_list(
+                simple_mode_data.get("not_tonight_ids", []),
+                "simple_mode.not_tonight_ids",
+                MAX_PROJECT_SOURCE_FILES,
+            )
+            locked_positions_data = _bounded_mapping(
+                simple_mode_data.get("locked_positions", {}),
+                "simple_mode.locked_positions",
+                MAX_PROJECT_SOURCE_FILES,
+            )
+            device_cues_data = _bounded_mapping(
+                simple_mode_data.get("device_cues", {}),
+                "simple_mode.device_cues",
+                MAX_PROJECT_DEVICE_TRACKS,
+            )
             locked_positions = {
-                int(position): str(track_id)
-                for position, track_id in simple_mode_data.get("locked_positions", {}).items()
+                int(position): _bounded_text(
+                    track_id, f"simple_mode.locked_positions[{position!r}]"
+                )
+                for position, track_id in locked_positions_data.items()
             }
+            device_cues: dict[str, list[dict[str, Any]]] = {}
+            for name, cues in device_cues_data.items():
+                safe_name = _bounded_text(name, "simple_mode.device_cues key")
+                cue_rows = _bounded_list(
+                    cues,
+                    f"simple_mode.device_cues[{safe_name!r}]",
+                    MAX_PROJECT_CUES_PER_TRACK,
+                )
+                if not all(isinstance(cue, dict) for cue in cue_rows):
+                    raise TypeError(
+                        f"simple_mode.device_cues[{safe_name!r}] entries must be objects"
+                    )
+                device_cues[safe_name] = [dict(cue) for cue in cue_rows]
             current_step = int(simple_mode_data.get("current_step", 1))
             if current_step < 0 or current_step > 5:
                 raise ValueError("simple_mode.current_step must be between 0 and 5")
             simple_mode = SimpleModeProjectState(
-                source_files=[str(path) for path in simple_mode_data.get("source_files", [])],
+                source_files=[
+                    _bounded_text(path, "simple_mode.source_files entry")
+                    for path in source_files
+                ],
                 analysis_track_ids={
-                    str(path): str(track_id)
-                    for path, track_id in simple_mode_data.get("analysis_track_ids", {}).items()
+                    _bounded_text(path, "simple_mode.analysis_track_ids key"):
+                    _bounded_text(track_id, "simple_mode.analysis_track_ids value")
+                    for path, track_id in analysis_track_ids_data.items()
                 },
                 current_step=current_step,
                 target_mode=str(simple_mode_data.get("target_mode") or "count"),
@@ -152,9 +241,13 @@ def load_project(path: str | Path) -> DanceLabProject:
                 planner_mode=str(simple_mode_data.get("planner_mode") or "smart"),
                 novelty_mode=str(simple_mode_data.get("novelty_mode") or "balanced"),
                 seed=int(simple_mode_data.get("seed", 0)),
-                must_have_ids=[str(value) for value in simple_mode_data.get("must_have_ids", [])],
+                must_have_ids=[
+                    _bounded_text(value, "simple_mode.must_have_ids entry")
+                    for value in must_have_ids
+                ],
                 not_tonight_ids=[
-                    str(value) for value in simple_mode_data.get("not_tonight_ids", [])
+                    _bounded_text(value, "simple_mode.not_tonight_ids entry")
+                    for value in not_tonight_ids
                 ],
                 locked_positions=locked_positions,
                 plan=(
@@ -171,21 +264,30 @@ def load_project(path: str | Path) -> DanceLabProject:
                 export_path=str(simple_mode_data.get("export_path") or ""),
                 annotator=str(simple_mode_data.get("annotator") or ""),
                 blind_review=bool(simple_mode_data.get("blind_review", False)),
-                device_cues={
-                    str(name): [dict(cue) for cue in cues]
-                    for name, cues in simple_mode_data.get("device_cues", {}).items()
-                },
+                device_cues=device_cues,
             )
         workspace = str(data.get("workspace") or ("simple" if simple_mode else "graph"))
         if workspace not in {"graph", "simple"}:
             raise ValueError(f"unsupported workspace {workspace!r}")
+        nodes_data = _bounded_list(data.get("nodes", []), "nodes", MAX_PROJECT_NODES)
+        connections_data = _bounded_list(
+            data.get("connections", []),
+            "connections",
+            MAX_PROJECT_CONNECTIONS,
+        )
+        node_configs_data = _bounded_mapping(
+            data.get("node_configs", {}),
+            "node_configs",
+            MAX_PROJECT_NODES,
+        )
         return DanceLabProject(
-            name=str(data.get("name") or "Untitled Project"),
+            name=_bounded_text(data.get("name") or "Untitled Project", "name"),
             workspace=workspace,
-            nodes=[ProjectNode(**node) for node in data.get("nodes", [])],
-            connections=[ProjectConnection(**conn) for conn in data.get("connections", [])],
+            nodes=[ProjectNode(**node) for node in nodes_data],
+            connections=[ProjectConnection(**conn) for conn in connections_data],
             node_configs={
-                str(key): dict(value) for key, value in data.get("node_configs", {}).items()
+                _bounded_text(key, "node_configs key"): dict(value)
+                for key, value in node_configs_data.items()
             },
             simple_mode=simple_mode,
             format_version=version,

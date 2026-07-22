@@ -14,6 +14,7 @@ Everything shown here is engine data, not decoration:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from html import escape
 from pathlib import Path
 from typing import Any
 
@@ -1964,12 +1965,14 @@ class TransitionReviewWidget(QWidget):
     ) -> None:
         self._current_pair_key = (analysis_a.track.track_id, analysis_b.track.track_id)
         self._invalidate_preview()
+        title_a = escape(str(analysis_a.track.title or transition.from_track_id))
+        title_b = escape(str(analysis_b.track.title or transition.to_track_id))
         header = [
-            f"<b>{analysis_a.track.title or transition.from_track_id}"
-            f"  →  {analysis_b.track.title or transition.to_track_id}</b>",
-            f"score {transition.transition_score:.2f} · {transition.harmonic_relation}"
+            f"<b>{title_a}  →  {title_b}</b>",
+            f"score {transition.transition_score:.2f} · "
+            f"{escape(str(transition.harmonic_relation))}"
             + (
-                f" · {transition.key_from}→{transition.key_to}"
+                f" · {escape(str(transition.key_from))}→{escape(str(transition.key_to))}"
                 if transition.key_from
                 else ""
             )
@@ -1979,7 +1982,7 @@ class TransitionReviewWidget(QWidget):
                 else ""
             ),
         ]
-        header.extend(f"⚠ {warning}" for warning in transition.warnings)
+        header.extend(f"⚠ {escape(str(warning))}" for warning in transition.warnings)
         if self.blind:
             # validation mode: no engine opinions may anchor the rater
             header = [header[0], "<i>Blind rating — engine opinions hidden. Listen and judge.</i>"]
