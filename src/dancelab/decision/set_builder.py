@@ -35,6 +35,7 @@ from dancelab.core.models import (
 from dancelab.core.provenance import provenance_for
 from dancelab.decision._common import nearest_bpm_variant, tempo_proximity_score
 from dancelab.decision.dedup import dedupe_by_audio
+from dancelab.decision.corpus_priors import transition_prior_lift
 from dancelab.decision.harmonic import harmonic_compatibility, harmonic_relation, parse_camelot
 from dancelab.decision.history import NoveltyContext, PlaylistFingerprint
 from dancelab.decision.library_profile import bpm_in_range, normalize_style_list, style_matches
@@ -499,6 +500,16 @@ def transition_score(
         f"energy Δ {d_energy:+.2f} ({arc}) score {en:.2f}",
         f"mixability {mix:.2f}",
     ]
+    # corpus prior only in SMART mode: pure harmonic/bpm modes are the user's
+    # explicit override and must stay exactly what they ask for
+    prior_weight = getattr(weights, "corpus_priors_weight", 0.0) or 0.0
+    if prior_weight > 0 and planner_mode == PLANNER_MODE_SMART:
+        lift, prior_notes = transition_prior_lift(
+            rel, a.track.bpm_estimate, b.track.bpm_estimate
+        )
+        if lift != 1.0:
+            score = min(1.0, max(0.0, score * (lift ** prior_weight)))
+        reasoning.extend(prior_notes)
     return float(score), rel, reasoning
 
 
