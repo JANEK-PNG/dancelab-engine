@@ -23,6 +23,7 @@ from dancelab.core.models import (
 from dancelab.decision.edge_decision import build_edge_decision
 from dancelab.decision.mixability import compute_mixability
 from dancelab.decision.transition_windows import detect_transition_windows
+from dancelab.security import spreadsheet_safe_value
 from dancelab.storage.repositories import FileAnalysisRepository
 from dancelab.visualization.mixability_waveforms import render_mixability_waveform_gallery
 
@@ -51,7 +52,12 @@ def _write_csv(rows: list[dict[str, object]], path: str | Path, fieldnames: list
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         for row in rows:
-            writer.writerow({field: row.get(field, "") for field in fieldnames})
+            writer.writerow(
+                {
+                    field: spreadsheet_safe_value(row.get(field, ""))
+                    for field in fieldnames
+                }
+            )
     return out
 
 

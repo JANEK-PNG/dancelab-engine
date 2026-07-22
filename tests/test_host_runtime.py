@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from dancelab.contracts.node_host import get_node_host_registry
 from dancelab.core.audio_types import AudioSignal
@@ -626,6 +627,7 @@ def test_desktop_host_runtime_deep_engine_analysis_uses_stem_pipeline():
 
 
 def test_desktop_host_runtime_extracts_and_exports_stems(tmp_path):
+    pytest.importorskip("soundfile")
     source_path = tmp_path / "Track Alpha.mp3"
     source_path.write_bytes(b"fake mp3 payload")
     output_root = tmp_path / "stem_exports"

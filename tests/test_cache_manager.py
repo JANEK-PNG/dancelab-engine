@@ -43,6 +43,55 @@ def test_register_refuses_files_outside_root(tmp_path):
         manager.register("analysis", "bad", outside)
 
 
+def test_register_refuses_file_from_wrong_cache_class(tmp_path):
+    manager = make_manager(tmp_path)
+    wrong_class = manager.class_dir("stems") / "track.bin"
+    wrong_class.write_bytes(b"x")
+    with pytest.raises(CacheError, match="outside cache root"):
+        manager.register("analysis", "bad-class", wrong_class)
+
+
+def test_manifest_traversal_is_discarded_without_touching_target(tmp_path):
+    cache_root = tmp_path / "cache"
+    cache_root.mkdir()
+    victim = tmp_path / "victim.bin"
+    victim.write_bytes(b"do not delete")
+    payload = {
+        "version": 1,
+        "entries": [
+            {
+                "cache_class": "analysis",
+                "key": "escape",
+                "path": "../../victim.bin",
+                "bytes": victim.stat().st_size,
+                "created_at": 1.0,
+                "last_used_at": 1.0,
+                "missing": False,
+            }
+        ],
+    }
+    (cache_root / "cache_manifest.json").write_text(
+        json.dumps(payload),
+        encoding="utf-8",
+    )
+
+    reloaded = CacheManager(cache_root, max_bytes=1)
+
+    assert reloaded.entries() == []
+    assert reloaded.enforce_limit() == 0
+    assert victim.read_bytes() == b"do not delete"
+
+
+def test_register_refuses_symbolic_links(tmp_path):
+    manager = make_manager(tmp_path)
+    target = manager.class_dir("analysis") / "target.bin"
+    target.write_bytes(b"x")
+    link = manager.class_dir("analysis") / "link.bin"
+    link.symlink_to(target)
+    with pytest.raises(CacheError, match="symbolic link"):
+        manager.register("analysis", "link", link)
+
+
 def test_usage_reports_real_bytes_per_class(tmp_path):
     manager = make_manager(tmp_path)
     write_cached(manager, "analysis", "a", 1000)

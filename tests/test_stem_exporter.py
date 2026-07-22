@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 import numpy as np
+import pytest
 
 from dancelab.core.audio_types import AudioSignal
 from dancelab.core.models import (
@@ -25,6 +26,7 @@ from dancelab.stems import StemBundle, export_stem_artifacts
 
 
 def test_export_stem_artifacts_writes_expected_files(tmp_path):
+    pytest.importorskip("soundfile")
     source = tmp_path / "track.mp3"
     source.write_bytes(b"fake mp3")
 

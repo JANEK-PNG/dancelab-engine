@@ -86,12 +86,28 @@ def test_context_profiles_endpoint(client):
 def test_analyze_missing_file_is_422(client):
     r = client.post("/tracks/analyze", json={"source_path": "data/raw/nope.wav"})
     assert r.status_code == 422
-    assert r.json()["error"] == "ingestion"
+    assert r.json()["detail"] == "input file does not exist"
 
 
 def test_analyze_rejects_invalid_body(client):
     r = client.post("/tracks/analyze", json={"bpm_hint": -5})
     assert r.status_code == 422  # FastAPI validation: missing source_path, bad bpm
+
+
+def test_request_limit_counts_streamed_body_without_content_length(
+    client, monkeypatch
+):
+    monkeypatch.setenv("DANCELAB_API_MAX_REQUEST_BYTES", "32")
+    chunks = iter([b'{"source_path":"', b"x" * 64, b'"}'])
+
+    r = client.post(
+        "/tracks/analyze",
+        content=chunks,
+        headers={"content-type": "application/json"},
+    )
+
+    assert r.status_code == 413
+    assert r.json()["error"] == "request_too_large"
 
 
 def test_mixability_unknown_tracks_return_404(client, monkeypatch, tmp_path):
@@ -174,6 +190,7 @@ def test_build_set_endpoint_rejects_conflicting_constraints(client, monkeypatch,
 
 def test_export_rekordbox_endpoint_returns_and_writes_xml(client, monkeypatch, tmp_path):
     monkeypatch.setenv("DANCELAB_PROCESSED_DIR", str(tmp_path / "processed"))
+    monkeypatch.setenv("DANCELAB_API_OUTPUT_ROOTS", str(tmp_path))
     repo = FileAnalysisRepository(tmp_path / "processed")
     repo.save(_stored_analysis("track_alpha", "8A", 128.0, "/tmp/Track Alpha.mp3"))
     repo.save(_stored_analysis("track_beta", "9A", 128.0, "/tmp/Track Beta.mp3"))
@@ -203,9 +220,13 @@ def test_export_rekordbox_endpoint_returns_and_writes_xml(client, monkeypatch, t
 
 def test_stem_export_endpoint_returns_artifacts(client, monkeypatch, tmp_path):
     output_root = tmp_path / "stem_exports"
+    source_path = tmp_path / "Track Alpha.mp3"
+    source_path.write_bytes(b"test audio placeholder")
+    monkeypatch.setenv("DANCELAB_API_INPUT_ROOTS", str(tmp_path))
+    monkeypatch.setenv("DANCELAB_API_OUTPUT_ROOTS", str(tmp_path))
 
     def export_stub(source_paths, config, output_root_arg, *, stem_method, vocal_method):
-        assert source_paths == ["/tmp/Track Alpha.mp3"]
+        assert source_paths == [str(source_path)]
         assert output_root_arg == str(output_root)
         assert stem_method == "none"
         assert vocal_method == "hpss"
@@ -224,7 +245,7 @@ def test_stem_export_endpoint_returns_artifacts(client, monkeypatch, tmp_path):
     r = client.post(
         "/stems/export",
         json={
-            "source_paths": ["/tmp/Track Alpha.mp3"],
+            "source_paths": [str(source_path)],
             "output_root": str(output_root),
             "stem_method": "none",
             "vocal_method": "hpss",
@@ -242,9 +263,13 @@ def test_stem_export_endpoint_returns_artifacts(client, monkeypatch, tmp_path):
 
 def test_smart_playlist_endpoint_builds_from_folder(client, monkeypatch, tmp_path):
     output_path = tmp_path / "exports" / "api_smart.xml"
+    music_folder = tmp_path / "music"
+    music_folder.mkdir()
+    monkeypatch.setenv("DANCELAB_API_INPUT_ROOTS", str(tmp_path))
+    monkeypatch.setenv("DANCELAB_API_OUTPUT_ROOTS", str(tmp_path))
 
     def workflow_stub(folder_path, config, **kwargs):
-        assert folder_path == "/tmp/music"
+        assert folder_path == music_folder
         assert kwargs["target_track_count"] == 10
         assert kwargs["playlist_name"] == "API Smart Set"
         assert kwargs["output_path"] == str(output_path)
@@ -253,7 +278,7 @@ def test_smart_playlist_endpoint_builds_from_folder(client, monkeypatch, tmp_pat
         plan = SetPlan(track_order=["track_a", "track_b"], target_track_count=10)
         return SmartPlaylistResult(
             playlist_name="API Smart Set",
-            source_folder="/tmp/music",
+            source_folder=str(music_folder),
             source_track_count=12,
             analyzed_track_count=12,
             target_track_count=10,
@@ -272,7 +297,7 @@ def test_smart_playlist_endpoint_builds_from_folder(client, monkeypatch, tmp_pat
     r = client.post(
         "/sets/smart-playlist",
         json={
-            "folder_path": "/tmp/music",
+            "folder_path": str(music_folder),
             "target_track_count": 10,
             "playlist_name": "API Smart Set",
             "output_path": str(output_path),
@@ -307,3 +332,16 @@ def test_get_unknown_track_returns_404(client, monkeypatch, tmp_path):
     r = client.get("/tracks/some-id")
     assert r.status_code == 404
     assert r.json()["error"] == "not_found"
+
+
+def test_track_id_traversal_is_rejected_before_repository_access(
+    client, monkeypatch, tmp_path
+):
+    monkeypatch.setenv("DANCELAB_PROCESSED_DIR", str(tmp_path))
+    response = client.get("/tracks/bad%24id")
+    assert response.status_code == 422
+
+
+def test_api_rejects_untrusted_host(client):
+    response = client.get("/health", headers={"host": "public.example"})
+    assert response.status_code == 400

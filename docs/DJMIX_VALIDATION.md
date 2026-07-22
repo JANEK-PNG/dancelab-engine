@@ -123,3 +123,10 @@ means "passed the paper's path-shape screen", not "identity proven".
 Before M11 can influence runtime decisions it still needs held-out,
 style-stratified validation, wrong-track negatives, and comparison against
 DanceLab windows plus DJ edits. M12/CAGE remains explicitly deferred.
+
+## Set-rule decomposition
+
+The separate [DJ set rule decomposition](DJ_SET_RULE_DECOMPOSITION.md) module
+implements the offline Shapley/selection/identifiability protocol derived in
+the 2026-07-19 DanceLab workshop. It measures held-out losses and crate overlap;
+it does not train or modify the production planner.

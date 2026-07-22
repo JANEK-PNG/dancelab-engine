@@ -79,6 +79,47 @@ def test_scan_device_partial_and_malformed_safe(tmp_path):
     assert len(tracks[0].memory_cues) == 1
 
 
+@pytest.mark.parametrize(
+    "blob",
+    [
+        b"PPTH",
+        b"PPTH" + struct.pack(">III", 8, 16, 2),
+        b"PPTH" + struct.pack(">III", 16, 16, 0xFFFFFFFF),
+        b"PPTH" + struct.pack(">III", 16, 18, 3) + b"abc",
+    ],
+)
+def test_read_ppth_rejects_truncated_or_impossible_lengths(blob):
+    assert read_ppth(blob) is None
+
+
+def test_read_cues_rejects_unbounded_count_and_entry_lengths():
+    oversized_count = bytearray(20)
+    oversized_count[0:4] = b"PCO2"
+    struct.pack_into(">II", oversized_count, 4, 20, 20)
+    struct.pack_into(">IH", oversized_count, 12, 1, 0xFFFF)
+    assert read_cues(bytes(oversized_count)) == []
+
+    broken_entry = bytearray(32)
+    broken_entry[0:4] = b"PCO2"
+    struct.pack_into(">II", broken_entry, 4, 20, 32)
+    struct.pack_into(">IH", broken_entry, 12, 1, 1)
+    broken_entry[20:24] = b"PCP2"
+    struct.pack_into(">II", broken_entry, 24, 12, 0xFFFFFFFF)
+    assert read_cues(bytes(broken_entry)) == []
+
+
+def test_read_cues_skips_invalid_slots_and_types():
+    blob = _pco2(
+        1,
+        [
+            _pcp2(9, 1, 1_000, None),
+            _pcp2(1, 9, 2_000, None),
+            _pcp2(1, 1, 3_000, None),
+        ],
+    )
+    assert read_cues(blob) == [DeviceCue("hot", 1, "point", 3_000, None)]
+
+
 @pytest.mark.skipif(
     not Path("/Volumes/JANTRY/PIONEER/USBANLZ").exists(),
     reason="user's Rekordbox USB not mounted",

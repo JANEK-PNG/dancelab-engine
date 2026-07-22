@@ -16,7 +16,8 @@ from math import sqrt
 from pathlib import Path
 
 from dancelab.contracts.telemetry import DecisionTelemetryManifest
-from dancelab.host.preview_timing import (
+from dancelab.security import json_for_inline_script
+from dancelab.validation.preview_timing import (
     GRID_QUANTIZE_BEATS,
     PREVIEW_LEAD_BEATS,
     quantized_cue_and_start,
@@ -1058,10 +1059,60 @@ h1{
 """
 
 
+def _browser_security_script() -> str:
+    return """
+function htmlEscape(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function safeLocalUrl(value) {
+  const raw = String(value ?? '').trim();
+  const protocolProbe = raw.replace(/[\\u0000-\\u0020]/g, '');
+  if (
+    !raw
+    || protocolProbe.startsWith('//')
+    || /^[A-Za-z][A-Za-z0-9+.-]*:/.test(protocolProbe)
+  ) {
+    return '';
+  }
+  return htmlEscape(raw);
+}
+
+function safeDisplayValue(value) {
+  if (Array.isArray(value)) return value.map(safeDisplayValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, safeDisplayValue(item)]),
+    );
+  }
+  return typeof value === 'string' ? htmlEscape(value) : value;
+}
+
+function displayItem(item) {
+  return Object.fromEntries(
+    Object.entries(item).map(([key, value]) => {
+      if (key === 'row') return [key, value];
+      if (key.endsWith('_path')) return [key, safeLocalUrl(value)];
+      return [key, safeDisplayValue(value)];
+    }),
+  );
+}
+"""
+
+
 def _download_script() -> str:
     return """
 function csvEscape(value) {
-  const raw = value == null ? '' : String(value);
+  let raw = value == null ? '' : String(value);
+  const candidate = raw.replace(/^[ \\n]+/, '');
+  if (/^[=+\\-@\\t\\r]/.test(candidate)) {
+    raw = "'" + raw;
+  }
   if (/[",\\n]/.test(raw)) {
     return '"' + raw.replace(/"/g, '""') + '"';
   }
@@ -1102,7 +1153,7 @@ def _render_pair_page(items: list[dict[str, object]], headers: list[str], path: 
         )
         return _write_text(path, body)
 
-    data_json = json.dumps({"items": items, "headers": headers}, ensure_ascii=True)
+    data_json = json_for_inline_script({"items": items, "headers": headers})
     body = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -1142,6 +1193,7 @@ def _render_pair_page(items: list[dict[str, object]], headers: list[str], path: 
   <script>
     const APP = {data_json};
     const STORAGE_KEY = 'dancelab-pair-swipe-review-v1';
+    {_browser_security_script()}
     {_download_script()}
 
     const deckEl = document.getElementById('deck');
@@ -1607,7 +1659,7 @@ def _render_pair_page(items: list[dict[str, object]], headers: list[str], path: 
           </div>`;
       }} else {{
         const item = APP.items[currentIndex];
-        deckEl.innerHTML = renderCard(item);
+        deckEl.innerHTML = renderCard(displayItem(item));
         bindDrag();
         bindPreview(item);
       }}
@@ -1652,7 +1704,7 @@ def _render_listen_page(items: list[dict[str, object]], headers: list[str], path
         )
         return _write_text(path, body)
 
-    data_json = json.dumps({"items": items, "headers": headers}, ensure_ascii=True)
+    data_json = json_for_inline_script({"items": items, "headers": headers})
     body = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -1695,6 +1747,7 @@ def _render_listen_page(items: list[dict[str, object]], headers: list[str], path
   <script>
     const APP = {data_json};
     const STORAGE_KEY = 'dancelab-listen-board-v1';
+    {_browser_security_script()}
     {_download_script()}
 
     const deckEl = document.getElementById('deck');
@@ -2030,7 +2083,7 @@ def _render_listen_page(items: list[dict[str, object]], headers: list[str], path
           </div>`;
       }} else {{
         const item = APP.items[currentIndex];
-        deckEl.innerHTML = renderCard(item);
+        deckEl.innerHTML = renderCard(displayItem(item));
         bindDrag();
         bindPreview(item);
       }}
@@ -2060,7 +2113,7 @@ def _render_listen_page(items: list[dict[str, object]], headers: list[str], path
 
 
 def _render_window_page(items: list[dict[str, object]], headers: list[str], path: str | Path) -> Path:
-    data_json = json.dumps({"items": items, "headers": headers}, ensure_ascii=True)
+    data_json = json_for_inline_script({"items": items, "headers": headers})
     body = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -2097,6 +2150,7 @@ def _render_window_page(items: list[dict[str, object]], headers: list[str], path
   <script>
     const APP = {data_json};
     const STORAGE_KEY = 'dancelab-window-swipe-review-v1';
+    {_browser_security_script()}
     {_download_script()}
 
     const deckEl = document.getElementById('deck');
@@ -2228,7 +2282,7 @@ def _render_window_page(items: list[dict[str, object]], headers: list[str], path
             <p>Export the CSV when you want to turn this pass into a validation artifact.</p>
           </div>`;
       }} else {{
-        deckEl.innerHTML = renderCard(APP.items[currentIndex]);
+        deckEl.innerHTML = renderCard(displayItem(APP.items[currentIndex]));
         bindDrag();
       }}
       statusEl.innerHTML = `${{decided}} / ${{APP.items.length}} reviewed`;
@@ -2261,7 +2315,9 @@ def _render_window_page(items: list[dict[str, object]], headers: list[str], path
 
 def _render_set_function_page(items: list[dict[str, object]], headers: list[str], path: str | Path) -> Path:
     role_options = ["opener", "builder", "bridge", "peak", "reset", "closer", "tool", "depends"]
-    data_json = json.dumps({"items": items, "headers": headers, "roles": role_options}, ensure_ascii=True)
+    data_json = json_for_inline_script(
+        {"items": items, "headers": headers, "roles": role_options}
+    )
     body = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -2299,6 +2355,7 @@ def _render_set_function_page(items: list[dict[str, object]], headers: list[str]
   <script>
     const APP = {data_json};
     const STORAGE_KEY = 'dancelab-set-function-swipe-review-v1';
+    {_browser_security_script()}
     {_download_script()}
 
     const deckEl = document.getElementById('deck');
@@ -2452,7 +2509,7 @@ def _render_set_function_page(items: list[dict[str, object]], headers: list[str]
           </div>`;
       }} else {{
         const item = APP.items[currentIndex];
-        deckEl.innerHTML = renderCard(item);
+        deckEl.innerHTML = renderCard(displayItem(item));
         bindPicker(item);
         bindDrag();
       }}
@@ -2526,7 +2583,7 @@ def _render_control_center_page(
         mixability_pairs=_read_json(mixability_pairs_path) if mixability_pairs_path else None,
         analysis_summary=_read_json(analysis_summary_path) if analysis_summary_path else None,
     )
-    app_json = json.dumps(
+    app_json = json_for_inline_script(
         {
             "refresh_ms": 4000,
             "sources": {
@@ -2537,8 +2594,7 @@ def _render_control_center_page(
                 "analysis_summary": _relative_href(analysis_summary_path, output_dir=output_dir),
             },
             "bootstrap": bootstrap,
-        },
-        ensure_ascii=True,
+        }
     )
     body = f"""<!doctype html>
 <html lang="en">
@@ -2698,6 +2754,7 @@ def _render_control_center_page(
   </main>
   <script>
     const APP = {app_json};
+    {_browser_security_script()}
     const PROFILE_COLORS = {{
       bass_swap: '#ef4444',
       tops_swap: '#0ea5e9',
@@ -2869,17 +2926,17 @@ def _render_control_center_page(
     }}
 
     function metricCard(label, value, note) {{
-      return `<article class="dash-card"><b>${{label}}</b><strong>${{value}}</strong><span>${{note}}</span></article>`;
+      return `<article class="dash-card"><b>${{htmlEscape(label)}}</b><strong>${{htmlEscape(value)}}</strong><span>${{htmlEscape(note)}}</span></article>`;
     }}
 
     function barList(entries, emptyCopy) {{
-      if (!entries.length) return `<div class="mini">${{emptyCopy}}</div>`;
+      if (!entries.length) return `<div class="mini">${{htmlEscape(emptyCopy)}}</div>`;
       const max = Math.max(...entries.map((entry) => entry.count), 1);
       return entries.map((entry) => `
         <div class="bar-row">
-          <label>${{entry.label}}</label>
+          <label>${{htmlEscape(entry.label)}}</label>
           <div class="bar-track"><div class="bar-fill" style="width:${{(entry.count / max) * 100}}%"></div></div>
-          <output>${{entry.count}}</output>
+          <output>${{htmlEscape(entry.count)}}</output>
         </div>
       `).join('');
     }}
@@ -2913,7 +2970,7 @@ def _render_control_center_page(
         const y = height - pad - (numberValue(point.risk, 0) * innerHeight);
         const color = PROFILE_COLORS[point.profile] || '#64748b';
         return `<circle cx="${{x.toFixed(1)}}" cy="${{y.toFixed(1)}}" r="4.2" fill="${{color}}" opacity="0.88">
-          <title>${{point.title}} | score ${{formatNumber(point.score)}} | risk ${{formatNumber(point.risk)}} | ${{labelize(point.profile)}}</title>
+          <title>${{htmlEscape(point.title)}} | score ${{formatNumber(point.score)}} | risk ${{formatNumber(point.risk)}} | ${{htmlEscape(labelize(point.profile))}}</title>
         </circle>`;
       }}).join('');
       return `<svg class="scatter-svg" viewBox="0 0 ${{width}} ${{height}}">
@@ -2927,26 +2984,26 @@ def _render_control_center_page(
     }}
 
     function pairItems(items, emptyCopy) {{
-      if (!items.length) return `<div class="mini">${{emptyCopy}}</div>`;
+      if (!items.length) return `<div class="mini">${{htmlEscape(emptyCopy)}}</div>`;
       return items.map((item) => `
         <div class="pair-item">
-          <strong>${{item.title}}</strong>
+          <strong>${{htmlEscape(item.title)}}</strong>
           <div class="pair-meta">
             <div class="chip">score ${{formatNumber(item.score)}}</div>
             <div class="chip">risk ${{formatNumber(item.risk)}}</div>
-            <div class="chip">${{labelize(item.profile)}}</div>
-            <div class="chip">${{labelize(item.strategy)}}</div>
+            <div class="chip">${{htmlEscape(labelize(item.profile))}}</div>
+            <div class="chip">${{htmlEscape(labelize(item.strategy))}}</div>
           </div>
         </div>
       `).join('');
     }}
 
     function warningItems(items, emptyCopy) {{
-      if (!items.length) return `<div class="mini">${{emptyCopy}}</div>`;
+      if (!items.length) return `<div class="mini">${{htmlEscape(emptyCopy)}}</div>`;
       return items.map((item) => `
         <div class="warning-item">
-          <b>${{item.label}}</b>
-          <span>${{item.count}}</span>
+          <b>${{htmlEscape(item.label)}}</b>
+          <span>${{htmlEscape(item.count)}}</span>
         </div>
       `).join('');
     }}
@@ -2977,9 +3034,9 @@ def _render_control_center_page(
         }},
       ].map((item) => `
         <article class="source-card">
-          <b>${{item.label}}</b>
-          <strong>${{labelize(item.state)}}</strong>
-          <span>${{item.note}}</span>
+          <b>${{htmlEscape(item.label)}}</b>
+          <strong>${{htmlEscape(labelize(item.state))}}</strong>
+          <span>${{htmlEscape(item.note)}}</span>
         </article>
       `).join('');
     }}
@@ -3020,7 +3077,7 @@ def _render_control_center_page(
       document.getElementById('warningList').innerHTML = warningItems(snapshot.alert_terms || [], 'No repeated warning terms yet.');
       document.getElementById('scatterMount').innerHTML = scatterSvg(snapshot.scatter_points || []);
       document.getElementById('scatterLegend').innerHTML = Object.entries(PROFILE_COLORS).map(([key, color]) => `
-        <div class="chip"><span class="legend-swatch" style="background:${{color}}"></span>${{labelize(key)}}</div>
+        <div class="chip"><span class="legend-swatch" style="background:${{color}}"></span>${{htmlEscape(labelize(key))}}</div>
       `).join('');
       document.getElementById('sparkGrid').innerHTML = [
         {{
@@ -3053,9 +3110,9 @@ def _render_control_center_page(
         }},
       ].map((card) => `
         <div class="spark-card">
-          <b>${{card.label}}</b>
-          <span>${{card.value}}</span>
-          <small>${{card.note}}</small>
+          <b>${{htmlEscape(card.label)}}</b>
+          <span>${{htmlEscape(card.value)}}</span>
+          <small>${{htmlEscape(card.note)}}</small>
           ${{sparklineSvg(card.series, card.color)}}
         </div>
       `).join('');

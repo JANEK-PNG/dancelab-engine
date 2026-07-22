@@ -1,0 +1,109 @@
+name: DanceLab quality gate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dancelab-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: Core / ${{ matrix.profile }} / Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python-version: "3.11"
+            profile: headless
+            extras: ""
+          - python-version: "3.12"
+            profile: audio
+            extras: "--extra audio"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.29"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install ${{ matrix.python-version }}
+      - run: >-
+          uv sync --locked --extra dev ${{ matrix.extras }}
+          --python ${{ matrix.python-version }}
+      - run: uv run --locked ruff check src tests scripts/verify_clean_install.py
+      - run: uv run --locked pytest
+
+  security:
+    name: Security regressions and audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.29"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --extra dev --python 3.12
+      - name: Run security regression tests
+        run: >-
+          uv run --locked pytest
+          tests/test_security_regressions.py
+          tests/test_api.py
+          tests/test_cache_manager.py
+          tests/test_rekordbox_device.py
+          tests/test_host_project.py
+          tests/test_tempo_validation.py
+      - run: uv run --locked bandit -q -r src/dancelab -ll -ii
+      - name: Export locked third-party dependencies
+        run: >-
+          uv export --locked --all-extras --no-hashes --no-emit-project
+          --format requirements.txt
+          --output-file /tmp/dancelab-locked-requirements.txt
+      - name: Audit locked third-party dependencies
+        run: >-
+          uv run --locked pip-audit --strict --no-deps --disable-pip
+          --requirement /tmp/dancelab-locked-requirements.txt
+
+  package:
+    name: Wheel and clean install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.29"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv lock --check
+      - run: uv build --wheel
+      - run: uv run --no-project --python 3.12 python scripts/verify_clean_install.py dist/*.whl
+
+  desktop:
+    name: Qt desktop contract
+    runs-on: macos-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.29"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv python install 3.12
+      - run: uv sync --locked --extra dev --extra desktop --python 3.12
+      - name: Run desktop boundary tests
+        run: >-
+          uv run --locked pytest
+          tests/test_host_qt_app.py
+          tests/test_host_simple_mode.py
+          tests/test_pair_review.py

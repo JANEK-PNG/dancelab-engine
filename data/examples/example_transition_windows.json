@@ -1,0 +1,110 @@
+{
+  "track_id": "f9fe2e1e1ca0264e",
+  "windows": [
+    {
+      "transition_window_id": "f9fe2e1e1ca0264e_tw1",
+      "start_sec": 77.0,
+      "end_sec": 93.0,
+      "score": 0.8464,
+      "status": "candidate",
+      "window_type": "mix_in",
+      "confidence": 0.57,
+      "risk_score": 0.2,
+      "reasoning": [
+        "structural=0.74",
+        "rhythm=0.72",
+        "energy=0.98",
+        "phrase=0.72",
+        "bass=1.00",
+        "vocal_risk penalty=0.00",
+        "tension_conflict penalty=0.00"
+      ],
+      "warnings": [],
+      "compatible_contexts": [
+        "club_peak"
+      ],
+      "explanation": "local maximum #1 of W_transition (transition_windows_v0.1, input coverage 71%)"
+    },
+    {
+      "transition_window_id": "f9fe2e1e1ca0264e_tw2",
+      "start_sec": 214.0,
+      "end_sec": 230.0,
+      "score": 0.7423,
+      "status": "candidate",
+      "window_type": "mix_out",
+      "confidence": 0.57,
+      "risk_score": 0.2,
+      "reasoning": [
+        "structural=0.74",
+        "rhythm=0.85",
+        "energy=0.82",
+        "phrase=0.16",
+        "bass=0.96",
+        "vocal_risk penalty=0.00",
+        "tension_conflict penalty=0.00"
+      ],
+      "warnings": [],
+      "compatible_contexts": [
+        "club_peak"
+      ],
+      "explanation": "local maximum #2 of W_transition (transition_windows_v0.1, input coverage 71%)"
+    },
+    {
+      "transition_window_id": "f9fe2e1e1ca0264e_tw3",
+      "start_sec": 18.0,
+      "end_sec": 34.0,
+      "score": 0.7181,
+      "status": "candidate",
+      "window_type": "mix_in",
+      "confidence": 0.57,
+      "risk_score": 0.2,
+      "reasoning": [
+        "structural=0.76",
+        "rhythm=0.73",
+        "energy=0.71",
+        "phrase=0.26",
+        "bass=0.95",
+        "vocal_risk penalty=0.00",
+        "tension_conflict penalty=0.00"
+      ],
+      "warnings": [],
+      "compatible_contexts": [
+        "club_peak"
+      ],
+      "explanation": "local maximum #3 of W_transition (transition_windows_v0.1, input coverage 71%)"
+    }
+  ],
+  "model_version": "transition_windows_v0.1",
+  "warnings": [
+    "vocal risk unavailable (no vocal_density_proxy) \u2014 no penalty applied",
+    "tension conflict unavailable (no tension_proxy) \u2014 no penalty applied",
+    "not DJ-validated \u2014 output is a candidate estimate, not ground truth"
+  ],
+  "provenance": {
+    "model_card_id": "transition_window_model_card_v0.1",
+    "scientific_status": "candidate",
+    "evidence_grade": "E4",
+    "validation_status": "to_validate",
+    "source_basis": [
+      "onset / novelty detection methods (Bello 2005, B\u00f6ck & Widmer 2013)",
+      "tension modelling literature",
+      "groove / rhythmic movement literature"
+    ],
+    "dance_lab_inference": "Useful DJ transition windows depend on a combination of structure, rhythm, phrase, bass, vocal, tension and context \u2014 not low energy alone.",
+    "cannot_claim": [
+      "best transition point",
+      "this transition will work",
+      "crowd will react well"
+    ],
+    "required_validation": [
+      "EXP016 - Transition Window Interval Validation Pilot",
+      "EXP009 - Transition Windows Pilot"
+    ],
+    "limitations": [
+      "does not prove the best transition window",
+      "does not predict crowd reaction",
+      "phrase alignment may be wrong without phrase/beatgrid validation"
+    ],
+    "allowed_ui_wording": "Suggested candidate mix-out window."
+  }
+}

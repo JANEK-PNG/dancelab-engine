@@ -5,6 +5,8 @@ import json
 import pytest
 
 from dancelab.host.project import (
+    MAX_PROJECT_BYTES,
+    MAX_PROJECT_NODES,
     PROJECT_FILE_SUFFIX,
     DanceLabProject,
     ProjectConnection,
@@ -100,4 +102,34 @@ def test_malformed_project_fails_loud(tmp_path):
     p = tmp_path / "broken.dlproj"
     p.write_text("{not json", encoding="utf-8")
     with pytest.raises(ProjectFileError, match="Cannot read"):
+        load_project(p)
+
+
+def test_project_root_must_be_an_object(tmp_path):
+    p = tmp_path / "array.dlproj"
+    p.write_text("[]", encoding="utf-8")
+    with pytest.raises(ProjectFileError, match="root must be an object"):
+        load_project(p)
+
+
+def test_project_rejects_oversized_file_before_json_parse(tmp_path):
+    p = tmp_path / "huge.dlproj"
+    with p.open("wb") as handle:
+        handle.truncate(MAX_PROJECT_BYTES + 1)
+    with pytest.raises(ProjectFileError, match="maximum size"):
+        load_project(p)
+
+
+def test_project_rejects_unbounded_node_count(tmp_path):
+    p = tmp_path / "too-many-nodes.dlproj"
+    p.write_text(
+        json.dumps(
+            {
+                "format_version": 1,
+                "nodes": [{}] * (MAX_PROJECT_NODES + 1),
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ProjectFileError, match="nodes exceeds"):
         load_project(p)
