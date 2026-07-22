@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>DanceLab Pro - TERRAIN Component & Motion Bible</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="rail" aria-label="Nawigacja dokumentu">
+      <a class="brand" href="#top" aria-label="DanceLab Motion Bible">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>DL / MOTION</span>
+      </a>
+      <nav class="rail-nav">
+        <a href="#principles">01 Principles</a>
+        <a href="#tokens">02 Timing</a>
+        <a href="#team">03 Team</a>
+        <a href="#automix">04 Automix</a>
+        <a href="#components">05 Components</a>
+        <a href="#quality">06 Quality Gate</a>
+        <a href="#sources">07 Source Basis</a>
+      </nav>
+      <div class="rail-meta">
+        <span>Spec v1.0</span>
+        <span>15.07.2026</span>
+      </div>
+    </aside>
+
+    <main id="top">
+      <header class="hero">
+        <div class="eyebrow">TERRAIN DESIGN SYSTEM / PRODUCT RUNTIME</div>
+        <div class="hero-grid">
+          <div>
+            <h1>Component &<br>Motion Bible</h1>
+            <p class="hero-lead">Jedno mapowanie: kod, kontrakt stanu, interfejs i ruch. Każdy specimen jest interaktywnym wzorcem implementacyjnym, nie dekoracyjnym mockupem.</p>
+          </div>
+          <div class="hero-orbit" aria-label="Model mapowania komponentu">
+            <div class="orbit-core">UI</div>
+            <span class="orbit-node orbit-code">CODE</span>
+            <span class="orbit-node orbit-state">STATE</span>
+            <span class="orbit-node orbit-motion">MOTION</span>
+            <span class="orbit-line line-a"></span>
+            <span class="orbit-line line-b"></span>
+            <span class="orbit-line line-c"></span>
+          </div>
+        </div>
+        <div class="hero-stats" aria-label="Zakres biblii">
+          <div><strong id="component-count">0</strong><span>mapped components</span></div>
+          <div><strong id="existing-count">0</strong><span>existing foundations</span></div>
+          <div><strong id="automix-count">0</strong><span>Automix contracts</span></div>
+          <div><strong>1</strong><span>shared runtime truth</span></div>
+        </div>
+      </header>
+
+      <section id="principles" class="section section-principles">
+        <div class="section-index">01</div>
+        <div class="section-copy">
+          <span class="kicker">PRODUCT PRINCIPLES</span>
+          <h2>Motion explains cause and effect.</h2>
+          <p>Ruch pokazuje orientację, stan, relację albo manipulację. Jeżeli nie wykonuje jednej z tych prac, nie wchodzi do produktu.</p>
+        </div>
+        <div class="principle-grid">
+          <article><span>01</span><h3>Runtime first</h3><p>Playhead, progress, EQ i fader zawsze odczytują prawdziwy stan.</p></article>
+          <article><span>02</span><h3>Identity stays</h3><p>Track i seam zachowują identyfikator podczas zmiany widoku.</p></article>
+          <article><span>03</span><h3>Interruptible</h3><p>Nowa akcja przejmuje ruch od bieżącej wartości bez resetu.</p></article>
+          <article><span>04</span><h3>Reduced by design</h3><p>Każda animacja przestrzenna ma spokojny wariant.</p></article>
+        </div>
+      </section>
+
+      <section id="tokens" class="section">
+        <div class="section-index">02</div>
+        <div class="section-copy">
+          <span class="kicker">MOTION TOKENS</span>
+          <h2>One rhythm. Six timings.</h2>
+          <p>Tokeny są wspólnym językiem Qt, prototypów i design review. Kliknij pasek, aby odtworzyć dokładny timing.</p>
+        </div>
+        <div class="timing-stage" id="timing-stage" aria-label="Demonstracja tokenów czasu"></div>
+        <div class="easing-ledger">
+          <div><code>standard</code><span>InOutCubic</span><b>state in place</b></div>
+          <div><code>enter</code><span>OutCubic</span><b>arrive and settle</b></div>
+          <div><code>exit</code><span>InCubic</span><b>leave without drag</b></div>
+          <div><code>spatial</code><span>OutQuart</span><b>preserve direction</b></div>
+          <div><code>snap</code><span>damped spring</span><b>dragged objects only</b></div>
+          <div><code>linear</code><span>linear</span><b>time and playback</b></div>
+        </div>
+      </section>
+
+      <section id="team" class="section team-section">
+        <div class="section-index">03</div>
+        <div class="section-copy">
+          <span class="kicker">21-PERSON REVIEW MODEL</span>
+          <h2>Every voice enters the decision.</h2>
+          <p>Trzy dyscypliny pracują na jednym backlogu. Każdy Senior prowadzi trzech Midów, każdy Mid jednego Juniora. Reprodukowalny problem zgłoszony przez Juniora może zatrzymać komponent.</p>
+        </div>
+        <div class="team-grid" id="team-grid"></div>
+        <div class="review-loop" aria-label="Kolejność review">
+          <span>Junior evidence</span><i></i><span>Mid synthesis</span><i></i><span>Cross-discipline challenge</span><i></i><span>Senior decision</span><i></i><span>Dissent record</span>
+        </div>
+      </section>
+
+      <section id="automix" class="section automix-section">
+        <div class="section-index">04</div>
+        <div class="section-copy">
+          <span class="kicker">AUTOMIX / PRIMARY MOTION SURFACE</span>
+          <h2>One clock drives the entire transition.</h2>
+          <p>Waveformy, beat phase, EQ i fadery są różnymi widokami tej samej wartości czasu. Odtwórz demonstrację albo scrubuj ręcznie.</p>
+        </div>
+        <div class="automix-lab" id="automix-lab">
+          <div class="automix-toolbar">
+            <button id="automix-play" class="primary-action" type="button">Play transition</button>
+            <label>Profile
+              <select id="automix-profile">
+                <option value="bass">Bass swap</option>
+                <option value="tops">Tops swap</option>
+                <option value="blend">Balanced blend</option>
+              </select>
+            </label>
+            <div class="automix-clock"><span id="automix-time">00:00.0</span><b>64 beats / 8-beat grid</b></div>
+          </div>
+          <div class="automix-body">
+            <div class="timeline-stack">
+              <div class="moment-labels" aria-hidden="true"><span>CUE IN</span><span>HANDOVER</span><span>CUE OUT</span></div>
+              <div class="wave-lane lane-a"><div class="lane-label"><b>A</b><span>OUTGOING</span></div><div class="wave-bars" data-wave="a"></div></div>
+              <div class="wave-lane lane-b"><div class="lane-label"><b>B</b><span>INCOMING</span></div><div class="wave-bars" data-wave="b"></div></div>
+              <div class="transition-region"><span></span><i class="playhead"></i><b class="region-played"></b></div>
+              <div class="beat-phase" id="beat-phase"></div>
+              <input id="automix-scrub" aria-label="Pozycja przejścia" type="range" min="0" max="1000" value="0">
+            </div>
+            <div class="mixer" aria-label="Wizualizacja miksera">
+              <div class="channel channel-a">
+                <header><b>DECK A</b><span id="rate-a">1.000x</span></header>
+                <div class="knob-row" data-channel="a"></div>
+                <div class="channel-fader"><i></i></div>
+              </div>
+              <div class="handover"><span>A</span><div class="crossfader"><i></i></div><span>B</span></div>
+              <div class="channel channel-b">
+                <header><b>DECK B</b><span id="rate-b">0.992x</span></header>
+                <div class="knob-row" data-channel="b"></div>
+                <div class="channel-fader"><i></i></div>
+              </div>
+            </div>
+          </div>
+          <footer class="automix-contract"><code>QMediaPlayer.position</code><span>-></span><code>transition_fraction</code><span>-></span><code>TransitionEnvelope</code><span>-></span><code>single repaint</code></footer>
+        </div>
+      </section>
+
+      <section id="components" class="section component-section">
+        <div class="section-index">05</div>
+        <div class="section-copy">
+          <span class="kicker">FULL COMPONENT LEDGER</span>
+          <h2>Code -> state -> UI -> motion.</h2>
+          <p>Każdy wiersz jest kontraktem implementacyjnym. Status rozróżnia istniejący fundament od adaptacji, planu i świadomie odłożonej funkcji.</p>
+        </div>
+
+        <div class="component-controls" aria-label="Filtry komponentów">
+          <label class="search-control"><span>Search</span><input id="component-search" type="search" placeholder="cue, progress, pair_review..." autocomplete="off"></label>
+          <label><span>Level</span><select id="level-filter"><option value="all">All levels</option></select></label>
+          <label><span>Workspace</span><select id="workspace-filter"><option value="all">All workspaces</option></select></label>
+          <label><span>Status</span><select id="status-filter"><option value="all">All statuses</option></select></label>
+          <label><span>Priority</span><select id="priority-filter"><option value="all">All priorities</option></select></label>
+          <label><span>Playback</span><select id="speed-control"><option value="1">1x</option><option value="2">0.5x</option><option value="0.5">2x</option></select></label>
+          <button id="pause-motion" type="button" class="quiet-action" aria-pressed="false">Pause demos</button>
+          <button id="reduce-motion" type="button" class="quiet-action" aria-pressed="false">Reduced motion</button>
+        </div>
+
+        <div class="table-meta"><span id="visible-count">0 components</span><div class="status-legend"><i class="existing"></i>Existing <i class="adapt"></i>Adapt <i class="planned"></i>Planned <i class="deferred"></i>Deferred</div></div>
+
+        <div class="component-table" role="table" aria-label="Mapowanie komponentów">
+          <div class="component-head" role="row">
+            <span role="columnheader">Component</span>
+            <span role="columnheader">Code contract</span>
+            <span role="columnheader">Mapping & motion</span>
+            <span role="columnheader">Live UI specimen</span>
+          </div>
+          <div id="component-rows"></div>
+        </div>
+        <div id="empty-results" class="empty-results" hidden>No components match this filter.</div>
+      </section>
+
+      <section id="quality" class="section quality-section">
+        <div class="section-index">06</div>
+        <div class="section-copy">
+          <span class="kicker">CROSS-DISCIPLINE QUALITY GATE</span>
+          <h2>Ready means all three disciplines signed.</h2>
+        </div>
+        <div class="quality-grid">
+          <article><span>ENGINEERING</span><h3>Runtime truth</h3><ul><li>Interruptible final state</li><li>No GUI-thread audio work</li><li>Seek, pause, resume sync</li><li>Frame budget measured</li></ul></article>
+          <article><span>PRODUCT</span><h3>Comprehension</h3><ul><li>Where am I?</li><li>What changed?</li><li>What is the next action?</li><li>No identity loss</li></ul></article>
+          <article><span>MOTION</span><h3>Purposeful movement</h3><ul><li>Token-compliant timing</li><li>One visual accent</li><li>Reduced motion variant</li><li>No fake data</li></ul></article>
+          <article><span>JUNIOR QA</span><h3>Independent proof</h3><ul><li>Small and large window</li><li>Mouse, touchpad, keyboard</li><li>Reproducible bug record</li><li>Dissent stays visible</li></ul></article>
+        </div>
+      </section>
+
+      <section id="sources" class="section source-section">
+        <div class="section-index">07</div>
+        <div class="section-copy">
+          <span class="kicker">IMPLEMENTATION BASIS</span>
+          <h2>Traceable, not improvised.</h2>
+          <p>Każdy kontrakt łączy istniejący runtime DanceLab z oficjalną dokumentacją platformy i zatwierdzonym systemem TERRAIN. Źródła wspierają decyzję, ale nie zastępują pomiaru w aplikacji.</p>
+        </div>
+        <div class="source-ledger">
+          <a href="../TERRAIN_ADAPTATION_BLUEPRINT_2026-07-15.md"><code>PRODUCT</code><b>TERRAIN adaptation blueprint</b><span>workspace model, session state, export gate</span></a>
+          <a href="../TERRAIN_MOTION_INVENTORY_2026-07-15.md"><code>MOTION</code><b>Atomic motion inventory</b><span>25 atoms, 20 molecules, 14 organisms, 24 Automix contracts</span></a>
+          <a href="../TERRAIN_PRODUCT_TEAM_CHARTER_2026-07-15.md"><code>TEAM</code><b>21-person review charter</b><span>roles, evidence loop, dissent record, DoR and DoD</span></a>
+          <a href="https://doc.qt.io/qt-6/animation-overview.html"><code>QT</code><b>Animation Framework</b><span>property animation, groups, state transitions</span></a>
+          <a href="https://doc.qt.io/qt-6/qtquick-performance.html"><code>QT</code><b>Performance guidance</b><span>frame budget, scene updates, avoid main-thread work</span></a>
+          <a href="https://developer.apple.com/design/human-interface-guidelines/motion"><code>APPLE HIG</code><b>Motion guidance</b><span>continuity, feedback, reduced motion</span></a>
+          <a href="https://motion.dev/docs/animate"><code>MOTION</code><b>Animation reference</b><span>interruptible values and transition semantics for prototyping</span></a>
+          <a href="../../src/dancelab/host/simple_mode.py"><code>RUNTIME</code><b>Current desktop host</b><span>existing jobs, project state and workflow foundations</span></a>
+        </div>
+      </section>
+
+      <footer class="page-footer">
+        <span>DanceLab Pro / TERRAIN</span>
+        <span>Component & Motion Bible / 2026</span>
+      </footer>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

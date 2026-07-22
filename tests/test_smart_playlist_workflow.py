@@ -283,8 +283,8 @@ def test_parallel_analysis_matches_sequential(tmp_path):
     # same library as sequential — order preserved, manifest reuse intact.
     import numpy as np
     import pytest
-    import soundfile as sf
 
+    sf = pytest.importorskip("soundfile")
     pytest.importorskip("librosa")
     from dancelab.workflows.smart_playlist import analyze_files
 

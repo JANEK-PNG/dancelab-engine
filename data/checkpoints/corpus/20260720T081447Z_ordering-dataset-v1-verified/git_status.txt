@@ -1,0 +1,89 @@
+## calibration/same-octave-preference
+ M Dockerfile
+ M docker-compose.yml
+ M docs/DJMIX_VALIDATION.md
+ M pyproject.toml
+ M scripts/corpus_status.sh
+ M src/dancelab/api/main.py
+ M src/dancelab/api/routes_sets.py
+ M src/dancelab/api/routes_stems.py
+ M src/dancelab/api/routes_tracks.py
+ M src/dancelab/api/schemas.py
+ M src/dancelab/cli/analyze.py
+ M src/dancelab/decision/history.py
+ M src/dancelab/host/__init__.py
+ M src/dancelab/host/analyzed_library.py
+ M src/dancelab/host/desktop_app.py
+ M src/dancelab/host/desktop_bundle.py
+ M src/dancelab/host/pair_review.py
+ M src/dancelab/host/preview_timing.py
+ M src/dancelab/host/project.py
+ M src/dancelab/host/simple_mode.py
+ M src/dancelab/ingestion/metadata.py
+ M src/dancelab/ingestion/rekordbox_device.py
+ M src/dancelab/stems/extractor.py
+ M src/dancelab/storage/artifact_store.py
+ M src/dancelab/storage/cache_manager.py
+ M src/dancelab/storage/repositories.py
+ M src/dancelab/validation/djmix/__init__.py
+ M src/dancelab/validation/pilot_pack.py
+ M src/dancelab/validation/review_ui/swipe_review.py
+ M src/dancelab/validation/tempo/benchmark.py
+ M src/dancelab/validation/tempo/reference.py
+ M src/dancelab/validation/transition_edits.py
+ M src/dancelab/visualization/decision_report.py
+ M tests/conftest.py
+ M tests/test_api.py
+ M tests/test_cache_manager.py
+ M tests/test_host_project.py
+ M tests/test_host_runtime.py
+ M tests/test_rekordbox_device.py
+ M tests/test_smart_playlist_workflow.py
+ M tests/test_stem_export_workflow.py
+ M tests/test_stem_exporter.py
+ M tests/test_tempo_validation.py
+?? .github/
+?? "Design system for DanceLab-handoff.zip"
+?? "Design system for DanceLab.zip"
+?? data/checkpoints/
+?? data/reports/corpus_ordering/
+?? data/reports/rescore_v2/
+?? docs/CORPUS_ETHICS.md
+?? docs/CORPUS_ORDERING_DATASET_V1.md
+?? docs/CORPUS_RUNBOOK.md
+?? docs/CORPUS_SAVE_AND_CACHE_PROTOCOL.md
+?? docs/CORPUS_V2_BACKLOG.md
+?? docs/DESIGN_CODE_COVERAGE_AUDIT_2026-07-15.md
+?? docs/DJ_SET_RULE_DECOMPOSITION.md
+?? docs/HANDOFF_2026-07-17_Klaris_to_Kord.md
+?? docs/INSPIRATION_BOARD_IDEA.md
+?? docs/PRZEJSCIA_ART_PROJECT.md
+?? docs/TERRAIN_ADAPTATION_BLUEPRINT_2026-07-15.md
+?? docs/TERRAIN_MOTION_INVENTORY_2026-07-15.md
+?? docs/TERRAIN_PRODUCT_TEAM_CHARTER_2026-07-15.md
+?? docs/terrain-motion-bible/
+?? outputs/
+?? scripts/corpus_align.py
+?? scripts/corpus_align_loop.sh
+?? scripts/corpus_live.py
+?? scripts/corpus_save.py
+?? scripts/corpus_stats.py
+?? scripts/rescore_janek_ratings.py
+?? scripts/verify_clean_install.py
+?? src/dancelab/api/security.py
+?? src/dancelab/cli/corpus_ordering.py
+?? src/dancelab/security.py
+?? src/dancelab/validation/djmix/checkpoint.py
+?? src/dancelab/validation/djmix/decomposition.py
+?? src/dancelab/validation/djmix/ordering.py
+?? src/dancelab/validation/djmix/ordering_features.py
+?? src/dancelab/validation/djmix/ordering_models.py
+?? src/dancelab/validation/preview_timing.py
+?? tests/test_corpus_checkpoint.py
+?? tests/test_djmix_decomposition.py
+?? tests/test_djmix_ordering.py
+?? tests/test_djmix_ordering_features.py
+?? tests/test_djmix_ordering_models.py
+?? tests/test_security_regressions.py
+?? tmp/
+?? uv.lock

@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from dancelab.core.audio_types import AudioSignal
 from dancelab.core.config import EngineConfig
@@ -48,6 +49,7 @@ def _stem_result(track_id: str) -> StemExtractionResult:
 
 
 def test_export_stems_for_paths_enables_stem_config_and_writes_artifacts(tmp_path):
+    pytest.importorskip("soundfile")
     source_path = tmp_path / "Track One.mp3"
     source_path.write_bytes(b"fake mp3 payload")
     output_root = tmp_path / "stem_exports"

@@ -12,7 +12,10 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 import os
 import unicodedata
-import xml.etree.ElementTree as ET
+
+from defusedxml import ElementTree as ET
+
+MAX_REKORDBOX_XML_BYTES = 64 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -43,6 +46,10 @@ def normalize_audio_path(value: str | Path) -> str:
 
 
 def load_rekordbox_tempo_references(path: Path) -> tuple[RekordboxTempoReference, ...]:
+    if path.stat().st_size > MAX_REKORDBOX_XML_BYTES:
+        raise ValueError(
+            f"Rekordbox XML exceeds the {MAX_REKORDBOX_XML_BYTES}-byte safety limit"
+        )
     root = ET.parse(path).getroot()
     references: list[RekordboxTempoReference] = []
     for element in root.findall("./COLLECTION/TRACK"):

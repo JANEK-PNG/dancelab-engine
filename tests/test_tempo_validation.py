@@ -5,12 +5,14 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from defusedxml.common import DefusedXmlException
 
 from dancelab.preprocessing.tempo_precision import refine_bpm_from_beat_times
 from dancelab.validation.tempo.benchmark import (
     run_tempo_benchmark,
     write_tempo_benchmark,
 )
+from dancelab.validation.tempo.reference import load_rekordbox_tempo_references
 
 
 def test_long_span_refinement_removes_frame_quantization_without_metric_change():
@@ -89,3 +91,19 @@ def test_benchmark_uses_exact_paths_and_exposes_downbeat_proxy_error(tmp_path):
     assert (output / "benchmark.json").exists()
     assert (output / "tracks.csv").exists()
     assert "operational reference" in (output / "summary.md").read_text()
+
+
+def test_rekordbox_reference_rejects_dtd_and_entities(tmp_path):
+    xml = tmp_path / "hostile.xml"
+    xml.write_text(
+        """<?xml version="1.0"?>
+<!DOCTYPE library [<!ENTITY payload "expanded">]>
+<DJ_PLAYLISTS><COLLECTION>
+<TRACK TrackID="1" Name="&payload;" AverageBpm="120"
+ Location="file://localhost/music/a.mp3"/>
+</COLLECTION></DJ_PLAYLISTS>
+""",
+        encoding="utf-8",
+    )
+    with pytest.raises(DefusedXmlException):
+        load_rekordbox_tempo_references(xml)

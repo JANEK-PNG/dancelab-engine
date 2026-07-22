@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
+from dancelab.security import spreadsheet_safe_value
+
 
 TRANSITION_EDIT_SCHEMA_VERSION = "1.0"
 ALLOWED_ACTIONS = {"transition_region_set", "hot_cue_moved", "hot_cue_set"}
@@ -93,7 +95,7 @@ def _csv_value(value):
         return int(value)
     if isinstance(value, float):
         return f"{value:.6f}"
-    return value
+    return spreadsheet_safe_value(value)
 
 
 def append_transition_edit(path: str | Path, event: TransitionEditEvent) -> TransitionEditEvent:

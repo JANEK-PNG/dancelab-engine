@@ -13,6 +13,7 @@ from typing import Any, Sequence
 import numpy as np
 
 from dancelab.preprocessing.tempo_precision import refine_bpm_from_beat_times
+from dancelab.security import spreadsheet_safe_value
 from dancelab.validation.tempo.reference import (
     RekordboxTempoReference,
     TempoMarker,
@@ -326,7 +327,9 @@ def write_tempo_benchmark(report: dict[str, Any], output_dir: Path) -> None:
             flat["phase_p90_error_beats"] = record["phase"]["p90_error_beats"]
             flat["first_proxy_reference_beat"] = record["phase"]["first_proxy_reference_beat"]
             flat["first_proxy_is_downbeat"] = record["phase"]["first_proxy_is_downbeat"]
-            writer.writerow(flat)
+            writer.writerow(
+                {key: spreadsheet_safe_value(value) for key, value in flat.items()}
+            )
 
     primary = report["metrics"]["primary_exact_path"]
     raw = primary["raw_bpm"]

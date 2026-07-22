@@ -25,6 +25,7 @@ from dancelab.data.annotation_loader import (
     load_transition_windows,
 )
 from dancelab.data.annotation_validator import validate_annotation_dataset
+from dancelab.security import spreadsheet_safe_value
 from dancelab.storage.repositories import FileAnalysisRepository
 from dancelab.validation.dj_decision_metrics import (
     cohen_kappa,
@@ -80,7 +81,7 @@ def _write_csv_rows(
                     value = ";".join(str(item) for item in value)
                 elif value is None:
                     value = ""
-                payload[field] = value
+                payload[field] = spreadsheet_safe_value(value)
             writer.writerow(payload)
     return out
 

@@ -18,7 +18,7 @@ def test_missing_file_raises(config):
 
 
 def test_unsupported_format_raises(config, tmp_path):
-    bad = tmp_path / "track.ogg"
+    bad = tmp_path / "track.txt"  # genuinely non-audio; .ogg etc. are now supported
     bad.write_bytes(b"\x00")
     with pytest.raises(IngestionError):
         load_audio(bad, config)
