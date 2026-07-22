@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from dancelab.api.schemas import (
     BuildSetRequest,
@@ -25,6 +25,7 @@ from dancelab.api.schemas import (
     SmartPlaylistRequest,
     SmartPlaylistResponse,
 )
+from dancelab.api.security import ApiPathPolicy, heavy_job_slot
 from dancelab.core.config import load_config, load_weights
 from dancelab.core.models import SetPlan, TransitionWindowInput
 from dancelab.decision.next_track import recommend_next as recommend_next_engine
@@ -157,7 +158,9 @@ async def export_rekordbox(request: RekordboxExportRequest) -> RekordboxExportRe
     )
     output_path = None
     if request.output_path:
-        output_path = str(write_rekordbox_xml(xml, request.output_path))
+        policy = ApiPathPolicy.from_config(config)
+        safe_output = policy.output_path(request.output_path)
+        output_path = str(write_rekordbox_xml(xml, safe_output))
     return RekordboxExportResponse(
         playlist_name=request.playlist_name,
         track_count=len(set_plan.track_order),
@@ -168,16 +171,29 @@ async def export_rekordbox(request: RekordboxExportRequest) -> RekordboxExportRe
 
 
 @router.post("/smart-playlist", response_model=SmartPlaylistResponse)
-async def smart_playlist(request: SmartPlaylistRequest) -> SmartPlaylistResponse:
+async def smart_playlist(
+    request: SmartPlaylistRequest,
+    _slot: None = Depends(heavy_job_slot),
+) -> SmartPlaylistResponse:
     """One-shot DJ-set preset: folder -> analysis -> set plan -> Rekordbox XML."""
+    config = _config()
+    policy = ApiPathPolicy.from_config(config)
+    folder_path = policy.input_directory(request.folder_path)
+    policy.validate_audio_tree(folder_path, recursive=request.recursive)
+    output_path = (
+        str(policy.output_path(request.output_path)) if request.output_path else None
+    )
+    processed_dir = (
+        str(policy.output_path(request.processed_dir)) if request.processed_dir else None
+    )
     try:
         result = build_smart_playlist_from_folder(
-            request.folder_path,
-            _config(),
+            folder_path,
+            config,
             target_track_count=request.target_track_count,
             playlist_name=request.playlist_name,
-            output_path=request.output_path,
-            processed_dir=request.processed_dir,
+            output_path=output_path,
+            processed_dir=processed_dir,
             arc=request.arc,
             planner_mode=request.planner_mode,
             analysis_depth=request.analysis_depth,

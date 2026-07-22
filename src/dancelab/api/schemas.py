@@ -6,9 +6,9 @@ Response bodies reuse core domain models directly — the API is a thin gateway
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 from dancelab.core.models import (  # noqa: F401  (re-exported as API responses)
     AnalysisResult,
@@ -23,22 +23,36 @@ from dancelab.core.models import (  # noqa: F401  (re-exported as API responses)
     TransitionWindowOutput,
 )
 
+TrackId = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$",
+    ),
+]
+FilesystemPath = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=4096),
+]
+
 
 class AnalyzeTrackRequest(BaseModel):
     """POST /tracks/analyze — v0 accepts a server-visible path; file upload later."""
 
-    source_path: str
-    title: str | None = None
-    artist: str | None = None
-    style_label: str | None = None
+    source_path: FilesystemPath
+    title: str | None = Field(default=None, max_length=512)
+    artist: str | None = Field(default=None, max_length=512)
+    style_label: str | None = Field(default=None, max_length=256)
     bpm_hint: float | None = Field(default=None, gt=0)
     # AUD-M9: context_id removed — it was accepted and silently ignored
     # (conditioning is decision-time, not analyze-time).
 
 
 class MixabilityRequest(BaseModel):
-    track_id_a: str
-    track_id_b: str
+    track_id_a: TrackId
+    track_id_b: TrackId
     context_id: str | None = None
     context_profile: ContextProfile | None = None
 
@@ -51,22 +65,22 @@ class SetFunctionRequest(BaseModel):
 
 
 class ContextEvaluateRequest(BaseModel):
-    track_id: str
+    track_id: TrackId
     context_profile: ContextProfile
 
 
 class RecommendNextRequest(BaseModel):
-    current_track_id: str
-    candidate_track_ids: list[str]
-    recent_track_ids: list[str] = Field(default_factory=list)
+    current_track_id: TrackId
+    candidate_track_ids: list[TrackId] = Field(min_length=1, max_length=2_000)
+    recent_track_ids: list[TrackId] = Field(default_factory=list, max_length=200)
     context_profile: ContextProfile | None = None
     arc_mode: str = "build"
 
 
 class RecommendSequenceRequest(BaseModel):
-    current_track_id: str
-    candidate_track_ids: list[str]
-    recent_track_ids: list[str] = Field(default_factory=list)
+    current_track_id: TrackId
+    candidate_track_ids: list[TrackId] = Field(min_length=1, max_length=2_000)
+    recent_track_ids: list[TrackId] = Field(default_factory=list, max_length=200)
     context_profile: ContextProfile | None = None
     arc_mode: str = "build"
     horizon: int = Field(default=3, ge=1, le=12)
@@ -75,11 +89,11 @@ class RecommendSequenceRequest(BaseModel):
 class BuildSetRequest(BaseModel):
     """POST /sets/build — builds a SetPlan from stored analysis results."""
 
-    track_ids: list[str] = Field(default_factory=list)
-    start_track_id: str | None = None
+    track_ids: list[TrackId] = Field(default_factory=list, max_length=2_000)
+    start_track_id: TrackId | None = None
     target_track_count: int | None = Field(default=None, ge=1)
-    locked_positions: dict[int, str] = Field(default_factory=dict)
-    pinned_track_ids: list[str] = Field(default_factory=list)
+    locked_positions: dict[int, TrackId] = Field(default_factory=dict)
+    pinned_track_ids: list[TrackId] = Field(default_factory=list, max_length=2_000)
     arc: str = "build"
     planner_mode: str = "smart"
 
@@ -87,16 +101,16 @@ class BuildSetRequest(BaseModel):
 class RekordboxExportRequest(BaseModel):
     """POST /sets/export-rekordbox — returns XML and optionally writes it to disk."""
 
-    track_ids: list[str] = Field(default_factory=list)
+    track_ids: list[TrackId] = Field(default_factory=list, max_length=2_000)
     set_plan: SetPlan | None = None
-    start_track_id: str | None = None
+    start_track_id: TrackId | None = None
     target_track_count: int | None = Field(default=None, ge=1)
-    locked_positions: dict[int, str] = Field(default_factory=dict)
-    pinned_track_ids: list[str] = Field(default_factory=list)
+    locked_positions: dict[int, TrackId] = Field(default_factory=dict)
+    pinned_track_ids: list[TrackId] = Field(default_factory=list, max_length=2_000)
     arc: str = "build"
     planner_mode: str = "smart"
-    playlist_name: str = "DanceLab Set"
-    output_path: str | None = None
+    playlist_name: str = Field(default="DanceLab Set", min_length=1, max_length=200)
+    output_path: FilesystemPath | None = None
 
 
 class RekordboxExportResponse(BaseModel):
@@ -111,11 +125,11 @@ class RekordboxExportResponse(BaseModel):
 class SmartPlaylistRequest(BaseModel):
     """POST /sets/smart-playlist — folder in, analyzed Rekordbox playlist out."""
 
-    folder_path: str
+    folder_path: FilesystemPath
     target_track_count: Literal[5, 10, 15, 20] = 10
-    playlist_name: str = "DanceLab Smart Set"
-    output_path: str | None = None
-    processed_dir: str | None = None
+    playlist_name: str = Field(default="DanceLab Smart Set", min_length=1, max_length=200)
+    output_path: FilesystemPath | None = None
+    processed_dir: FilesystemPath | None = None
     arc: str = "build"
     planner_mode: str = "smart"
     analysis_depth: str = "normal"
@@ -146,8 +160,8 @@ class SmartPlaylistResponse(BaseModel):
 class StemExportRequest(BaseModel):
     """POST /stems/export — analyze with stems enabled and write artifact folders."""
 
-    source_paths: list[str] = Field(min_length=1)
-    output_root: str = "data/exports/stems"
+    source_paths: list[FilesystemPath] = Field(min_length=1, max_length=32)
+    output_root: FilesystemPath = "data/exports/stems"
     stem_method: Literal["auto", "demucs", "none"] = "auto"
     vocal_method: Literal["hpss", "auto", "demucs"] | None = None
 
@@ -178,8 +192,8 @@ class TransitionWindowsRequest(BaseModel):
 
     context_id: str | None = None
     context_profile: ContextProfile | None = None
-    previous_track_id: str | None = None
-    candidate_next_track_id: str | None = None
+    previous_track_id: TrackId | None = None
+    candidate_next_track_id: TrackId | None = None
 
 
 class HealthResponse(BaseModel):

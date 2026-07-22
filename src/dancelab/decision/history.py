@@ -17,7 +17,7 @@ from pathlib import Path
 
 
 def _sha1(text: str) -> str:
-    return hashlib.sha1(text.encode("utf-8")).hexdigest()[:16]
+    return hashlib.sha1(text.encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
 
 
 def edge_hash(from_id: str, to_id: str) -> str:

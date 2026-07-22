@@ -11,7 +11,7 @@ from dancelab.core.models import Track
 
 def make_track_id(source_path: str) -> str:
     """Deterministic track id from source path (deterministic outputs requirement)."""
-    return hashlib.sha1(source_path.encode("utf-8")).hexdigest()[:16]
+    return hashlib.sha1(source_path.encode("utf-8"), usedforsecurity=False).hexdigest()[:16]
 
 
 def build_track(

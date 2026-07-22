@@ -9,15 +9,17 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from dancelab.api.schemas import (
     AnalysisResult,
     AnalyzeTrackRequest,
     SetFunctionRequest,
+    TrackId,
     TransitionWindowOutput,
     TransitionWindowsRequest,
 )
+from dancelab.api.security import ApiPathPolicy, heavy_job_slot
 from dancelab.context.context_profile import get_context_profile
 from dancelab.core.config import load_config, load_context_profiles, load_weights
 from dancelab.core.models import (
@@ -52,12 +54,16 @@ def _available_contexts(config) -> list[ContextProfile]:
 
 
 @router.post("/analyze", response_model=AnalysisResult)
-async def analyze(request: AnalyzeTrackRequest) -> AnalysisResult:
+async def analyze(
+    request: AnalyzeTrackRequest,
+    _slot: None = Depends(heavy_job_slot),
+) -> AnalysisResult:
     # AUD-H3: forward EVERY accepted field — bpm_hint was validated then
     # silently dropped, making API-analyze diverge from CLI-analyze.
     config = _config()
+    source_path = ApiPathPolicy.from_config(config).input_file(request.source_path)
     result = analyze_track(
-        request.source_path,
+        source_path,
         config,
         style_label=request.style_label,
         bpm_hint=request.bpm_hint,
@@ -69,13 +75,13 @@ async def analyze(request: AnalyzeTrackRequest) -> AnalysisResult:
 
 
 @router.get("/{track_id}", response_model=AnalysisResult)
-async def get_track(track_id: str) -> AnalysisResult:
+async def get_track(track_id: TrackId) -> AnalysisResult:
     return _repository(_config()).get(track_id)
 
 
 @router.post("/{track_id}/transition-windows", response_model=TransitionWindowOutput)
 async def transition_windows(
-    track_id: str, request: TransitionWindowsRequest
+    track_id: TrackId, request: TransitionWindowsRequest
 ) -> TransitionWindowOutput:
     config = _config()
     analysis = _repository(config).get(track_id)
@@ -106,7 +112,7 @@ async def transition_windows(
 
 
 @router.post("/{track_id}/set-function", response_model=SetFunctionOutput)
-async def set_function(track_id: str, request: SetFunctionRequest) -> SetFunctionOutput:
+async def set_function(track_id: TrackId, request: SetFunctionRequest) -> SetFunctionOutput:
     config = _config()
     analysis = _repository(config).get(track_id)
 

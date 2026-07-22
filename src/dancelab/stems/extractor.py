@@ -47,12 +47,12 @@ def _mono(x: np.ndarray) -> np.ndarray:
 
 def _config_hash(config: EngineConfig) -> str:
     payload = json.dumps(config.stems.model_dump(), sort_keys=True).encode("utf-8")
-    return hashlib.sha1(payload).hexdigest()[:12]
+    return hashlib.sha1(payload, usedforsecurity=False).hexdigest()[:12]
 
 
 def _provenance_id(track_id: str, config: EngineConfig) -> str:
     base = f"{track_id}:{_config_hash(config)}".encode("utf-8")
-    return hashlib.sha1(base).hexdigest()[:16]
+    return hashlib.sha1(base, usedforsecurity=False).hexdigest()[:16]
 
 
 def _stem_id(track_id: str, stem_type: StemType) -> str:

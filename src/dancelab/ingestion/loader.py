@@ -1,4 +1,10 @@
-"""Audio file loading. Supported: .wav, .mp3, .aiff, .flac (Implementation Brief)."""
+"""Audio file loading via librosa (audioread/ffmpeg backend).
+
+Lossless/PCM (.wav, .aiff, .flac) and lossy/container formats (.mp3, .m4a,
+.mp4, .webm, .opus, .ogg) all decode through the same librosa path, so the
+supported set covers the compressed formats a DJ library (or a downloaded
+research corpus) actually contains, not just the original PCM shortlist.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +14,10 @@ from dancelab.core.audio_types import AudioSignal
 from dancelab.core.config import EngineConfig
 from dancelab.core.errors import IngestionError, MissingDependencyError
 
-SUPPORTED_EXTENSIONS = {".wav", ".mp3", ".aiff", ".aif", ".flac"}
+SUPPORTED_EXTENSIONS = {
+    ".wav", ".aiff", ".aif", ".flac",  # PCM / lossless
+    ".mp3", ".m4a", ".mp4", ".webm", ".opus", ".ogg",  # lossy (librosa+ffmpeg)
+}
 
 
 def load_audio(path: str | Path, config: EngineConfig) -> AudioSignal:

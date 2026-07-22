@@ -151,6 +151,7 @@ class AnalyzedLibraryWidget(QWidget):
 
     must_have_requested = Signal(str)
     not_tonight_requested = Signal(str)
+    track_selected = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -239,7 +240,7 @@ class AnalyzedLibraryWidget(QWidget):
         header.setSectionResizeMode(5, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(6, QHeaderView.ResizeToContents)
         header.setSectionResizeMode(7, QHeaderView.ResizeToContents)
-        self.table.itemSelectionChanged.connect(self._sync_actions)
+        self.table.itemSelectionChanged.connect(self._on_selection_changed)
         layout.addWidget(self.table, stretch=1)
 
         action_row = QHBoxLayout()
@@ -411,6 +412,12 @@ class AnalyzedLibraryWidget(QWidget):
         self.not_tonight_button.setText(
             "Restore Tonight" if track_id in self._not_tonight_ids else "Not Tonight"
         )
+
+    def _on_selection_changed(self) -> None:
+        self._sync_actions()
+        track_id = self.selected_track_id()
+        if track_id is not None:
+            self.track_selected.emit(track_id)
 
     def _request_must_have(self) -> None:
         track_id = self.selected_track_id()

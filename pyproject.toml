@@ -17,6 +17,7 @@ dependencies = [
     "fastapi>=0.111",
     "uvicorn>=0.30",
     "typer>=0.12",
+    "defusedxml>=0.7,<1",
 ]
 
 [project.optional-dependencies]
@@ -25,6 +26,7 @@ dependencies = [
 audio = [
     "mutagen>=1.47",
     "librosa>=0.10",
+    "numba>=0.63,<0.67",
     "scipy>=1.13",
     "pandas>=2.2",
     "scikit-learn>=1.5",
@@ -43,7 +45,14 @@ desktop-build = [
 vocals = ["demucs>=4.0", "torch>=2.0"]
 # Full stem-aware layer (vocals, bass, drums, other/accompaniment).
 stems = ["demucs>=4.0", "torch>=2.0"]
-dev = ["pytest>=8.2", "httpx2>=0.28", "ruff>=0.5", "pre-commit>=3.7"]
+dev = [
+    "pytest>=8.2",
+    "httpx2>=0.28",
+    "ruff>=0.5",
+    "pre-commit>=3.7",
+    "bandit>=1.8,<2",
+    "pip-audit>=2.9,<3",
+]
 
 [project.scripts]
 dancelab = "dancelab.cli.analyze:app"
