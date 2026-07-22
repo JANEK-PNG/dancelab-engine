@@ -10,11 +10,16 @@ trk_ok=$(awk -F, '$2=="track" && $3=="ok"' "$M" | wc -l | tr -d ' ')
 trk_dead=$(awk -F, '$2=="track" && $3=="dead"' "$M" | wc -l | tr -d ' ')
 size=$(du -sh "$ROOT" 2>/dev/null | cut -f1)
 free=$(df -h "$ROOT" | tail -1 | awk '{print $4}')
+aligned=$(ls "$ROOT"/alignments/*.json 2>/dev/null | wc -l | tr -d ' ')
+align_err=$(ls "$ROOT"/alignments/*.error.txt 2>/dev/null | wc -l | tr -d ' ')
 
 echo "=== DanceLab Corpus ==="
 echo "mixy:   $mix_ok OK / $mix_dead martwe (kolejka: 1857)"
 echo "tracki: $trk_ok OK / $trk_dead martwe"
 echo "rozmiar: $size | wolne na dysku: $free"
-pgrep -f corpus_downloader.py >/dev/null && echo "proces: DZIALA" || echo "proces: NIE DZIALA (wznow komenda z notatki)"
+echo "--- alignment ---"
+echo "mixy przeliczone: $aligned  ($align_err bledow)"
+pgrep -f corpus_downloader.py >/dev/null && echo "downloader: DZIALA" || echo "downloader: STOP (wznow z notatki)"
+pgrep -f corpus_align.py >/dev/null && echo "alignment:  DZIALA" || echo "alignment:  STOP"
 echo "ostatnie 3 linie:"
 tail -3 "$ROOT"/logs/downloader_*.log 2>/dev/null
