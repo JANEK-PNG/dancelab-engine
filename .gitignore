@@ -17,3 +17,17 @@ data/reports/real_e2e_*/transition_preview.*
 *.npy
 *.npz
 .DS_Store
+
+# --- large data & derived artifacts (regenerable via scripts, iCloud-backed) ---
+data/reports/
+data/processed/
+data/examples/*.wav
+data/examples/*.mp3
+outputs/
+tmp/
+.venv_uv_blocked/
+
+# --- design binaries live outside git (Figma/exports too big for repo) ---
+*.fig
+*.zip
+*.key
