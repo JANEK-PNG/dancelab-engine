@@ -103,6 +103,9 @@ tekstowa dla Korda; obie formy trzymamy w synchronizacji.
 | 3 | Konflikt bramki (26+96): czekamy na Korda 25.07, czy przygotować mu rekomendację re-scope do zatwierdzenia? | 🔒 |
 | 4 | Klucz Last.fm — robisz? (odblokowuje graf artystów) | zaparkowane |
 | 5 | Rytm przeglądu rejestru: koniec każdej sesji czy raz w tygodniu? | reguły |
+| 6 | Włączyć CI z powrotem? Wymaga `gh auth refresh -s workflow`, potem `git mv docs/github-ci.yml.txt .github/workflows/ci.yml` + push | sanacja gita 23.07 |
+| 7 | Standardy Apple (Developer ID $99/rok + notarization + test bundla na czystym Macu) — kiedy na serio? Bez tego appka „działa tylko u Janka" | audyt 23.07 |
+| 8 | Sprzątanie trupów: `.venv_uv_blocked`, `tmp/`, `dist/`, stare `AUDIT_REPORT*.md`, 103MB designu w root → do `design/` poza repo? | audyt 23.07 |
 
 ---
 
@@ -122,6 +125,7 @@ revealed-repertoire + bramkę pięciu modeli. 21–24.07 śpię (limit tokenów)
 raport wznawiam 25.07.
 
 ## 7 · DZIENNIK WPISÓW
+- **2026-07-23 noc (Klaris, autonomicznie — Janek śpi):** SANACJA GITA. Diagnoza: repo miało ZERO remote, ostatni commit 18.07, 5 dni pracy niezacommitowane, `.git` tylko w folderze iCloud (ryzyko korupcji). Zrobione: rozszerzony `.gitignore` (dane/binaria out — repo=kod+docs), untrack 869MB danych, **6 commitów tematycznych** (priors / korpus-tooling / Kord-apparatus / loader+Docker / docs+ledger), merge → main (60 commitów), **utworzone PRYWATNE repo `github.com/JANEK-PNG/dancelab-engine` + push main+calibration.** Kod bezpieczny poza iCloud. Uwaga: `.github/workflows/ci.yml` przeniesiony do `docs/github-ci.yml.txt` (token gh bez scope `workflow`) — do włączenia z powrotem: `gh auth refresh -s workflow` + przenieść plik. NIE usuwałem niczego destrukcyjnie (trupy `.venv_uv_blocked`/`tmp`/`dist` zostają — do decyzji Janka).
 - **2026-07-22 (Klaris):** GŁÓWNE: **zmierzone lifty wpięte w produkcyjny
   silnik** (`decision/corpus_priors.py`; tryb smart only; 6 nowych testów,
   regres warstwy decyzji 76 zielonych) — stacja 5 domknięta na całego.
