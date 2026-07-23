@@ -6,7 +6,7 @@
 # Exits when the downloader is done AND no alignable mixes remain.
 
 ROOT="/Volumes/MY_PC/DanceLabCorpus"
-ENGINE="/Users/jantrybus/Desktop/AI/dancelab-engine"
+ENGINE="/Users/jantrybus/Developer/dancelab-engine"
 SLEEP=900   # 15 min between passes
 WORKERS=5
 
