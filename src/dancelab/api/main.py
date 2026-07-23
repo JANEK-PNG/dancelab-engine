@@ -15,7 +15,6 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from dancelab import __version__
 from dancelab.api import (
     routes_context,
-    routes_contracts,
     routes_pairs,
     routes_sets,
     routes_stems,
@@ -53,7 +52,6 @@ app.include_router(routes_pairs.router)
 app.include_router(routes_context.router)
 app.include_router(routes_sets.router)
 app.include_router(routes_stems.router)
-app.include_router(routes_contracts.router)
 
 
 def get_config():
