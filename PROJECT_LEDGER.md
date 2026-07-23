@@ -4,7 +4,7 @@
 ten plik to jego panel kontrolny.
 
 **Zespół:** Janek (szef — decyzje/weto) · Klaris (silnik/dane/analiza) ·
-Kord (bramka/walidacja/statystyka; śpi do 25.07).
+Kord (bramka/walidacja/statystyka; śpi do 29.07).
 
 **Reguły (obowiązują Klaris i Korda):**
 1. **Koniec każdej sesji = RAPORT DNIA** — każdy pracownik pisze Jankowi, co
@@ -41,7 +41,7 @@ tekstowa dla Korda; obie formy trzymamy w synchronizacji.
 | 07-22 | **Werdykt R&D exp01 przyjęty do produkcji:** MuQ-MuLan vs CLAP na bibliotece (296) → **CLAP zostaje** (sound-alike remis 11:10, MuQ ma hubness, licencja CC-BY-NC = ślepa uliczka). Zero zmian w silniku. Embeddingi MuQ zachowane (przyszły ensemble, zaparkowane). Caveaty recenzji Klaris: n=6 kotwic; eksperyment na nie-zdedupowanej bibliotece (dupy w tabelach obu modeli) — następne eksperymenty R&D na dedupie. Raport: `RnD-DanceLab-Pro/experiments/01-muq-vs-clap/results/report.md` |
 | 07-22 | **Reguła albumowa (rzemiosło):** max z 1 albumu/składanki: 1 na ~10 tracków, 2/20, 3/30, 4/40 — twardy sufit 4 do setki. Klauzula ekstremalna: 2. z albumu TYLKO zamiast outliera tempa, nigdy 3. WHY (Janek): „nikt nie chce być oskarżony, że gra playlistę z jednej płyty — nie ma w tym nic kreatywnego". + Okno tempa ±18% od kotwicy (fold); brak kandydatów ⇒ set KRÓTSZY zamiast śmieciowych przejść. Zaimplementowane w generatorze; docelowo do warstwy selekcji silnika |
 | 07-21 | Ten rejestr + rytuał przeglądu |
-| 07-21 | **Zmierzone lifty WPIĘTE w produkcyjny silnik** — `decision/corpus_priors.py`, mnożnik `lift^waga` w `transition_score` TYLKO w trybie smart (czyste tryby harmonic/bpm = jawna wola usera, nietknięte), klamra 0.4–2.0, neutralne przy braku danych, `corpus_priors_weight: 1.0` w wagach. 6 nowych testów, regres warstwy decyzji zielony (76). Do recenzji Korda 25.07 |
+| 07-21 | **Zmierzone lifty WPIĘTE w produkcyjny silnik** — `decision/corpus_priors.py`, mnożnik `lift^waga` w `transition_score` TYLKO w trybie smart (czyste tryby harmonic/bpm = jawna wola usera, nietknięte), klamra 0.4–2.0, neutralne przy braku danych, `corpus_priors_weight: 1.0` w wagach. 6 nowych testów, regres warstwy decyzji zielony (76). Do recenzji Korda 29.07 |
 
 ### ⚠️ Przyjęte domyślnie — DO PRZEGLĄDU / WETA JANKA
 | data | decyzja | kto | ryzyko/uwaga |
@@ -54,7 +54,7 @@ tekstowa dla Korda; obie formy trzymamy w synchronizacji.
 | 07-21 | Playlist-generator: max 1 track/artystę, pliki >15 min = nie-tracki, przycinanie do celu czasu po podobieństwie | Klaris | drobne, ale kształtują wynik który słyszysz |
 | wcześniej | Terrain = zatwierdzony domyślny UI (wg docs Korda) | Kord (podpisane jako zatwierdzone) | Janek: potwierdź, że to faktycznie Twoja akceptacja, nie tylko zapis Korda |
 
-### 🔒 Zamrożone przez Korda (zmiana = jego decyzja, wraca 25.07 ~13:00)
+### 🔒 Zamrożone przez Korda (zmiana = jego decyzja, wraca 29.07 ~13:00)
 | co | stan |
 |---|---|
 | Uniwersum bramki: 2881 tracków / 433 miksy / fail-closed / progi pre-rejestrowane | konflikt: 26 tracków bez pewnego beatgridu (H max 2855) + 96 miksów b2b bez pojedynczego DJ-a → bramka żąda kompletu, adjudykacja mówi „legalnie nie istnieje". Re-scope albo polityka „excluded=rozstrzygnięte" |
@@ -70,10 +70,10 @@ tekstowa dla Korda; obie formy trzymamy w synchronizacji.
 | **BPM cross-check przy słabym gridzie** — case „Red Light Fever": silnik 120.01, realnie 117.45 (+2.2%), quality 0.5555 a `reliable=True` przepuściło; ucho Janka złapało. Fix: cross-walidacja tempogramem gdy quality&lt;0.7, rozjazd &gt;1.5% ⇒ unreliable | realny przypadek 22.07, cache poprawiony z prowenancją | Klaris/Kord |
 | Przeliczenie setu Four-Tet z pełnego 12k-sąsiedztwa | pełny CLAP liczy się w tle (ETA ~2h od 21.07) | koniec runu |
 | Gotowy zróżnicowany set 1h (max 1/artystę) — POLICZONY, nieobejrzany | Janek pivotował na dane | 1 komenda |
-| Faza 0 Terrain (ProjectSession, CueDecisionStore, ExportManifest) | Kord 25.07 + dziury pokrycia | Kord |
+| Faza 0 Terrain (ProjectSession, CueDecisionStore, ExportManifest) | Kord 29.07 + dziury pokrycia | Kord |
 | **Centroidy brzmienia mistrzów** — ✅ policzone (549 mistrzów, `master_centroids.json`, `scripts/master_sound_centroids.py`) + ✅ demo-konsument DZIAŁA: centroid odtwarza scenę mistrza z dokładnością do wytwórni (Beyer→Drumcode/Intec, Armin→Armada/FSOE, John B→Hospital/Shogun). Caveat: przestrzeń ściśnięta (0.86–0.97) → używać do RANKINGU, nie progów. Zostało z definicji „użyte": bias selekcji w inspiration board | 22.07 | Klaris → board |
 | **12k-sąsiedztwa (digging)** — ✅ ZBUDOWANE i działa (`scripts/digging_list.py` → `digging_list.md` + artefakt ⛏️): 25 tracków z setów realnych DJ-ów najbliższych bibliotece Janka, których nie posiada, z „bo brzmi jak twój X"; wykluczanie posiadanych (cos>0.985), dedup, tylko metadane (etyka). Dowód jakości: sam znalazł kolejne tracki artystów, których Janek MA (G-Man, Herbert) — po brzmieniu. v2 (23.07): anti-hub cap=2 z fallbackiem (różnorodność wyjaśnień 12→19/25) + **wariant z kotwicą** (`--anchor`, seed=kotwica+4 sąsiadów) — leftfield czysty: Ron Trent, Pépé Bradock, Buttrich&Jonson, HNNY, Deetron; EDM zniknęło. Dwa artefakty: ⛏️ cała biblioteka + 🌱 kotwica | 23.07 | Klaris |
-| **Cue Export → Rekordbox: PLAN IMPLEMENTACJI GOTOWY** (R&D 23.07, handoff dla Korda): droga = zapis `djmdCue` w `master.db` przez pyrekordbox (decyzja Janka; USB-direct odłożony). Fakty udowodnione (Kind→pad, InMsec/InFrame, warunki zapisu, backupy RB); 1 niewiadoma: USN (metoda: reverse z pyrekordbox). Fazy 0–5 z bramkami, ~5–8 dni. Plan: `RnD-DanceLab-Pro/notes/IMPLEMENTATION_PLAN_cue_export.md`. Brief źródłowy: `docs/RND_CUE_DELIVERY_USE_CASE.md`. **Do zszycia przez Korda: polityka konfliktów planu ≡ CueDecisionStore z Fazy 0 (jedno źródło prawdy).** Klaris buduje engine-side kontrakt SetExport przed 25.07 | plan przyjęty przez produkcję 23.07 | Kord (impl) + Klaris (SetExport) |
+| **Cue Export → Rekordbox: PLAN IMPLEMENTACJI GOTOWY** (R&D 23.07, handoff dla Korda): droga = zapis `djmdCue` w `master.db` przez pyrekordbox (decyzja Janka; USB-direct odłożony). Fakty udowodnione (Kind→pad, InMsec/InFrame, warunki zapisu, backupy RB); 1 niewiadoma: USN (metoda: reverse z pyrekordbox). Fazy 0–5 z bramkami, ~5–8 dni. Plan: `RnD-DanceLab-Pro/notes/IMPLEMENTATION_PLAN_cue_export.md`. Brief źródłowy: `docs/RND_CUE_DELIVERY_USE_CASE.md`. **Do zszycia przez Korda: polityka konfliktów planu ≡ CueDecisionStore z Fazy 0 (jedno źródło prawdy).** Klaris buduje engine-side kontrakt SetExport przed 29.07 | plan przyjęty przez produkcję 23.07 | Kord (impl) + Klaris (SetExport) |
 | Dziury siatki: golden-snapshot AC1, e2e-guard AC9, testy `_AnalysisThread`, roundtrip `current_step` | audyt z 21.07; do zrobienia przed Fazą 0 | ktokolwiek |
 | Formalny design „kotwic" (brainstorm przerwany w połowie) | wizja spisana, spec nie | Janek+Klaris |
 | Inspiration Board v1 | czeka na: profile mistrzów wpięte + pełny CLAP | po lewej |
@@ -100,7 +100,7 @@ tekstowa dla Korda; obie formy trzymamy w synchronizacji.
 |---|---|---|
 | 1 | Weta do sekcji ⚠️? Przejrzyj tabelę „przyjęte domyślnie" — każdą możesz cofnąć | ten wpis |
 | 2 | Terrain: potwierdzasz „zatwierdzony domyślny UI", czy to wisiało na słowie Korda? | ⚠️ tabela |
-| 3 | Konflikt bramki (26+96): czekamy na Korda 25.07, czy przygotować mu rekomendację re-scope do zatwierdzenia? | 🔒 |
+| 3 | Konflikt bramki (26+96): czekamy na Korda 29.07, czy przygotować mu rekomendację re-scope do zatwierdzenia? | 🔒 |
 | 4 | Klucz Last.fm — robisz? (odblokowuje graf artystów) | zaparkowane |
 | 5 | Rytm przeglądu rejestru: koniec każdej sesji czy raz w tygodniu? | reguły |
 | 6 | Włączyć CI z powrotem? Wymaga `gh auth refresh -s workflow`, potem `git mv docs/github-ci.yml.txt .github/workflows/ci.yml` + push | sanacja gita 23.07 |
@@ -122,7 +122,7 @@ prior energii.
 **Kord → Janek · 2026-07-20 (ostatni przed snem):** Domknąłem adjudykację 433
 miksów (337 solo / 96 wykluczonych, fingerprint zamrożony). Zbudowałem
 revealed-repertoire + bramkę pięciu modeli. 21–24.07 śpię (limit tokenów),
-raport wznawiam 25.07.
+raport wznawiam 29.07.
 
 ## 7 · DZIENNIK WPISÓW
 - **2026-07-23 (Klaris + Janek):** SPRZĄTANIE + PRZEPROWADZKA. Wycięto residuum grafu-nodów (node-host backend, 2289 linii + testy, rdzeń zero-zależny). Usunięto trupy (.venv_uv_blocked, tmp, dist, stare AUDIT_REPORTy), design→`~/Desktop/DanceLab-Design`. **REPO PRZENIESIONE z iCloud (Desktop) → `~/Developer/dancelab-engine`** — iCloud robił kopie-konflikty („PROJECT_LEDGER 2.md" itd.) i groził korupcją .git. venv przeżył (python=symlink homebrew), ścieżki naprawione, testy zielone z nowego domu. **Nowa ścieżka repo: `~/Developer/dancelab-engine`.**
