@@ -4,10 +4,10 @@ project_dir = .
 input_file = scripts/dancelab_host_app.py
 exec_directory = dist/desktop
 project_file = dancelab_host.pyproject
-icon = /Users/jantrybus/Desktop/AI/dancelab-engine/.venv/lib/python3.12/site-packages/PySide6/scripts/deploy_lib/pyside_icon.icns
+icon = /Users/jantrybus/Developer/dancelab-engine/.venv/lib/python3.12/site-packages/PySide6/scripts/deploy_lib/pyside_icon.icns
 
 [python]
-python_path = /Users/jantrybus/Desktop/AI/dancelab-engine/.venv/bin/python3.12
+python_path = /Users/jantrybus/Developer/dancelab-engine/.venv/bin/python3.12
 packages = Nuitka==4.0
 android_packages = buildozer==1.5.0,cython==0.29.33
 
