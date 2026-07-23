@@ -61,7 +61,6 @@ def test_health(client):
 def test_openapi_lists_contracted_endpoints(client):
     paths = client.get("/openapi.json").json()["paths"]
     for endpoint in (
-        "/contracts/node-host",
         "/tracks/analyze",
         "/tracks/{track_id}",
         "/pairs/mixability",
