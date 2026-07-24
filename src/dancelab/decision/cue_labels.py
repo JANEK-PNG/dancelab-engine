@@ -13,13 +13,22 @@ from pathlib import Path
 
 import yaml
 
+# `color` = Rekordbox hot-cue palette index (ColorTableIndex). Values below are
+# proven valid — they already appear on the DJ's own cues. Semantic grouping:
+# transition (mix_in/out) share one color, structural another, unverified a
+# third. Exact hues are what Rekordbox renders for these indices; confirm/edit
+# visually (colors are user-overridable). -1 = Rekordbox default.
+_TRANSITION_COLOR = 0
+_STRUCTURAL_COLOR = 22
+_UNVERIFIED_COLOR = 56
+
 DEFAULT_CUE_LABELS: dict[str, dict] = {
-    "mix_in": {"color": -1, "comment": "MIX IN"},
-    "mix_out": {"color": -1, "comment": "MIX OUT → next{beats}"},
-    "drop": {"color": -1, "comment": "DROP"},
-    "breakdown": {"color": -1, "comment": "BREAKDOWN"},
-    "phrase": {"color": -1, "comment": "PHRASE"},
-    "unverified": {"color": -1, "comment": "⚠ check by ear"},
+    "mix_in": {"color": _TRANSITION_COLOR, "comment": "MIX IN"},
+    "mix_out": {"color": _TRANSITION_COLOR, "comment": "MIX OUT → next{beats}"},
+    "drop": {"color": _STRUCTURAL_COLOR, "comment": "DROP"},
+    "breakdown": {"color": _STRUCTURAL_COLOR, "comment": "BREAKDOWN"},
+    "phrase": {"color": _STRUCTURAL_COLOR, "comment": "PHRASE"},
+    "unverified": {"color": _UNVERIFIED_COLOR, "comment": "⚠ check by ear"},
 }
 
 

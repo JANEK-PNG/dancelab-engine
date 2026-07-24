@@ -36,6 +36,19 @@ def test_user_override_wins(tmp_path):
     assert labels["mix_in"]["color"] == DEFAULT_CUE_LABELS["mix_in"]["color"]
 
 
+def test_semantic_colors_are_distinct_across_groups():
+    d = DEFAULT_CUE_LABELS
+    # within a group: same color
+    assert d["mix_in"]["color"] == d["mix_out"]["color"]
+    assert d["drop"]["color"] == d["breakdown"]["color"] == d["phrase"]["color"]
+    # across groups: distinct
+    groups = {d["mix_in"]["color"], d["drop"]["color"], d["unverified"]["color"]}
+    assert len(groups) == 3
+    # all valid non-negative palette indices
+    for t in ("mix_in", "mix_out", "drop", "breakdown", "phrase", "unverified"):
+        assert isinstance(d[t]["color"], int) and d[t]["color"] >= 0
+
+
 def test_load_without_path_returns_defaults_copy():
     labels = load_cue_labels(None)
     labels["mix_in"]["comment"] = "mutated"

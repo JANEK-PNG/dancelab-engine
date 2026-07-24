@@ -36,10 +36,10 @@ def _first_track_id(db_path):
     return str(tid)
 
 
-def _plan_for(tid):
+def _plan_for(tid, color=22):
     return CuePlan(tracks=[TrackCuePlan(content_id=tid, cues=[
         PlannedCue(content_id=tid, position_ms=61000, kind=5, pad_label="D",
-                   color=-1, comment="TEST IN", cue_type="mix_in"),
+                   color=color, comment="TEST IN", cue_type="mix_in"),
     ])])
 
 
@@ -60,7 +60,12 @@ def test_write_plan_adds_cue_and_verifies(copy_db, tmp_path, monkeypatch):
         tables.DjmdCue.ContentID == tid, tables.DjmdCue.Kind == 5
     ).all()
     db.close()
-    assert any(c.Comment == "TEST IN" and c.InMsec == 61000 for c in found)
+    # cue written with correct position AND palette color (Color=255, index=22)
+    assert any(
+        c.Comment == "TEST IN" and c.InMsec == 61000
+        and c.ColorTableIndex == 22 and c.Color == 255
+        for c in found
+    )
 
 
 def test_aborts_when_rekordbox_running(copy_db, tmp_path, monkeypatch):
