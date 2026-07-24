@@ -139,6 +139,9 @@ def write_plan(
     timestamp: str,
     meta: dict | None = None,
     safe_swap: bool = False,
+    playlist_name: str | None = None,
+    playlist_content_ids: list[str] | None = None,
+    playlist_folder: str = "DanceLab",
 ) -> WriteResult:
     """Safely apply `plan` to the master.db at db_path.
 
@@ -168,6 +171,10 @@ def write_plan(
     try:
         pre = db.session.query(tables.DjmdCue).count()
         written, deleted = _apply(plan, db, tables)
+        if playlist_name and playlist_content_ids:
+            from dancelab.ingestion.rekordbox_playlist import create_set_playlist
+            create_set_playlist(db, tables, name=playlist_name,
+                                content_ids=playlist_content_ids, folder_name=playlist_folder)
         db.autoincrement_usn(set_row_usn=True)
         db.commit()
         db.session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
