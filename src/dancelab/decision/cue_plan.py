@@ -55,15 +55,33 @@ def _grids_reliable(an_a: AnalysisResult, an_b: AnalysisResult) -> bool:
     )
 
 
+def snap_to_grid(position_sec: float, beatgrid) -> float:
+    """Snap a raw time to the nearest beat (or downbeat, when phase-verified).
+
+    DJs expect hot cues on the beat. Prefer a verified downbeat (phrase-aligned);
+    fall back to the nearest beat; if the grid carries no times, return as-is.
+    """
+    if beatgrid is None:
+        return position_sec
+    downbeats = getattr(beatgrid, "downbeats_sec", None) or []
+    if downbeats and getattr(beatgrid, "downbeat_phase_verified", False):
+        return min(downbeats, key=lambda t: abs(t - position_sec))
+    beats = getattr(beatgrid, "beat_times_sec", None) or []
+    if beats:
+        return min(beats, key=lambda t: abs(t - position_sec))
+    return position_sec
+
+
 def _mk_cue(content_id, position_sec, pad_index, cue_type, labels, confident, beats=None):
+    label = labels.get(cue_type, {})
+    base = label.get("comment", cue_type)
     if confident:
-        label = labels.get(cue_type, {})
-        comment = render_comment(label.get("comment", cue_type), beats)
+        comment = render_comment(base, beats)
         color = label.get("color", -1)
     else:
-        unv = labels.get("unverified", {})
-        comment = unv.get("comment", "⚠ check by ear")
-        color = unv.get("color", -1)
+        # keep the cue's TYPE visible, mark it uncertain — never hide what the pad is
+        comment = "⚠ " + render_comment(base, None)
+        color = labels.get("unverified", {}).get("color", -1)
     return PlannedCue(
         content_id=str(content_id),
         position_ms=int(round(position_sec * 1000)),
@@ -94,7 +112,8 @@ def _add_structural(track_id, analysis, labels, cues: list, warnings: list) -> N
         if pad_index > MAX_PAD:
             warnings.append(f"{track_id}: pads exhausted, dropped {cue_type} @ {position_sec:.0f}s")
             continue
-        cues.append(_mk_cue(track_id, position_sec, pad_index, cue_type, labels, confident=grid_ok))
+        snapped = snap_to_grid(position_sec, analysis.beatgrid)
+        cues.append(_mk_cue(track_id, snapped, pad_index, cue_type, labels, confident=grid_ok))
         used.add(pad_index_to_kind(pad_index))
         pad_index += 1
 
@@ -106,6 +125,7 @@ def plan_cues(
     windows_by_track: dict[str, list[TransitionWindow]],
     labels: dict,
     mode: CueContentMode,
+    confident_score: float = CONFIDENT_SCORE,
 ) -> CuePlan:
     plan = CuePlan(mode=mode, tracks=[], warnings=[])
     if mode == CueContentMode.none:
@@ -131,18 +151,20 @@ def plan_cues(
         in_w = _best_window(wb, WindowType.mix_in)
 
         if tc.a_out_start_sec is not None:
-            confident = bool(grids and out_w is not None and out_w.score >= CONFIDENT_SCORE)
+            confident = bool(grids and out_w is not None and out_w.score >= confident_score)
+            pos = snap_to_grid(tc.a_out_start_sec, an_a.beatgrid)
             cues_by_track.setdefault(a, []).append(
-                _mk_cue(a, tc.a_out_start_sec, 2, "mix_out", labels,
+                _mk_cue(a, pos, 2, "mix_out", labels,
                         confident, beats=tc.mix_duration_beats if confident else None)
             )
         if tc.b_in_start_sec is not None:
             verified_cue = tc.b_cue_source == "rekordbox_hotcue"
             confident = verified_cue or bool(
-                grids and in_w is not None and in_w.score >= CONFIDENT_SCORE
+                grids and in_w is not None and in_w.score >= confident_score
             )
+            pos = snap_to_grid(tc.b_in_start_sec, an_b.beatgrid)
             cues_by_track.setdefault(b, []).append(
-                _mk_cue(b, tc.b_in_start_sec, 1, "mix_in", labels, confident)
+                _mk_cue(b, pos, 1, "mix_in", labels, confident)
             )
 
     if mode == CueContentMode.structural:
