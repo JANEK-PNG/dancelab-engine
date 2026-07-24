@@ -69,3 +69,27 @@ def test_review_marks_clean_cue_needs_decision():
     assert len(report.items) == 1
     assert report.items[0].needs_decision is True
     assert report.items[0].resolution == "placed"
+
+
+def test_render_report_shows_summary_and_conflict():
+    from dancelab.decision.cue_conflict import render_report
+    existing = {"B": [ExistingCue(pad_index=1, position_ms=15000, comment="INTRO")]}
+    plan2, report = resolve_conflicts(
+        CuePlan(tracks=[TrackCuePlan(content_id="B", track_title="Rio Dur", cues=[
+            PlannedCue(content_id="B", position_ms=30000, kind=1, pad_label="A", cue_type="mix_in")
+        ])]),
+        existing, action=ConflictAction.merge, review=False,
+    )
+    text = render_report(report)
+    assert "Rio Dur" in text
+    assert "INTRO" in text            # the existing cue is named
+    assert "1 conflict" in text       # summary line
+    assert "cues to write" in text
+
+
+def test_render_report_no_conflicts():
+    from dancelab.decision.cue_conflict import render_report
+    _, report = resolve_conflicts(_plan_one(), {"B": []},
+                                  action=ConflictAction.merge, review=False)
+    text = render_report(report)
+    assert "0 conflicts" in text

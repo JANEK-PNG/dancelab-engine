@@ -134,6 +134,40 @@ def _resolve_track(
     return track.model_copy(update={"cues": survivors})
 
 
+_ACTIONS_BY_RESOLUTION = {
+    "relocated": "[skip]  [replace]  [merge → {new}]",
+    "skipped": "[skip]  [replace]  [merge → free pad]",
+    "replaced": "[skip]  [replace ✓]  [merge]",
+    "deduped": "already present — kept yours",
+    "no_free_pad": "all pads full → [skip]  [replace]",
+    "placed": "clean",
+}
+
+
+def render_report(report: ConflictReport) -> str:
+    """OS-style, human-readable conflict report for --dry-run / --review."""
+    lines: list[str] = []
+    shown = [it for it in report.items if it.resolution != "placed" or it.needs_decision]
+    if shown:
+        lines.append(f"⚠ CONFLICTS ({report.conflict_count} of {len(report.items)} cues flagged):\n")
+        for it in shown:
+            title = it.track_title or it.content_id
+            mins, secs = divmod(it.wanted_position_ms // 1000, 60)
+            lines.append(f'  "{title}"')
+            lines.append(f"     pad {it.wanted_pad}  ← want: {it.cue_type} @ {mins}:{secs:02d}")
+            if it.existing_comment or it.existing_pad:
+                where = f"pad {it.existing_pad}  " if it.existing_pad else ""
+                lines.append(f'     {where}already: "{it.existing_comment}"')
+            opt = _ACTIONS_BY_RESOLUTION.get(it.resolution, it.resolution)
+            lines.append(f"     → {opt.replace('{new}', it.new_pad or '?')}")
+            lines.append("")
+    lines.append(
+        f"Summary: {report.cues_to_write} cues to write · "
+        f"{report.conflict_count} conflicts · {report.overwrite_count} overwrites"
+    )
+    return "\n".join(lines)
+
+
 def resolve_conflicts(
     plan: CuePlan,
     existing_by_track: dict[str, list[ExistingCue]],
