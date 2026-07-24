@@ -252,6 +252,10 @@ app.command(name="batch")(_batch)
 app.command(name="decision-report")(_decision_report)
 app.add_typer(_corpus_ordering_app, name="corpus-ordering")
 
+from dancelab.cli.cues import app as _cues_app  # noqa: E402
+
+app.add_typer(_cues_app, name="cues")
+
 
 if __name__ == "__main__":
     app()
