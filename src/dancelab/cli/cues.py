@@ -53,6 +53,7 @@ def write(
     safe_swap: bool = typer.Option(False, "--safe-swap"),
     db: Path = typer.Option(DEFAULT_DB, "--db", help="master.db to write (default: live)"),
     labels: Path = typer.Option(None, "--labels", help="cue_labels.yaml override"),
+    backup_dir: Path = typer.Option(DEFAULT_BACKUP_DIR, "--backup-dir"),
     timestamp: str = typer.Option(..., "--timestamp", help="backup timestamp, e.g. 20260724_1300"),
 ):
     set_plan, analyses, windows = _load_bundle(set)
@@ -89,7 +90,7 @@ def write(
         raise typer.Exit(0)
 
     from dancelab.ingestion.rekordbox_cue_writer import write_plan
-    result = write_plan(plan, db_path=db, backup_dir=DEFAULT_BACKUP_DIR,
+    result = write_plan(plan, db_path=db, backup_dir=backup_dir,
                         timestamp=timestamp, meta={"mode": mode.value}, safe_swap=safe_swap)
     typer.echo(f"✓ wrote {result.written} cues, deleted {result.deleted}, "
                f"verified={result.verified}, backup={result.backup_path}")
