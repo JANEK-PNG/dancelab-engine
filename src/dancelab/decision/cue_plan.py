@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from dancelab.core.models import (
     AnalysisResult,
+    SegmentType,
     SetPlan,
     TransitionWindow,
     WindowType,
@@ -30,6 +31,16 @@ from dancelab.decision.cue_export_models import (
 # A window must clear this score (and grids must be reliable) for its cue to be
 # treated as confident rather than "check by ear".
 CONFIDENT_SCORE = 0.7
+
+# Segment types that become structural landmark cues, mapped to cue_type/label.
+# "phrase" is intentionally absent: phrase markers need a verified downbeat
+# grid we do not claim here (ADR-005).
+STRUCTURAL_SEGMENTS: dict[SegmentType, str] = {
+    SegmentType.drop: "drop",
+    SegmentType.breakdown: "breakdown",
+}
+FIRST_STRUCTURAL_PAD = 3  # pads A/B reserved for in-out; structural starts at C
+MAX_PAD = 8
 
 
 def _best_window(windows: list[TransitionWindow], wtype: WindowType) -> TransitionWindow | None:
@@ -63,6 +74,29 @@ def _mk_cue(content_id, position_sec, pad_index, cue_type, labels, confident, be
         cue_type=cue_type,
         confident=confident,
     )
+
+
+def _add_structural(track_id, analysis, labels, cues: list, warnings: list) -> None:
+    """Append drop/breakdown landmark cues on the next free pads (C onward)."""
+    landmarks = [
+        (seg.start_sec, STRUCTURAL_SEGMENTS[seg.segment_type])
+        for seg in sorted(analysis.segments, key=lambda s: s.start_sec)
+        if seg.segment_type in STRUCTURAL_SEGMENTS
+    ]
+    if not landmarks:
+        return
+    used = {c.kind for c in cues}
+    grid_ok = bool(analysis.beatgrid and analysis.beatgrid.reliable)
+    pad_index = FIRST_STRUCTURAL_PAD
+    for position_sec, cue_type in landmarks:
+        while pad_index <= MAX_PAD and pad_index_to_kind(pad_index) in used:
+            pad_index += 1
+        if pad_index > MAX_PAD:
+            warnings.append(f"{track_id}: pads exhausted, dropped {cue_type} @ {position_sec:.0f}s")
+            continue
+        cues.append(_mk_cue(track_id, position_sec, pad_index, cue_type, labels, confident=grid_ok))
+        used.add(pad_index_to_kind(pad_index))
+        pad_index += 1
 
 
 def plan_cues(
@@ -110,6 +144,13 @@ def plan_cues(
             cues_by_track.setdefault(b, []).append(
                 _mk_cue(b, tc.b_in_start_sec, 1, "mix_in", labels, confident)
             )
+
+    if mode == CueContentMode.structural:
+        for tid in set_plan.track_order:
+            an = analyses.get(tid)
+            if an is None:
+                continue
+            _add_structural(tid, an, labels, cues_by_track.setdefault(tid, []), plan.warnings)
 
     for tid in set_plan.track_order:
         an = analyses.get(tid)

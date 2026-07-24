@@ -8,17 +8,27 @@ from dancelab.core.models import (
     AnalysisResult,
     BeatGrid,
     Track,
+    Segment,
+    SegmentType,
 )
 from dancelab.decision.cue_plan import plan_cues
 from dancelab.decision.cue_labels import DEFAULT_CUE_LABELS
 from dancelab.decision.cue_export_models import CueContentMode
 
 
-def _analysis(track_id, *, reliable=True, title=""):
+def _seg(track_id, seg_type, start, end):
+    return Segment(
+        segment_id=f"{track_id}-{seg_type}-{int(start)}", track_id=track_id,
+        start_sec=start, end_sec=end, segment_type=seg_type,
+    )
+
+
+def _analysis(track_id, *, reliable=True, title="", segments=None):
     return AnalysisResult(
         engine_version="test",
         track=Track(track_id=track_id, title=title),
         beatgrid=BeatGrid(bpm=120.0, reliable=reliable),
+        segments=segments or [],
     )
 
 
@@ -87,3 +97,49 @@ def test_missing_analysis_warns_and_skips():
     windows = {"A": [], "B": []}
     plan = _plan(windows, analyses={"A": _analysis("A")})  # B missing
     assert any("missing analysis" in w for w in plan.warnings)
+
+
+def test_structural_adds_drop_and_breakdown_on_pads_C_and_D():
+    windows = {
+        "A": [TransitionWindow(start_sec=300.0, end_sec=316.0, score=0.9, window_type=WindowType.mix_out)],
+        "B": [TransitionWindow(start_sec=30.0, end_sec=46.0, score=0.9, window_type=WindowType.mix_in)],
+    }
+    analyses = {
+        "A": _analysis("A"),
+        "B": _analysis("B", segments=[
+            _seg("B", SegmentType.drop, 60.0, 90.0),
+            _seg("B", SegmentType.breakdown, 120.0, 150.0),
+        ]),
+    }
+    plan = plan_cues(_set(), analyses=analyses, windows_by_track=windows,
+                     labels=DEFAULT_CUE_LABELS, mode=CueContentMode.structural)
+    b = next(t for t in plan.tracks if t.content_id == "B")
+    drop = [c for c in b.cues if c.cue_type == "drop"]
+    brk = [c for c in b.cues if c.cue_type == "breakdown"]
+    mix_in = [c for c in b.cues if c.cue_type == "mix_in"]
+    assert mix_in and mix_in[0].pad_label == "A"          # in-out still present
+    assert drop and drop[0].pad_label == "C" and drop[0].position_ms == 60000
+    assert brk and brk[0].pad_label == "D" and brk[0].position_ms == 120000
+
+
+def test_in_out_mode_has_no_structural_cues():
+    windows = {"A": [], "B": []}
+    analyses = {"A": _analysis("A"),
+                "B": _analysis("B", segments=[_seg("B", SegmentType.drop, 60.0, 90.0)])}
+    plan = plan_cues(_set(), analyses=analyses, windows_by_track=windows,
+                     labels=DEFAULT_CUE_LABELS, mode=CueContentMode.in_out)
+    b = next(t for t in plan.tracks if t.content_id == "B")
+    assert all(c.cue_type != "drop" for c in b.cues)
+
+
+def test_structural_ignores_non_landmark_segments():
+    windows = {"A": [], "B": []}
+    analyses = {"A": _analysis("A"),
+                "B": _analysis("B", segments=[
+                    _seg("B", SegmentType.groove, 40.0, 60.0),
+                    _seg("B", SegmentType.intro, 0.0, 10.0),
+                ])}
+    plan = plan_cues(_set(), analyses=analyses, windows_by_track=windows,
+                     labels=DEFAULT_CUE_LABELS, mode=CueContentMode.structural)
+    b = next(t for t in plan.tracks if t.content_id == "B")
+    assert b.cues == [] or all(c.cue_type in ("mix_in", "mix_out") for c in b.cues)
