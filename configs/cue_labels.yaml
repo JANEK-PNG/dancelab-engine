@@ -1,10 +1,12 @@
 # DanceLab cue label defaults — editable.
-# color: Rekordbox hot-cue color; -1 = Rekordbox default. Real palette values
-# are pinned from the user's own DB during implementation (plan Task 11).
-# comment: {beats} token is filled only when a reliable beat-count exists.
-mix_in:     { color: -1, comment: "MIX IN" }
-mix_out:    { color: -1, comment: "MIX OUT → next{beats}" }
-drop:       { color: -1, comment: "DROP" }
-breakdown:  { color: -1, comment: "BREAKDOWN" }
-phrase:     { color: -1, comment: "PHRASE" }
-unverified: { color: -1, comment: "⚠ check by ear" }
+# color: Rekordbox hot-cue palette index (ColorTableIndex). Values here are proven
+#   valid (they appear on the DJ's own cues). Semantic grouping: transition
+#   (mix_in/out) = one color, structural = another, unverified = a third.
+#   Confirm/edit exact hues visually in Rekordbox. -1 = Rekordbox default.
+# comment: {beats} token filled only when a reliable beat-count exists.
+mix_in:     { color: 0,  comment: "MIX IN" }
+mix_out:    { color: 0,  comment: "MIX OUT → next{beats}" }
+drop:       { color: 22, comment: "DROP" }
+breakdown:  { color: 22, comment: "BREAKDOWN" }
+phrase:     { color: 22, comment: "PHRASE" }
+unverified: { color: 56, comment: "⚠ check by ear" }

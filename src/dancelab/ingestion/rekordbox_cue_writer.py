@@ -75,12 +75,19 @@ def insert_hot_cue(db, tables, *, content_id, content_uuid, position_ms, kind, c
         vals.update(InMpegFrame=0, InMpegAbs=0, OutFrame=0, ActiveLoop=0,
                     rb_local_deleted=0, rb_local_synced=0)
     new_id = db.generate_unused_id(tables.DjmdCue, is_28_bit=False)
+    # Rekordbox hot-cue colors: palette index in ColorTableIndex (Color=255 flags
+    # "use palette"); a negative index means the Rekordbox default (Color=-1,
+    # ColorTableIndex=None). Mirrors how the DJ's own cues store color.
+    if color is not None and color >= 0:
+        color_field, color_index = 255, int(color)
+    else:
+        color_field, color_index = -1, None
     vals.update(
         ID=new_id, ContentID=content_id, ContentUUID=content_uuid,
         UUID=str(uuid.uuid4()), Kind=kind, InMsec=int(position_ms),
         InFrame=round(int(position_ms) * 0.15), OutMsec=-1, OutFrame=0,
-        Color=color, Comment=comment, rb_local_usn=None,
-        created_at=None, updated_at=None,
+        Color=color_field, ColorTableIndex=color_index, Comment=comment,
+        rb_local_usn=None, created_at=None, updated_at=None,
     )
     db.session.add(tables.DjmdCue(**vals))
     return new_id
