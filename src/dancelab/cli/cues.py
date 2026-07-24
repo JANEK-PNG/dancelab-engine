@@ -54,6 +54,10 @@ def write(
     db: Path = typer.Option(DEFAULT_DB, "--db", help="master.db to write (default: live)"),
     labels: Path = typer.Option(None, "--labels", help="cue_labels.yaml override"),
     backup_dir: Path = typer.Option(DEFAULT_BACKUP_DIR, "--backup-dir"),
+    playlist: bool = typer.Option(True, "--playlist/--no-playlist",
+                                  help="Also create a native Rekordbox playlist"),
+    playlist_name: str = typer.Option(None, "--playlist-name",
+                                      help="Playlist name (default: DanceLab set <timestamp>)"),
     timestamp: str = typer.Option(..., "--timestamp", help="backup timestamp, e.g. 20260724_1300"),
 ):
     set_plan, analyses, windows = _load_bundle(set)
@@ -65,6 +69,7 @@ def write(
 
     # Resolve against the DB's real tracks + existing cues when the DB is present.
     existing_by_cid: dict = {}
+    playlist_ids: list[str] = []
     if Path(db).exists():
         from pyrekordbox import Rekordbox6Database
         from pyrekordbox.db6 import tables
@@ -79,6 +84,8 @@ def write(
             typer.echo(f"⚠ no Rekordbox match for track {tid} — skipped")
         plan, dropped = remap_plan_content_ids(plan, mapping)
         existing_by_cid = read_existing_cues(rdb, tables)
+        # ordered ContentIDs for the native playlist (full set order, matched only)
+        playlist_ids = [mapping[tid] for tid in set_plan.track_order if tid in mapping]
         rdb.close()
 
     plan, report = resolve_conflicts(plan, existing_by_cid,
@@ -89,11 +96,15 @@ def write(
         typer.echo("\n(dry-run — nothing written)")
         raise typer.Exit(0)
 
+    pl_name = (playlist_name or f"DanceLab set {timestamp}") if playlist else None
     from dancelab.ingestion.rekordbox_cue_writer import write_plan
     result = write_plan(plan, db_path=db, backup_dir=backup_dir,
-                        timestamp=timestamp, meta={"mode": mode.value}, safe_swap=safe_swap)
+                        timestamp=timestamp, meta={"mode": mode.value}, safe_swap=safe_swap,
+                        playlist_name=pl_name, playlist_content_ids=playlist_ids)
     typer.echo(f"✓ wrote {result.written} cues, deleted {result.deleted}, "
                f"verified={result.verified}, backup={result.backup_path}")
+    if pl_name:
+        typer.echo(f"✓ playlist '{pl_name}' ({len(playlist_ids)} tracks) in DanceLab folder")
 
 
 @app.command()
