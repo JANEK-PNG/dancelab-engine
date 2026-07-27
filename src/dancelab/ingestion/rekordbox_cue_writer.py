@@ -177,6 +177,51 @@ def _open(db_path: Path):
     return Rekordbox6Database(path=str(db_path)), tables
 
 
+def _execute_write(
+    target: Path,
+    plan: CuePlan,
+    result: WriteResult,
+    *,
+    playlist_name: str | None,
+    playlist_content_ids: list[str] | None,
+    playlist_folder: str,
+) -> None:
+    """Apply the plan inside one database and record what happened.
+
+    Everything here is about the database: apply, commit, fold the WAL back, and
+    check that what landed matches what was planned. Deciding whether the result
+    may be kept — and cleaning up if not — is the caller's job.
+    """
+    from sqlalchemy import text
+
+    db, tables = _open(target)
+    try:
+        before = db.session.query(tables.DjmdCue).count()
+        result.written, result.deleted = _apply(plan, db, tables)
+        if playlist_name and playlist_content_ids:
+            from dancelab.ingestion.rekordbox_playlist import create_set_playlist
+            create_set_playlist(db, tables, name=playlist_name,
+                                content_ids=playlist_content_ids,
+                                folder_name=playlist_folder)
+        db.autoincrement_usn(set_row_usn=True)
+        db.commit()
+        db.session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+        db.session.commit()
+
+        expected = before + result.written - result.deleted
+        after = db.session.query(tables.DjmdCue).count()
+        content_ok, problems = _verify_plan_written(plan, db, tables)
+        if after != expected:
+            problems.insert(0, f"cue count {after} != expected {expected}")
+        result.problems = problems
+        result.verified = content_ok and after == expected
+    except Exception:
+        db.session.rollback()
+        raise
+    finally:
+        db.close()
+
+
 def write_plan(
     plan: CuePlan,
     *,
@@ -191,13 +236,11 @@ def write_plan(
 ) -> WriteResult:
     """Safely apply `plan` to the master.db at db_path.
 
-    Aborts if Rekordbox is running. Backs up first. Writes in one transaction;
-    on any failure rolls back and restores the newest backup. Verifies the cue
-    count delta, then checkpoints the WAL. With safe_swap, writes a temp copy
-    and swaps it over db_path only after verification.
+    Aborts while Rekordbox is running, takes a dedicated rollback backup, then
+    hands the database work to _execute_write. A write that cannot be verified is
+    never kept: in place it is rolled back to the backup, and under safe_swap the
+    live database was never touched at all.
     """
-    from sqlalchemy import text
-
     db_path = Path(db_path)
     result = WriteResult()
 
@@ -218,40 +261,21 @@ def write_plan(
         copy_database_bundle(db_path, target)  # includes WAL/SHM sidecars
     result.target = str(target)
 
-    db, tables = _open(target)
     try:
-        pre = db.session.query(tables.DjmdCue).count()
-        written, deleted = _apply(plan, db, tables)
-        if playlist_name and playlist_content_ids:
-            from dancelab.ingestion.rekordbox_playlist import create_set_playlist
-            create_set_playlist(db, tables, name=playlist_name,
-                                content_ids=playlist_content_ids, folder_name=playlist_folder)
-        db.autoincrement_usn(set_row_usn=True)
-        db.commit()
-        db.session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
-        db.session.commit()
-        post = db.session.query(tables.DjmdCue).count()
-        result.written = written
-        result.deleted = deleted
-        count_ok = (post == pre + written - deleted)
-        content_ok, problems = _verify_plan_written(plan, db, tables)
-        result.verified = count_ok and content_ok
-        if not count_ok:
-            problems.insert(0, f"cue count {post} != expected {pre + written - deleted}")
-        result.problems = problems
-        db.close()
+        _execute_write(
+            target, plan, result,
+            playlist_name=playlist_name,
+            playlist_content_ids=playlist_content_ids,
+            playlist_folder=playlist_folder,
+        )
     except Exception:
-        try:
-            db.session.rollback()
-            db.close()
-        except Exception:
-            pass
-        # restore newest backup over the live db (safe_swap leaves live untouched)
-        if not safe_swap and backup is not None:
+        # A safe-swap failure leaves the live database untouched; an in-place
+        # failure must be rolled back to the backup taken above.
+        if safe_swap:
+            remove_database_bundle(target)
+        else:
             restore_backup(backup_dir, db_path, timestamp=timestamp)
             result.restored = True
-        elif safe_swap and target.exists():
-            target.unlink()
         raise
 
     if safe_swap:
