@@ -726,7 +726,10 @@ class SetTransition(BaseModel):
     from_track_id: str
     to_track_id: str
     transition_score: float
-    harmonic_relation: str          # "same" | "adjacent" | "relative" | "energy_boost" | "dissonant"
+    # Vocabulary comes from decision/harmonic.py harmonic_relation() and matches
+    # the corpus priors measurement exactly: "exact" | "relative_major_minor" |
+    # "adjacent_same_mode" | "cautious" | "risky" | "unknown".
+    harmonic_relation: str
     key_from: str | None = None     # Camelot
     key_to: str | None = None
     bpm_from: float | None = None
