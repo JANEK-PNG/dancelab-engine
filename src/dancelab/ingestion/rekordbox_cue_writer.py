@@ -22,6 +22,7 @@ from pydantic import BaseModel
 
 from dancelab.decision.cue_export_models import CuePlan, kind_to_pad_index
 from dancelab.decision.cue_conflict import ExistingCue
+from dancelab.decision.cue_write_ops import ExistingPadCue, resolve_write_operations
 from dancelab.ingestion.rb_backup import (
     backup_master,
     copy_database_bundle,
@@ -100,47 +101,46 @@ def insert_hot_cue(db, tables, *, content_id, content_uuid, position_ms, kind, c
 
 
 def _apply(plan: CuePlan, db, tables) -> tuple[int, int]:
-    """Insert the planned cues, clearing a pad only where allowed.
+    """Execute the plan. The safety rules themselves live in cue_write_ops.
 
-    A pad is cleared only for a cue whose `replace_existing` permission was
-    granted by conflict resolution. The writer never infers that permission: a
-    plan that reaches here unresolved must not destroy the DJ's cues.
+    This function reads the database state, asks the pure resolver what to do,
+    and performs it. Keeping the decision out of here is what lets the rules be
+    tested on machines with no Rekordbox library.
     """
-    written = deleted = 0
-    for track in plan.tracks:
-        if not track.cues:
-            continue
-        content = db.session.query(tables.DjmdContent).filter(
-            tables.DjmdContent.ID == track.content_id
-        ).first()
-        if content is None:
-            raise ValueError(
-                f"track {track.content_id} is not in this Rekordbox database"
-            )
-        for cue in track.cues:
-            occupied = db.session.query(tables.DjmdCue).filter(
-                tables.DjmdCue.ContentID == track.content_id,
-                tables.DjmdCue.Kind == cue.kind,
-            ).all()
-            if occupied and not cue.replace_existing:
-                # Refuse rather than stack a second cue on one pad or silently
-                # destroy the DJ's. Reaching here means conflict resolution was
-                # skipped upstream.
-                raise ValueError(
-                    f"pad {cue.pad_label} on track {track.content_id} already holds a cue "
-                    f"({occupied[0].Comment!r}) and this cue has no replace permission — "
-                    "resolve conflicts before writing"
-                )
-            for row in occupied:
-                db.session.delete(row)
-                deleted += 1
-            insert_hot_cue(
-                db, tables, content_id=track.content_id, content_uuid=content.UUID,
-                position_ms=cue.position_ms, kind=cue.kind, color=cue.color,
-                comment=cue.comment,
-            )
-            written += 1
-    return written, deleted
+    wanted_ids = {str(t.content_id) for t in plan.tracks if t.cues}
+    if not wanted_ids:
+        return 0, 0
+
+    contents = db.session.query(tables.DjmdContent).filter(
+        tables.DjmdContent.ID.in_(wanted_ids)
+    ).all()
+    content_by_id = {str(c.ID): c for c in contents}
+
+    rows = db.session.query(tables.DjmdCue).filter(
+        tables.DjmdCue.ContentID.in_(wanted_ids)
+    ).all()
+    row_by_pad = {(str(r.ContentID), r.Kind): r for r in rows}
+    existing = [
+        ExistingPadCue(content_id=str(r.ContentID), kind=r.Kind, comment=r.Comment or "")
+        for r in rows
+    ]
+
+    ops = resolve_write_operations(
+        plan, known_content_ids=set(content_by_id), existing_pad_cues=existing
+    )
+
+    for doomed in ops.deletes:
+        row = row_by_pad.get((doomed.content_id, doomed.kind))
+        if row is not None:
+            db.session.delete(row)
+    for cue in ops.inserts:
+        content = content_by_id[str(cue.content_id)]
+        insert_hot_cue(
+            db, tables, content_id=cue.content_id, content_uuid=content.UUID,
+            position_ms=cue.position_ms, kind=cue.kind, color=cue.color,
+            comment=cue.comment,
+        )
+    return ops.written, ops.deleted
 
 
 def _verify_plan_written(plan: CuePlan, db, tables) -> tuple[bool, list[str]]:
