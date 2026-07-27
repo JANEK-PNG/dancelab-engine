@@ -106,6 +106,8 @@ tekstowa dla Korda; obie formy trzymamy w synchronizacji.
 | 6 | Włączyć CI z powrotem? Wymaga `gh auth refresh -s workflow`, potem `git mv docs/github-ci.yml.txt .github/workflows/ci.yml` + push | sanacja gita 23.07 |
 | 7 | Standardy Apple (Developer ID $99/rok + notarization + test bundla na czystym Macu) — kiedy na serio? Bez tego appka „działa tylko u Janka" | audyt 23.07 |
 | 8 | Sprzątanie trupów: `.venv_uv_blocked`, `tmp/`, `dist/`, stare `AUDIT_REPORT*.md`, 103MB designu w root → do `design/` poza repo? | audyt 23.07 |
+| 9 | **`validation/review_ui/swipe_review.py` — 3474 linie generatora HTML do ocen swipe'em. Twoje oceny wypadły z pętli strojenia (zastąpił je korpus), kod żyje tylko przez `pilot_pack.py`. Wycinamy?** | czystka UI 24.07 |
+| 10 | Po wycięciu Qt: `validation/` to 44% repo (14 456 linii) i jest to aparatura badawcza, nie produkt. Zostaje w repo silnika czy wydzielamy? | mapa modułów 24.07 |
 
 ---
 
@@ -124,7 +126,26 @@ miksów (337 solo / 96 wykluczonych, fingerprint zamrożony). Zbudowałem
 revealed-repertoire + bramkę pięciu modeli. 21–24.07 śpię (limit tokenów),
 raport wznawiam 29.07.
 
+## 8 · MAPA MODUŁÓW (stan 2026-07-24, po wycięciu Qt)
+
+18 modułów · **32 636 linii** w `src/` (146 plików) · testy 70 plików / 11 443 linie · skrypty 29 / 4 552.
+Przegląd „moduł po module" idzie paczkami — żeby ogrom nie przerażał:
+
+| paczka | moduły | linie | status |
+|---|---|---|---|
+| **A. Ścieżka Rekordbox** | ingestion 1144 · cli 1133 · preview 601 · export 429 | 3 307 | 🔄 w przeglądzie |
+| **B. Mózg silnika** | decision 6558 · descriptors 329 · context 376 | 7 263 | czeka |
+| **C. Audio pipeline** | core 1919 · preprocessing 550 · features 760 · stems 705 | 3 934 | czeka |
+| **D. Dane i powierzchnie** | storage 638 · data 363 · api 1210 · visualization 871 · workflows 527 · contracts 30 | 3 639 | czeka |
+| **E. Validation** | djmix 8273 · review_ui 3474 · raveform 950 · tempo 498 · luzem 1261 | 14 456 | czeka (2-3 podejścia) |
+
+Zasada przeglądu: martwy kod / duplikaty / błędy / uczciwość(ADR-005) + inwarianty / uproszczenia / testy —
+każde znalezisko **adwersarialnie weryfikowane** zanim trafi do naprawy (bez zgłaszania fałszywek).
+
+---
+
 ## 7 · DZIENNIK WPISÓW
+- **2026-07-24 noc (Klaris + Janek): WYCIĘTE CAŁE UI — projekt jest terminalowy.** Decyzja Janka: „usuń całe UI, pracujemy tylko w terminalu, kod ma być czysty do granic". Usunięte `src/dancelab/host/` — **8 117 linii Qt/PySide6** (simple_mode 3548, pair_review 2422, mixability_map 686, desktop_bundle 474, analyzed_library 430, energy_timeline 377, desktop_app+import_dialogs 180) + 7 modułów testów + Docker-Qt (`Dockerfile.test`, `run_qt_tests_docker.sh`) + zależności PySide6 + entry pointy `dancelab-host*`. Uratowane: `transition_simulation` → nowy pakiet **`dancelab.preview`** (render audio przejścia, bez Qt, używany przez E2E). Umarły z UI: `project.py` (stan sesji Simple Mode), `waveform_cache.py` (dla review UI), `preview_timing.py` (był tylko shimem nad `validation/preview_timing`). **Archiwum: tag `ui-archive-2026-07-24`** (wypchnięty; odzysk `git checkout ui-archive-2026-07-24 -- src/dancelab/host`) — dla Korda, bo Terrain był jego robotą. **Dwa P1 audytu zamknięte STRUKTURALNIE** (rdzeń nie może zaimportować Qt, bo Qt nie ma; nic nie mutuje env przy imporcie). **Pełny `pytest` po raz pierwszy dobiega do końca: 506 passed, 0 failed, 11.6 s** (wcześniej padał sygnałem 134). Naprawiony też zastany test bramki: zakładał że `.webm` jest nieczytelny dla silnika, a loader go obsługuje od „webm fix" — przykład zmieniony na `.aac` (naprawdę spoza `SUPPORTED_EXTENSIONS`), intencja testu zachowana. P2: `httpx2`→`httpx`. **Mój błąd do protokołu:** commit `80d2d2a` wciągnął 100 usunięć duplikatów `* 2` z równoległej sesji (commitowałem bez jawnych ścieżek) — efekt zgodny z audytem, ale opis commita tego nie oddaje; wypchniętej historii nie przepisuję, od tamtej pory commituję z `-- <ścieżki>`. Zostało z audytu: **CI nadal martwe** (PYTANIE #6).
 - **2026-07-24 wieczór (Klaris, po audycie zewnętrznym):** ⚠️ **AUDYT MIAŁ RACJĘ — cue-writer NIE był bezpieczny domyślnie.** Potwierdzone i naprawione u źródła: (1) CLI celowało domyślnie w ŻYWĄ bazę, dry-run wyłączony → teraz **plan-only jest domyślny**, zapis wymaga `--write`, a zapis do żywej biblioteki dodatkowo `--allow-live`; safe-swap domyślnie ON; (2) weryfikacja **tylko liczyła wiersze** → teraz sprawdza KAŻDY cue po (ContentID, Kind, InMsec) + komentarz; (3) nieudana weryfikacja **zostawiała zapis w bazie** → teraz przywraca backup i rzuca błąd; (4) matcher miał **cichy fallback po samym tytule** (biblioteka Janka MA duplikaty tytułów: 2× Movement, 2× Rapture in Blue, 3× Srekye) → teraz **odmawia przy niejednoznaczności** zamiast zgadywać; (5) `psutil` brak → fail-**closed**; (6) backup przy zapisie z `deduplicate=False`, bo dedup mógł zostawić brak punktu rollbacku. Retro-check: nasze wcześniejsze E2E **nie trafiło w zły track** (wszystkie 5 dopasowane po ścieżce pliku, nie po tytule) — ryzyko było realne, ale nie wystrzeliło. **Branch `feature/rekordbox-cue-export` wypchnięty na origin** (16+ commitów było TYLKO lokalnie). Nowy `scripts/cue_cleanup.py` — chirurgiczne usunięcie naszych cue bez restore całej bazy (żywa baza Janka miała 425 własnych cue vs 352 w backupie → wholesale restore skasowałby ~73). **Status uczciwie: solidny prototyp, NIE wydanie.** Otwarte (nie moje/nie zrobione): CI nadal martwe (`docs/github-ci.yml.txt`, token bez scope `workflow`), Qt niedoseparowany od core (pełne `pytest` potrafi paść 134), `desktop_app.py` mutuje env Qt przy imporcie, `httpx2` zbędna zależność.
 - **2026-07-24 (Klaris + Janek, „all in"):** 🎯 **ZAPIS CUE DO REKORDBOX UDOWODNIONY E2E.** Nie czekaliśmy na Korda. Spike na KOPII master.db → hot cue wstrzyknięty (pyrekordbox 0.4.4) → **sam Rekordbox otworzył bazę i pokazał cue** (pad D @ 1:30, track #Sickdrum/MoBlack), ZERO promptu „repair library". Potem restore z backupu PRETEST (cue znikł). **„Jedyna niewiadoma" z planu R&D (USN/integrity → RB odrzuci) = martwa** — `db.autoincrement_usn(set_row_usn=True)` robi księgowość za darmo; SQLCipher klucz auto. Przepis w pamięci [[dancelab-cue-write-proven]]. Skutek: **bez XML-importu, bez USB** — silnik pisze cue prosto do master.db, Janek recenzuje w RB. SAFETY trzymane: praca na KOPII, live swap wyłącznie ręką Janka (harness blokuje zapis do `~/Library/Pioneer/`), RB zamknięty przy każdym write, backup PRETEST przed każdą zamianą. Export dalej NIGDY nie pisze BPM/beatgrid. NASTĘPNE: wpiąć na prawdziwy set DanceLab (cue przejść z `set_builder` na realne tracki).
 - **2026-07-23 (Klaris + Janek):** SPRZĄTANIE + PRZEPROWADZKA. Wycięto residuum grafu-nodów (node-host backend, 2289 linii + testy, rdzeń zero-zależny). Usunięto trupy (.venv_uv_blocked, tmp, dist, stare AUDIT_REPORTy), design→`~/Desktop/DanceLab-Design`. **REPO PRZENIESIONE z iCloud (Desktop) → `~/Developer/dancelab-engine`** — iCloud robił kopie-konflikty („PROJECT_LEDGER 2.md" itd.) i groził korupcją .git. venv przeżył (python=symlink homebrew), ścieżki naprawione, testy zielone z nowego domu. **Nowa ścieżka repo: `~/Developer/dancelab-engine`.**
