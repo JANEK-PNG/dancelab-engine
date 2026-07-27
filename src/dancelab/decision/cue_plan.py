@@ -17,6 +17,7 @@ from dancelab.core.models import (
     TransitionWindow,
     WindowType,
 )
+from dancelab.decision.cue_grid import snap_cue_start
 from dancelab.decision.transition_cues import build_transition_cue
 from dancelab.decision.cue_labels import render_comment
 from dancelab.decision.cue_export_models import (
@@ -54,22 +55,6 @@ def _grids_reliable(an_a: AnalysisResult, an_b: AnalysisResult) -> bool:
         and an_b.beatgrid and an_b.beatgrid.reliable
     )
 
-
-def snap_to_grid(position_sec: float, beatgrid) -> float:
-    """Snap a raw time to the nearest beat (or downbeat, when phase-verified).
-
-    DJs expect hot cues on the beat. Prefer a verified downbeat (phrase-aligned);
-    fall back to the nearest beat; if the grid carries no times, return as-is.
-    """
-    if beatgrid is None:
-        return position_sec
-    downbeats = getattr(beatgrid, "downbeats_sec", None) or []
-    if downbeats and getattr(beatgrid, "downbeat_phase_verified", False):
-        return min(downbeats, key=lambda t: abs(t - position_sec))
-    beats = getattr(beatgrid, "beat_times_sec", None) or []
-    if beats:
-        return min(beats, key=lambda t: abs(t - position_sec))
-    return position_sec
 
 
 def _mk_cue(content_id, position_sec, pad_index, cue_type, labels, confident, beats=None):
@@ -112,7 +97,7 @@ def _add_structural(track_id, analysis, labels, cues: list, warnings: list) -> N
         if pad_index > MAX_PAD:
             warnings.append(f"{track_id}: pads exhausted, dropped {cue_type} @ {position_sec:.0f}s")
             continue
-        snapped = snap_to_grid(position_sec, analysis.beatgrid)
+        snapped = snap_cue_start(analysis.beatgrid, position_sec)
         cues.append(_mk_cue(track_id, snapped, pad_index, cue_type, labels, confident=grid_ok))
         used.add(pad_index_to_kind(pad_index))
         pad_index += 1
@@ -152,7 +137,7 @@ def plan_cues(
 
         if tc.a_out_start_sec is not None:
             confident = bool(grids and out_w is not None and out_w.score >= confident_score)
-            pos = snap_to_grid(tc.a_out_start_sec, an_a.beatgrid)
+            pos = snap_cue_start(an_a.beatgrid, tc.a_out_start_sec)
             cues_by_track.setdefault(a, []).append(
                 _mk_cue(a, pos, 2, "mix_out", labels,
                         confident, beats=tc.mix_duration_beats if confident else None)
@@ -162,7 +147,7 @@ def plan_cues(
             confident = verified_cue or bool(
                 grids and in_w is not None and in_w.score >= confident_score
             )
-            pos = snap_to_grid(tc.b_in_start_sec, an_b.beatgrid)
+            pos = snap_cue_start(an_b.beatgrid, tc.b_in_start_sec)
             cues_by_track.setdefault(b, []).append(
                 _mk_cue(b, pos, 1, "mix_in", labels, confident)
             )

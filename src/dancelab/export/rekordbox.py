@@ -31,6 +31,11 @@ from pathlib import Path
 from urllib.parse import quote
 
 from dancelab import __version__
+from dancelab.decision.cue_grid import (
+    cue_phrase_division,
+    snap_cue_start,
+    usable_export_grid,
+)
 from dancelab.core.models import AnalysisResult, BeatGrid, SetPlan, TransitionWindow, WindowType
 from dancelab.decision.transition_windows import rank_windows_for_role
 
@@ -45,15 +50,6 @@ _CUE_COLOURS = [
     (230, 40, 40),
     (180, 180, 0),
 ]
-_CUE_PHRASE_DIVISIONS_BEATS = (64, 32, 16, 8, 4, 2)
-_CUE_PHRASE_SNAP_TOLERANCE_BEATS = {
-    64: 4.0,
-    32: 4.0,
-    16: 4.0,
-    8: 2.0,
-    4: 1.0,
-    2: 0.5,
-}
 _CUE_TRANSITION_BASELINE_BEATS = 64
 
 
@@ -83,82 +79,10 @@ def _kind(source_path: str | None) -> str:
     }.get(ext, "Audio File")
 
 
-def _usable_export_grid(beatgrid: BeatGrid | None) -> BeatGrid | None:
-    """Only grids with verified bar phase may become Rekordbox TEMPO data."""
-    if (
-        beatgrid is None
-        or not beatgrid.reliable
-        or not beatgrid.downbeat_phase_verified
-        or not beatgrid.beat_times_sec
-    ):
-        return None
-    return beatgrid
 
 
-def _usable_beat_grid(beatgrid: BeatGrid | None) -> BeatGrid | None:
-    """A reliable beat sequence may snap cues to beats without claiming phrases."""
-    if beatgrid is None or not beatgrid.reliable or not beatgrid.beat_times_sec:
-        return None
-    return beatgrid
 
 
-def _grid_anchor_sec(beatgrid: BeatGrid) -> float:
-    return float((beatgrid.downbeats_sec or beatgrid.beat_times_sec)[0])
-
-
-def _cue_phrase_division(beatgrid: BeatGrid, cue_sec: float) -> int | None:
-    """Largest phrase division the cue sits on, measured from the grid anchor."""
-    if beatgrid.bpm <= 0:
-        return None
-    beat_period = 60.0 / beatgrid.bpm
-    beat_index = int(round((cue_sec - _grid_anchor_sec(beatgrid)) / beat_period))
-    if beat_index < 0:
-        return None
-    for division in _CUE_PHRASE_DIVISIONS_BEATS:
-        if beat_index % division == 0:
-            return division
-    return None
-
-
-def _snap_to_phrase_grid(beatgrid: BeatGrid, target_sec: float) -> float:
-    """Snap hot cues to phrase-aware beat boundaries, not arbitrary beats.
-
-    The exporter writes actionable DJ hot cues, so starts should land on
-    musically countable positions: 64/32/16/8/4/2-beat boundaries from the
-    first exported downbeat. This prevents cues landing on e.g. beat 3 when the
-    usable phrase point is beat 4.
-    """
-    if beatgrid.bpm <= 0:
-        return target_sec
-
-    beat_period = 60.0 / beatgrid.bpm
-    anchor = _grid_anchor_sec(beatgrid)
-    target_beat = (target_sec - anchor) / beat_period
-    if target_beat < 0:
-        return anchor
-
-    for division in _CUE_PHRASE_DIVISIONS_BEATS:
-        boundary = max(0, round(target_beat / division) * division)
-        offset_beats = abs(target_beat - boundary)
-        if boundary == 0 and target_beat > _CUE_PHRASE_SNAP_TOLERANCE_BEATS[2]:
-            continue
-        if offset_beats <= _CUE_PHRASE_SNAP_TOLERANCE_BEATS[division]:
-            return anchor + boundary * beat_period
-
-    # Last-resort safety: keep the cue on a 2-beat count rather than a random
-    # off-count. This branch should be rare because division=2 is already lenient.
-    boundary = max(0, round(target_beat / 2) * 2)
-    return anchor + boundary * beat_period
-
-
-def _snap_cue_start(analysis: AnalysisResult, start_sec: float) -> float:
-    """Snap to a phrase only with verified phase; otherwise to the nearest beat."""
-    beatgrid = _usable_beat_grid(analysis.beatgrid)
-    if beatgrid is None:
-        return start_sec
-    if beatgrid.downbeat_phase_verified:
-        return _snap_to_phrase_grid(beatgrid, start_sec)
-    return float(min(beatgrid.beat_times_sec, key=lambda beat: abs(beat - start_sec)))
 
 
 def _cue_min_separation_sec(analysis: AnalysisResult) -> float:
@@ -207,9 +131,9 @@ def _track_windows_as_cues(
     min_sep = _cue_min_separation_sec(analysis)
 
     def try_add(window: TransitionWindow) -> bool:
-        cue_start = _snap_cue_start(analysis, window.start_sec)
+        cue_start = snap_cue_start(analysis.beatgrid, window.start_sec)
         if any(
-            abs(cue_start - _snap_cue_start(analysis, item.start_sec)) < min_sep
+            abs(cue_start - snap_cue_start(analysis.beatgrid, item.start_sec)) < min_sep
             for item in selected
         ):
             return False
@@ -217,7 +141,7 @@ def _track_windows_as_cues(
         return True
 
     sorted_windows = sorted(windows, key=lambda window: window.score, reverse=True)
-    beatgrid = _usable_export_grid(analysis.beatgrid)
+    beatgrid = usable_export_grid(analysis.beatgrid)
     safe_mix_outs = rank_windows_for_role(
         sorted_windows,
         WindowType.mix_out,
@@ -258,7 +182,7 @@ def _track_windows_as_cues(
         cues.append(
             (
                 _cue_label(window.window_type, type_counts[window.window_type]),
-                _snap_cue_start(analysis, window.start_sec),
+                snap_cue_start(analysis.beatgrid, window.start_sec),
                 num,
             )
         )
@@ -302,7 +226,7 @@ def _track_element(
     # Beat sync/grid belongs to DanceLab preview. The default Rekordbox export
     # intentionally avoids AverageBpm/TEMPO so RB can keep or compute its own
     # native grid. Set export_beatgrid=True only for explicit diagnostic exports.
-    export_grid = _usable_export_grid(analysis.beatgrid) if export_beatgrid else None
+    export_grid = usable_export_grid(analysis.beatgrid) if export_beatgrid else None
     if export_grid:
         attrs["AverageBpm"] = f"{export_grid.bpm:.2f}"
     if t.key_estimate:
