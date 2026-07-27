@@ -50,10 +50,17 @@ def build_track_refs(analyses: dict) -> list[TrackRef]:
 
 
 def match_tracks(refs: list[TrackRef], db, tables) -> tuple[dict[str, str], list[str]]:
-    """Return (mapping track_id -> ContentID str, list of unmatched track_ids)."""
+    """Return (mapping track_id -> ContentID str, list of unmatched track_ids).
+
+    Safety rule: a track is matched ONLY when the evidence is unambiguous.
+    An exact file path is unique by construction. Title(+artist) lookups keep
+    every candidate; if a key resolves to more than one ContentID the track is
+    reported as unmatched rather than guessed — writing a cue onto the wrong
+    track is worse than writing none.
+    """
     by_path: dict[str, str] = {}
-    by_title_artist: dict[tuple, str] = {}
-    by_title: dict[str, str] = {}
+    by_title_artist: dict[tuple, set[str]] = {}
+    by_title: dict[str, set[str]] = {}
 
     for row in db.session.query(tables.DjmdContent).all():
         cid = str(row.ID)
@@ -63,8 +70,14 @@ def match_tracks(refs: list[TrackRef], db, tables) -> tuple[dict[str, str], list
         title = _norm_text(row.Title)
         artist = _norm_text(row.Artist.Name if row.Artist else None)
         if title:
-            by_title_artist.setdefault((title, artist), cid)
-            by_title.setdefault(title, cid)
+            by_title_artist.setdefault((title, artist), set()).add(cid)
+            by_title.setdefault(title, set()).add(cid)
+
+    def _unique(candidates: set[str] | None) -> str | None:
+        """Accept a candidate set only when it names exactly one track."""
+        if candidates and len(candidates) == 1:
+            return next(iter(candidates))
+        return None
 
     mapping: dict[str, str] = {}
     unmatched: list[str] = []
@@ -74,8 +87,8 @@ def match_tracks(refs: list[TrackRef], db, tables) -> tuple[dict[str, str], list
         artist = _norm_text(ref.artist)
         cid = (
             (np and by_path.get(np))
-            or by_title_artist.get((title, artist))
-            or (title and by_title.get(title))
+            or _unique(by_title_artist.get((title, artist)) if title else None)
+            or _unique(by_title.get(title) if title else None)
         )
         if cid:
             mapping[ref.track_id] = cid

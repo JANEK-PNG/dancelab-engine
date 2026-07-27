@@ -22,7 +22,12 @@ from pydantic import BaseModel
 
 from dancelab.decision.cue_export_models import CuePlan, kind_to_pad_index
 from dancelab.decision.cue_conflict import ExistingCue
-from dancelab.ingestion.rb_backup import backup_master, restore_backup
+from dancelab.ingestion.rb_backup import (
+    backup_master,
+    copy_database_bundle,
+    remove_database_bundle,
+    restore_backup,
+)
 
 
 class WriteResult(BaseModel):
@@ -32,14 +37,15 @@ class WriteResult(BaseModel):
     verified: bool = False
     restored: bool = False
     target: str | None = None
+    problems: list[str] = []
 
 
 def is_rekordbox_running() -> bool:
     """True if a Rekordbox process is running (writing then would corrupt WAL)."""
     try:
         import psutil
-    except ImportError:  # pragma: no cover - psutil is a dependency
-        return False
+    except ImportError:  # fail CLOSED: without a way to check, assume it runs
+        return True
     for proc in psutil.process_iter(["name"]):
         name = (proc.info.get("name") or "").lower()
         if "rekordbox" in name:
@@ -125,6 +131,34 @@ def _apply(plan: CuePlan, db, tables) -> tuple[int, int]:
     return written, deleted
 
 
+def _verify_plan_written(plan: CuePlan, db, tables) -> tuple[bool, list[str]]:
+    """Confirm every planned cue exists on the RIGHT track, pad and position.
+
+    A row count alone cannot catch a cue written to the wrong track, so each
+    planned cue is looked up by (ContentID, Kind, InMsec) and its comment
+    compared. Returns (all_ok, problems).
+    """
+    problems: list[str] = []
+    for track in plan.tracks:
+        for cue in track.cues:
+            row = db.session.query(tables.DjmdCue).filter(
+                tables.DjmdCue.ContentID == track.content_id,
+                tables.DjmdCue.Kind == cue.kind,
+                tables.DjmdCue.InMsec == cue.position_ms,
+            ).first()
+            if row is None:
+                problems.append(
+                    f"missing cue: content={track.content_id} pad={cue.pad_label} "
+                    f"@{cue.position_ms}ms ({cue.cue_type})"
+                )
+            elif (row.Comment or "") != cue.comment:
+                problems.append(
+                    f"comment mismatch on content={track.content_id} "
+                    f"pad={cue.pad_label}: {row.Comment!r} != {cue.comment!r}"
+                )
+    return (not problems), problems
+
+
 def _open(db_path: Path):
     from pyrekordbox import Rekordbox6Database
     from pyrekordbox.db6 import tables
@@ -158,13 +192,18 @@ def write_plan(
     if is_rekordbox_running():
         raise RuntimeError("Rekordbox is running — close it before writing cues.")
 
-    backup = backup_master(db_path, backup_dir, timestamp=timestamp, meta=meta or {})
-    result.backup_path = str(backup) if backup else None
+    # deduplicate=False: this backup is a dedicated rollback point. A dedup skip
+    # would leave us with nothing to restore to if the write goes wrong.
+    backup = backup_master(db_path, backup_dir, timestamp=timestamp,
+                           meta=meta or {}, deduplicate=False)
+    if backup is None:
+        raise RuntimeError("no rollback backup was created — refusing to write")
+    result.backup_path = str(backup)
 
     target = db_path
     if safe_swap:
         target = db_path.with_suffix(".dancelab_tmp.db")
-        shutil.copy2(db_path, target)
+        copy_database_bundle(db_path, target)  # includes WAL/SHM sidecars
     result.target = str(target)
 
     db, tables = _open(target)
@@ -182,7 +221,12 @@ def write_plan(
         post = db.session.query(tables.DjmdCue).count()
         result.written = written
         result.deleted = deleted
-        result.verified = (post == pre + written - deleted)
+        count_ok = (post == pre + written - deleted)
+        content_ok, problems = _verify_plan_written(plan, db, tables)
+        result.verified = count_ok and content_ok
+        if not count_ok:
+            problems.insert(0, f"cue count {post} != expected {pre + written - deleted}")
+        result.problems = problems
         db.close()
     except Exception:
         try:
@@ -200,9 +244,23 @@ def write_plan(
 
     if safe_swap:
         if not result.verified:
-            target.unlink()
-            raise RuntimeError("verification failed on safe-swap copy; live db untouched")
-        shutil.move(str(target), str(db_path))
+            remove_database_bundle(target)
+            raise RuntimeError(
+                "verification failed on safe-swap copy; live db untouched: "
+                + "; ".join(result.problems[:5])
+            )
+        copy_database_bundle(target, db_path)
+        remove_database_bundle(target)
         result.target = str(db_path)
+        return result
+
+    # In-place write: a failed verification must NOT be left in the database.
+    if not result.verified:
+        restore_backup(backup_dir, db_path, timestamp=timestamp)
+        result.restored = True
+        raise RuntimeError(
+            "verification failed; database restored from backup: "
+            + "; ".join(result.problems[:5])
+        )
 
     return result

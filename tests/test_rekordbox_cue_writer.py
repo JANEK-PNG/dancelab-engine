@@ -100,6 +100,67 @@ def test_rollback_and_restore_on_failure(copy_db, tmp_path, monkeypatch):
     assert after == before  # atomic rollback + restore left cue count unchanged
 
 
+def test_failed_verification_restores_database(copy_db, tmp_path, monkeypatch):
+    """A cue written to the wrong place must not survive: restore + raise."""
+    monkeypatch.setattr(W, "is_rekordbox_running", lambda: False)
+    tid = _first_track_id(copy_db)
+
+    from pyrekordbox import Rekordbox6Database
+    from pyrekordbox.db6 import tables
+    db = Rekordbox6Database(path=str(copy_db))
+    before = db.session.query(tables.DjmdCue).count()
+    db.close()
+
+    # simulate a write that lands somewhere other than planned
+    monkeypatch.setattr(W, "_verify_plan_written",
+                        lambda plan, db, tables: (False, ["forced mismatch"]))
+    with pytest.raises(RuntimeError, match="verification failed"):
+        W.write_plan(_plan_for(tid), db_path=copy_db, backup_dir=tmp_path / "bk",
+                     timestamp="20260724_1700", meta={}, safe_swap=False)
+
+    db = Rekordbox6Database(path=str(copy_db))
+    after = db.session.query(tables.DjmdCue).count()
+    db.close()
+    assert after == before  # rolled back, nothing left behind
+
+
+def test_safe_swap_leaves_live_untouched_on_failed_verification(copy_db, tmp_path, monkeypatch):
+    monkeypatch.setattr(W, "is_rekordbox_running", lambda: False)
+    tid = _first_track_id(copy_db)
+    original = copy_db.read_bytes()
+    monkeypatch.setattr(W, "_verify_plan_written",
+                        lambda plan, db, tables: (False, ["forced mismatch"]))
+    with pytest.raises(RuntimeError, match="live db untouched"):
+        W.write_plan(_plan_for(tid), db_path=copy_db, backup_dir=tmp_path / "bk",
+                     timestamp="20260724_1701", meta={}, safe_swap=True)
+    assert copy_db.read_bytes() == original
+    assert not copy_db.with_suffix(".dancelab_tmp.db").exists()  # temp cleaned up
+
+
+def test_verification_detects_missing_cue(copy_db, tmp_path, monkeypatch):
+    """Real verifier: a plan whose cue was never written must fail verification."""
+    monkeypatch.setattr(W, "is_rekordbox_running", lambda: False)
+    tid = _first_track_id(copy_db)
+    monkeypatch.setattr(W, "_apply", lambda plan, db, tables: (1, 0))  # writes nothing
+    with pytest.raises(RuntimeError, match="verification failed"):
+        W.write_plan(_plan_for(tid), db_path=copy_db, backup_dir=tmp_path / "bk",
+                     timestamp="20260724_1702", meta={}, safe_swap=True)
+
+
+def test_missing_psutil_fails_closed(monkeypatch):
+    """No psutil -> assume Rekordbox is running rather than risk a live write."""
+    import builtins
+    real_import = builtins.__import__
+
+    def no_psutil(name, *args, **kwargs):
+        if name == "psutil":
+            raise ImportError("no psutil")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", no_psutil)
+    assert W.is_rekordbox_running() is True
+
+
 def test_never_writes_bpm_or_beatgrid(copy_db, tmp_path, monkeypatch):
     monkeypatch.setattr(W, "is_rekordbox_running", lambda: False)
     tid = _first_track_id(copy_db)

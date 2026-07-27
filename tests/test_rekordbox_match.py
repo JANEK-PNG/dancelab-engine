@@ -62,6 +62,33 @@ def test_unmatched_reported_not_guessed(db_tables):
     assert "ghost" in unmatched
 
 
+def test_ambiguous_title_is_refused_not_guessed(db_tables):
+    """Two library tracks share a title -> refuse to match on title alone."""
+    db, tables = db_tables
+    from sqlalchemy import func
+    dup_title = (
+        db.session.query(tables.DjmdContent.Title)
+        .filter(tables.DjmdContent.Title != None)  # noqa: E711
+        .group_by(tables.DjmdContent.Title)
+        .having(func.count(tables.DjmdContent.ID) > 1)
+        .first()
+    )
+    if dup_title is None:
+        pytest.skip("library has no duplicate titles to test ambiguity")
+    refs = [TrackRef(track_id="ambig", source_path=None, title=dup_title[0])]
+    mapping, unmatched = match_tracks(refs, db, tables)
+    assert "ambig" not in mapping      # never guesses between duplicates
+    assert "ambig" in unmatched
+
+
+def test_exact_path_still_matches_despite_duplicate_titles(db_tables):
+    db, tables = db_tables
+    row = _a_real_track(db, tables)
+    refs = [TrackRef(track_id="p", source_path=row.FolderPath, title=row.Title)]
+    mapping, _ = match_tracks(refs, db, tables)
+    assert mapping["p"] == str(row.ID)
+
+
 def test_remap_plan_swaps_ids_and_drops_unmatched(db_tables):
     db, tables = db_tables
     row = _a_real_track(db, tables)
