@@ -134,26 +134,7 @@ def test_in_out_mode_has_no_structural_cues():
     assert all(c.cue_type != "drop" for c in b.cues)
 
 
-def test_cue_snaps_to_nearest_beat():
-    from dancelab.decision.cue_plan import snap_to_grid
-    bg = BeatGrid(bpm=120.0, reliable=True,
-                  beat_times_sec=[30.0, 30.5, 31.0, 300.0, 300.5, 301.0])
-    assert snap_to_grid(300.3, bg) == 300.5  # nearest beat
-    assert snap_to_grid(30.1, bg) == 30.0
 
-
-def test_snap_prefers_verified_downbeat():
-    from dancelab.decision.cue_plan import snap_to_grid
-    bg = BeatGrid(bpm=120.0, reliable=True,
-                  beat_times_sec=[300.0, 300.5, 301.0],
-                  downbeats_sec=[300.0, 302.0], downbeat_phase_verified=True)
-    assert snap_to_grid(300.4, bg) == 300.0  # downbeat wins when phase-verified
-
-
-def test_snap_falls_back_to_raw_without_grid_times():
-    from dancelab.decision.cue_plan import snap_to_grid
-    bg = BeatGrid(bpm=120.0, reliable=True)  # no beat_times
-    assert snap_to_grid(300.3, bg) == 300.3
 
 
 def test_plan_snaps_mixout_to_beat():

@@ -11,8 +11,8 @@ from dancelab.core.models import (
     TransitionWindow,
     WindowType,
 )
+from dancelab.decision.cue_grid import cue_phrase_division
 from dancelab.export.rekordbox import (
-    _cue_phrase_division,
     _location_uri,
     build_rekordbox_xml,
     track_windows_as_cues,
@@ -129,8 +129,8 @@ def test_hot_cues_snap_to_phrase_boundaries_not_third_beat():
     starts = [float(mark.get("Start")) for mark in marks]
 
     assert starts == [2.0, 32.0]
-    assert _cue_phrase_division(analysis.beatgrid, starts[0]) == 4
-    assert _cue_phrase_division(analysis.beatgrid, starts[1]) == 64
+    assert cue_phrase_division(analysis.beatgrid, starts[0]) == 4
+    assert cue_phrase_division(analysis.beatgrid, starts[1]) == 64
 
 
 def test_unreliable_grid_is_not_exported_or_used_for_cue_snap():
