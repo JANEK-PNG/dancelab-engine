@@ -76,7 +76,7 @@ def main() -> int:
             import dancelab
             import dancelab.api.main
             import dancelab.core.pipeline
-            import dancelab.host.project
+            import dancelab.preview.transition_simulation
 
             package_path = Path(dancelab.__file__).resolve()
             environment = Path({str(env_dir)!r}).resolve()
