@@ -100,6 +100,74 @@ def test_rollback_and_restore_on_failure(copy_db, tmp_path, monkeypatch):
     assert after == before  # atomic rollback + restore left cue count unchanged
 
 
+def test_writer_does_not_delete_the_djs_cue_unless_told_to(copy_db, tmp_path, monkeypatch):
+    """A plan alone must never destroy an existing cue.
+
+    Conflict resolution lives in another layer; the writer cannot assume it ran.
+    Only a cue explicitly marked replace_existing may overwrite a pad.
+    """
+    monkeypatch.setattr(W, "is_rekordbox_running", lambda: False)
+    tid = _first_track_id(copy_db)
+
+    from pyrekordbox import Rekordbox6Database
+    from pyrekordbox.db6 import tables
+
+    # give the track a cue of the DJ's own on pad D (Kind=5)
+    db = Rekordbox6Database(path=str(copy_db))
+    content = db.session.query(tables.DjmdContent).filter(
+        tables.DjmdContent.ID == tid
+    ).first()
+    W.insert_hot_cue(db, tables, content_id=tid, content_uuid=content.UUID,
+                     position_ms=12345, kind=5, color=-1, comment="DJ OWN CUE")
+    db.autoincrement_usn(set_row_usn=True)
+    db.commit()
+    db.close()
+
+    # writing our own pad-D cue must refuse, not silently destroy theirs
+    with pytest.raises(ValueError, match="no replace permission"):
+        W.write_plan(_plan_for(tid), db_path=copy_db, backup_dir=tmp_path / "bk",
+                     timestamp="20260724_1800", meta={}, safe_swap=False)
+
+    db = Rekordbox6Database(path=str(copy_db))
+    survivors = db.session.query(tables.DjmdCue).filter(
+        tables.DjmdCue.ContentID == tid, tables.DjmdCue.Kind == 5
+    ).all()
+    comments = {c.Comment for c in survivors}
+    db.close()
+    assert "DJ OWN CUE" in comments, "the writer destroyed a cue it was never told to replace"
+
+
+def test_replace_permission_lets_the_writer_clear_the_pad(copy_db, tmp_path, monkeypatch):
+    """With permission granted by conflict resolution, the pad is cleared."""
+    monkeypatch.setattr(W, "is_rekordbox_running", lambda: False)
+    tid = _first_track_id(copy_db)
+
+    from pyrekordbox import Rekordbox6Database
+    from pyrekordbox.db6 import tables
+
+    db = Rekordbox6Database(path=str(copy_db))
+    content = db.session.query(tables.DjmdContent).filter(
+        tables.DjmdContent.ID == tid
+    ).first()
+    W.insert_hot_cue(db, tables, content_id=tid, content_uuid=content.UUID,
+                     position_ms=12345, kind=5, color=-1, comment="OLD CUE")
+    db.autoincrement_usn(set_row_usn=True)
+    db.commit()
+    db.close()
+
+    plan = _plan_for(tid)
+    plan.tracks[0].cues[0].replace_existing = True
+    res = W.write_plan(plan, db_path=copy_db, backup_dir=tmp_path / "bk",
+                       timestamp="20260724_1801", meta={}, safe_swap=False)
+    assert res.deleted == 1 and res.verified is True
+
+    db = Rekordbox6Database(path=str(copy_db))
+    comments = {c.Comment for c in db.session.query(tables.DjmdCue).filter(
+        tables.DjmdCue.ContentID == tid, tables.DjmdCue.Kind == 5).all()}
+    db.close()
+    assert comments == {"TEST IN"}  # old cue replaced, exactly one cue on the pad
+
+
 def test_failed_verification_restores_database(copy_db, tmp_path, monkeypatch):
     """A cue written to the wrong place must not survive: restore + raise."""
     monkeypatch.setattr(W, "is_rekordbox_running", lambda: False)

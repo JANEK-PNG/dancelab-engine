@@ -87,7 +87,7 @@ def _resolve_track(
             if action == ConflictAction.replace:
                 report.overwrite_count += 1
                 item.resolution = "replaced"
-                survivors.append(cue)
+                survivors.append(cue.model_copy(update={"replace_existing": True}))
                 if our_pad is not None:
                     taken.add(our_pad)
             else:  # skip or merge -> drop ours (already there)
@@ -105,7 +105,7 @@ def _resolve_track(
             elif action == ConflictAction.replace:
                 report.overwrite_count += 1
                 item.resolution = "replaced"
-                survivors.append(cue)
+                survivors.append(cue.model_copy(update={"replace_existing": True}))
                 taken.add(our_pad)
             else:  # merge -> relocate to next free pad
                 free = next((p for p in range(1, 9) if p not in taken), None)
