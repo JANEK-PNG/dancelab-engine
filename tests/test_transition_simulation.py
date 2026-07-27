@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from dancelab.host.transition_simulation import (
+from dancelab.preview.transition_simulation import (
     PROFILE_OPTIONS,
     TRANSITION_DURATION_OPTIONS,
     build_transition_envelope,

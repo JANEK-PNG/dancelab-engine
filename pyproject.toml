@@ -33,13 +33,6 @@ audio = [
     "soundfile>=0.12",
 ]
 viz = ["matplotlib>=3.9", "plotly>=5.22"]
-desktop = ["PySide6>=6.7,<6.8"]
-desktop-build = [
-    "PySide6>=6.7,<6.8",
-    "Nuitka>=4.0",
-    "ordered-set>=4.1",
-    "zstandard>=0.23",
-]
 # Real vocal separation (htdemucs). Heavy: pulls torch + ~80 MB model download.
 # Optional — vocal_activity falls back to the HPSS proxy without it.
 vocals = ["demucs>=4.0", "torch>=2.0"]
@@ -47,7 +40,7 @@ vocals = ["demucs>=4.0", "torch>=2.0"]
 stems = ["demucs>=4.0", "torch>=2.0"]
 dev = [
     "pytest>=8.2",
-    "httpx2>=0.28",
+    "httpx>=0.28",
     "ruff>=0.5",
     "pre-commit>=3.7",
     "bandit>=1.8,<2",
@@ -56,8 +49,6 @@ dev = [
 
 [project.scripts]
 dancelab = "dancelab.cli.analyze:app"
-dancelab-host = "dancelab.host.desktop_app:main"
-dancelab-host-build = "dancelab.host.desktop_bundle:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dancelab"]

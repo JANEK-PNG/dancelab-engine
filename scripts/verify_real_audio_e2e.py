@@ -22,8 +22,8 @@ from dancelab.core.config import load_config, load_weights
 from dancelab.core.models import AnalysisResult, TransitionWindowInput, WindowType
 from dancelab.decision.tempo_adjustment import nearest_octave_candidate
 from dancelab.decision.transition_windows import detect_transition_windows, rank_windows_for_role
-from dancelab.host.preview_timing import snap_to_grid
-from dancelab.host.transition_simulation import plan_transition_duration, render_transition_preview
+from dancelab.validation.preview_timing import snap_to_grid
+from dancelab.preview.transition_simulation import plan_transition_duration, render_transition_preview
 from dancelab.storage.repositories import FileAnalysisRepository
 
 
