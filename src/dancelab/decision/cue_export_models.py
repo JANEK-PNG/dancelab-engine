@@ -62,6 +62,10 @@ class PlannedCue(BaseModel):
     comment: str = ""
     cue_type: str = "mix_in"  # mix_in|mix_out|drop|breakdown|phrase|unverified
     confident: bool = True
+    # Permission to destroy whatever already occupies this pad. Only conflict
+    # resolution may grant it; a writer must never infer it. Default False keeps
+    # the DJ's cues safe even when a plan reaches a writer unresolved.
+    replace_existing: bool = False
     reasoning: list[str] = Field(default_factory=list)
 
 

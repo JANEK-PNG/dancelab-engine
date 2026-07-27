@@ -100,10 +100,11 @@ def insert_hot_cue(db, tables, *, content_id, content_uuid, position_ms, kind, c
 
 
 def _apply(plan: CuePlan, db, tables) -> tuple[int, int]:
-    """Delete existing cues at each target (ContentID, Kind), then insert ours.
+    """Insert the planned cues, clearing a pad only where allowed.
 
-    Delete-then-insert implements `replace` (an occupied target pad only survives
-    conflict resolution under replace) and makes re-runs idempotent.
+    A pad is cleared only for a cue whose `replace_existing` permission was
+    granted by conflict resolution. The writer never infers that permission: a
+    plan that reaches here unresolved must not destroy the DJ's cues.
     """
     written = deleted = 0
     for track in plan.tracks:
@@ -113,13 +114,24 @@ def _apply(plan: CuePlan, db, tables) -> tuple[int, int]:
             tables.DjmdContent.ID == track.content_id
         ).first()
         if content is None:
-            continue
+            raise ValueError(
+                f"track {track.content_id} is not in this Rekordbox database"
+            )
         for cue in track.cues:
-            existing = db.session.query(tables.DjmdCue).filter(
+            occupied = db.session.query(tables.DjmdCue).filter(
                 tables.DjmdCue.ContentID == track.content_id,
                 tables.DjmdCue.Kind == cue.kind,
             ).all()
-            for row in existing:
+            if occupied and not cue.replace_existing:
+                # Refuse rather than stack a second cue on one pad or silently
+                # destroy the DJ's. Reaching here means conflict resolution was
+                # skipped upstream.
+                raise ValueError(
+                    f"pad {cue.pad_label} on track {track.content_id} already holds a cue "
+                    f"({occupied[0].Comment!r}) and this cue has no replace permission — "
+                    "resolve conflicts before writing"
+                )
+            for row in occupied:
                 db.session.delete(row)
                 deleted += 1
             insert_hot_cue(
