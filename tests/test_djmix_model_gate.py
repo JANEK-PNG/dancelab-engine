@@ -178,7 +178,10 @@ def test_gate_reports_every_audio_and_evidence_blocker_without_partial_queue(
     tracks.mkdir(parents=True)
     (tracks / "a.wav").write_bytes(b"a")
     (tracks / "._a.wav").write_bytes(b"appledouble")
-    (tracks / "b.webm").write_bytes(b"b")
+    # .aac is discovered as audio but is not in loader.SUPPORTED_EXTENSIONS,
+    # so the engine cannot read it. (.webm used to serve this role and now
+    # decodes fine through the librosa/ffmpeg path.)
+    (tracks / "b.aac").write_bytes(b"b")
     (tracks / "c.wav").write_bytes(b"c-wav")
     (tracks / "c.mp3").write_bytes(b"c-mp3")
 

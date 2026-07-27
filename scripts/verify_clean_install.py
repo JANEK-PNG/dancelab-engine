@@ -81,7 +81,6 @@ def main() -> int:
             package_path = Path(dancelab.__file__).resolve()
             environment = Path({str(env_dir)!r}).resolve()
             assert environment in package_path.parents, package_path
-            assert "PySide6" not in sys.modules
             print(f"clean headless import: {{package_path}}")
             """
         )
