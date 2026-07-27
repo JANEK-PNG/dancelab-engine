@@ -68,3 +68,32 @@ def test_refuses_live_library_without_allow_live(tmp_path):
 def test_restore_list_runs(tmp_path):
     result = runner.invoke(app, ["restore", "--list"])
     assert result.exit_code == 0
+
+
+def test_timestamp_defaults_so_repeat_runs_do_not_collide(tmp_path):
+    """Omitting --timestamp must work; a required unique one is a trap."""
+    bundle = _bundle(tmp_path)
+    no_db = tmp_path / "absent.db"
+    result = runner.invoke(app, [
+        "write", "--set", str(bundle), "--db", str(no_db),
+    ])
+    assert result.exit_code == 0, result.output
+    assert "cues to write" in result.output
+
+
+def test_says_plainly_when_no_library_was_consulted(tmp_path):
+    """A plan built without a library must not read like a checked result."""
+    bundle = _bundle(tmp_path)
+    no_db = tmp_path / "absent.db"
+    result = runner.invoke(app, [
+        "write", "--set", str(bundle), "--db", str(no_db),
+    ])
+    assert "not matched" in result.output
+    assert "not a check against a library" in result.output
+
+
+def test_restore_reads_the_backup_dir_it_is_given(tmp_path):
+    """Restoring must look where the write actually put the backups."""
+    result = runner.invoke(app, ["restore", "--list", "--backup-dir", str(tmp_path / "elsewhere")])
+    assert result.exit_code == 0
+    assert "no backups in" in result.output

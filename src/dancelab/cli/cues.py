@@ -7,14 +7,16 @@ Input is a "bundle" JSON produced upstream (set builder + analysis):
       "windows":  {track_id: [<TransitionWindow>]}
     }
 
-`write --dry-run` plans + prints the conflict report and touches nothing.
-Without --dry-run it writes to --db (default: live master.db) via the safe
-writer, which refuses while Rekordbox is running and backs up first.
+`write` plans and prints the conflict report without touching anything. Adding
+--write applies the plan through the safe writer, which refuses while Rekordbox
+is running and takes a rollback backup first. Writing the live library needs
+--allow-live on top of that.
 """
 
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 
 import typer
@@ -45,7 +47,7 @@ def _load_bundle(path: Path):
 
 @app.command()
 def write(
-    set: Path = typer.Option(..., "--set", "--bundle", help="Cue-export bundle JSON"),
+    bundle: Path = typer.Option(..., "--set", "--bundle", help="Cue-export bundle JSON"),
     mode: CueContentMode = typer.Option(CueContentMode.in_out, "--mode"),
     on_conflict: ConflictAction = typer.Option(ConflictAction.merge, "--on-conflict"),
     review: bool = typer.Option(False, "--review", help="Flag every cue for decision"),
@@ -70,8 +72,12 @@ def write(
                                   help="Also create a native Rekordbox playlist"),
     playlist_name: str = typer.Option(None, "--playlist-name",
                                       help="Playlist name (default: DanceLab set <timestamp>)"),
-    timestamp: str = typer.Option(..., "--timestamp", help="backup timestamp, e.g. 20260724_1300"),
+    timestamp: str = typer.Option(
+        None, "--timestamp",
+        help="Backup timestamp; defaults to now. Must be unique per backup.",
+    ),
 ):
+    timestamp = timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
     target_db = Path(db) if db is not None else DEFAULT_DB
     is_live = target_db.resolve() == DEFAULT_DB.resolve()
     if write_changes and is_live and not allow_live:
@@ -79,7 +85,7 @@ def write(
         typer.echo("Test on a copy first:  --db /path/to/copy.db --write")
         raise typer.Exit(2)
 
-    set_plan, analyses, windows = _load_bundle(set)
+    set_plan, analyses, windows = _load_bundle(bundle)
     label_map = load_cue_labels(labels)
     plan = plan_cues(set_plan, analyses=analyses, windows_by_track=windows,
                      labels=label_map, mode=mode)
@@ -102,10 +108,18 @@ def write(
         for tid in unmatched:
             typer.echo(f"⚠ no Rekordbox match for track {tid} — skipped")
         plan, dropped = remap_plan_content_ids(plan, mapping)
+        for tid in dropped:
+            typer.echo(f"⚠ dropped cues for unmatched track {tid}")
         existing_by_cid = read_existing_cues(rdb, tables)
         # ordered ContentIDs for the native playlist (full set order, matched only)
         playlist_ids = [mapping[tid] for tid in set_plan.track_order if tid in mapping]
         rdb.close()
+    else:
+        typer.echo(
+            f"⚠ no Rekordbox database at {target_db} — tracks were not matched and "
+            "existing cues were not read. The report below is a plan only, not a "
+            "check against a library."
+        )
 
     plan, report = resolve_conflicts(plan, existing_by_cid,
                                      action=on_conflict, review=review)
@@ -131,15 +145,22 @@ def restore(
     list_: bool = typer.Option(False, "--list", help="List available backups"),
     to: str = typer.Option(None, "--to", help="Restore the backup with this timestamp"),
     db: Path = typer.Option(DEFAULT_DB, "--db"),
+    backup_dir: Path = typer.Option(
+        DEFAULT_BACKUP_DIR, "--backup-dir",
+        help="Where the backups live. Must match the --backup-dir used to write.",
+    ),
 ):
     from dancelab.ingestion.rb_backup import list_backups, restore_backup
     if list_:
-        for e in list_backups(DEFAULT_BACKUP_DIR):
+        entries = list_backups(backup_dir)
+        if not entries:
+            typer.echo(f"no backups in {backup_dir}")
+        for e in entries:
             meta = e.get("meta", {})
             typer.echo(f"{e['timestamp']}  {e['file']}  {meta}")
         raise typer.Exit(0)
     if to:
-        restore_backup(DEFAULT_BACKUP_DIR, db, timestamp=to)
+        restore_backup(backup_dir, db, timestamp=to)
         typer.echo(f"✓ restored {to} → {db}")
         raise typer.Exit(0)
     typer.echo("use --list or --to <timestamp>")
