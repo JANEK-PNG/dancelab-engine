@@ -49,9 +49,21 @@ def write(
     mode: CueContentMode = typer.Option(CueContentMode.in_out, "--mode"),
     on_conflict: ConflictAction = typer.Option(ConflictAction.merge, "--on-conflict"),
     review: bool = typer.Option(False, "--review", help="Flag every cue for decision"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Plan + report only, no write"),
-    safe_swap: bool = typer.Option(False, "--safe-swap"),
-    db: Path = typer.Option(DEFAULT_DB, "--db", help="master.db to write (default: live)"),
+    write_changes: bool = typer.Option(
+        False, "--write",
+        help="Actually write. Without it the command only plans and reports (safe default).",
+    ),
+    allow_live: bool = typer.Option(
+        False, "--allow-live",
+        help="Required to write the LIVE Rekordbox library. Test on a copy first.",
+    ),
+    safe_swap: bool = typer.Option(
+        True, "--safe-swap/--in-place",
+        help="Write to a verified copy and swap it in (default). --in-place edits directly.",
+    ),
+    db: Path = typer.Option(None, "--db",
+                            help="master.db to write. Defaults to the live library, "
+                                 "which additionally requires --allow-live."),
     labels: Path = typer.Option(None, "--labels", help="cue_labels.yaml override"),
     backup_dir: Path = typer.Option(DEFAULT_BACKUP_DIR, "--backup-dir"),
     playlist: bool = typer.Option(True, "--playlist/--no-playlist",
@@ -60,6 +72,13 @@ def write(
                                       help="Playlist name (default: DanceLab set <timestamp>)"),
     timestamp: str = typer.Option(..., "--timestamp", help="backup timestamp, e.g. 20260724_1300"),
 ):
+    target_db = Path(db) if db is not None else DEFAULT_DB
+    is_live = target_db.resolve() == DEFAULT_DB.resolve()
+    if write_changes and is_live and not allow_live:
+        typer.echo("Refusing to write the LIVE Rekordbox library without --allow-live.")
+        typer.echo("Test on a copy first:  --db /path/to/copy.db --write")
+        raise typer.Exit(2)
+
     set_plan, analyses, windows = _load_bundle(set)
     label_map = load_cue_labels(labels)
     plan = plan_cues(set_plan, analyses=analyses, windows_by_track=windows,
@@ -70,7 +89,7 @@ def write(
     # Resolve against the DB's real tracks + existing cues when the DB is present.
     existing_by_cid: dict = {}
     playlist_ids: list[str] = []
-    if Path(db).exists():
+    if target_db.exists():
         from pyrekordbox import Rekordbox6Database
         from pyrekordbox.db6 import tables
         from dancelab.ingestion.rekordbox_match import (
@@ -78,7 +97,7 @@ def write(
         )
         from dancelab.ingestion.rekordbox_cue_writer import read_existing_cues
 
-        rdb = Rekordbox6Database(path=str(db))
+        rdb = Rekordbox6Database(path=str(target_db))
         mapping, unmatched = match_tracks(build_track_refs(analyses), rdb, tables)
         for tid in unmatched:
             typer.echo(f"⚠ no Rekordbox match for track {tid} — skipped")
@@ -92,13 +111,13 @@ def write(
                                      action=on_conflict, review=review)
     typer.echo(render_report(report))
 
-    if dry_run:
-        typer.echo("\n(dry-run — nothing written)")
+    if not write_changes:
+        typer.echo("\n(plan only — nothing written; pass --write to apply)")
         raise typer.Exit(0)
 
     pl_name = (playlist_name or f"DanceLab set {timestamp}") if playlist else None
     from dancelab.ingestion.rekordbox_cue_writer import write_plan
-    result = write_plan(plan, db_path=db, backup_dir=backup_dir,
+    result = write_plan(plan, db_path=target_db, backup_dir=backup_dir,
                         timestamp=timestamp, meta={"mode": mode.value}, safe_swap=safe_swap,
                         playlist_name=pl_name, playlist_content_ids=playlist_ids)
     typer.echo(f"✓ wrote {result.written} cues, deleted {result.deleted}, "

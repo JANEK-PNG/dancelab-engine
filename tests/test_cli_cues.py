@@ -39,18 +39,30 @@ def _bundle(tmp_path):
     return p
 
 
-def test_dry_run_prints_report_and_writes_nothing(tmp_path):
+def test_plan_only_is_the_default_and_writes_nothing(tmp_path):
+    """No --write flag -> plan + report, nothing touched."""
     bundle = _bundle(tmp_path)
     no_db = tmp_path / "no_such_master.db"  # skip DB branch
     result = runner.invoke(app, [
         "write", "--set", str(bundle), "--mode", "in_out",
-        "--on-conflict", "merge", "--dry-run",
+        "--on-conflict", "merge",
         "--db", str(no_db), "--timestamp", "20260724_1300",
     ])
     assert result.exit_code == 0, result.output
     assert "cues to write" in result.output
-    assert "dry-run" in result.output
+    assert "plan only" in result.output
     assert not no_db.exists()  # nothing created
+
+
+def test_refuses_live_library_without_allow_live(tmp_path):
+    """--write against the default (live) DB is refused unless --allow-live."""
+    bundle = _bundle(tmp_path)
+    result = runner.invoke(app, [
+        "write", "--set", str(bundle), "--write",
+        "--timestamp", "20260724_1300",
+    ])
+    assert result.exit_code == 2
+    assert "Refusing to write the LIVE" in result.output
 
 
 def test_restore_list_runs(tmp_path):
