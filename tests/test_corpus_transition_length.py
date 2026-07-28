@@ -1,9 +1,13 @@
-"""The measured transition length must reach the engine.
+"""The corpus transition length is NOT trustworthy enough to shape scoring.
 
-scripts/corpus_priors.py measured a median transition of 94 beats across 6,144
-real DJ transitions. core/phrasing rewarded windows near 8, 16 or 32 beats —
-hand-picked phrase multiples — so a window at the measured median scored zero
-for length. The engine was tuned against its own corpus.
+priors_v1.json carries transition_length_beats_median = 94 and it was briefly
+wired into core/phrasing. Auditing the source field killed it: across 11,405
+corpus transitions, 14.3% of transition_length_beats are negative (to -14526)
+and 28.7% exceed four minutes (to 15771). The field measures the gap between two
+aligned regions, not how long a DJ blended, and the median was taken over that.
+
+These tests pin the retreat: the value stays readable and documented, but no
+number derived from that field reaches the scoring path (ADR-005).
 """
 
 from dancelab.core.models import BeatGrid
@@ -22,17 +26,9 @@ def test_corpus_median_is_readable_from_the_priors_file():
     assert transition_length_beats() == 94
 
 
-def test_preferred_lengths_include_the_measured_median():
+def test_the_contaminated_corpus_median_does_not_shape_scoring():
+    """Readable for provenance, but never a scoring input until re-measured."""
     preferred = preferred_transition_beats()
-    assert 94 in preferred, f"corpus median missing from {preferred}"
-    # short blends stay legitimate — this adds a length, it does not replace them
-    assert {8.0, 16.0, 32.0} <= set(preferred)
-
-
-def test_a_transition_at_the_measured_median_is_no_longer_scored_worthless():
-    grid = _grid()
-    beat = 0.5
-    short = window_phrase_score(0.0, 32 * beat, grid)      # 32 beats
-    median = window_phrase_score(0.0, 94 * beat, grid)     # 94 beats, the real median
-    assert median is not None and short is not None
-    assert median > 0.5, f"measured-median transition scored {median}"
+    assert set(preferred) == {8.0, 16.0, 32.0}, (
+        f"a corpus-derived length leaked into scoring: {preferred}"
+    )
