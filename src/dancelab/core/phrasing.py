@@ -88,6 +88,28 @@ def phrase_alignment_curve(
     return np.exp(-dist / width_sec)
 
 
+# Phrase multiples a DJ counts out by hand. These are structural, not measured.
+CLASSIC_TRANSITION_BEATS: tuple[float, ...] = (8.0, 16.0, 32.0)
+
+
+def preferred_transition_beats() -> tuple[float, ...]:
+    """Transition lengths that score full marks.
+
+    The classic phrase multiples are what a DJ counts out, and short blends stay
+    perfectly legitimate. But the corpus measured how long real transitions
+    actually run, and that median sits far above 32 beats — without it, a window
+    at the most common real-world length scored zero for length. The measured
+    value is added when available; when it is not, the classic set stands alone
+    rather than a guess taking its place (ADR-005).
+    """
+    from dancelab.decision.corpus_priors import transition_length_beats
+
+    measured = transition_length_beats()
+    if measured is None:
+        return CLASSIC_TRANSITION_BEATS
+    return CLASSIC_TRANSITION_BEATS + (float(measured),)
+
+
 def window_phrase_score(
     start_sec: float,
     end_sec: float,
@@ -116,7 +138,7 @@ def window_phrase_score(
         0.0,
         max(
             1.0 - abs(duration_beats - preferred) / max(preferred, 1.0)
-            for preferred in (8.0, 16.0, 32.0)
+            for preferred in preferred_transition_beats()
         ),
     )
     return float(np.clip(0.65 * boundary_score + 0.35 * length_score, 0.0, 1.0))
