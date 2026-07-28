@@ -95,19 +95,22 @@ CLASSIC_TRANSITION_BEATS: tuple[float, ...] = (8.0, 16.0, 32.0)
 def preferred_transition_beats() -> tuple[float, ...]:
     """Transition lengths that score full marks.
 
-    The classic phrase multiples are what a DJ counts out, and short blends stay
-    perfectly legitimate. But the corpus measured how long real transitions
-    actually run, and that median sits far above 32 beats — without it, a window
-    at the most common real-world length scored zero for length. The measured
-    value is added when available; when it is not, the classic set stands alone
-    rather than a guess taking its place (ADR-005).
-    """
-    from dancelab.decision.corpus_priors import transition_length_beats
+    These are the phrase multiples a DJ counts out. They are structural, not
+    measured, and they are deliberately NOT extended with the corpus figure.
 
-    measured = transition_length_beats()
-    if measured is None:
-        return CLASSIC_TRANSITION_BEATS
-    return CLASSIC_TRANSITION_BEATS + (float(measured),)
+    The priors file carries transition_length_beats_median = 94, and that value
+    was briefly wired in here. Auditing the source field killed it: across 11,405
+    corpus transitions, 14.3% of transition_length_beats are NEGATIVE (down to
+    -14526) and 28.7% exceed four minutes (up to 15771). The field measures the
+    gap between two aligned regions — negative when alignments overlap, enormous
+    when unaligned material sits between them — not how long a DJ blended. The
+    median was taken over that contaminated distribution.
+
+    A trustworthy blend length has to be measured from the mix audio around the
+    seam, or from a set whose transitions we actually know. Until then, no number
+    from that field shapes scoring (ADR-005).
+    """
+    return CLASSIC_TRANSITION_BEATS
 
 
 def window_phrase_score(
