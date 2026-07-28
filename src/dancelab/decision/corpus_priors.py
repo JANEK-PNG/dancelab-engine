@@ -70,6 +70,30 @@ def priors_available() -> bool:
     return _load(str(_priors_path())) is not None
 
 
+@lru_cache(maxsize=4)
+def _transition_length(path_str: str) -> int | None:
+    """Median transition length in beats, as measured on the corpus."""
+    try:
+        payload = json.loads(Path(path_str).read_text())
+        value = payload["transition_length_beats_median"]
+    except (OSError, json.JSONDecodeError, KeyError, TypeError):
+        return None
+    try:
+        beats = int(value)
+    except (TypeError, ValueError):
+        return None
+    return beats if beats > 0 else None
+
+
+def transition_length_beats() -> int | None:
+    """How long a real DJ transition runs, in beats — None when unmeasured.
+
+    Measured by scripts/corpus_priors.py over the aligned corpus. Callers must
+    treat None as "we never measured this" rather than substituting a guess.
+    """
+    return _transition_length(str(_priors_path()))
+
+
 def bpm_delta_bucket(bpm_a: float, bpm_b: float) -> str:
     """Octave-folded BPM delta bucket — same vocabulary as the measurement."""
     folded = nearest_bpm_variant(bpm_a, bpm_b)
