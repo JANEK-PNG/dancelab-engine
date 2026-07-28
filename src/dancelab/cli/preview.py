@@ -36,9 +36,10 @@ def render(
     profile: str = typer.Option(DEFAULT_PROFILE, "--profile",
                                 help="Blend shape: linear, plain_blend, bass_swap, "
                                      "tops_swap, contour_blend"),
-    beats: int = typer.Option(64, "--beats",
-                              help="Requested transition length in beats "
-                                   "(32/64/96/128/160/192/224/256)"),
+    beats: int = typer.Option(None, "--beats",
+                              help="Transition length in beats (32/64/96/128/160/"
+                                   "192/224/256). Omit to let the stability of "
+                                   "both tracks at the seam decide."),
     tempo_mode: str = typer.Option(
         "varispeed", "--tempo-mode",
         help="varispeed = pitch moves with tempo, like a pitch fader with Master "
@@ -120,6 +121,22 @@ def render(
     # Same snapping rule the cue exporter uses: an unreliable grid snaps nothing.
     cue_a = snap_cue_start(analysis_a.beatgrid, out_window.start_sec)
     cue_b = snap_cue_start(analysis_b.beatgrid, in_window.start_sec)
+
+    if beats is None:
+        from dancelab.decision.transition_length import suggest_transition_beats
+
+        suggestion = suggest_transition_beats(analysis_a, out_window.start_sec,
+                                              analysis_b, in_window.start_sec)
+        if suggestion.beats is not None:
+            beats = suggestion.beats
+            typer.echo("length from seam stability (craft rule, not a measurement):")
+            for line in suggestion.reasoning:
+                typer.echo(f"  {line}")
+        else:
+            beats = 64
+            typer.echo("⚠ seam stability could not be read — falling back to 64 beats:")
+            for line in suggestion.reasoning:
+                typer.echo(f"  {line}")
 
     rate_b = bpm_a / nearest_octave_candidate(bpm_a, bpm_b).bpm
     duration_a = analysis_a.track.duration_sec or 0.0
