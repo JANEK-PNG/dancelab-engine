@@ -23,7 +23,6 @@ from dancelab.core.config import WeightGroup
 from dancelab.core.models import (
     ContextProfile,
     ModelStatus,
-    TempoFeasibility,
     TransitionStrategy,
     TransitionWindow,
     TransitionWindowInput,
@@ -482,7 +481,7 @@ def detect_transition_windows(
                 reasoning=reasoning,
                 warnings=w_warnings,
                 compatible_contexts=compatible_contexts,
-                tempo_window_feasibility=TempoFeasibility.medium,
+
                 recommended_strategies=_window_strategy_hints(
                     window_type,
                     bass_freedom=float(np.clip(components["bass"][idx], 0.0, 1.0)),

@@ -80,7 +80,7 @@ def _synthetic_window(track: AnalysisResult, kind: str) -> TransitionWindow | No
         reasoning=["synthetic fallback window — no strong local maxima were available"],
         warnings=["fallback window only — verify transition timing by ear"],
         recommended_strategies=[TransitionStrategy.short_blend],
-        tempo_window_feasibility=TempoFeasibility.medium,
+
         explanation="fallback window synthesized for edge-decision completeness",
     )
 
