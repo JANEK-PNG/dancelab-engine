@@ -147,6 +147,35 @@ w jednym posiedzeniu; dwa z trzech padły w połowie i zwróciły `{"confirmed_s
 identycznie jak „kod czysty"**. Przegląd robimy ręcznie i sekwencyjnie — tak powstało wszystkie 9 znalezisk
 paczki A. Fan-out tylko za wyraźną zgodą Janka i z podaną ceną.
 
+### 8b · OBRAZ ARCHITEKTONICZNY (zmierzony 2026-07-25)
+
+Pytanie Janka: *„czy DanceLab to jeden funkcjonujący organizm?"* — zmierzone grafem importów, nie zgadywane.
+
+**Krwiobieg produktu działa:** `ingestion → preprocessing → features → stems → descriptors → decision →
+export/cues`. Zero sierot na poziomie pakietów, każdy moduł ma realnych konsumentów. Rdzeń JEST spięty.
+
+**Ale cztery asymetrie — i to one są odpowiedzią:**
+
+| | co zmierzone | znaczenie |
+|---|---|---|
+| **1. Badania = 44% kodu, wpływ przez JEDEN plik** | `validation/` 35 plików / 14 456 linii; **kod produktu nie importuje jej ani razu**; cały wpływ płynie przez `data/reports/corpus_priors/priors_v1.json` (skrypt pisze → `decision/corpus_priors.py` czyta) | Architektura **dobra** (badania nie każą silnika), ale **niewykorzystana**: korpus zmierzył medianę przejścia 94 bity, 551 profili DJ, centroidy brzmienia, 12 668 wektorów CLAP — przez rurkę przeszły tylko lifty BPM i harmonii |
+| **2. `context/` — mały moduł przyćmiony** | 376 linii, wpina się w `mixability` i realnie zmienia wynik; **`ContextProfile` powstaje WYŁĄCZNIE w `api/` i `validation/`** — ścieżka CLI nigdy go nie podaje | Warstwa wiedząca, że festiwal 15:00 ≠ zamknięcie 4:00, jest **ciemna w produkcji**. Nie martwy kod — narząd podłączony do mózgu, nigdy niekarmiony |
+| **3. `preview/` — narząd bez ust** | 601 linii, renderuje AUDIO przejścia; konsumenci: 2 skrypty weryfikacyjne, **zero komend CLI** | Realna wartość (usłysz szew zanim zagrasz) bez wejścia dla użytkownika |
+| **4. `api/` — narząd w słoiku** | 9 plików, po wycięciu Qt **bez konsumenta** | Świadoma decyzja (droga powrotna dla frontendu), dziś koszt bez odbiorcy |
+
+**Werdykt.** Jako **silnik** — organizm żyje: analiza→decyzja→eksport ma jeden dowiedziony wylot (cue do
+Rekordboxa) i wewnętrzną spójność. Jako **produkt** — jeszcze nie, bo organizm poznaje się po tym, że bodziec
+zmienia zachowanie całości: dziś powiesz „gram na festiwalu" i nic się nie zmieni, bo nie ma jak to powiedzieć.
+**Sprawny układ krwionośny i mózg, zmysły odłączone od skóry.**
+
+**Kolejność podłączania zmysłów:**
+1. ✅ **`context` → CLI** (flaga `--context`) — najtańsze, największy efekt: cały istniejący, przetestowany kod warunkowania zaczyna działać. *Zrobione 2026-07-25.*
+2. **Poszerzyć rurkę badania→silnik** — priorytet: długość przejścia (94 bity zmierzone, silnik ich nie używa).
+3. **`preview` dostaje komendę CLI** — „zagraj mi ten szew".
+4. **Decyzja o `api`** — albo dostaje konsumenta, albo idzie do archiwum jak Qt. → PYTANIE do Janka.
+
+---
+
 ### 8a · PACZKA B — 7 napraw ✅ ZROBIONE (2026-07-25)
 
 Wszystkie siedem naprawione, każda z testem, suite **530 zielonych**. Poniżej dla historii —

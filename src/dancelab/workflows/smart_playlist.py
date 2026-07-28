@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from dancelab.core.config import EngineConfig, load_weights
-from dancelab.core.models import AnalysisResult, SetPlan, TransitionWindowInput
+from dancelab.core.models import AnalysisResult, ContextProfile, SetPlan, TransitionWindowInput
 from dancelab.core.pipeline import analyze_track, analyze_track_with_stems
 from dancelab.decision.set_builder import build_set
 from dancelab.decision.transition_windows import detect_transition_windows
@@ -459,6 +459,7 @@ def build_smart_playlist_from_folder(
     analysis_depth: str = "normal",
     recursive: bool = True,
     recompute: bool = False,
+    context: ContextProfile | None = None,
     analyze_fn: Callable[..., AnalysisResult] = analyze_track,
 ) -> SmartPlaylistResult:
     """Analyze a music folder and write a Rekordbox XML playlist."""
@@ -498,6 +499,7 @@ def build_smart_playlist_from_folder(
         arc=arc,
         target_track_count=target_track_count,
         planner_mode=planner_mode,
+        context=context,
     )
     selected_ids = set(plan.track_order)
     selected_analyses = [analysis for analysis in analyses if analysis.track.track_id in selected_ids]
