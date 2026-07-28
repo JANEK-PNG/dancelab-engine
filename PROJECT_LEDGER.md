@@ -170,7 +170,7 @@ zmienia zachowanie całości: dziś powiesz „gram na festiwalu" i nic się nie
 
 **Kolejność podłączania zmysłów:**
 1. ✅ **`context` → CLI** (flaga `--context`) — najtańsze, największy efekt: cały istniejący, przetestowany kod warunkowania zaczyna działać. *Zrobione 2026-07-25.*
-2. **Poszerzyć rurkę badania→silnik** — priorytet: długość przejścia (94 bity zmierzone, silnik ich nie używa).
+2. ✅ **Rurka badania→silnik poszerzona o długość przejścia.** *Zrobione 2026-07-25.* Znalezisko było ostrzejsze niż zakładałam: `core/phrasing.window_phrase_score` nagradzał długości bliskie 8/16/32 bitom (ręcznie wpisane frazy) i **zerował wszystko dłuższe** — czyli **32 bity → 1.00, a zmierzona mediana 94 bity → 0.00**. Silnik był nastrojony przeciwko własnemu korpusowi. Mediana czytana teraz przez `corpus_priors.transition_length_beats()` (wersjonowana z plikiem priorsów, nie skopiowana do kodu), dołącza do preferowanych; krótkie miksy zachowują pełną punktację, brak pliku = sam klasyczny zestaw, bez zgadywania. Po: 32→1.00, 64→0.68, **94→1.00**, 128→0.64.
 3. **`preview` dostaje komendę CLI** — „zagraj mi ten szew".
 4. **Decyzja o `api`** — albo dostaje konsumenta, albo idzie do archiwum jak Qt. → PYTANIE do Janka.
 
