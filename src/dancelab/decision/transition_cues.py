@@ -42,6 +42,24 @@ def _nearest_user_cue(
     return None
 
 
+def _cue_confidence(
+    out_window: TransitionWindow | None,
+    in_window: TransitionWindow | None,
+) -> float | None:
+    """How sure we are of WHERE the handoff sits — never how well the pair fits.
+
+    The cue's positions come from the transition windows, so the engine's own
+    detection scores for those windows are the only measured evidence for the
+    placement. The weakest one governs: a confident mix-out cannot vouch for a
+    doubtful mix-in. With no window at all there is nothing to ground a number
+    on, so the field stays None rather than borrowing a number from elsewhere.
+    """
+    scores = [w.score for w in (out_window, in_window) if w is not None]
+    if not scores:
+        return None
+    return max(0.0, min(1.0, min(scores)))
+
+
 def build_transition_cue(
     transition: SetTransition,
     *,
@@ -108,7 +126,7 @@ def build_transition_cue(
         b_cue_source=b_source,
         b_cue_slot=b_slot,
         mix_duration_beats=mix_beats,
-        confidence=max(0.0, min(1.0, transition.transition_score)),
+        confidence=_cue_confidence(out_window, in_window),
         # HARD RULE: only a verified cue with usable windows and reliable
         # grids releases the manual-listen requirement. Both windows must be
         # present: a hot cue chosen with no mix-in window to corroborate it

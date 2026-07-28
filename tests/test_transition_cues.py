@@ -118,3 +118,29 @@ def test_earliest_hotcue_without_a_mix_in_window_still_needs_a_listen():
     )
     assert cue.b_cue_source == "rekordbox_hotcue"        # timestamp is real
     assert cue.requires_manual_listen is True            # but nothing corroborates it
+
+
+def test_confidence_reflects_the_cue_evidence_not_pair_compatibility():
+    """How well two tracks fit says nothing about how sure we are of WHERE the
+    handoff goes. Confidence must come from the windows that define the cue."""
+    cue = build_transition_cue(
+        TRANSITION,                                       # transition_score 0.82
+        analysis_a=_analysis("a"),
+        analysis_b=_analysis("b"),
+        windows_a=[_win(WindowType.mix_out, 240.0, 270.0, score=0.30)],
+        windows_b=[_win(WindowType.mix_in, 60.0, 90.0, score=0.40)],
+        user_cues_b=None,
+    )
+    assert cue.confidence == 0.30                         # weakest window, not 0.82
+
+
+def test_confidence_is_none_when_no_window_supports_the_cue():
+    cue = build_transition_cue(
+        TRANSITION,
+        analysis_a=_analysis("a"),
+        analysis_b=_analysis("b"),
+        windows_a=[],
+        windows_b=[],
+        user_cues_b=None,
+    )
+    assert cue.confidence is None                         # nothing to ground it
