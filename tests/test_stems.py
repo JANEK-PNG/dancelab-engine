@@ -70,6 +70,38 @@ def test_extract_stems_full_mix_fallback_when_backend_unavailable(monkeypatch):
     assert bundle.result.provenance.extraction_status == StemExtractionStatus.unavailable
 
 
+def test_extract_stems_records_selected_demucs_device(monkeypatch):
+    config = EngineConfig.model_validate({"stems": {"enabled": True, "method": "demucs"}})
+    signal = AudioSignal(samples=np.ones(4096, dtype=np.float32), sample_rate=44100)
+    channels = {
+        stem_type: AudioSignal(
+            samples=np.full(4096, 0.5, dtype=np.float32),
+            sample_rate=44100,
+        )
+        for stem_type in StemType
+    }
+
+    monkeypatch.setattr(
+        "dancelab.stems.extractor.preferred_torch_device",
+        lambda: "mps",
+    )
+
+    def fake_extract(signal, config=None, *, device=None):
+        assert device == "mps"
+        return channels, DurationMatchStatus.match
+
+    monkeypatch.setattr(
+        "dancelab.stems.extractor._extract_demucs_channels",
+        fake_extract,
+    )
+
+    bundle = extract_stems(signal, "track-1", config)
+
+    assert bundle is not None
+    assert bundle.result.provenance.model_signature == "demucs.apply_model.mps"
+    assert bundle.result.provenance.processing_command == "demucs.apply_model(device=mps)"
+
+
 def test_stem_energy_ratio_per_frame_gates_near_silence():
     n = 44100 * 3
     mix = np.ones(n, dtype=np.float32)
