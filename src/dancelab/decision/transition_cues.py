@@ -110,9 +110,15 @@ def build_transition_cue(
         mix_duration_beats=mix_beats,
         confidence=max(0.0, min(1.0, transition.transition_score)),
         # HARD RULE: only a verified cue with usable windows and reliable
-        # grids releases the manual-listen requirement
+        # grids releases the manual-listen requirement. Both windows must be
+        # present: a hot cue chosen with no mix-in window to corroborate it
+        # (the earliest-cue branch above) is a guess at the DJ's intent, and
+        # that branch's own comment says it still needs a listen.
         requires_manual_listen=not (
-            b_source == "rekordbox_hotcue" and out_window is not None and grids_reliable
+            b_source == "rekordbox_hotcue"
+            and in_window is not None
+            and out_window is not None
+            and grids_reliable
         ),
         reasoning=reasoning,
     )
