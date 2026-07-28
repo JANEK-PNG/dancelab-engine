@@ -144,3 +144,21 @@ def test_confidence_is_none_when_no_window_supports_the_cue():
         user_cues_b=None,
     )
     assert cue.confidence is None                         # nothing to ground it
+
+
+def test_cue_carries_the_craft_rule_blend_length():
+    """Every planned A->B carries a per-pair length from the stability rule,
+    clearly separate from the measured window length (ADR-005: a rule-based
+    number is never dressed up as a measurement)."""
+    cue = build_transition_cue(
+        TRANSITION,
+        analysis_a=_analysis("a"),
+        analysis_b=_analysis("b"),
+        windows_a=[_win(WindowType.mix_out, 240.0, 270.0)],
+        windows_b=[_win(WindowType.mix_in, 60.0, 90.0)],
+        user_cues_b=None,
+    )
+    # fixtures have only 2 RMS-less frames -> rule cannot run -> None, with a reason
+    assert cue.suggested_blend_beats is None
+    assert cue.blend_beats_basis == "stability_craft_rule"
+    assert any("A out:" in r or "B in:" in r for r in cue.reasoning)

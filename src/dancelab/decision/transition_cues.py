@@ -106,6 +106,14 @@ def build_transition_cue(
             "B start is an engine window estimate — no verified cue; listen first"
         )
 
+    suggested_beats: int | None = None
+    if a_out is not None and b_in is not None:
+        from dancelab.decision.transition_length import suggest_transition_beats
+
+        suggestion = suggest_transition_beats(analysis_a, a_out, analysis_b, b_in)
+        suggested_beats = suggestion.beats
+        reasoning.extend(suggestion.reasoning)
+
     grids_reliable = bool(
         analysis_a.beatgrid and analysis_a.beatgrid.reliable
         and analysis_b.beatgrid and analysis_b.beatgrid.reliable
@@ -126,6 +134,7 @@ def build_transition_cue(
         b_cue_source=b_source,
         b_cue_slot=b_slot,
         mix_duration_beats=mix_beats,
+        suggested_blend_beats=suggested_beats,
         confidence=_cue_confidence(out_window, in_window),
         # HARD RULE: only a verified cue with usable windows and reliable
         # grids releases the manual-listen requirement. Both windows must be
