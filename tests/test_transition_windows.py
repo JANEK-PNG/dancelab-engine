@@ -398,3 +398,18 @@ def test_windows_do_not_claim_tempo_feasibility(weights):
     )
     assert out.windows
     assert all(w.tempo_window_feasibility is None for w in out.windows)
+
+
+def test_unreliable_beatgrid_is_not_trusted_for_phrasing(weights):
+    """A grid the analysis marked unreliable must not quietly raise coverage."""
+    grid = BeatGrid(bpm=128.0, reliable=False,
+                    beat_times_sec=[i * 0.469 for i in range(128)],
+                    downbeats_sec=[0.0, 1.875, 3.75])
+    segments = [Segment(segment_id="s0", track_id="t1", start_sec=0.0,
+                        end_sec=60.0, segment_type="groove")]
+    out = detect_transition_windows(
+        TransitionWindowInput(track_id="t1", feature_frames=make_frames(),
+                              beatgrid=grid, segments=segments),
+        weights,
+    )
+    assert any("beatgrid unreliable" in w for w in out.warnings), out.warnings

@@ -35,6 +35,7 @@ from dancelab.core.models import (
 )
 from dancelab.core.phrasing import window_phrase_score
 from dancelab.core.provenance import guardrail_warnings, provenance_for
+from dancelab.decision.cue_grid import usable_beat_grid
 from dancelab.decision.harmonic import harmonic_compatibility
 from dancelab.decision.rules import evaluate_pair_policy, evaluate_pair_rules
 
@@ -208,11 +209,17 @@ def phrase_fit(
     if not outs or not ins:
         return None
 
+    # An unreliable grid's beat times are noise; phrasing built on them would be
+    # invented precision that also counts as a present component. Fall back to
+    # segment boundaries, exactly as a missing grid does.
+    grid_a = usable_beat_grid(analysis_a.beatgrid)
+    grid_b = usable_beat_grid(analysis_b.beatgrid)
+
     scores: list[float] = []
     for window_a in outs:
-        score_a = _phrase_window_score(window_a, analysis_a.beatgrid, analysis_a.segments)
+        score_a = _phrase_window_score(window_a, grid_a, analysis_a.segments)
         for window_b in ins:
-            score_b = _phrase_window_score(window_b, analysis_b.beatgrid, analysis_b.segments)
+            score_b = _phrase_window_score(window_b, grid_b, analysis_b.segments)
             if score_a is None or score_b is None:
                 continue
             duration_a = window_a.end_sec - window_a.start_sec
