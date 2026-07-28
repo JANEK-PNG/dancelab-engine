@@ -387,3 +387,14 @@ def test_top_k_suppresses_adjacent_peaks():
     assert idxs[0] == 1
     assert 3 not in idxs  # suppressed: 2 s from peak 1
     assert 10 in idxs
+
+
+def test_windows_do_not_claim_tempo_feasibility(weights):
+    """Tempo feasibility is a property of a PAIR of tracks. This detector sees
+    one track — no second tempo is in TransitionWindowInput — so it must leave
+    the field None rather than stamping a plausible-looking 'medium'."""
+    out = detect_transition_windows(
+        TransitionWindowInput(track_id="t1", feature_frames=make_frames()), weights
+    )
+    assert out.windows
+    assert all(w.tempo_window_feasibility is None for w in out.windows)
