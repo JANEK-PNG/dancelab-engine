@@ -57,11 +57,16 @@ def _grids_reliable(an_a: AnalysisResult, an_b: AnalysisResult) -> bool:
 
 
 
-def _mk_cue(content_id, position_sec, pad_index, cue_type, labels, confident, beats=None):
+def _mk_cue(content_id, position_sec, pad_index, cue_type, labels, confident,
+            beats=None, suggested_beats=None):
     label = labels.get(cue_type, {})
     base = label.get("comment", cue_type)
     if confident:
         comment = render_comment(base, beats)
+        if beats is None and suggested_beats is not None and "{beats}" in base:
+            # Rule-derived length. The tilde marks a suggestion from the
+            # stability craft rule — never dressed up as a measurement.
+            comment = f"{comment} (~{suggested_beats})"
         color = label.get("color", -1)
     else:
         # keep the cue's TYPE visible, mark it uncertain — never hide what the pad is
@@ -139,8 +144,9 @@ def plan_cues(
             confident = bool(grids and out_w is not None and out_w.score >= confident_score)
             pos = snap_cue_start(an_a.beatgrid, tc.a_out_start_sec)
             cues_by_track.setdefault(a, []).append(
-                _mk_cue(a, pos, 2, "mix_out", labels,
-                        confident, beats=tc.mix_duration_beats if confident else None)
+                _mk_cue(a, pos, 2, "mix_out", labels, confident,
+                        beats=tc.mix_duration_beats if confident else None,
+                        suggested_beats=tc.suggested_blend_beats)
             )
         if tc.b_in_start_sec is not None:
             verified_cue = tc.b_cue_source == "rekordbox_hotcue"
