@@ -33,6 +33,7 @@ from dancelab.core.normalization import minmax_01 as _minmax
 from dancelab.core.normalization import robust_01 as _robust
 from dancelab.core.phrasing import phrase_alignment_curve
 from dancelab.core.provenance import guardrail_warnings, provenance_for
+from dancelab.decision.cue_grid import usable_beat_grid
 
 MODEL_VERSION = "transition_windows_v0.1"
 STATUS = "candidate"
@@ -122,11 +123,16 @@ def compute_components(
         warnings.append("structural component unavailable (no segment map) — neutral")
 
     # S_phrase — beatgrid phrase anchors, strengthened by structural boundaries.
-    phrase_curve = phrase_alignment_curve(times, inp.beatgrid, inp.segments)
+    # An unreliable grid is treated exactly like a missing one: its beat times
+    # are noise, and phrasing built on them would raise coverage and confidence
+    # precisely where the grid must not be trusted.
+    usable_grid = usable_beat_grid(inp.beatgrid)
+    phrase_curve = phrase_alignment_curve(times, usable_grid, inp.segments)
     if phrase_curve is not None:
         comp["phrase"] = phrase_curve
-        if inp.beatgrid is None and inp.segments:
-            warnings.append("phrase alignment uses segment-boundary fallback (no beatgrid)")
+        if usable_grid is None and inp.segments:
+            reason = "no beatgrid" if inp.beatgrid is None else "beatgrid unreliable"
+            warnings.append(f"phrase alignment uses segment-boundary fallback ({reason})")
     else:
         comp["phrase"] = np.full(n, _NEUTRAL_POSITIVE)
         if inp.segments:
@@ -428,7 +434,7 @@ def detect_transition_windows(
     n_missing = sum(1 for w in warnings if "unavailable" in w)
     coverage = (7 - n_missing) / 7
     warnings += guardrail_warnings(
-        has_beatgrid=inp.beatgrid is not None,
+        has_beatgrid=usable_beat_grid(inp.beatgrid) is not None,
         has_context=inp.context is not None,
         source_grounding=coverage,
     )

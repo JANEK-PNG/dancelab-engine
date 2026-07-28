@@ -334,3 +334,24 @@ def test_api_mixability_endpoint(monkeypatch, tmp_path):
 
     assert client.post("/pairs/mixability",
                        json={"track_id_a": "mixa", "track_id_b": "nope"}).status_code == 404
+
+
+def test_phrase_fit_does_not_trust_an_unreliable_beatgrid():
+    """An unreliable grid's beat times are noise. Building phrase scores on them
+    invents precision and, worse, counts as a present component."""
+    from dancelab.core.models import AnalysisResult, BeatGrid, Track, TransitionWindow, WindowType
+    from dancelab.decision.mixability import phrase_fit
+
+    def _unreliable(tid):
+        return AnalysisResult(
+            engine_version="t",
+            track=Track(track_id=tid, bpm_estimate=128.0),
+            beatgrid=BeatGrid(bpm=128.0, reliable=False,
+                              beat_times_sec=[float(i) * 0.469 for i in range(64)],
+                              downbeats_sec=[0.0, 1.875, 3.75]),
+            segments=[],           # no fallback anchors either
+        )
+
+    out_w = [TransitionWindow(window_type=WindowType.mix_out, start_sec=10.0, end_sec=20.0, score=0.8)]
+    in_w = [TransitionWindow(window_type=WindowType.mix_in, start_sec=0.0, end_sec=10.0, score=0.8)]
+    assert phrase_fit(_unreliable("a"), _unreliable("b"), out_w, in_w) is None
