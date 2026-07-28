@@ -53,13 +53,22 @@ def stability_runway_beats(
     analysis: AnalysisResult,
     cue_sec: float,
     *,
+    side: str = "outgoing",
     max_beats: float = MAX_RUNWAY_BEATS,
 ) -> tuple[float | None, str]:
-    """Beats past the cue for which the RMS envelope holds its level.
+    """Beats past the cue for which the material can carry a blend.
+
+    The two sides of a seam are judged differently (Janek, 2026-07-28):
+    - "outgoing": the track playing under the blend must HOLD its level — any
+      drift away from the cue-time level ends the runway.
+    - "incoming": a track that BUILDS is a classic mix-in, so growth is fine;
+      only sudden jumps and collapses below the level already reached end it.
 
     Returns (runway, reason). Runway is None when the rule cannot be applied —
     no tempo, or no RMS frames past the cue — never a substituted number.
     """
+    if side not in ("outgoing", "incoming"):
+        raise ValueError(f"side must be 'outgoing' or 'incoming', got {side!r}")
     bpm = _bpm(analysis)
     if bpm is None:
         return None, "no tempo — cannot express a runway in beats"
@@ -79,16 +88,25 @@ def stability_runway_beats(
         return None, "silent at the cue — level comparisons are meaningless"
 
     prev = anchor
+    peak = anchor
     end_sec = frames[0].timestamp_sec
     reason = f"stable to the {max_beats:.0f}-beat horizon"
     for frame in frames[1:]:
         if frame.timestamp_sec > horizon:
             break
         value = float(frame.rms)
-        if abs(value - prev) / max(anchor, 1e-9) > JUMP_FRACTION:
+        # A sudden step is a material change on either side. Normalized by the
+        # current level, not the anchor, so a quiet intro that has grown is not
+        # punished for taking the same-sized steps at a higher level.
+        if abs(value - prev) / max(prev, anchor, 1e-9) > JUMP_FRACTION:
             reason = f"level jump at {frame.timestamp_sec:.1f}s"
             break
-        if abs(value - anchor) / anchor > DRIFT_FRACTION:
+        if side == "incoming":
+            peak = max(peak, value)
+            if value < (1.0 - DRIFT_FRACTION) * peak:
+                reason = f"level collapse at {frame.timestamp_sec:.1f}s"
+                break
+        elif abs(value - anchor) / anchor > DRIFT_FRACTION:
             reason = f"level drifted away by {frame.timestamp_sec:.1f}s"
             break
         prev = value
@@ -109,8 +127,8 @@ def suggest_transition_beats(
     beats is None when either side's runway cannot be established; the caller
     decides its own fallback and says so.
     """
-    runway_a, why_a = stability_runway_beats(analysis_a, cue_a_sec)
-    runway_b, why_b = stability_runway_beats(analysis_b, cue_b_sec)
+    runway_a, why_a = stability_runway_beats(analysis_a, cue_a_sec, side="outgoing")
+    runway_b, why_b = stability_runway_beats(analysis_b, cue_b_sec, side="incoming")
     reasoning = [f"A out: {why_a}", f"B in: {why_b}"]
 
     if runway_a is None or runway_b is None:
