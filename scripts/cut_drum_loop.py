@@ -66,17 +66,29 @@ def main() -> None:
         return np.asarray(out)
 
     drums_rms = per_beat_rms(np.asarray(drums.samples))
-    others = [per_beat_rms(np.asarray(sig.samples))
-              for name, sig in by_name.items() if "drum" not in name.lower()]
-    other_rms = np.sum(others, axis=0) if others else np.zeros_like(drums_rms)
+    # A loop is a GROOVE: drums and bass belong in it. Only vocals and melodic
+    # content fight a loop played under another track — penalize those alone.
+    melodic = [per_beat_rms(np.asarray(sig.samples))
+               for name, sig in by_name.items()
+               if not any(k in name.lower() for k in ("drum", "bass"))]
+    melodic_rms = np.sum(melodic, axis=0) if melodic else np.zeros_like(drums_rms)
+
+    # A loop must start on the "1": candidate starts are downbeats only. An
+    # off-phase loop sounds mechanical no matter what plays in it.
+    downbeat_idx = sorted({int(np.argmin(np.abs(np.asarray(beats) - d)))
+                           for d in (grid.downbeats_sec or [])})
+    if not downbeat_idx:
+        raise SystemExit("no downbeats on the grid — cannot phase-lock a loop")
 
     n = args.beats
     scale = max(float(drums_rms.max()), 1e-9)
     best_i, best_score = None, -1e9
-    for i in range(0, len(drums_rms) - n):
+    for i in downbeat_idx:
+        if i + n >= len(drums_rms):
+            continue
         d = drums_rms[i:i + n] / scale
-        o = other_rms[i:i + n] / scale
-        score = float(d.mean() - 2.0 * d.std() - 1.5 * o.mean())
+        m = melodic_rms[i:i + n] / scale
+        score = float(d.mean() - 2.0 * d.std() - 1.5 * m.mean())
         if score > best_score:
             best_i, best_score = i, score
     if best_i is None:
