@@ -29,6 +29,7 @@ DEFAULT_WAVEFORM_BINS = 360
 PREVIEW_CHANNELS = 2
 PREVIEW_OUTPUT_SUBTYPE = "PCM_24"
 PREVIEW_TIME_STRETCH_BACKEND = "librosa_phase_vocoder"
+PREVIEW_VARISPEED_BACKEND = "librosa_soxr_varispeed"
 SOURCE_SHORTFALL_TOLERANCE_SEC = 0.05
 
 
@@ -372,7 +373,7 @@ def _read_audio_segment(
 ) -> np.ndarray:
     try:
         import librosa
-    except ImportError as exc:  # pragma: no cover - desktop audio extra owns this
+    except ImportError as exc:  # pragma: no cover - audio extra owns this
         raise RuntimeError("librosa is required for transition preview rendering") from exc
     source = Path(source_path).expanduser()
     if not source.exists():
@@ -395,6 +396,7 @@ def _read_at_playback_rate(
     output_duration_sec: float,
     playback_rate: float,
     output_samples: int,
+    tempo_mode: str = "varispeed",
 ) -> np.ndarray:
     requested_source_sec = output_duration_sec * playback_rate
     source = _read_audio_segment(
@@ -417,10 +419,21 @@ def _read_at_playback_rate(
             import librosa
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError("librosa is required for beat-synced preview rendering") from exc
-        source = librosa.effects.time_stretch(
-            np.asarray(source, dtype=np.float32),
-            rate=float(playback_rate),
-        )
+        samples = np.asarray(source, dtype=np.float32)
+        if tempo_mode == "stretch":
+            # Phase vocoder: pitch is preserved, but transients smear and the
+            # result reads as dull or over-compressed — Master Tempo on a CDJ.
+            source = librosa.effects.time_stretch(samples, rate=float(playback_rate))
+        else:
+            # Varispeed: what a pitch fader does with Master Tempo off. Tempo and
+            # pitch move together, which is what most DJs actually beatmatch with
+            # and what the preview should therefore sound like.
+            source = librosa.resample(
+                samples,
+                orig_sr=float(sample_rate),
+                target_sr=float(sample_rate) / float(playback_rate),
+                res_type="soxr_hq",
+            )
     return _fit_length(
         source,
         output_samples,
@@ -431,7 +444,7 @@ def _read_at_playback_rate(
 def _split_three_bands(samples: np.ndarray, sample_rate: int) -> tuple[np.ndarray, ...]:
     try:
         from scipy.signal import butter, sosfilt, sosfiltfilt
-    except ImportError as exc:  # pragma: no cover - desktop audio extra owns this
+    except ImportError as exc:  # pragma: no cover - audio extra owns this
         raise RuntimeError("scipy is required for transition preview EQ rendering") from exc
 
     nyquist = sample_rate / 2.0
@@ -501,8 +514,15 @@ def render_transition_preview(
     sample_rate: int = 44100,
     duration_beats: int = DEFAULT_DURATION_BEATS,
     grid_beats: int = DEFAULT_GRID_BEATS,
+    tempo_mode: str = "varispeed",
 ) -> TransitionRenderResult:
-    """Render one phrase-locked A→B preview to a single sample-accurate WAV."""
+    """Render one phrase-locked A→B preview to a single sample-accurate WAV.
+
+    tempo_mode: "varispeed" moves pitch with tempo, as a pitch fader does with
+    Master Tempo off — clean, and what most DJs actually beatmatch with.
+    "stretch" holds pitch through a phase vocoder, which smears transients and
+    can read as dull or over-compressed.
+    """
     if not np.isfinite(bpm_master) or bpm_master <= 0:
         raise ValueError("a positive outgoing BPM is required for a phrase-locked preview")
     if not np.isfinite(playback_rate_a) or playback_rate_a <= 0:
@@ -526,6 +546,7 @@ def render_transition_preview(
         output_duration_sec=duration_sec,
         playback_rate=float(playback_rate_a),
         output_samples=output_samples,
+        tempo_mode=tempo_mode,
     )
 
     incoming = _read_at_playback_rate(
@@ -535,6 +556,7 @@ def render_transition_preview(
         output_duration_sec=duration_sec,
         playback_rate=float(playback_rate_b),
         output_samples=output_samples,
+        tempo_mode=tempo_mode,
     )
 
     curves = sample_transition_envelope(envelope, output_samples)

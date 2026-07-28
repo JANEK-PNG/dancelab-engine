@@ -39,6 +39,12 @@ def render(
     beats: int = typer.Option(64, "--beats",
                               help="Requested transition length in beats "
                                    "(32/64/96/128/160/192/224/256)"),
+    tempo_mode: str = typer.Option(
+        "varispeed", "--tempo-mode",
+        help="varispeed = pitch moves with tempo, like a pitch fader with Master "
+             "Tempo off (clean). stretch = hold pitch via phase vocoder (smears "
+             "transients, can sound dull).",
+    ),
     config: str = typer.Option("configs/default.yaml", "--config", "-c"),
 ) -> None:
     """Render an audible preview of the A→B transition to a WAV file."""
@@ -144,6 +150,7 @@ def render(
         profile_id=profile,
         output_path=output,
         duration_beats=plan.selected_beats,
+        tempo_mode=tempo_mode,
     )
 
     mins_a, secs_a = divmod(int(cue_a), 60)
@@ -151,5 +158,5 @@ def render(
     typer.echo(
         f"✓ {output}\n"
         f"  out of A at {mins_a}:{secs_a:02d} · into B at {mins_b}:{secs_b:02d} · "
-        f"{plan.selected_beats} beats at {bpm_a:.1f} BPM · {profile}"
+        f"{plan.selected_beats} beats at {bpm_a:.1f} BPM · {profile} · {tempo_mode}"
     )
