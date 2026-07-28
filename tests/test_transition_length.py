@@ -69,3 +69,31 @@ def test_thin_runway_still_suggests_the_shortest_option():
     s = suggest_transition_beats(a, 0.0, a, 0.0)
     assert s.beats == 32
     assert "shortest option" in " ".join(s.reasoning)
+
+
+def test_incoming_side_tolerates_growth():
+    """Janek 2026-07-28: an incoming track that BUILDS is a classic mix-in.
+    For side B only jumps and downward collapses end the runway."""
+    # steady build: +2%/beat for 150 beats, no jumps, no collapse
+    series = [0.1 * (1.02 ** i) for i in range(150)]
+    grow = _analysis("b", series)
+    out_r, _ = stability_runway_beats(grow, 0.0, side="outgoing")
+    in_r, why = stability_runway_beats(grow, 0.0, side="incoming")
+    assert out_r < 40                      # outgoing rule still calls this unstable
+    assert in_r > 100, why                 # incoming rule rides the build
+
+
+def test_incoming_collapse_after_growth_ends_the_runway():
+    # builds for 60 beats, then breakdown: level falls to 30% of the peak
+    series = [0.1 * (1.02 ** i) for i in range(60)]
+    series += [series[-1] * 0.3] * 80
+    r, why = stability_runway_beats(_analysis("b", series), 0.0, side="incoming")
+    assert 55 <= r <= 62
+    assert "collapse" in why or "jump" in why
+
+
+def test_pair_uses_incoming_rule_for_b():
+    stable = _analysis("a", [0.4] * 300)
+    build = _analysis("b", [0.1 * (1.02 ** i) for i in range(150)] + [0.4] * 100)
+    s = suggest_transition_beats(stable, 0.0, build, 0.0)
+    assert s.beats is not None and s.beats >= 96   # no longer strangled to 32
