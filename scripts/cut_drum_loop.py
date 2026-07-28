@@ -30,6 +30,9 @@ def main() -> None:
     parser.add_argument("--beats", type=int, default=8, choices=(4, 8, 16, 32))
     parser.add_argument("--out-dir", type=Path, default=Path.home() / "Desktop/DanceLab-Preview")
     parser.add_argument("--config", default="configs/default.yaml")
+    parser.add_argument("--pin-start-sec", type=float, default=None,
+                        help="Skip region search; cut exactly here (an ear-blessed "
+                             "region must not drift with analysis nondeterminism)")
     args = parser.parse_args()
 
     import soundfile as sf
@@ -81,6 +84,13 @@ def main() -> None:
         raise SystemExit("no downbeats on the grid — cannot phase-lock a loop")
 
     n = args.beats
+    if args.pin_start_sec is not None:
+        t0 = float(args.pin_start_sec)
+        t1 = t0 + n * 60.0 / grid.bpm
+        print(f"pinned region: {t0:.2f}s – {t1:.2f}s (ear-blessed)")
+        _cut_and_write(args, by_name, drums, t0, t1, sr, grid, n, -1)
+        return
+
     scale = max(float(drums_rms.max()), 1e-9)
     best_i, best_score = None, -1e9
     for i in downbeat_idx:
@@ -97,7 +107,12 @@ def main() -> None:
     t0, t1 = beats[best_i], beats[best_i + n]
     print(f"chosen region: beats {best_i}..{best_i + n}  ({t0:.2f}s – {t1:.2f}s)"
           f"  score {best_score:.3f}")
+    _cut_and_write(args, by_name, drums, t0, t1, sr, grid, n, best_i)
 
+
+def _cut_and_write(args, by_name, drums, t0, t1, sr, grid, n, best_i):
+    import soundfile as sf
+    import numpy as np
     args.out_dir.mkdir(parents=True, exist_ok=True)
     stem_name = args.track.stem.replace(" ", "_")[:24]
 
@@ -106,14 +121,17 @@ def main() -> None:
     full_path = args.out_dir / f"LOOP_{stem_name}_{n}beats_ORIGINAL.wav"
     sf.write(str(full_path), cut, orig_sr, subtype="PCM_24")
 
-    dsam = np.asarray(drums.samples)
-    dmono = dsam if dsam.ndim == 2 else dsam[np.newaxis, :]
-    dcut = dmono[:, int(t0 * sr):int(t1 * sr)].T
-    drums_path = args.out_dir / f"LOOP_{stem_name}_{n}beats_DRUMS-STEM.wav"
-    sf.write(str(drums_path), dcut, sr, subtype="PCM_24")
+    # every stem of the same region — a performable kit: trigger drums alone,
+    # add bass, add the rest, from sampler pads
+    for name, sig in by_name.items():
+        arr = np.asarray(sig.samples)
+        arr = arr if arr.ndim == 2 else arr[np.newaxis, :]
+        cut_stem = arr[:, int(t0 * sr):int(t1 * sr)].T
+        path = args.out_dir / f"LOOP_{stem_name}_{n}beats_{name.upper()}-STEM.wav"
+        sf.write(str(path), cut_stem, sr, subtype="PCM_24")
+        print(f"✓ {path.name}")
 
-    print(f"✓ {full_path}")
-    print(f"✓ {drums_path}")
+    print(f"✓ {full_path.name}")
     print(f"  {n} beats @ {grid.bpm:.1f} BPM · grid-locked at beat {best_i}")
 
 
