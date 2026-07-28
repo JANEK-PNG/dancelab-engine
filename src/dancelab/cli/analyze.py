@@ -26,6 +26,28 @@ from dancelab.storage.artifact_store import save_json
 app = typer.Typer(name="dancelab", help="DanceLab Engine CLI", no_args_is_help=True)
 
 CONFIG_OPT = typer.Option("configs/default.yaml", "--config", "-c", help="Engine config YAML")
+CONTEXT_OPT = typer.Option(
+    None, "--context",
+    help="Where you are playing (configs/context_profiles.yaml), e.g. club_peak, "
+         "festival_daytime. Conditions scoring; omit to score without a venue.",
+)
+
+
+def _resolve_context(context_id: str | None):
+    """Turn a profile name into a ContextProfile, or None when unspecified.
+
+    An unknown name is a typo, not a request to ignore the setting — fail loudly
+    rather than silently building the set for nowhere in particular.
+    """
+    if not context_id:
+        return None
+    from dancelab.context.context_profile import get_context_profile
+
+    try:
+        return get_context_profile(context_id)
+    except DanceLabError as exc:
+        typer.secho(f"INPUT ERROR: {exc}", fg="red", err=True)
+        sys.exit(2)
 
 
 @app.command()
@@ -79,6 +101,7 @@ def export_rekordbox(
     playlist_name: str = typer.Option("DanceLab Set", "--name"),
     arc: str = typer.Option("build", "--arc", help="Energy arc: build/peak/flat"),
     planner_mode: str = typer.Option("smart", "--planner-mode", help="smart/harmonic/bpm"),
+    context: str | None = CONTEXT_OPT,
     config: str = CONFIG_OPT,
 ) -> None:
     """Build a set from analyzed tracks and export a Rekordbox XML."""
@@ -97,7 +120,8 @@ def export_rekordbox(
         typer.secho("need >=2 analyzed tracks", fg="red", err=True)
         sys.exit(2)
 
-    plan = build_set(analyses, weights, arc=arc, planner_mode=planner_mode)
+    plan = build_set(analyses, weights, arc=arc, planner_mode=planner_mode,
+                     context=_resolve_context(context))
     windows = {
         a.track.track_id: detect_transition_windows(
             TransitionWindowInput(track_id=a.track.track_id, segments=a.segments,
@@ -121,6 +145,7 @@ def smart_playlist(
     playlist_name: str = typer.Option("DanceLab Smart Set", "--name"),
     arc: str = typer.Option("build", "--arc", help="Energy arc: build/peak/flat"),
     planner_mode: str = typer.Option("smart", "--planner-mode", help="smart/harmonic/bpm"),
+    context: str | None = CONTEXT_OPT,
     analysis_depth: str = typer.Option("normal", "--analysis-depth", help="normal/deep"),
     recompute: bool = typer.Option(False, "--recompute", help="Re-analyze tracks even if cached"),
     config: str = CONFIG_OPT,
@@ -138,6 +163,7 @@ def smart_playlist(
             processed_dir=processed_dir,
             arc=arc,
             planner_mode=planner_mode,
+            context=_resolve_context(context),
             analysis_depth=analysis_depth,
             recompute=recompute,
         )
