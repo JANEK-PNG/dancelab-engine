@@ -26,7 +26,9 @@ import numpy as np
 
 F_LO, F_HI = 30.0, 16000.0
 LABELS = (50, 100, 200, 500, 1000, 2000, 5000, 10000)
-EMBED = ("01_Open_Deck_13", "01_Open_Deck_14")
+# Every seam carries its own players now. The page is split by set instead, because
+# forty clips at a bitrate that keeps 44.1 kHz will not fit in one document — and
+# dropping the bitrate is what made the first attempt sound like a calculator.
 
 
 def y_frac(f: float) -> float:
@@ -73,6 +75,10 @@ def main() -> int:
     ap.add_argument("--pairs", required=True)
     ap.add_argument("--seam-dirs", nargs="+", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--only-set", default=None)
+    ap.add_argument("--offset", type=int, default=0)
+    ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--title", default="Twój set i moja kopia")
     args = ap.parse_args()
 
     base = Path(args.pairs).parent
@@ -83,8 +89,16 @@ def main() -> int:
         for f in Path(d).glob("seam_*.json"):
             seams[f"{Path(d).name}_{f.stem[-2:]}"] = json.loads(f.read_text())
 
+    # Pages are capped at a handful of seams: audio at a bitrate that keeps 44.1 kHz
+    # runs about 2 MB a clip, and a document has 16 MB to spend. Lowering the
+    # bitrate instead is what made the first attempt sound like a calculator.
+    keep = [r for r in rows
+            if not args.only_set or r.get("set") == args.only_set]
+    if args.limit:
+        keep = keep[args.offset: args.offset + args.limit]
+
     cards, opens = [], []
-    for r in rows:
+    for r in keep:
         s = seams.get(r["seam"])
         mine_img = spec / f"moje_{r['seam']}.jpg"
         his_img = spec / f"twoje_{r['seam']}.jpg"
@@ -113,10 +127,8 @@ def main() -> int:
                       f'{r["beats_rendered"]} uderzeń</span>')
         chips += f'<span class="chip">{r.get("target_bpm", 0):.0f} BPM</span>'
 
-        snd = ""
-        if r["seam"] in EMBED:
-            snd = (f'<div class="audio"><div>{audio(base, "twoje", r["seam"])}</div>'
-                   f'<div>{audio(base, "moje", r["seam"])}</div></div>')
+        snd = (f'<div class="audio"><div>{audio(base, "twoje", r["seam"])}</div>'
+               f'<div>{audio(base, "moje", r["seam"])}</div></div>')
         cards.append(f"""<article class="seam">
 <header><h3><span class="da">{html.escape(r['from'].split('—')[-1].strip())}</span>
 <span class="ar">→</span><span class="db">{html.escape(r['to'].split('—')[-1].strip())}</span></h3>
@@ -128,12 +140,13 @@ def main() -> int:
 
     Path(args.out).write_text(TEMPLATE.format(
         n=len(cards), median_open=np.median(opens) * 100 if opens else 0,
-        n_open=len(opens), cards="".join(cards)), encoding="utf-8")
+        n_open=len(opens), cards="".join(cards), title=html.escape(args.title)),
+        encoding="utf-8")
     print(f"Wrote {args.out} ({Path(args.out).stat().st_size / 1024 / 1024:.1f} MB)")
     return 0
 
 
-TEMPLATE = """<title>Spektrogramy — Twój set i moja kopia</title>
+TEMPLATE = """<title>{title}</title>
 <style>
 :root {{
   --g:#f7f6f4; --p:#fff; --e:#e2ded7; --ink:#191817; --dim:#78736c;
@@ -201,7 +214,7 @@ audio {{ width:100%; height:30px; }}
   padding-left:14px; max-width:74ch; margin-top:26px; }}
 </style>
 <div class="wrap">
-<h1>Spektrogramy — Twój set i moja kopia</h1>
+<h1>{title}</h1>
 <p class="sub">{n} przejść. Po lewej Twoje nagranie, po prawej mój render tych samych
 dwóch utworów. Oś pionowa to częstotliwość w skali logarytmicznej — tak jak dzieli ją
 ucho i każdy mikser. Jasne = głośne. Pionowe kreski to nasze pomiary nałożone na obraz,
