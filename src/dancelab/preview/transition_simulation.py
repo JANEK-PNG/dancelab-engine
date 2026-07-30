@@ -186,8 +186,18 @@ def build_transition_envelope(
     *,
     duration_beats: int = DEFAULT_DURATION_BEATS,
     grid_beats: int = DEFAULT_GRID_BEATS,
+    bass_open_at: float | None = None,
 ) -> TransitionEnvelope:
-    """Build one transparent preview template on phrase-grid control knots."""
+    """Build one transparent preview template on phrase-grid control knots.
+
+    bass_open_at moves where the low band changes hands, as a fraction of the
+    transition, and applies to the templates that swap bass at all. The stock
+    bass_swap hands over at the midpoint, which is the textbook move; measured
+    across 13 hand-verified seams from one DJ's own recordings the median was
+    0.97 — the incoming bass stayed shut until the handover itself. That is a
+    property of a player rather than of transitions in general, so it is a
+    parameter and the template keeps its own timing by default.
+    """
     if duration_beats <= 0 or grid_beats <= 0 or duration_beats % grid_beats:
         raise ValueError("duration_beats must be a positive multiple of grid_beats")
     labels = dict(PROFILE_OPTIONS)
@@ -234,6 +244,18 @@ def build_transition_envelope(
         mid_b = np.array([0, 0.08, 0.22, 0.48, 0.74, 0.92, 1, 1, 1], dtype=float)
         high_a = np.array([1, 0.96, 0.82, 0.64, 0.48, 0.28, 0.12, 0.04, 0], dtype=float)
         high_b = np.array([0, 0.16, 0.38, 0.62, 0.82, 0.94, 1, 1, 1], dtype=float)
+
+    if bass_open_at is not None and profile_id in {"bass_swap", "tops_swap",
+                                                   "contour_blend"}:
+        if not 0.0 < bass_open_at <= 1.05:
+            raise ValueError("bass_open_at must be a fraction in (0, 1.05]")
+        # A knob turns over a beat or two, not instantly and not over the whole
+        # phrase, so the handover keeps the width of one grid step wherever it is
+        # placed. Built from `progress` rather than by reshaping the nine stock
+        # knots, which cannot express a handover that lands near either end.
+        width = max(grid_beats / float(duration_beats), 0.02)
+        ramp = np.clip((progress - (bass_open_at - width / 2.0)) / width, 0.0, 1.0)
+        low_b, low_a = ramp, 1.0 - ramp
 
     return TransitionEnvelope(
         profile_id=profile_id,
@@ -515,6 +537,7 @@ def render_transition_preview(
     duration_beats: int = DEFAULT_DURATION_BEATS,
     grid_beats: int = DEFAULT_GRID_BEATS,
     tempo_mode: str = "varispeed",
+    bass_open_at: float | None = None,
 ) -> TransitionRenderResult:
     """Render one phrase-locked A→B preview to a single sample-accurate WAV.
 
@@ -536,6 +559,7 @@ def render_transition_preview(
         profile_id,
         duration_beats=duration_beats,
         grid_beats=grid_beats,
+        bass_open_at=bass_open_at,
     )
     duration_sec = duration_beats * 60.0 / float(bpm_master)
     output_samples = max(2, int(round(duration_sec * sample_rate)))
