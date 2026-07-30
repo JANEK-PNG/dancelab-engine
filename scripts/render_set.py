@@ -195,19 +195,17 @@ def main() -> int:
 
     # Level is set from the records, not the peaks: peak normalisation drops a
     # summed mix 3-4 dB below the same music played alone, which reads as flat.
-    target = float(np.median([x for x in levels if x > 0]))
-    live = mix[mix != 0]
-    mix *= target / max(float(np.sqrt((live ** 2).mean())), 1e-9)
-    # Soft-clip first, then set the level — a limiter raises RMS by definition, so
-    # normalising before it undoes the point. The first run came out 4.8 dB above
-    # the DJ's own recording that way, which is as wrong as being 3.5 dB under it.
+    # One constant gain, and nothing else. Chasing the DJ's loudness with a soft
+    # clip was the real fault behind every complaint about the sound: that curve
+    # lifted quiet material 3.1 dB and loud material 0.5 dB, squashing 2.6 dB of
+    # range across 14 % of the samples. He named it before it was measured — it is
+    # a photograph pushed with ISO instead of exposed properly, bright and grainy
+    # rather than clean. Loudness that has to be manufactured is not loudness.
     peak = float(np.abs(mix).max())
-    if peak > 0.9:
-        drive = 0.9 / peak
-        mix = np.tanh(mix * drive * 1.2) / np.tanh(1.2) * 0.9
-    live = mix[mix != 0]
-    mix *= target / max(float(np.sqrt((live ** 2).mean())), 1e-9)
-    mix = np.clip(mix, -0.999, 0.999)
+    mix *= 0.89 / max(peak, 1e-9)          # about -1 dBFS, no dynamics touched
+    quiet = 20 * np.log10(float(np.sqrt((mix[mix != 0] ** 2).mean())) + 1e-12)
+    print(f"\npoziom: szczyt -1.0 dBFS, rms {quiet:.1f} dB — bez kompresji "
+          f"i bez limitera, wiec ciszej niz miks przepuszczony przez mikser")
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
