@@ -20,8 +20,6 @@ from pathlib import Path
 
 import numpy as np
 
-from dancelab.preview.transition_simulation import build_transition_envelope
-
 MIX_BPM = 136.0
 W, H = 560, 62
 BANDS = (("bas", "low"), ("środek", "mid"), ("góra", "high"))
@@ -46,20 +44,25 @@ def his_panel(seam, band, span) -> str:
             f"</svg>")
 
 
-def mine_panel(row, key, span) -> str:
-    env = build_transition_envelope(row["profile"], duration_beats=row["beats_rendered"],
-                                    grid_beats=8, bass_open_at=row.get("bass_open_at"))
-    c = env.curves()
-    dur = row["beats_rendered"] * 60.0 / MIX_BPM
-    t = np.asarray(env.beat_positions) / row["beats_rendered"] * dur
-    fa = np.asarray(c["fader_a"]) * np.asarray(c[f"{key}_a"])
-    fb = np.asarray(c["fader_b"]) * np.asarray(c[f"{key}_b"])
+def mine_panel(row, band, span, floor) -> str:
+    """The render, put back through the same measurement his recording went through.
+
+    Drawing the envelope here instead would compare a measurement against an
+    intention: it is smooth because it is what was asked for, not what came out,
+    and it would hide every way the render fails to do what it was told.
+    """
+    d = row["measured"][band]
+    t = np.asarray(d["t"])
+    dur = row["beats_rendered"] * 60.0 / row.get("target_bpm", MIX_BPM)
+    fy = H - floor / 1.5 * H
     end = "" if dur >= span * 0.99 else (
         f'<line class="cut" x1="{dur / span * W:.0f}" y1="0" '
         f'x2="{dur / span * W:.0f}" y2="{H}"/>')
-    return (f'<svg viewBox="0 0 {W} {H}" preserveAspectRatio="none">{end}'
-            f'<polyline class="ca" points="{_pts(t, fa, span)}"/>'
-            f'<polyline class="cb" points="{_pts(t, fb, span)}"/>'
+    return (f'<svg viewBox="0 0 {W} {H}" preserveAspectRatio="none">'
+            f'<rect class="floor" x="0" y="{fy:.0f}" width="{W}" height="{H - fy:.0f}"/>'
+            f'{end}'
+            f'<polyline class="ca" points="{_pts(t, np.asarray(d["a"]), span)}"/>'
+            f'<polyline class="cb" points="{_pts(t, np.asarray(d["b"]), span)}"/>'
             f"</svg>")
 
 
@@ -89,13 +92,13 @@ def main() -> int:
     cards, opens = [], []
     for r in rows:
         s = seams.get(r["seam"])
-        if not s or not r.get("mine"):
+        if not s or not r.get("mine") or not r.get("measured"):
             continue
         span = max(r["blend_measured_sec"], r["beats_rendered"] * 60.0 / MIX_BPM)
         lanes = "".join(
             f'<div class="lane"><span class="bl">{lab}</span>'
             f'<div class="side">{his_panel(s, lab, span)}</div>'
-            f'<div class="side">{mine_panel(r, key, span)}</div></div>'
+            f'<div class="side">{mine_panel(r, lab, span, s["floors"][lab])}</div></div>'
             for lab, key in BANDS)
         oa = r.get("bass_open_at")
         if oa:
@@ -115,7 +118,7 @@ def main() -> int:
 <header><h3><span class="da">{html.escape(r['from'].split('—')[-1].strip())}</span>
 <span class="ar">→</span><span class="db">{html.escape(r['to'].split('—')[-1].strip())}</span></h3>
 <div class="chips">{chips}<span class="chip q">{r['blend_measured_sec']:.0f} s</span></div></header>
-<div class="heads"><span>TY — zmierzone z nagrania</span><span>JA — odtworzone</span></div>
+<div class="heads"><span>TY — zmierzone z nagrania</span><span>JA — zmierzone z mojego renderu</span></div>
 {lanes}{snd}</article>""")
 
     Path(args.out).write_text(TEMPLATE.format(

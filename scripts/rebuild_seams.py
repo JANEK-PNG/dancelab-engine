@@ -21,6 +21,7 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
+import seam_decompose as S
 from dancelab.preview.transition_simulation import (
     TRANSITION_DURATION_OPTIONS,
     render_transition_preview,
@@ -223,6 +224,18 @@ def main() -> int:
                     output_path=out / "moje" / f"{name}.wav",
                     tempo_mode="varispeed")
                 row["mine"] = f"moje/{name}.wav"
+                # Measure the render exactly as his recording was measured. Drawing
+                # the envelope instead compares a measurement against an intention:
+                # it comes out perfectly smooth because it is what was asked for,
+                # not what came back, and that is not a comparison at all.
+                rendered = out / "moje" / f"{name}.wav"
+                Em = S.sub_energy(S.load_mono(str(rendered)))
+                row["measured"] = S.fit_gains(
+                    Em,
+                    S.sub_energy(S.warp(S.load_mono(a["path"]),
+                                        -cue_a / rate_a, rate_a, 0.0, dur)),
+                    S.sub_energy(S.warp(S.load_mono(b["path"]),
+                                        -cue_b / rate_b, rate_b, 0.0, dur)))
             except Exception as exc:                       # noqa: BLE001
                 row["mine"] = None
                 row["error"] = f"{type(exc).__name__}: {exc}"[:160]
