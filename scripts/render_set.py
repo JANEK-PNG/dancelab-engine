@@ -218,7 +218,12 @@ def main() -> int:
         n = y.shape[1]
         fade_in = blend_n if i > 0 else 0
         fade_out = blend_n if i < len(keep) - 1 else 0
-        fader, low_gain = envelopes(n, fade_in, fade_in + solo_n, fade_out)
+        # A record starts leaving when the NEXT one arrives, which is one spacing
+        # after it arrived itself — never "however long it has been playing". The
+        # opening record has no fade-in, so measuring from its own entry sent it out
+        # a whole blend early: it reached silence at 2:08 and the second record
+        # started from zero at 2:08, a butt splice with a hole in front of it.
+        fader, low_gain = envelopes(n, fade_in, step_n, fade_out)
         if args.no_eq:
             # The DJ's test: analysis may split the audio all it likes, but nothing
             # that reaches the speakers is ever rebuilt from the pieces. One gain on
@@ -242,6 +247,14 @@ def main() -> int:
 
     # Level is set from the records, not the peaks: peak normalisation drops a
     # summed mix 3-4 dB below the same music played alone, which reads as flat.
+    # The buffer is allocated generously and the last record ends where it ends, so
+    # trim the tail rather than shipping a set that fades into fourteen seconds of
+    # nothing.
+    loud = np.abs(mix).max(axis=0)
+    live = np.flatnonzero(loud > 1e-4)
+    if live.size:
+        mix = mix[:, : min(int(live[-1]) + S.SR, mix.shape[1])]
+
     # One constant gain, and nothing else. Chasing the DJ's loudness with a soft
     # clip was the real fault behind every complaint about the sound: that curve
     # lifted quiet material 3.1 dB and loud material 0.5 dB, squashing 2.6 dB of
