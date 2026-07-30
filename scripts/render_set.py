@@ -179,7 +179,12 @@ def main() -> int:
         fade_out = blend_n if i < len(keep) - 1 else 0
         fader, low_gain = envelopes(n, fade_in, solo_n, fade_out)
         lo, md, hi = bands(y)
-        voice = fader * (low_gain * lo + md + hi)
+        # The low band does not go through the line fader, exactly as it does not
+        # on a mixer. With the fader in that path the one deck holding the bass sits
+        # at 0.7 while the mids of two decks sum to unity, which measured as 3.4 dB
+        # of missing low end against the DJ's own recording — for 44 % of the set,
+        # since that is how much of it is inside a blend.
+        voice = low_gain * lo + fader * (md + hi)
         at = i * solo_n
         mix[at:at + n] += voice
         levels.append(float(np.sqrt((y[fade_in:solo_n] ** 2).mean())) if solo_n > fade_in
