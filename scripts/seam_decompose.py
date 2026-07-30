@@ -100,13 +100,44 @@ def separate(path: str) -> dict[str, np.ndarray]:
     return stems
 
 
-def warp(y: np.ndarray, origin: float, rate: float, t0: float, t1: float) -> np.ndarray:
-    """The record on the mix's clock: mix time t holds track time (t-origin)*rate."""
+def warp(y: np.ndarray, origin: float, rate: float, t0: float, t1: float,
+         hq: bool = False) -> np.ndarray:
+    """The record on the mix's clock: mix time t holds track time (t-origin)*rate.
+
+    Straight-line interpolation is the default and is right for measurement — it
+    is fast and the features being measured live far below where it does harm.
+    It is wrong for anything anyone listens to: at a 3 % pitch it costs 1.4 dB at
+    10 kHz, 2.7 dB at 14 kHz and 4 dB at 18 kHz, which is exactly the dullness the
+    DJ heard and exactly what the difference spectrogram showed against his own
+    recording. Pass hq for audio and take the band-limited resampler.
+    """
     n = int(round((t1 - t0) * SR))
-    idx = ((t0 + np.arange(n) / SR - origin) * rate) * SR
-    inside = (idx >= 0) & (idx <= len(y) - 1)
+    if not hq:
+        idx = ((t0 + np.arange(n) / SR - origin) * rate) * SR
+        inside = (idx >= 0) & (idx <= len(y) - 1)
+        out = np.zeros(n, dtype=np.float32)
+        out[inside] = np.interp(idx[inside], np.arange(len(y), dtype=np.float64), y)
+        return out
+
+    # Resample the stretch that is actually needed, then place it — resampling the
+    # whole record would be slower and would accumulate rounding across minutes of
+    # audio that gets thrown away.
+    pad = int(SR * 0.5)
+    a = int(np.floor((t0 - origin) * rate * SR)) - pad
+    b = int(np.ceil((t1 - origin) * rate * SR)) + pad
+    seg = np.zeros(b - a, dtype=np.float32)
+    lo, hi = max(a, 0), min(b, len(y))
+    if hi > lo:
+        seg[lo - a: hi - a] = y[lo:hi]
+    res = librosa.resample(seg, orig_sr=int(SR * 1000),
+                           target_sr=int(SR * 1000 / rate), res_type="soxr_vhq")
+    # the segment began at track time a/SR, i.e. mix time origin + (a/SR)/rate
+    start_mix = origin + (a / SR) / rate
+    k = int(round((t0 - start_mix) * SR))
     out = np.zeros(n, dtype=np.float32)
-    out[inside] = np.interp(idx[inside], np.arange(len(y), dtype=np.float64), y)
+    lo, hi = max(k, 0), min(k + n, len(res))
+    if hi > lo:
+        out[lo - k: hi - k] = res[lo:hi]
     return out
 
 

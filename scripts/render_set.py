@@ -173,7 +173,7 @@ def main() -> int:
         cue = entry_point(e.path, g)
         on_air = args.solo_beats + args.blend_beats
         want = on_air * beat
-        y = S.warp(S.load_mono(e.path), -cue / rate, rate, 0.0, want)
+        y = S.warp(S.load_mono(e.path), -cue / rate, rate, 0.0, want, hq=True)
         n = y.size
         fade_in = blend_n if i > 0 else 0
         fade_out = blend_n if i < len(keep) - 1 else 0
