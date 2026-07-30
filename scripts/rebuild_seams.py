@@ -54,6 +54,19 @@ def grid(analysis: dict) -> tuple[float, float, float] | None:
     return float(period), origin, bar
 
 
+def grid_bpm(analysis: dict) -> float | None:
+    """Tempo from the beat grid itself, not from the field the analysis reports.
+
+    The reported BPM was out by 0.43 % on one record here — 290 ms of slip across a
+    single blend, which is a gallop on its own. Fitting the period across every
+    detected beat averages the detector's scatter away: even where beats wander a
+    quarter of a beat about the line, hundreds of them pin the slope to a hundredth
+    of a percent. The number the detector prints does not get that benefit.
+    """
+    g = grid(analysis)
+    return 60.0 / g[0] if g else None
+
+
 def snap(seconds: float, g: tuple[float, float, float], to_bar: bool = True) -> float:
     """Move a cue onto the nearest beat, or onto the nearest bar line."""
     period, origin, bar = g
@@ -159,8 +172,8 @@ def main() -> int:
             # three quarters of a beat of slip across a long render, which is the
             # gallop. His tempo is preserved by taking the target from what he was
             # actually running on the outgoing deck.
-            raw_a = analyses[Path(a["path"]).stem]["beatgrid"]["bpm"]
-            raw_b = analyses[Path(b["path"]).stem]["beatgrid"]["bpm"]
+            raw_a = grid_bpm(analyses[Path(a["path"]).stem])
+            raw_b = grid_bpm(analyses[Path(b["path"]).stem])
             # The outgoing record sets the tempo, exactly as it does on a mixer;
             # the incoming one is pitched onto it, so the two are identical by
             # construction and cannot slip apart however long the blend runs.
@@ -212,6 +225,7 @@ def main() -> int:
                    "cue_a_sec": cue_a, "cue_b_sec": cue_b,
                    "target_bpm": target_bpm, "bpm_a": bpm_a, "bpm_b": bpm_b,
                    "his_start": at_mix, "b_in_sec": s["b_in_sec"], "a_out_sec": s["a_out_sec"],
+                   "deck_a_path": a["path"], "deck_b_path": b["path"],
                    "rate_a": rate_a, "rate_b": rate_b}
             try:
                 render_transition_preview(
