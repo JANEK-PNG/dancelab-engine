@@ -1,5 +1,10 @@
 # Engine Optimization And Handoff Checkpoint - 2026-07-14
 
+> **Historical checkpoint (2026-07-28).** The PySide6/Simple Mode product
+> described below has since been removed. Keep this file as engineering history,
+> not as a launch, installation, or QA guide. See the
+> [current documentation index](README.md).
+
 ## Executive Status
 
 DanceLab is a working local Python/PySide6 product, not a Sprint 0 skeleton.

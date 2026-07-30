@@ -42,6 +42,24 @@ overwrite the imported grid.
   paths break cue import.
 - Camelot keys go into the `Tonality` field; low-confidence keys are omitted
   rather than faked.
-- Alternative (not used here): `pyrekordbox` can write straight into the
-  Rekordbox 6/7 `master.db`, bypassing the bridge — more powerful but unofficial,
-  encrypted, and fragile across Rekordbox updates.
+
+## Guarded direct cue writer
+
+DanceLab also provides an optional direct cue-writing path backed by
+`pyrekordbox`. Install it explicitly:
+
+```bash
+python -m pip install -e ".[rekordbox]"
+```
+
+This path is unofficial and intentionally conservative:
+
+- planning and dry-run write nothing;
+- experiments must target a copied `master.db` bundle, including matching
+  `master.db-wal` and `master.db-shm` files when present;
+- backups and safe atomic replacement are owned by the writer;
+- the final acceptance test must prove that the live Rekordbox bundle remains
+  byte-for-byte unchanged.
+
+Use `dancelab cues --help` for the current command contract. Do not use a live
+Rekordbox database as a test target.

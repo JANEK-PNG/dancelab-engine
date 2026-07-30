@@ -36,7 +36,6 @@ from dancelab.validation.dj_decision_metrics import (
     spearman_rho,
     top_k_hit,
 )
-from dancelab.validation.review_ui import build_swipe_review_bundle
 
 
 class ValidationPackSummary(BaseModel):
@@ -454,13 +453,8 @@ def build_validation_pack(
 
     summary_json = _write_json(summary.model_dump(mode="json"), output_dir / "validation_pack_summary.json")
     summary_md = _write_markdown(summary, output_dir / "validation_pack_summary.md")
-    swipe_paths = build_swipe_review_bundle(
-        output_dir,
-        report_dir=report_dir,
-    )
     return {
         "summary_json": summary_json,
         "summary_md": summary_md,
-        **swipe_paths,
         **artifacts,
     }

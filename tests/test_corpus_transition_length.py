@@ -11,7 +11,7 @@ number derived from that field reaches the scoring path (ADR-005).
 """
 
 from dancelab.core.models import BeatGrid
-from dancelab.core.phrasing import preferred_transition_beats, window_phrase_score
+from dancelab.core.phrasing import preferred_transition_beats
 from dancelab.decision.corpus_priors import transition_length_beats
 
 

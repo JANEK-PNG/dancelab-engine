@@ -32,7 +32,9 @@ audio = [
     "scikit-learn>=1.5",
     "soundfile>=0.12",
 ]
-viz = ["matplotlib>=3.9", "plotly>=5.22"]
+# Direct Rekordbox cue writing is optional, but must be explicitly installed.
+# Keeping it separate avoids pulling SQLCipher into analysis-only deployments.
+rekordbox = ["pyrekordbox>=0.4.4,<0.5"]
 # Real vocal separation (htdemucs). Heavy: pulls torch + ~80 MB model download.
 # Optional — vocal_activity falls back to the HPSS proxy without it.
 vocals = ["demucs>=4.0", "torch>=2.0"]

@@ -97,7 +97,7 @@ async def recommend_sequence(request: RecommendSequenceRequest) -> SequenceDecis
 
 @router.post("/build", response_model=SetPlan)
 async def build_set(request: BuildSetRequest) -> SetPlan:
-    """Build a set via the same engine path used by CLI and desktop host."""
+    """Build a set via the same engine path used by CLI workflows."""
     config = _config()
     repo = _repository(config)
     weights = load_weights(config.weights_file)

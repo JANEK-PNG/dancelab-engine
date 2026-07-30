@@ -11,7 +11,8 @@ One cache root, named cache classes, one manifest. Rules enforced here:
 - startup scan removes temp orphans and marks manifest entries whose files
   vanished.
 
-Headless (no Qt) so persistence is testable without a display.
+The module has no presentation-layer dependency, so persistence remains
+testable in every supported environment.
 """
 
 from __future__ import annotations

@@ -2,120 +2,33 @@
 
 ## Goal
 
-Use DanceLab as an evaluation system, not just a generator.
+Evaluate DanceLab as a measurable recommendation system. Human judgments stay
+outside the engine and are returned as versioned CSV evidence.
 
-At this level the user should be able to:
-
-- inspect engine recommendations
-- review them through dedicated host-side surfaces
-- compare machine output with human judgment
-- produce feedback without polluting the engine itself
-
-## Core Principle
-
-Review tools are external diagnostic surfaces.
-
-They read engine outputs.
-They do not redefine the engine.
-
-## Validation Pack
-
-The validation pack is the best advanced entry point because it bundles:
-
-- filtered review sheets
-- coverage summary
-- honest metrics where labels already exist
-- swipe review surfaces
-
-Reference:
-
-- [validation.md](/Users/jantrybus/Desktop/AI/dancelab-engine/docs/validation.md)
-
-## Workflow A: Build a Validation Pack
-
-Run:
+## 1. Build a bounded validation pack
 
 ```bash
-dancelab validation-pack <processed_dir> --output-dir <output_dir> --annotations-dir <annotations_dir> --report-dir <report_dir>
+dancelab validation-pack "/path/to/work/processed" \
+  --output-dir "/path/to/work/validation_pack" \
+  --annotations-dir "/path/to/annotations" \
+  --report-dir "/path/to/work/decision_report"
 ```
 
-Expected output:
-
-- `validation_pack_summary.json`
-- `validation_pack_summary.md`
-- `swipe_review/`
+Expected outputs include filtered review sheets, coverage summaries, and
+Markdown/JSON reports. Metrics appear only where labels exist.
 
 Pass check:
 
-- the summary exists
-- review sheets are generated
-- the report is honest about labeled vs unlabeled coverage
+- labeled and unlabeled coverage are distinguished,
+- missing evidence is not reported as success,
+- output rows preserve stable track and pair identity.
 
-## Workflow B: Review Pair Decisions
+## 2. Record human judgment
 
-Use the generated review bundle to inspect:
+Review the CSV sheets in a spreadsheet editor. For each transition, keep the
+machine fields unchanged and add the requested rating and comment fields.
 
-- pair candidates
-- transition windows
-- set-function views
-
-At this stage the user is not trying to "trust the score blindly."
-They are trying to answer:
-
-- does the recommendation make sense
-- where does it feel wrong
-- what kind of wrong is it
-
-Pass check:
-
-- the user can reject a pair even when the engine likes it
-- the user can explain whether the issue is energy, timing, harmony, or context
-
-## Workflow C: Listen Board
-
-The listen board is a host-side diagnostic surface for A/B comparison.
-
-Use it when you want to judge:
-
-- whether a transition feels right
-- whether the candidate entry point is plausible
-- whether the recommendation is technically okay but musically weak
-
-Pass check:
-
-- the user can compare at least several recommended pairs
-- the user can mark which ones feel truly mixable versus only technically legal
-
-## Workflow D: Control Center
-
-The control center is the live dashboard mindset:
-
-- watch outputs
-- inspect warnings
-- understand what the system is surfacing
-
-Use it to answer:
-
-- what is the engine producing right now
-- which nodes are active
-- which outputs look healthy
-- where the flow is blocked
-
-Pass check:
-
-- the user can identify whether the issue is an input problem, a flow problem, or a weak recommendation
-
-## Advanced Skill Check
-
-The user passes this level when they can:
-
-- generate a validation pack
-- inspect recommendations without confusing host screens with engine logic
-- produce structured feedback for later tuning
-
-## Recommended Feedback Buckets
-
-When reviewing advanced outputs, classify failures into one of these:
+Useful failure labels:
 
 - `wrong candidate pool`
 - `wrong current context`
@@ -125,13 +38,44 @@ When reviewing advanced outputs, classify failures into one of these:
 - `technically blocked`
 - `good recommendation`
 
-These buckets are more useful than vague comments like "feels off."
+Store complete sessions separately, for example:
 
-## Next Expansion
+```text
+data/annotations/dj_sessions/2026-07-28_session_01_transition_ratings.csv
+```
 
-When we add more user-facing lessons later, the most natural next advanced
-topics are:
+## 3. Aggregate independent sessions
 
-- locked re-order / swap workflows
-- structured A/B comparison sessions
-- export verification against downstream DJ tools
+```bash
+dancelab validation-benchmark \
+  "/path/to/ratings/session_01_transition_ratings.csv" \
+  "/path/to/ratings/session_02_transition_ratings.csv" \
+  --output-dir "/path/to/work/dj_benchmark"
+```
+
+The tuning gate requires at least five independent sessions and at least 30
+rated transitions in each complete session.
+
+Pass check:
+
+- repeated pairs and high-confidence false positives are visible,
+- correlations and issue topics are reported,
+- tuning begins only when the report says `READY FOR TUNING`.
+
+## 4. Verify export on a copy
+
+Before a native Rekordbox cue write:
+
+1. close Rekordbox,
+2. copy `master.db` together with matching `-wal` and `-shm` files,
+3. run a dry plan,
+4. write only to the copied bundle,
+5. reopen the copy and verify playlist and cue rows,
+6. prove the live bundle hashes did not change.
+
+The engine must refuse unsafe path, identity, schema, or transaction states.
+
+## Completion Criteria
+
+An advanced validation round is complete only when its inputs, configuration,
+engine version, outputs, ratings, and export verification can be reproduced.

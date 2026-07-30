@@ -17,8 +17,9 @@
    is an open Sprint 1 decision. Blocking for descriptor implementation.
 6. **`X_eff = X_audio · C_fit` multiplicative form is itself a candidate model**
    (Core Equations status: candidate). Engine treats it as pluggable.
-7. **Optional heavy deps.** librosa/scipy/pandas live behind `[audio]` extra;
-   core skeleton installs without them (broken-toolchain resilience, faster CI).
+7. **Optional integrations and heavy deps.** librosa/scipy/pandas live behind
+   `[audio]`; direct Rekordbox cue writing lives behind `[rekordbox]`. The core
+   installs without either profile, while CI exercises both supported paths.
 8. **SQLite before PostgreSQL.** Postgres only via docker-compose; no ORM decision
    yet (sqlite3 vs SQLAlchemy is Sprint 1).
 9. **Batch-first over API-first** for validation work (Sprint Zero open decision —

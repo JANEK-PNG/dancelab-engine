@@ -4,6 +4,7 @@ Skips cleanly when pyrekordbox or a real master.db is unavailable (CI).
 """
 
 import shutil
+import inspect
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,10 @@ from dancelab.decision.cue_export_models import CuePlan, TrackCuePlan, PlannedCu
 from dancelab.ingestion import rekordbox_cue_writer as W
 
 LIVE = Path.home() / "Library/Pioneer/rekordbox/master.db"
+
+
+def test_safe_swap_is_the_library_default():
+    assert inspect.signature(W.write_plan).parameters["safe_swap"].default is True
 
 
 @pytest.fixture()

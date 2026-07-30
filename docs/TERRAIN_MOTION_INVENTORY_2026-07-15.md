@@ -1,5 +1,10 @@
 # DanceLab Pro TERRAIN: atomic motion inventory
 
+> **Dokument historyczny (2026-07-28).** Interfejs TERRAIN został usunięty z
+> obsługiwanego produktu. Ta lista pozostaje wyłącznie zapisem decyzji
+> projektowych; aktualny produkt jest terminalowy. Zobacz
+> [indeks dokumentacji](README.md).
+
 **Status:** specyfikacja do implementacji po kontraktach `ProjectSession` i `ExportManifest`  
 **Data:** 2026-07-15  
 **Zakres:** aktywny interfejs TERRAIN: `LIBRARY | SET | SEAM | TRACK` oraz `EXPORT GATE`  

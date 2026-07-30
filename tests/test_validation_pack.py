@@ -11,7 +11,7 @@ import pytest
 from dancelab.core.models import AnalysisResult, FeatureFrame, Track
 from dancelab.storage.repositories import FileAnalysisRepository
 from dancelab.validation.pilot_pack import build_validation_pack
-from dancelab.validation.review_ui.swipe_review import _build_pair_preview_data
+from dancelab.validation.preview_timing import quantized_cue_and_start
 
 
 def write_csv(path: Path, header: list[str], rows: list[list[object]]) -> None:
@@ -141,10 +141,6 @@ def test_build_validation_pack_filters_to_active_corpus(tmp_path):
     assert summary["metrics"]["set_function"]["labeled_track_count"] == 2
     assert subset_track_rows[0]["track_id"] in {"t1", "t2"}
     assert {row["track_id"] for row in subset_exp009_rows} == {"t1", "t2"}
-    assert paths["swipe_review_index"].exists()
-    assert paths["swipe_review_control_center"].exists()
-    assert paths["swipe_review_windows"].exists()
-    assert paths["swipe_review_set_function"].exists()
 
 
 def test_build_validation_pack_uses_pair_review_when_available(tmp_path):
@@ -191,52 +187,26 @@ def test_build_validation_pack_uses_pair_review_when_available(tmp_path):
     assert pair_metrics["pearson_r"] == pytest.approx(1.0, abs=1e-4)
     assert pair_metrics["spearman_rho"] == pytest.approx(1.0)
     assert pair_metrics["kendall_tau"] == pytest.approx(1.0)
-    assert paths["swipe_review_pairs"].exists()
-    assert paths["swipe_review_listen"].exists()
-    assert paths["swipe_review_control_center"].exists()
-    assert "Pair Review Deck" in paths["swipe_review_pairs"].read_text()
-    listen_html = paths["swipe_review_listen"].read_text()
-    assert 'listen_blend_auto": "bass_swap"' in listen_html
-    assert 'option value="auto" selected>Auto (${blendModeLabel(item.listen_blend_auto || \'plain_blend\')})' in listen_html
-    assert "Auto mode selects bass swap because bass conflict risk is elevated." in listen_html
-    control_html = paths["swipe_review_control_center"].read_text()
-    assert "Engine Control Center" in control_html
-    assert "validation_pack_summary.json" in control_html
-    assert "Auto Refresh: On" in control_html
 
 
-def test_listen_board_preview_quantizes_to_eight_beat_grid(tmp_path):
-    processed = tmp_path / "processed"
-    processed.mkdir()
-    beatgrid = {
-        "bpm": 120.0,
-        "beat_times_sec": [index * 0.5 for index in range(81)],
-        "downbeats_sec": [index * 2.0 for index in range(21)],
-        "reliable": True,
-    }
-    for track_id in ("a", "b"):
-        (processed / f"{track_id}.json").write_text(json.dumps({"beatgrid": beatgrid}))
+def test_preview_timing_quantizes_to_eight_beat_grid():
+    beat_times = [index * 0.5 for index in range(81)]
+    downbeats = [index * 2.0 for index in range(21)]
 
-    payload = _build_pair_preview_data(
-        {
-            "track_id_a": "a",
-            "track_id_b": "b",
-            "title_a": "A",
-            "title_b": "B",
-            "engine_pair_window_a(mm:ss)": "0:20-0:36",
-            "engine_pair_window_b(mm:ss)": "0:09-0:25",
-            "engine_tempo_relation": "direct",
-        },
-        repo_root=tmp_path,
-        output_dir=tmp_path,
-        processed_dir=processed,
-        processed_cache={},
+    cue_a, start_a, lead_a = quantized_cue_and_start(
+        20.0,
+        beat_times,
+        downbeats,
+    )
+    cue_b, start_b, lead_b = quantized_cue_and_start(
+        9.0,
+        beat_times,
+        downbeats,
     )
 
-    assert payload["preview_a_cue_sec"] == pytest.approx(20.0)
-    assert payload["preview_a_start_sec"] == pytest.approx(12.0)
-    assert payload["preview_b_cue_sec"] == pytest.approx(8.0)
-    assert payload["preview_b_start_sec"] == pytest.approx(0.0)
-    assert payload["quantize_lead_beats"] == 16
-    assert payload["quantize_label"] == "8-beat grid -16 beats"
-    assert "8-beat grid boundaries" in payload["quantize_note"]
+    assert cue_a == pytest.approx(20.0)
+    assert start_a == pytest.approx(12.0)
+    assert lead_a == 16
+    assert cue_b == pytest.approx(8.0)
+    assert start_b == pytest.approx(0.0)
+    assert lead_b == 16

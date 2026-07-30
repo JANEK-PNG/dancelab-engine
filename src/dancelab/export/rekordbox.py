@@ -32,11 +32,10 @@ from urllib.parse import quote
 
 from dancelab import __version__
 from dancelab.decision.cue_grid import (
-    cue_phrase_division,
     snap_cue_start,
     usable_export_grid,
 )
-from dancelab.core.models import AnalysisResult, BeatGrid, SetPlan, TransitionWindow, WindowType
+from dancelab.core.models import AnalysisResult, SetPlan, TransitionWindow, WindowType
 from dancelab.decision.transition_windows import rank_windows_for_role
 
 # hot-cue colours (Rekordbox RGB) cycled across cue points

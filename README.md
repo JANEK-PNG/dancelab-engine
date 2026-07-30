@@ -1,8 +1,8 @@
 # DanceLab Pro / Engine 0.1.1
 
-DanceLab is a local DJ-intelligence application for analyzing a music library,
-building a context-aware set sequence, reviewing proposed transitions, and
-exporting a Rekordbox-compatible playlist.
+DanceLab is a local, terminal-first DJ-intelligence engine for analyzing a
+music library, building a context-aware set sequence, inspecting proposed
+transitions, and exporting results for Rekordbox.
 
 The product question is:
 
@@ -12,19 +12,18 @@ Does this track make sense next, in this set and in this context?
 
 ## Current Product Workflow
 
-The supported desktop surface is **Simple Mode**:
+The supported product surface is the `dancelab` command-line application:
 
-1. Import one or more folders or a Rekordbox XML library.
-2. Run the Initial Check over the selected tracks.
-3. Define set length, style, BPM, role, energy, and context preferences.
-4. Generate and optionally deep-analyze the proposed set.
-5. Review A/B transitions with waveforms, quantized cue candidates, and the
-   transition simulation.
-6. Export the playlist and hot cues to Rekordbox XML or save the project.
+1. Analyze one track, a folder, or a prepared corpus.
+2. Build a constrained smart playlist from the analyzed library.
+3. Generate headless decision artifacts for pair and transition review.
+4. Optionally collect DJ ratings and build a validation pack.
+5. Export a Rekordbox-compatible XML playlist.
+6. Plan, review, and apply hot cues through the safe Rekordbox writer.
 
-The deprecated visual node editor is not a product entry point. Headless
-contracts in `contracts/` and `host/runtime.py` remain as tested integration and
-diagnostic adapters.
+There is no supported graphical application. The former desktop and visual
+node interfaces were removed so engine behavior can be stabilized and tested
+without a second product layer.
 
 ## Implemented Capabilities
 
@@ -40,7 +39,8 @@ diagnostic adapters.
 - Set constraints for track count, BPM range, style focus, energy arc, venue,
   time, set role, pinned tracks, locked positions, artist diversity, and
   playlist-history novelty.
-- Rekordbox XML export with playlist order and quantized hot-cue candidates.
+- Rekordbox XML export plus a guarded cue writer with dry-run review, database
+  bundle backups, WAL/SHM handling, and safe atomic replacement.
 - Offline validation tools for tempo/beatgrid, real-audio end-to-end paths,
   DJ-mix alignment (M11), and Raveform population priors.
 
@@ -65,8 +65,8 @@ Python 3.11+ is required. From a repository checkout:
 ```bash
 python3.12 -m venv .venv
 ./.venv/bin/python -m pip install --upgrade pip
-./.venv/bin/python -m pip install -e ".[dev,audio,desktop]"
-PYTHONPATH=src ./.venv/bin/dancelab-host
+./.venv/bin/python -m pip install -e ".[dev,audio,rekordbox]"
+PYTHONPATH=src ./.venv/bin/dancelab --help
 ```
 
 Optional deep analysis and stem export:
@@ -75,10 +75,6 @@ Optional deep analysis and stem export:
 ./.venv/bin/python -m pip install -e ".[stems]"
 ```
 
-The desktop app can also be built with the `desktop-build` extra. See
-[docs/DESKTOP_HOST.md](docs/DESKTOP_HOST.md) for the macOS packaging path and
-known platform constraints.
-
 ## CLI And API
 
 ```bash
@@ -86,16 +82,25 @@ known platform constraints.
 PYTHONPATH=src ./.venv/bin/dancelab analyze path/to/track.wav --output out.json
 PYTHONPATH=src ./.venv/bin/dancelab batch path/to/music/
 
-# Build the guided smart-playlist artifact path
-PYTHONPATH=src ./.venv/bin/dancelab smart-playlist path/to/music/
+# Build a 10-track set from a folder
+PYTHONPATH=src ./.venv/bin/dancelab smart-playlist path/to/music/ \
+  --count 10 --output data/reports/my_set.xml
 
 # Generate decision-review artifacts
 PYTHONPATH=src ./.venv/bin/dancelab decision-report data/processed \
   --output-dir data/reports/decision_report
 
-# API / OpenAPI
-PYTHONPATH=src ./.venv/bin/uvicorn dancelab.api.main:app --reload
+# Inspect the guarded cue workflow
+PYTHONPATH=src ./.venv/bin/dancelab cues --help
+
+# Local API / OpenAPI. Public binding is intentionally unsupported.
+PYTHONPATH=src ./.venv/bin/uvicorn dancelab.api.main:app \
+  --host 127.0.0.1 --port 8000
 ```
+
+The cue writer is dry-run by default. Never target the live Rekordbox database
+for an experiment; validate writes on a copied DB bundle first. Install the
+`rekordbox` extra before using direct database cue writing.
 
 ## Verification
 
@@ -124,11 +129,10 @@ src/dancelab/
   workflows/         user-level smart-playlist orchestration
   export/            Rekordbox XML output
   storage/           JSON repositories, cache and manifest management
-  validation/        separate measurement and evidence tools
-  visualization/     decision reports and waveform galleries
-  host/              PySide6 Simple Mode desktop application
+  validation/        headless measurement, review, and evidence artifacts
+  preview/           optional audio transition rendering
   api/ and cli/      integration surfaces over engine/workflow functions
-tests/               unit, contract, desktop, integration, and real-audio tests
+tests/               unit, contract, integration, security, and real-audio tests
 ```
 
 Start with [docs/architecture.md](docs/architecture.md) for the current system

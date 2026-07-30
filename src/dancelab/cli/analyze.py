@@ -286,6 +286,10 @@ from dancelab.cli.preview import render as _preview_render  # noqa: E402
 
 app.command(name="preview")(_preview_render)
 
+from dancelab.cli.tui import room as _room  # noqa: E402
+
+app.command(name="room")(_room)
+
 
 if __name__ == "__main__":
     app()

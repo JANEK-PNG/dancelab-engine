@@ -1,7 +1,6 @@
 """CLI: `dancelab cues write --dry-run` plans + reports, writes nothing."""
 
 import json
-from pathlib import Path
 
 from typer.testing import CliRunner
 

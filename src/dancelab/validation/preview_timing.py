@@ -1,4 +1,4 @@
-"""Headless preview timing helpers used by validation and desktop hosts."""
+"""Headless preview timing helpers used by validation and CLI previews."""
 
 from __future__ import annotations
 

@@ -1,78 +1,98 @@
-# Intermediate Tutorial: Shape and Validate a Set
+# Intermediate Tutorial: Shape and Inspect a Real Set
 
 ## Goal
 
-Use the analyzed library and planner controls to build a set for a real event,
-then validate its transitions before export.
+Build a playlist for a concrete event, compare planning modes, inspect every
+adjacent decision, and prepare a safe Rekordbox export.
 
-## Before You Start
+## 1. Express the set intent
 
-Complete the beginner tutorial and open a project with an analyzed library.
+The one-command workflow supports:
 
-## Workflow A: Constrain the Library
+- `--count 5|10|15|20`,
+- `--arc build|peak|flat`,
+- `--planner-mode smart|harmonic|bpm`,
+- `--context` from `configs/context_profiles.yaml`,
+- `--analysis-depth normal|deep`.
 
-1. Filter or sort the analyzed library by BPM, style, energy, or key.
-2. Mark essential tracks as `Must Have`.
-3. Mark unsuitable tracks as `Not Tonight`.
-4. Confirm that enough eligible tracks remain for the requested set length.
+Example:
 
-Pass check:
-
-- Must Have tracks survive regeneration
-- Not Tonight tracks never enter the generated sequence
-- constraints remain visible in the session brief
-
-## Workflow B: Express DJ Intent
-
-1. Choose a preset or start from Custom.
-2. Set the target track count or duration.
-3. Add a leading style and BPM range when the event requires them.
-4. Choose set role, energy, planner preference, and energy arc.
-5. Generate the sequence.
+```bash
+dancelab smart-playlist "/path/to/music" \
+  --count 10 \
+  --arc build \
+  --planner-mode smart \
+  --context festival_daytime \
+  --analysis-depth normal \
+  --processed-dir "/path/to/work/processed" \
+  --output "/path/to/work/event_set.xml"
+```
 
 Pass check:
 
-- the generated set respects hard BPM and exclusion constraints
-- repeated artists are avoided when the library allows it
-- the energy timeline reflects the selected role and arc
+- hard limits are respected,
+- repeated artists are separated when the library permits it,
+- context and planner mode change ranking rather than track identity.
 
-## Workflow C: Deep-Analyze the Shortlist
+Deep analysis is intentionally explicit. Use it when stem-aware evidence is
+worth the additional time and storage; normal analysis remains the fast default.
 
-After the sequence exists, run Deep Analysis for its tracks when stem-aware
-review is worth the additional time and storage.
+## 2. Inspect pair decisions
+
+```bash
+dancelab decision-report "/path/to/work/processed" \
+  --output-dir "/path/to/work/decision_report" \
+  --context festival_daytime
+```
+
+Review:
+
+- `edge_decision_review.csv`,
+- `edge_decision_payloads.jsonl`,
+- the generated Markdown and JSON summaries.
+
+Pass check: every row keeps stable track IDs, source paths, score components,
+warnings, and proposed timing.
+
+## 3. Audition the seams
+
+Render important adjacent pairs with more than one profile:
+
+```bash
+dancelab preview "track_a.wav" "track_b.wav" \
+  --profile bass_swap --beats 64 --output "a_b_bass_swap.wav"
+
+dancelab preview "track_a.wav" "track_b.wav" \
+  --profile contour_blend --beats 128 --output "a_b_contour.wav"
+```
 
 Pass check:
 
-- Deep Analysis is limited to the shortlisted set
-- Demucs/stem status is explicit
-- the quick Initial Check cache remains reusable
+- A and B always resolve to the displayed files,
+- cues land on the engine's reliable phrase grid,
+- preview tempo adjustment never leaks into exported metadata.
 
-## Workflow D: Review and Rate Transitions
+## 4. Export safely
 
-1. Review every adjacent pair.
-2. Confirm the displayed names match the audio on both decks.
-3. Check waveform timing, 8-beat cue quantization, key risk, and BPM behavior.
-4. Record a rating and note when a recommendation is weak.
+Rekordbox XML is the normal interoperability path:
 
-Pass check:
+```bash
+dancelab export-rekordbox "/path/to/work/processed" \
+  --output "/path/to/work/final_set.xml" \
+  --name "Event Set" \
+  --arc build \
+  --planner-mode smart \
+  --context festival_daytime
+```
 
-- no track ID resolves to the wrong audio file
-- transition ratings are saved outside the engine
-- preview beat sync never changes exported Rekordbox BPM values
+Native cue writing is a separate advanced operation. It is dry-run by default,
+uses a verified copy-and-swap path by default, and must first be tested against
+a copied `master.db` bundle:
 
-## Workflow E: Export Rekordbox XML
+```bash
+dancelab cues write --help
+```
 
-1. Name the playlist.
-2. Choose the XML output path.
-3. Export and inspect the summary.
-4. Import the XML through Rekordbox's Imported Library workflow.
+Never use `--allow-live` during an exploratory test.
 
-Pass check:
-
-- playlist order matches DanceLab
-- hot cues exist on intended phrase/grid positions
-- Rekordbox remains responsible for device BPM and beatgrid analysis
-
-## What To Do Next
-
-Move to [03_advanced_validation_review.md](/Users/jantrybus/Desktop/AI/dancelab-engine/docs/tutorials/03_advanced_validation_review.md).
+Continue with [Validation and review](03_advanced_validation_review.md).

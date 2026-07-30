@@ -1,8 +1,7 @@
 """Local API trust boundary: path policy and bounded heavy jobs.
 
-The desktop application uses native file pickers and does not pass through this
-module. The HTTP API is intentionally narrower: callers may only operate inside
-server-configured roots.
+The CLI reads local paths directly. The optional HTTP API is intentionally
+narrower: callers may only operate inside server-configured roots.
 """
 
 from __future__ import annotations
