@@ -31,3 +31,9 @@ tmp/
 *.fig
 *.zip
 *.key
+
+# --- private experiment data: own recordings, licensed audio, stem caches ---
+# Everything here is either Janek's own material or derived from it. The README
+# is tracked so the convention survives; nothing else ever leaves this machine.
+experiments_priv/*
+!experiments_priv/README.md
