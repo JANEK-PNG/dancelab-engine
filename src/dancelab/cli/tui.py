@@ -18,7 +18,6 @@ analysis run. Deeper features are computed only for the pair being auditioned.
 
 from __future__ import annotations
 
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -127,6 +126,7 @@ def room(
     config: str = typer.Option("configs/default.yaml", "--config", "-c"),
 ) -> None:
     """Review seams one pair at a time: listen, judge, and teach the engine."""
+    from dancelab.cli.audition import Audition, player_available
     from dancelab.core.config import load_config, load_weights
     from dancelab.decision.verdicts import VerdictStore
 
@@ -146,6 +146,11 @@ def room(
     store = VerdictStore.load(verdicts_path)
     console.print(f"[dim]{len(library)} utworów · werdyktów zapisanych: "
                   f"{sum(store.counts().values())}[/dim]\n")
+
+    player = Audition()
+    if not player_available():
+        console.print("[yellow]brak afplay — szwy będą renderowane, ale nie "
+                      "odtworzę ich stąd[/yellow]")
 
     current = _pick_start(library, start)
     if current is None:
@@ -170,7 +175,7 @@ def room(
             continue
 
         _score, candidate, _reason, _v = rows[int(choice) - 1]
-        moved = _review_seam(current, candidate, store, verdicts_path, config)
+        moved = _review_seam(current, candidate, store, verdicts_path, config, player)
         if moved:
             current = candidate
 
@@ -210,12 +215,15 @@ def _rank(current: LibTrack, library, store, weights):
     return scored[:CANDIDATES_SHOWN]
 
 
-def _review_seam(a: LibTrack, b: LibTrack, store, verdicts_path, config: str) -> bool:
+def _review_seam(a: LibTrack, b: LibTrack, store, verdicts_path, config: str,
+                 player) -> bool:
     """Audition one seam and record the verdict. Returns True to move on to B."""
     from dancelab.cli.preview import render as render_preview
 
     suggested = store.preferred_beats(a.content_id, b.content_id, None)
-    out = Path.home() / ".dancelab" / "seam.wav"
+    # Each pair keeps its own file so [w] can compare against the previous seam
+    # instead of one render overwriting the evidence for the last.
+    out = Path.home() / ".dancelab" / "seams" / f"{a.content_id}_{b.content_id}.wav"
     console.print(f"\n[bold]{a.title}[/bold] → [bold]{b.title}[/bold]")
     console.print("[dim]renderuję szew (analiza obu utworów przy pierwszym razie)…[/dim]")
 
@@ -232,18 +240,32 @@ def _review_seam(a: LibTrack, b: LibTrack, store, verdicts_path, config: str) ->
         console.print(f"[yellow]render nieudany: {exc}[/yellow]")
         return False
 
+    player.play(out)
     while True:
-        console.print("[dim][Enter] posłuchaj · [t]ak · [n]ie · [d]łużej · "
-                      "[k]rócej · [p]omiń[/dim]")
+        console.print("[dim][Enter] jeszcze raz · [l] w pętli ×4 · [w] wróć do "
+                      "poprzedniego (A/B) · [x] stop · "
+                      "[t]ak · [n]ie · [d]łużej · [k]rócej · [p]omiń[/dim]")
         key = console.input("› ").strip().lower()
         if key == "":
-            subprocess.run(["afplay", str(out)], check=False)
+            player.replay()
+            continue
+        if key == "l":
+            player.replay(repeats=4)
+            continue
+        if key == "w":
+            if not player.back():
+                console.print("[dim]nie ma jeszcze z czym porównać[/dim]")
+            continue
+        if key == "x":
+            player.stop()
             continue
         mapping = {"t": "yes", "n": "no", "d": "longer", "k": "shorter"}
         if key in mapping:
+            player.stop()
             store.record(a.content_id, b.content_id, mapping[key], beats=suggested)
             store.save(verdicts_path)
             console.print(f"[green]zapisane: {mapping[key]}[/green]\n")
             return key == "t"
         if key == "p":
+            player.stop()
             return False
