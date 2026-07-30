@@ -47,8 +47,13 @@ def render(
              "transients, can sound dull).",
     ),
     config: str = typer.Option("configs/default.yaml", "--config", "-c"),
-) -> None:
-    """Render an audible preview of the A→B transition to a WAV file."""
+) -> dict:
+    """Render an audible preview of the A→B transition to a WAV file.
+
+    Returns where the seam actually landed. Typer ignores the value, but a
+    caller driving this from a review screen needs the cue points to let the DJ
+    hear where A leaves and B enters, not only the blend.
+    """
     from dancelab.core.config import load_config, load_weights
     from dancelab.core.models import TransitionWindowInput
     from dancelab.core.pipeline import analyze_track
@@ -177,3 +182,5 @@ def render(
         f"  out of A at {mins_a}:{secs_a:02d} · into B at {mins_b}:{secs_b:02d} · "
         f"{plan.selected_beats} beats at {bpm_a:.1f} BPM · {profile} · {tempo_mode}"
     )
+    return {"cue_a_sec": cue_a, "cue_b_sec": cue_b,
+            "beats": plan.selected_beats, "bpm": bpm_a, "output": output}

@@ -226,6 +226,37 @@ def room(
             current = candidate
 
 
+def _snippet(track: LibTrack, around_sec: float, *, lead_sec: float = 4.0,
+             length_sec: float = 20.0) -> Path | None:
+    """A short excerpt around a cue, written to a file we can play.
+
+    afplay cannot seek, so hearing where a track leaves or lands means cutting
+    the moment out first. Twenty seconds is long enough to recognise the section
+    and short enough to keep the review moving.
+    """
+    import soundfile as sf
+
+    src = Path(track.path)
+    if not src.exists():
+        return None
+    out = Path.home() / ".dancelab" / "snippets" / f"{track.content_id}_{int(around_sec)}.wav"
+    if out.exists():
+        return out
+    try:
+        info = sf.info(str(src))
+        start = max(0.0, around_sec - lead_sec)
+        frames = int(length_sec * info.samplerate)
+        data, rate = sf.read(str(src), start=int(start * info.samplerate),
+                             frames=frames, dtype="float32", always_2d=True)
+    except Exception:
+        return None
+    if not len(data):
+        return None
+    out.parent.mkdir(parents=True, exist_ok=True)
+    sf.write(str(out), data, rate, subtype="PCM_24")
+    return out
+
+
 def _pick_start(library: dict[str, LibTrack], text: str | None) -> LibTrack | None:
     """Choose the track to start from. Every prompt says what it wants."""
     while True:
@@ -305,7 +336,7 @@ def _review_seam(a: LibTrack, b: LibTrack, store, verdicts_path, config: str,
                   "trwa ok. 30 s (analiza obu utworow), potem juz od razu.[/dim]")
 
     try:
-        render_preview(
+        seam = render_preview(
             track_a=Path(a.path), track_b=Path(b.path), output=out,
             profile="contour_blend", beats=suggested,
             tempo_mode="varispeed", config=config,
@@ -317,6 +348,8 @@ def _review_seam(a: LibTrack, b: LibTrack, store, verdicts_path, config: str,
         console.print(f"[yellow]render nieudany: {exc}[/yellow]")
         return False
 
+    cue_a_sec = float(seam.get("cue_a_sec", 0.0))
+    cue_b_sec = float(seam.get("cue_b_sec", 0.0))
     player.play(out)
     console.print("[green]gra…[/green]")
     while True:
@@ -324,7 +357,9 @@ def _review_seam(a: LibTrack, b: LibTrack, store, verdicts_path, config: str,
             "[bold]Enter[/bold]  zagraj jeszcze raz        "
             "[bold]l[/bold]  w petli x4 (dobre do oceny)\n"
             "[bold]w[/bold]      wroc do poprzedniego (A/B)  "
-            "[bold]x[/bold]  cisza\n\n"
+            "[bold]x[/bold]  cisza\n"
+            "[bold]a[/bold]      posluchaj konca A            "
+            "[bold]b[/bold]  posluchaj poczatku B\n\n"
             "[bold green]t[/bold green]  dobre przejscie      "
             "[bold red]n[/bold red]  zle przejscie      "
             "[bold]d[/bold]  za krotkie      "
@@ -345,6 +380,17 @@ def _review_seam(a: LibTrack, b: LibTrack, store, verdicts_path, config: str,
             continue
         if key == "x":
             player.stop()
+            continue
+        if key in ("a", "b"):
+            track = a if key == "a" else b
+            moment = cue_a_sec if key == "a" else cue_b_sec
+            excerpt = _snippet(track, moment)
+            if excerpt is None:
+                console.print("[yellow]nie moge wyciac fragmentu z tego pliku[/yellow]")
+                continue
+            mins, secs = divmod(int(moment), 60)
+            console.print(f"[dim]{track.title} od {mins}:{secs:02d}[/dim]")
+            player.play(excerpt)
             continue
         mapping = {"t": "yes", "n": "no", "d": "longer", "k": "shorter"}
         if key in mapping:
