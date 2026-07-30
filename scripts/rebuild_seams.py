@@ -22,6 +22,7 @@ import numpy as np
 import soundfile as sf
 
 import seam_decompose as S
+from dancelab.core.tempo_refine import refine_tempo
 from dancelab.preview.transition_simulation import (
     TRANSITION_DURATION_OPTIONS,
     render_transition_preview,
@@ -55,16 +56,19 @@ def grid(analysis: dict) -> tuple[float, float, float] | None:
 
 
 def grid_bpm(analysis: dict) -> float | None:
-    """Tempo from the beat grid itself, not from the field the analysis reports.
+    """Tempo from the beat times, pulled onto the musical grid where they agree.
 
     The reported BPM was out by 0.43 % on one record here — 290 ms of slip across a
-    single blend, which is a gallop on its own. Fitting the period across every
-    detected beat averages the detector's scatter away: even where beats wander a
-    quarter of a beat about the line, hundreds of them pin the slope to a hundredth
-    of a percent. The number the detector prints does not get that benefit.
+    single blend, which is a gallop on its own. Fitting across every beat fixes most
+    of that; refine_tempo then tests whether a tempo somebody could have typed into
+    a DAW explains those beats better, which on this library it usually does.
     """
     g = grid(analysis)
-    return 60.0 / g[0] if g else None
+    if not g:
+        return None
+    beats = analysis.get("beatgrid", {}).get("beat_times_sec") or []
+    got = refine_tempo(beats)
+    return got.bpm if got else 60.0 / g[0]
 
 
 def snap(seconds: float, g: tuple[float, float, float], to_bar: bool = True) -> float:
