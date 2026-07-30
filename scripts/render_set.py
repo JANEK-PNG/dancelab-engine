@@ -157,7 +157,8 @@ def envelopes(n: int, fade_in: int, fade_out_at: int, fade_out: int):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("cue")
+    ap.add_argument("cue", nargs="?", help="rekordbox .cue of a recorded set")
+    ap.add_argument("--tracks", help="Text file of paths, one per line, in play order")
     ap.add_argument("--out", required=True)
     ap.add_argument("--blend-beats", type=int, default=BLEND_BEATS)
     ap.add_argument("--solo-beats", type=int, default=SOLO_BEATS)
@@ -166,12 +167,29 @@ def main() -> int:
                          "no band split anywhere in the signal path")
     args = ap.parse_args()
 
-    _, entries = parse_cue(args.cue)
-    order, seen = [], set()
-    for e in entries:
-        if e.path not in seen:
-            seen.add(e.path)
-            order.append(e)
+    # Two ways in: replay a set the DJ recorded, or play an order the engine chose.
+    # Everything downstream is identical, which is the point — the difference
+    # between copying him and proposing is upstream of the mixing.
+    if args.tracks:
+        from types import SimpleNamespace
+
+        order = []
+        for line in Path(args.tracks).read_text().splitlines():
+            if not line.strip():
+                continue
+            stem = Path(line).stem
+            who, _, what = stem.partition(" - ")
+            order.append(SimpleNamespace(path=line.strip(), performer=who,
+                                         title=what or stem))
+    elif args.cue:
+        _, entries = parse_cue(args.cue)
+        order, seen = [], set()
+        for e in entries:
+            if e.path not in seen:
+                seen.add(e.path)
+                order.append(e)
+    else:
+        ap.error("podaj plik .cue albo --tracks")
 
     grids = {e.path: grid_of(e.path) for e in order}
     playable = [e for e in order if grids[e.path]]

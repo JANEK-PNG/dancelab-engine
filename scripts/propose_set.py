@@ -56,12 +56,25 @@ def main() -> int:
     ap.add_argument("--arc", default="build")
     ap.add_argument("--max-pitch", type=float, default=0.08)
     ap.add_argument("--config", default="configs/default.yaml")
+    ap.add_argument("--out", help="Write the chosen order here, one path per line")
+    ap.add_argument("--exclude-cue", action="append", default=[],
+                    help="Drop everything this DJ already played in these sets")
     args = ap.parse_args()
 
     cfg = load_config(args.config)
     weights = load_weights(cfg.weights_file)
     repo = FileAnalysisRepository(args.processed)
     analyses = [repo.get(t) for t in repo.list_track_ids()]
+
+    # Proposing from records he has already played is not a proposal, it is a
+    # reshuffle of his own set — which is what the first run did.
+    if args.exclude_cue:
+        from cue_parse import parse_cue
+
+        played = {e.path for c in args.exclude_cue for e in parse_cue(c)[1]}
+        before = len(analyses)
+        analyses = [a for a in analyses if a.track.source_path not in played]
+        print(f"pomijam {before - len(analyses)} utworów, które już zagrałeś\n")
     # Fit any grid the cache is missing rather than treating an absent entry as a
     # failed fit — the first run silently dropped sixteen records that way and read
     # as "no rigid grid fits", which was a lie about the music.
@@ -79,6 +92,39 @@ def main() -> int:
     def bpm_of(a):
         g = grids.get(a.track.source_path)
         return g["bpm"] if g and g["contrast"] >= 2.0 else None
+
+    # Our own output had leaked back into the input: two entries in the first set
+    # were the same drum stem this project exported, once from a directory and once
+    # from its smoke-test copy. A drum stem scores beautifully — it agrees with
+    # every key and fights nothing — so the planner picked it twice. Anything this
+    # toolchain produced, and anything named after a stem, is not music.
+    STEM_NAMES = {"drums", "bass", "other", "vocals", "instrumental", "acapella"}
+    before = len(analyses)
+    analyses = [a for a in analyses
+                if "DanceLab_Stem_Export" not in a.track.source_path
+                and Path(a.track.source_path).stem.lower() not in STEM_NAMES]
+    # and the same record can sit in two folders — keep the first, by name
+    seen_names, deduped = set(), []
+    for a in analyses:
+        name = Path(a.track.source_path).stem.lower()
+        if name not in seen_names:
+            seen_names.add(name)
+            deduped.append(a)
+    if before != len(deduped):
+        print(f"odrzucam {before - len(deduped)} pozycji: nasze własne stemy "
+              f"i duplikaty tego samego utworu\n")
+    analyses = deduped
+
+    # Hand the planner the rigid-grid tempo, not the tracker's. The corpus prior
+    # buckets a pair by how far apart their tempos are, so a BPM that is out by a
+    # percent — or by an octave — files the pair under the wrong bucket and the
+    # measured behaviour of 551 DJs lands on the wrong transition. The whole point
+    # of that prior is that it knows what real DJs do between two records; feeding
+    # it a wrong distance is the same as not having it.
+    for a in analyses:
+        b = bpm_of(a)
+        if b:
+            a.track.bpm_estimate = b
 
     with_tempo = [(a, bpm_of(a)) for a in analyses]
     usable = [(a, b) for a, b in with_tempo if b]
@@ -100,11 +146,14 @@ def main() -> int:
                      planner_mode="smart")
     by_id = {a.track.track_id: a for a in pool}
 
-    keys = sum(1 for a in pool if getattr(a.track, "key", None))
+    # key_estimate, not "key": reading a field that does not exist returned None
+    # for every record and produced the claim that the engine cannot hear harmony,
+    # which it has been doing all along.
+    keys = sum(1 for a in pool if a.track.key_estimate)
     print(f"\nPROPOZYCJA — {len(plan.track_order)} utworów, set na {master:.0f} BPM")
-    if not keys:
-        print("UWAGA: żaden utwór w puli nie ma rozpoznanej tonacji, więc harmonia "
-              "NIE brała udziału w tym ułożeniu.\n")
+    weak = sum(1 for a in pool if (a.track.key_confidence or 0) < 0.35)
+    print(f"tonacja rozpoznana w {keys} z {len(pool)} utworów"
+          + (f", z czego {weak} z niską pewnością (<0,35)" if weak else "") + "\n")
     prev = None
     for i, tid in enumerate(plan.track_order, 1):
         a = by_id[tid]
@@ -112,16 +161,21 @@ def main() -> int:
         name = Path(a.track.source_path).stem
         who, _, what = name.partition(" - ")
         pitch = (master / bpm - 1) * 100
-        print(f"{i:2d}. {who[:26]:26s} {what[:40]:40s} {bpm:5.0f} → {master:.0f} "
-              f"({pitch:+5.1f}%)")
+        key = a.track.key_estimate or "—"
+        conf = a.track.key_confidence or 0.0
+        print(f"{i:2d}. {who[:24]:24s} {what[:34]:34s} {bpm:5.0f} → {master:.0f} "
+              f"({pitch:+5.1f}%)  {key:>3s}{'?' if conf < 0.35 else ' '}")
         if prev is not None:
-            rel = harmonic_relation(getattr(prev.track, "key", None),
-                                    getattr(a.track, "key", None))
+            rel = harmonic_relation(prev.track.key_estimate, a.track.key_estimate)
             rname = rel.relation if hasattr(rel, "relation") else str(rel)
             print(f"      ↳ {tempo_note(bpm - bpm_of(prev))} · "
                   f"{RELATION_PL.get(rname, rname)}")
         prev = a
     print(f"\nśrednia zgodność przejść: {plan.mean_transition_score}")
+    if args.out:
+        Path(args.out).write_text("\n".join(by_id[t].track.source_path
+                                            for t in plan.track_order))
+        print(f"Wrote {args.out}")
     return 0
 
 
