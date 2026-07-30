@@ -22,7 +22,7 @@ import numpy as np
 import soundfile as sf
 
 import seam_decompose as S
-from dancelab.core.tempo_refine import refine_tempo
+from dancelab.core.rigid_grid import fit_rigid_grid
 from dancelab.preview.transition_simulation import (
     TRANSITION_DURATION_OPTIONS,
     render_transition_preview,
@@ -32,43 +32,39 @@ MIX_BPM = 136.0
 LEAD_BEATS = 16         # a bar or four of the outgoing record alone, on the grid
 
 
-def grid(analysis: dict) -> tuple[float, float, float] | None:
-    """Beat period, first downbeat, and bar length — extended past the analysed span.
+MIN_CONTRAST = 2.0
+_GRIDS = Path(__file__).resolve().parents[1] / "experiments_priv/_cache/rigid_grids.json"
 
-    The period comes from a least-squares fit over every beat, never from the
-    median gap: beat times are rounded to the analysis frame, and the rounding
-    accumulates into tens of milliseconds across a phrase. Beyond the analysed
-    coverage the grid is continued arithmetically rather than abandoned, because
-    a cue lands wherever the DJ put it, which is regularly past that point.
+
+def grid(path: str) -> tuple[float, float, float] | None:
+    """Beat period, first beat, and bar length — fitted rigidly to the audio itself.
+
+    Not read from the analysis any more. Tracked beats wandered 60-270 ms about a
+    straight line and gave a track two different tempos for its two halves, which is
+    a quarter of a beat of slip and exactly the galloping the DJ heard. A rigid fit
+    cannot wander, and on this library it returns a whole BPM for every record.
+
+    Cached: the fit costs seconds per track and depends on nothing but the file.
     """
-    bg = analysis.get("beatgrid") or {}
-    beats = np.asarray(bg.get("beat_times_sec") or [], dtype=float)
-    downs = np.asarray(bg.get("downbeats_sec") or [], dtype=float)
-    if beats.size < 8 or not bg.get("reliable"):
+    cache = json.loads(_GRIDS.read_text()) if _GRIDS.exists() else {}
+    key = str(path)
+    if key not in cache:
+        got = fit_rigid_grid(S.load_mono(path), S.SR)
+        cache[key] = ({"bpm": got.bpm, "first": got.first_beat_sec,
+                       "contrast": got.contrast} if got else None)
+        _GRIDS.parent.mkdir(parents=True, exist_ok=True)
+        _GRIDS.write_text(json.dumps(cache))
+    g = cache[key]
+    if not g or g["contrast"] < MIN_CONTRAST:
         return None
-    n = np.arange(beats.size)
-    period, first = np.polyfit(n, beats, 1)
-    if not np.isfinite(period) or period <= 0.1:
-        return None
-    bar = 4.0 * period
-    origin = float(downs[0]) if downs.size else float(first)
-    return float(period), origin, bar
+    period = 60.0 / g["bpm"]
+    return period, float(g["first"]), 4.0 * period
 
 
-def grid_bpm(analysis: dict) -> float | None:
-    """Tempo from the beat times, pulled onto the musical grid where they agree.
-
-    The reported BPM was out by 0.43 % on one record here — 290 ms of slip across a
-    single blend, which is a gallop on its own. Fitting across every beat fixes most
-    of that; refine_tempo then tests whether a tempo somebody could have typed into
-    a DAW explains those beats better, which on this library it usually does.
-    """
-    g = grid(analysis)
-    if not g:
-        return None
-    beats = analysis.get("beatgrid", {}).get("beat_times_sec") or []
-    got = refine_tempo(beats)
-    return got.bpm if got else 60.0 / g[0]
+def grid_bpm(path: str) -> float | None:
+    """Tempo of the rigid grid — the same number the snapping uses, by construction."""
+    g = grid(path)
+    return 60.0 / g[0] if g else None
 
 
 def snap(seconds: float, g: tuple[float, float, float], to_bar: bool = True) -> float:
@@ -163,10 +159,10 @@ def main() -> int:
                 continue
             a, b = s["deck_a"], s["deck_b"]
             beats = snap_beats(s["blend_sec"])
-            ga = grid(analyses.get(Path(a["path"]).stem, {}))
-            gb = grid(analyses.get(Path(b["path"]).stem, {}))
+            ga, gb = grid(a["path"]), grid(b["path"])
             if not ga or not gb:
-                print(f"  POMIJAM {Path(f).stem}: brak wiarygodnej siatki bitów",
+                print(f"  POMIJAM {Path(f).stem}: żaden sztywny grid nie pasuje "
+                      f"do jednego z utworów",
                       flush=True)
                 continue
 
@@ -176,8 +172,7 @@ def main() -> int:
             # three quarters of a beat of slip across a long render, which is the
             # gallop. His tempo is preserved by taking the target from what he was
             # actually running on the outgoing deck.
-            raw_a = grid_bpm(analyses[Path(a["path"]).stem])
-            raw_b = grid_bpm(analyses[Path(b["path"]).stem])
+            raw_a, raw_b = grid_bpm(a["path"]), grid_bpm(b["path"])
             # The outgoing record sets the tempo, exactly as it does on a mixer;
             # the incoming one is pitched onto it, so the two are identical by
             # construction and cannot slip apart however long the blend runs.
