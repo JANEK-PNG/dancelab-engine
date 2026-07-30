@@ -49,6 +49,7 @@ class TransitionEnvelope:
     low_b: tuple[float, ...]
     mid_b: tuple[float, ...]
     high_b: tuple[float, ...]
+    low_independent: bool = False
     provenance: str = "research_inspired_template_v1"
 
     def curves(self) -> dict[str, tuple[float, ...]]:
@@ -270,6 +271,7 @@ def build_transition_envelope(
         mid_a=_as_curve(mid_a, count),
         high_a=_as_curve(high_a, count),
         low_b=_as_curve(low_b, count),
+        low_independent=bass_open_at is not None,
         mid_b=_as_curve(mid_b, count),
         high_b=_as_curve(high_b, count),
     )
@@ -488,14 +490,26 @@ def _apply_deck_curves(
     bands: tuple[np.ndarray, np.ndarray, np.ndarray],
     curves: Mapping[str, np.ndarray],
     deck: str,
+    low_independent: bool = False,
 ) -> np.ndarray:
+    """One deck's contribution: its three bands, each at its own EQ position.
+
+    low_independent takes the low band off the line fader, which is how a mixer
+    behaves when the DJ leaves the fader up and swaps bass on the knob. With the
+    fader in the chain a handover placed early drops the low end to whatever the
+    incoming fader happens to be — a fifth of the way in that is a third of level,
+    and the measured result was a twenty-five second hole where neither record had
+    any bass. The DJ's own recording shows the incoming bass at 1.05 while its mids
+    sat at 0.50, which only happens if the knob is independent of the fader.
+    """
     low, mid, high = bands
     fader = curves[f"fader_{deck}"][np.newaxis, :]
+    low_gain = curves[f"low_{deck}"][np.newaxis, :]
     return np.asarray(
-        fader
+        (low_gain if low_independent else fader * low_gain) * low
+        + fader
         * (
-            curves[f"low_{deck}"][np.newaxis, :] * low
-            + curves[f"mid_{deck}"][np.newaxis, :] * mid
+            curves[f"mid_{deck}"][np.newaxis, :] * mid
             + curves[f"high_{deck}"][np.newaxis, :] * high
         ),
         dtype=np.float32,
@@ -584,8 +598,10 @@ def render_transition_preview(
     )
 
     curves = sample_transition_envelope(envelope, output_samples)
-    rendered_a = _apply_deck_curves(_split_three_bands(outgoing, sample_rate), curves, "a")
-    rendered_b = _apply_deck_curves(_split_three_bands(incoming, sample_rate), curves, "b")
+    rendered_a = _apply_deck_curves(_split_three_bands(outgoing, sample_rate), curves,
+                                    "a", envelope.low_independent)
+    rendered_b = _apply_deck_curves(_split_three_bands(incoming, sample_rate), curves,
+                                    "b", envelope.low_independent)
     mixed = np.asarray(rendered_a + rendered_b, dtype=np.float32)
     peak = float(np.max(np.abs(mixed), initial=0.0))
     normalization_gain = min(1.0, 0.98 / peak) if peak > 0 else 1.0

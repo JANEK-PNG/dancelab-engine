@@ -211,6 +211,7 @@ def main() -> int:
                    "thinned_sec": s.get("a_thinned_sec") or 0,
                    "cue_a_sec": cue_a, "cue_b_sec": cue_b,
                    "target_bpm": target_bpm, "bpm_a": bpm_a, "bpm_b": bpm_b,
+                   "his_start": at_mix, "b_in_sec": s["b_in_sec"], "a_out_sec": s["a_out_sec"],
                    "rate_a": rate_a, "rate_b": rate_b}
             try:
                 render_transition_preview(
