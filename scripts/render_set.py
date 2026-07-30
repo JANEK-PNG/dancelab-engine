@@ -57,7 +57,7 @@ def grid_of(path: str) -> dict | None:
     return g if g and g["contrast"] >= 2.0 else None
 
 
-def entry_point(path: str, g: dict, bars: int = 4) -> float:
+def entry_point(path: str, g: dict, bars: int = 4, need_sec: float = 0.0) -> float:
     """Where this record wants to be brought in: drums up, low end down.
 
     Measured on the DJ's own sets, 71 % of his entries land on a moment where the
@@ -78,16 +78,23 @@ def entry_point(path: str, g: dict, bars: int = 4) -> float:
         return float((sig[a:b] ** 2).mean()) if b > a else 0.0
 
     ref_low, ref_mid = energy(low, 0, span), energy(mid, 0, span)
+    # A record must have enough left after its entry to fill its whole slot. Without
+    # this the warp simply returns zeros past the end of the file, which put 13.5
+    # seconds of silence into the middle of a set.
+    latest = max(g["first"], span - need_sec) if need_sec else min(span * 0.45, 150.0)
     best, best_score = g["first"], -1e9
     t = g["first"]
-    while t + phrase < min(span * 0.45, 150.0):
+    while t + phrase < min(min(span * 0.45, 150.0), latest):
         lo, md = energy(low, t, t + phrase), energy(mid, t, t + phrase)
-        if md > 0.05 * ref_mid:
+        # and it has to be playing there: the rule looks for drums up and bass down,
+        # which a near-silent breakdown satisfies perfectly while sounding like a
+        # hole. A third of the record's own average is the floor.
+        if md > 0.33 * ref_mid:
             score = (md / (ref_mid + 1e-12)) - (lo / (ref_low + 1e-12))
             if score > best_score:
                 best, best_score = t, score
         t += phrase
-    return best
+    return min(best, latest)
 
 
 def load_stereo(path: str) -> np.ndarray:
@@ -229,9 +236,9 @@ def main() -> int:
 
     for i, (e, rate) in enumerate(keep):
         g = grids[e.path]
-        cue = entry_point(e.path, g)
         on_air = args.solo_beats + 2 * args.blend_beats
         want = on_air * beat
+        cue = entry_point(e.path, g, need_sec=want * rate)
         y = warp_stereo(load_stereo(e.path), -cue / rate, rate, 0.0, want)
         n = y.shape[1]
         fade_in = blend_n if i > 0 else 0
