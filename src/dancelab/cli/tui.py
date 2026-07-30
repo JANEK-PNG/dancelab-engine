@@ -65,6 +65,35 @@ def _load_library() -> dict[str, LibTrack]:
     return out
 
 
+# The reason has to be arguable by a DJ, not only readable by an engineer.
+_HARMONIC_PL = {
+    "exact": "ta sama tonacja",
+    "relative_major_minor": "tonacja równoległa",
+    "adjacent_same_mode": "sąsiednia tonacja",
+    "cautious": "tonacja o dwa kroki",
+    "risky": "tonacje się gryzą",
+    "unknown": "tonacja nieznana",
+}
+
+
+def _tempo_pl(delta_pct: float) -> str:
+    if abs(delta_pct) < 0.5:
+        return "to samo tempo"
+    direction = "szybciej" if delta_pct > 0 else "wolniej"
+    return f"{abs(delta_pct):.1f}% {direction}"
+
+
+def _corpus_pl(lift: float) -> str:
+    """What the measured corpus says about this kind of move."""
+    if lift >= 1.30:
+        return f"DJ-e robią tak często (×{lift:.2f})"
+    if lift >= 1.05:
+        return f"DJ-e to lubią (×{lift:.2f})"
+    if lift <= 0.75:
+        return f"DJ-e tego unikają (×{lift:.2f})"
+    return f"neutralne (×{lift:.2f})"
+
+
 def _pair_score(a: LibTrack, b: LibTrack, weights) -> tuple[float, str]:
     """Engine score for A -> B plus a one-line reason a DJ can argue with."""
     from dancelab.decision.corpus_priors import transition_prior_lift
@@ -79,8 +108,8 @@ def _pair_score(a: LibTrack, b: LibTrack, weights) -> tuple[float, str]:
     if prior_weight:
         score *= lift ** prior_weight
     delta = (b.bpm - a.bpm) / a.bpm * 100.0
-    reason = (f"{harm.harmonic_relation} {a.camelot}→{b.camelot} · "
-              f"{a.bpm:.0f}→{b.bpm:.0f} BPM ({delta:+.1f}%) · korpus ×{lift:.2f}")
+    reason = (f"{_HARMONIC_PL.get(harm.harmonic_relation, harm.harmonic_relation)} "
+              f"({a.camelot}→{b.camelot}) · {_tempo_pl(delta)} · {_corpus_pl(lift)}")
     return score, reason
 
 
@@ -144,8 +173,16 @@ def room(
         raise typer.Exit(1)
 
     store = VerdictStore.load(verdicts_path)
-    console.print(f"[dim]{len(library)} utworów · werdyktów zapisanych: "
-                  f"{sum(store.counts().values())}[/dim]\n")
+    console.print(Panel(
+        "Oceniasz [bold]przejścia[/bold], nie utwory.\n\n"
+        "1. wybierasz utwór, od którego zaczynasz\n"
+        "2. silnik proponuje, co może po nim pójść — i tłumaczy dlaczego\n"
+        "3. wybierasz jedną propozycję, [bold]słuchasz szwu[/bold] i oceniasz\n"
+        "4. Twoja ocena zostaje zapamiętana i zmienia kolejne propozycje",
+        title="DanceLab · pokój przejść",
+        subtitle=f"{len(library)} utworów w bibliotece · "
+                 f"ocen zapisanych: {sum(store.counts().values())}",
+    ))
 
     player = Audition()
     if not player_available():
@@ -157,21 +194,30 @@ def room(
         raise typer.Exit(0)
 
     while True:
+        console.print()
         console.print(_header(current, store))
         rows = _rank(current, library, store, weights)
+        console.print(f"\n[bold]Co może pójść po tym utworze?[/bold] "
+                      f"[dim](propozycje silnika, najlepsze u góry)[/dim]")
         console.print(_candidate_table(rows))
-        console.print("[dim][1-6] wybierz szew · [s] szukaj innego startu · "
-                      "[q] wyjście[/dim]")
+        console.print(f"[dim]wpisz numer 1-{len(rows)}, zeby posluchac tego "
+                      "przejscia   ·   s = inny utwor startowy   ·   "
+                      "q = wyjscie[/dim]")
 
-        choice = console.input("› ").strip().lower()
-        if choice in ("q", "quit", ""):
+        choice = console.input("numer › ").strip().lower()
+        if choice in ("q", "quit"):
             break
         if choice == "s":
             picked = _pick_start(library, None)
             if picked:
                 current = picked
             continue
+        if choice == "":
+            console.print("[yellow]Wpisz numer propozycji, ktorej chcesz "
+                          "posluchac.[/yellow]")
+            continue
         if not choice.isdigit() or not 1 <= int(choice) <= len(rows):
+            console.print(f"[yellow]To nie jest numer z listy: {choice}[/yellow]")
             continue
 
         _score, candidate, _reason, _v = rows[int(choice) - 1]
@@ -181,24 +227,54 @@ def room(
 
 
 def _pick_start(library: dict[str, LibTrack], text: str | None) -> LibTrack | None:
+    """Choose the track to start from. Every prompt says what it wants."""
     while True:
-        query = text or console.input("szukaj utworu startowego (Enter = wyjście) › ")
-        text = None
+        if text:
+            query, text = text, None
+        else:
+            console.print("\n[bold]Od którego utworu zaczynamy?[/bold]")
+            console.print("[dim]wpisz fragment tytułu lub wykonawcy "
+                          "(np. kola, flynn)   ·   q = wyjscie[/dim]")
+            query = console.input("szukaj › ").strip()
+
+        if query.lower() in ("q", "quit", "exit"):
+            return None
+        if not query:
+            console.print("[yellow]Nic nie wpisałeś. Wpisz fragment nazwy "
+                          "albo q, zeby wyjsc.[/yellow]")
+            continue
+
         matches = _find(library, query)
         if not matches:
-            if not query.strip():
-                return None
-            console.print("[yellow]nic nie znalazłem[/yellow]")
+            console.print(f"[yellow]Nic nie pasuje do: {query}[/yellow]")
+            console.print("[dim]spróbuj krócej — np. samo nazwisko wykonawcy[/dim]")
             continue
         if len(matches) == 1:
-            return matches[0]
-        table = Table(show_header=False)
-        for i, t in enumerate(matches[:10], start=1):
-            table.add_row(str(i), t.title, t.artist, f"{t.bpm:.0f}", t.camelot)
+            found = matches[0]
+            console.print(f"[green]Znalazłem:[/green] {found.title} — {found.artist}")
+            return found
+
+        console.print(f"\n[bold]{len(matches)} pasujących — który?[/bold]")
+        table = Table(header_style="bold")
+        table.add_column("nr", width=3, justify="right")
+        table.add_column("utwór", overflow="ellipsis", max_width=40)
+        table.add_column("wykonawca", overflow="ellipsis", max_width=24)
+        table.add_column("BPM", width=5, justify="right")
+        table.add_column("tonacja", width=7)
+        shown = matches[:10]
+        for i, t in enumerate(shown, start=1):
+            table.add_row(str(i), t.title, t.artist or "—", f"{t.bpm:.0f}", t.camelot)
         console.print(table)
-        pick = console.input("› ").strip()
-        if pick.isdigit() and 1 <= int(pick) <= min(10, len(matches)):
-            return matches[int(pick) - 1]
+        console.print(f"[dim]wpisz numer 1-{len(shown)}   ·   "
+                      "s = szukaj jeszcze raz   ·   q = wyjscie[/dim]")
+        pick = console.input("numer › ").strip().lower()
+        if pick in ("q", "quit"):
+            return None
+        if pick == "s" or pick == "":
+            continue
+        if pick.isdigit() and 1 <= int(pick) <= len(shown):
+            return shown[int(pick) - 1]
+        console.print(f"[yellow]To nie jest numer z listy: {pick}[/yellow]")
 
 
 def _rank(current: LibTrack, library, store, weights):
@@ -224,8 +300,9 @@ def _review_seam(a: LibTrack, b: LibTrack, store, verdicts_path, config: str,
     # Each pair keeps its own file so [w] can compare against the previous seam
     # instead of one render overwriting the evidence for the last.
     out = Path.home() / ".dancelab" / "seams" / f"{a.content_id}_{b.content_id}.wav"
-    console.print(f"\n[bold]{a.title}[/bold] → [bold]{b.title}[/bold]")
-    console.print("[dim]renderuję szew (analiza obu utworów przy pierwszym razie)…[/dim]")
+    console.print(f"\n[bold]{a.title}[/bold]  →  [bold]{b.title}[/bold]")
+    console.print("[dim]skladam ten szew w plik audio. Pierwszy raz dla tej pary "
+                  "trwa ok. 30 s (analiza obu utworow), potem juz od razu.[/dim]")
 
     try:
         render_preview(
@@ -241,10 +318,20 @@ def _review_seam(a: LibTrack, b: LibTrack, store, verdicts_path, config: str,
         return False
 
     player.play(out)
+    console.print("[green]gra…[/green]")
     while True:
-        console.print("[dim][Enter] jeszcze raz · [l] w pętli ×4 · [w] wróć do "
-                      "poprzedniego (A/B) · [x] stop · "
-                      "[t]ak · [n]ie · [d]łużej · [k]rócej · [p]omiń[/dim]")
+        console.print(Panel(
+            "[bold]Enter[/bold]  zagraj jeszcze raz        "
+            "[bold]l[/bold]  w petli x4 (dobre do oceny)\n"
+            "[bold]w[/bold]      wroc do poprzedniego (A/B)  "
+            "[bold]x[/bold]  cisza\n\n"
+            "[bold green]t[/bold green]  dobre przejscie      "
+            "[bold red]n[/bold red]  zle przejscie      "
+            "[bold]d[/bold]  za krotkie      "
+            "[bold]k[/bold]  za dlugie\n"
+            "[bold]p[/bold]  pomin, nie oceniam",
+            title="jak brzmi ten szew?",
+        ))
         key = console.input("› ").strip().lower()
         if key == "":
             player.replay()
