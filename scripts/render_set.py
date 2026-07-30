@@ -31,6 +31,8 @@ import numpy as np
 import soundfile as sf
 from scipy.signal import butter, sosfiltfilt
 
+import librosa
+
 import seam_decompose as S
 from cue_parse import parse_cue
 from dancelab.core.rigid_grid import fit_rigid_grid
@@ -88,9 +90,35 @@ def entry_point(path: str, g: dict, bars: int = 4) -> float:
     return best
 
 
+def load_stereo(path: str) -> np.ndarray:
+    """Both channels, kept apart. Shape (2, n).
+
+    Everything upstream analyses in mono, which is right — a beat grid and an entry
+    point are properties of the music, not of its width. The render is not analysis.
+    Folding to mono there cost the whole set its stereo image: channel correlation
+    came out at exactly 1.000 against 0.935 in the DJ's own recording, with the side
+    signal 240 dB down instead of 15. Nothing centred and nothing wide is precisely
+    what he kept calling flat.
+    """
+    data, sr = sf.read(path, dtype="float32", always_2d=True)
+    y = data.T
+    if y.shape[0] == 1:
+        y = np.repeat(y, 2, axis=0)
+    if sr != S.SR:
+        y = librosa.resample(y, orig_sr=sr, target_sr=S.SR, res_type="soxr_vhq")
+    return y[:2].astype(np.float32)
+
+
+def warp_stereo(y: np.ndarray, origin: float, rate: float, t0: float,
+                t1: float) -> np.ndarray:
+    return np.stack([S.warp(ch, origin, rate, t0, t1, hq=True) for ch in y])
+
+
 def bands(y: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    lo = sosfiltfilt(butter(4, LOW_HZ / (S.SR / 2), btype="lowpass", output="sos"), y)
-    hi = sosfiltfilt(butter(4, HIGH_HZ / (S.SR / 2), btype="highpass", output="sos"), y)
+    lo = sosfiltfilt(butter(4, LOW_HZ / (S.SR / 2), btype="lowpass", output="sos"),
+                     y, axis=-1)
+    hi = sosfiltfilt(butter(4, HIGH_HZ / (S.SR / 2), btype="highpass", output="sos"),
+                     y, axis=-1)
     return lo.astype(np.float32), (y - lo - hi).astype(np.float32), hi.astype(np.float32)
 
 
@@ -133,6 +161,9 @@ def main() -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--blend-beats", type=int, default=BLEND_BEATS)
     ap.add_argument("--solo-beats", type=int, default=SOLO_BEATS)
+    ap.add_argument("--no-eq", action="store_true",
+                    help="Never touch the samples: one gain per deck, original audio, "
+                         "no band split anywhere in the signal path")
     args = ap.parse_args()
 
     _, entries = parse_cue(args.cue)
@@ -161,34 +192,50 @@ def main() -> int:
                else f"wymaga {abs(rate - 1) * 100:.1f}% suwaka")
         print(f"  POMIJAM {e.performer} — {e.title}: {why}")
 
+    # Layout, and the first version had it wrong in a way that mattered more than
+    # anything it was being compared against. Records were spaced solo_beats apart
+    # while each blend ran blend_beats, so with 160 and 128 the two overlapped for
+    # four fifths of the set and nothing ever played alone for more than fourteen
+    # seconds. A permanent crossfade is not a set.
+    #
+    # A record enters, blends with the one leaving for blend_beats, plays alone for
+    # solo_beats, and is still on air through the next blend. So the spacing between
+    # entries is blend + solo, and each record is on air for solo + two blends.
     beat = 60.0 / master
     blend_n = int(args.blend_beats * beat * S.SR)
     solo_n = int(args.solo_beats * beat * S.SR)
-    total = solo_n * len(keep) + blend_n + S.SR * 4
-    mix = np.zeros(total, dtype=np.float32)
+    step_n = blend_n + solo_n
+    total = step_n * len(keep) + blend_n + S.SR * 4
+    mix = np.zeros((2, total), dtype=np.float32)
     levels = []
 
     for i, (e, rate) in enumerate(keep):
         g = grids[e.path]
         cue = entry_point(e.path, g)
-        on_air = args.solo_beats + args.blend_beats
+        on_air = args.solo_beats + 2 * args.blend_beats
         want = on_air * beat
-        y = S.warp(S.load_mono(e.path), -cue / rate, rate, 0.0, want, hq=True)
-        n = y.size
+        y = warp_stereo(load_stereo(e.path), -cue / rate, rate, 0.0, want)
+        n = y.shape[1]
         fade_in = blend_n if i > 0 else 0
         fade_out = blend_n if i < len(keep) - 1 else 0
-        fader, low_gain = envelopes(n, fade_in, solo_n, fade_out)
-        lo, md, hi = bands(y)
-        # The low band does not go through the line fader, exactly as it does not
-        # on a mixer. With the fader in that path the one deck holding the bass sits
-        # at 0.7 while the mids of two decks sum to unity, which measured as 3.4 dB
-        # of missing low end against the DJ's own recording — for 44 % of the set,
-        # since that is how much of it is inside a blend.
-        voice = low_gain * lo + fader * (md + hi)
-        at = i * solo_n
-        mix[at:at + n] += voice
-        levels.append(float(np.sqrt((y[fade_in:solo_n] ** 2).mean())) if solo_n > fade_in
-                      else 0.0)
+        fader, low_gain = envelopes(n, fade_in, fade_in + solo_n, fade_out)
+        if args.no_eq:
+            # The DJ's test: analysis may split the audio all it likes, but nothing
+            # that reaches the speakers is ever rebuilt from the pieces. One gain on
+            # the untouched file. The cost is musical, not technical — both records
+            # keep their bass through the blend, which is the mud a bass swap exists
+            # to prevent — and that is the point of hearing them side by side.
+            voice = fader[None, :] * y
+        else:
+            lo, md, hi = bands(y)
+            # The low band does not go through the line fader, exactly as it does
+            # not on a mixer. With the fader in that path the one deck holding the
+            # bass sits at 0.7 while the mids of two decks sum to unity, measured as
+            # 3.4 dB of missing low end for the 44 % of a set inside a blend.
+            voice = low_gain[None, :] * lo + fader[None, :] * (md + hi)
+        at = i * step_n
+        mix[:, at:at + n] += voice
+        levels.append(float(np.sqrt((y[:, fade_in:fade_in + solo_n] ** 2).mean())))
         print(f"  {i + 1:2d}. {e.performer[:22]:22s} {e.title[:28]:28s} "
               f"{g['bpm']:5.1f} → {master:.0f} ({(rate - 1) * 100:+.1f}%)  "
               f"wejście {cue / 60:.0f}:{int(cue) % 60:02d}", flush=True)
@@ -209,8 +256,8 @@ def main() -> int:
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    sf.write(out, np.stack([mix, mix], axis=1), S.SR, subtype="PCM_24")
-    dur = mix.size / S.SR
+    sf.write(out, mix.T, S.SR, subtype="PCM_24")
+    dur = mix.shape[1] / S.SR
     print(f"\nWrote {out} — {dur / 60:.1f} min, {master:.0f} BPM przez cały set")
     return 0
 
