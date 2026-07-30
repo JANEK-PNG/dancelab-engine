@@ -410,3 +410,31 @@ def test_pinned_tracks_exempt_from_overuse_penalty():
     assert ctx.penalty("prev", "pinme") == 0.0          # §15.10 exemption
     ctx_no_pin = NoveltyContext.build(mode="fresh", history=history, seed=None)
     assert ctx_no_pin.penalty("prev", "pinme") > 0.0    # penalized without pin
+
+
+def _no_features(tid, camelot, bpm):
+    """A track the analysis produced no RMS frames for — energy is unknown."""
+    return AnalysisResult(
+        engine_version="0.1.0",
+        track=Track(track_id=tid, key_estimate=camelot, bpm_estimate=bpm),
+        features=[],
+    )
+
+
+def test_track_without_rms_does_not_anchor_the_energy_scale():
+    """A missing measurement must not become the quietest track in the pool.
+
+    Substituting 0.0 makes it the floor of e_min, which rescales every other
+    track's normalized energy and, under a build arc, drags it toward the opener.
+    """
+    from dancelab.core.config import load_weights
+    weights = load_weights("configs/descriptor_weights.yaml")
+    tracks = [
+        track("t1", "8A", 128, 0.40),
+        track("t2", "9A", 129, 0.42),
+        track("t3", "8B", 128, 0.44),
+        _no_features("ghost", "9A", 128),
+    ]
+    plan = build_set(tracks, weights, arc="build")
+    assert any("energy" in w.lower() and "ghost" in w for w in plan.warnings), plan.warnings
+    assert plan.track_order[0] != "ghost", "unmeasured track was treated as the quietest"

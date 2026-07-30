@@ -42,6 +42,24 @@ def _nearest_user_cue(
     return None
 
 
+def _cue_confidence(
+    out_window: TransitionWindow | None,
+    in_window: TransitionWindow | None,
+) -> float | None:
+    """How sure we are of WHERE the handoff sits — never how well the pair fits.
+
+    The cue's positions come from the transition windows, so the engine's own
+    detection scores for those windows are the only measured evidence for the
+    placement. The weakest one governs: a confident mix-out cannot vouch for a
+    doubtful mix-in. With no window at all there is nothing to ground a number
+    on, so the field stays None rather than borrowing a number from elsewhere.
+    """
+    scores = [w.score for w in (out_window, in_window) if w is not None]
+    if not scores:
+        return None
+    return max(0.0, min(1.0, min(scores)))
+
+
 def build_transition_cue(
     transition: SetTransition,
     *,
@@ -88,6 +106,14 @@ def build_transition_cue(
             "B start is an engine window estimate — no verified cue; listen first"
         )
 
+    suggested_beats: int | None = None
+    if a_out is not None and b_in is not None:
+        from dancelab.decision.transition_length import suggest_transition_beats
+
+        suggestion = suggest_transition_beats(analysis_a, a_out, analysis_b, b_in)
+        suggested_beats = suggestion.beats
+        reasoning.extend(suggestion.reasoning)
+
     grids_reliable = bool(
         analysis_a.beatgrid and analysis_a.beatgrid.reliable
         and analysis_b.beatgrid and analysis_b.beatgrid.reliable
@@ -108,11 +134,18 @@ def build_transition_cue(
         b_cue_source=b_source,
         b_cue_slot=b_slot,
         mix_duration_beats=mix_beats,
-        confidence=max(0.0, min(1.0, transition.transition_score)),
+        suggested_blend_beats=suggested_beats,
+        confidence=_cue_confidence(out_window, in_window),
         # HARD RULE: only a verified cue with usable windows and reliable
-        # grids releases the manual-listen requirement
+        # grids releases the manual-listen requirement. Both windows must be
+        # present: a hot cue chosen with no mix-in window to corroborate it
+        # (the earliest-cue branch above) is a guess at the DJ's intent, and
+        # that branch's own comment says it still needs a listen.
         requires_manual_listen=not (
-            b_source == "rekordbox_hotcue" and out_window is not None and grids_reliable
+            b_source == "rekordbox_hotcue"
+            and in_window is not None
+            and out_window is not None
+            and grids_reliable
         ),
         reasoning=reasoning,
     )

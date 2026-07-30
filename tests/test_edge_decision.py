@@ -99,3 +99,40 @@ def test_api_edge_decision_endpoint(monkeypatch, tmp_path):
     assert body["blend_profile_auto"]
     assert body["blend_profile_explanation"]
     assert body["provenance"]["model_card_id"] == "edge_decision_model_card_v0.1"
+
+
+def test_fallback_pair_window_does_not_earn_the_measured_pair_bonus():
+    """The pair term rewards a measured pair window. A synthesized stand-in,
+    built precisely because no measured pair existed, must not collect it."""
+    from dancelab.core.models import PairWindow
+    from dancelab.decision import edge_decision as ed
+
+    weights = load_weights("configs/descriptor_weights.yaml")
+    a = make_analysis("a", 128.0, "8A")
+    b = make_analysis("b", 128.0, "9A")
+
+    fallback = build_edge_decision(a, b, weights)
+    assert "fallback pair" in (fallback.selected_pair_window.explanation or "")
+
+    # Same inputs, but with a measured pair covering the very same windows.
+    measured_pair = PairWindow(
+        track_a_window=fallback.selected_pair_window.track_a_window,
+        track_b_window=fallback.selected_pair_window.track_b_window,
+        pair_score=0.7,
+        explanation="measured pair",
+    )
+    original = ed.compute_mixability
+
+    def _with_pair(*args, **kwargs):
+        out = original(*args, **kwargs)
+        return out.model_copy(update={"best_pair_windows": [measured_pair]})
+
+    ed.compute_mixability = _with_pair
+    try:
+        measured = build_edge_decision(a, b, weights)
+    finally:
+        ed.compute_mixability = original
+
+    assert "fallback pair" not in (measured.selected_pair_window.explanation or "")
+    assert (fallback.core_dj_compatibility_score.confidence
+            < measured.core_dj_compatibility_score.confidence)

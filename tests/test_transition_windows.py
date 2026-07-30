@@ -387,3 +387,29 @@ def test_top_k_suppresses_adjacent_peaks():
     assert idxs[0] == 1
     assert 3 not in idxs  # suppressed: 2 s from peak 1
     assert 10 in idxs
+
+
+def test_windows_do_not_claim_tempo_feasibility(weights):
+    """Tempo feasibility is a property of a PAIR of tracks. This detector sees
+    one track — no second tempo is in TransitionWindowInput — so it must leave
+    the field None rather than stamping a plausible-looking 'medium'."""
+    out = detect_transition_windows(
+        TransitionWindowInput(track_id="t1", feature_frames=make_frames()), weights
+    )
+    assert out.windows
+    assert all(w.tempo_window_feasibility is None for w in out.windows)
+
+
+def test_unreliable_beatgrid_is_not_trusted_for_phrasing(weights):
+    """A grid the analysis marked unreliable must not quietly raise coverage."""
+    grid = BeatGrid(bpm=128.0, reliable=False,
+                    beat_times_sec=[i * 0.469 for i in range(128)],
+                    downbeats_sec=[0.0, 1.875, 3.75])
+    segments = [Segment(segment_id="s0", track_id="t1", start_sec=0.0,
+                        end_sec=60.0, segment_type="groove")]
+    out = detect_transition_windows(
+        TransitionWindowInput(track_id="t1", feature_frames=make_frames(),
+                              beatgrid=grid, segments=segments),
+        weights,
+    )
+    assert any("beatgrid unreliable" in w for w in out.warnings), out.warnings

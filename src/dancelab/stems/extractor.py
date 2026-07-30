@@ -112,7 +112,10 @@ def _empty_summary(
 
 
 def _extract_demucs_channels(
-    signal: AudioSignal, config: EngineConfig | None = None
+    signal: AudioSignal,
+    config: EngineConfig | None = None,
+    *,
+    device: str | None = None,
 ) -> tuple[dict[StemType, AudioSignal], DurationMatchStatus]:
     import torch
     from demucs.apply import apply_model
@@ -141,9 +144,10 @@ def _extract_demucs_channels(
         duration_status = DurationMatchStatus.resampled
 
     wav = torch.tensor(stereo[None], dtype=torch.float32)
+    selected_device = device or preferred_torch_device()
     with torch.no_grad():
         raw = apply_model(
-            model, wav, device=preferred_torch_device(), overlap=overlap
+            model, wav, device=selected_device, overlap=overlap
         )[0]
 
     channels: dict[StemType, AudioSignal] = {}
@@ -224,8 +228,15 @@ def extract_stems(signal: AudioSignal, track_id: str, config: EngineConfig) -> S
             ),
         )
 
+    selected_device = preferred_torch_device()
+    model_signature = f"demucs.apply_model.{selected_device}"
+    processing_command = f"demucs.apply_model(device={selected_device})"
+
     try:
-        channels, duration_status = _extract_demucs_channels(signal)
+        channels, duration_status = _extract_demucs_channels(
+            signal,
+            device=selected_device,
+        )
     except Exception as exc:  # pragma: no cover - exercised by integration paths
         warnings.append(f"stem extraction failed - {exc}")
         return StemBundle(
@@ -235,8 +246,8 @@ def extract_stems(signal: AudioSignal, track_id: str, config: EngineConfig) -> S
                 config=config,
                 model_name="htdemucs",
                 model_variant=method,
-                model_signature="demucs.apply_model.cpu",
-                processing_command="demucs.apply_model(device=cpu)",
+                model_signature=model_signature,
+                processing_command=processing_command,
                 extraction_status=StemExtractionStatus.failed,
                 source_status=SourceStatus.fallback_full_mix,
                 warning_level=WarningLevel.error,
@@ -280,8 +291,8 @@ def extract_stems(signal: AudioSignal, track_id: str, config: EngineConfig) -> S
         provenance_id=_provenance_id(track_id, config),
         model_name="htdemucs",
         model_variant=method,
-        model_signature="demucs.apply_model.cpu",
-        processing_command="demucs.apply_model(device=cpu)",
+        model_signature=model_signature,
+        processing_command=processing_command,
         config_hash=_config_hash(config),
         input_audio_id=track_id,
         output_stem_ids={stem_type: _stem_id(track_id, stem_type) for stem_type in channels},

@@ -1,0 +1,12 @@
+# DanceLab cue label defaults — editable.
+# color: Rekordbox hot-cue palette index (ColorTableIndex). Values here are proven
+#   valid (they appear on the DJ's own cues). Semantic grouping: transition
+#   (mix_in/out) = one color, structural = another, unverified = a third.
+#   Confirm/edit exact hues visually in Rekordbox. -1 = Rekordbox default.
+# comment: {beats} token filled only when a reliable beat-count exists.
+mix_in:     { color: 0,  comment: "MIX IN" }
+mix_out:    { color: 0,  comment: "MIX OUT → next{beats}" }
+drop:       { color: 22, comment: "DROP" }
+breakdown:  { color: 22, comment: "BREAKDOWN" }
+phrase:     { color: 22, comment: "PHRASE" }
+unverified: { color: 56, comment: "⚠ check by ear" }

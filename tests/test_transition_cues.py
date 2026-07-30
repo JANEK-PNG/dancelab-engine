@@ -102,3 +102,63 @@ def test_loop_cues_are_not_b_start_candidates():
         user_cues_b=[DeviceCue("hot", 2, "loop", 62_000, 70_000)],  # loop ≠ start point
     )
     assert cue.b_cue_source == "window_only"
+
+
+def test_earliest_hotcue_without_a_mix_in_window_still_needs_a_listen():
+    """A hot cue picked with no engine window to corroborate it is a guess at
+    the DJ's intent, not a verified handoff. The code's own comment on that
+    branch says as much, so the flag must agree."""
+    cue = build_transition_cue(
+        TRANSITION,
+        analysis_a=_analysis("a"),
+        analysis_b=_analysis("b"),
+        windows_a=[_win(WindowType.mix_out, 240.0, 270.0)],
+        windows_b=[],                                    # no mix-in window on B
+        user_cues_b=[DeviceCue("hot", 1, "point", 12_000, None)],
+    )
+    assert cue.b_cue_source == "rekordbox_hotcue"        # timestamp is real
+    assert cue.requires_manual_listen is True            # but nothing corroborates it
+
+
+def test_confidence_reflects_the_cue_evidence_not_pair_compatibility():
+    """How well two tracks fit says nothing about how sure we are of WHERE the
+    handoff goes. Confidence must come from the windows that define the cue."""
+    cue = build_transition_cue(
+        TRANSITION,                                       # transition_score 0.82
+        analysis_a=_analysis("a"),
+        analysis_b=_analysis("b"),
+        windows_a=[_win(WindowType.mix_out, 240.0, 270.0, score=0.30)],
+        windows_b=[_win(WindowType.mix_in, 60.0, 90.0, score=0.40)],
+        user_cues_b=None,
+    )
+    assert cue.confidence == 0.30                         # weakest window, not 0.82
+
+
+def test_confidence_is_none_when_no_window_supports_the_cue():
+    cue = build_transition_cue(
+        TRANSITION,
+        analysis_a=_analysis("a"),
+        analysis_b=_analysis("b"),
+        windows_a=[],
+        windows_b=[],
+        user_cues_b=None,
+    )
+    assert cue.confidence is None                         # nothing to ground it
+
+
+def test_cue_carries_the_craft_rule_blend_length():
+    """Every planned A->B carries a per-pair length from the stability rule,
+    clearly separate from the measured window length (ADR-005: a rule-based
+    number is never dressed up as a measurement)."""
+    cue = build_transition_cue(
+        TRANSITION,
+        analysis_a=_analysis("a"),
+        analysis_b=_analysis("b"),
+        windows_a=[_win(WindowType.mix_out, 240.0, 270.0)],
+        windows_b=[_win(WindowType.mix_in, 60.0, 90.0)],
+        user_cues_b=None,
+    )
+    # fixtures have only 2 RMS-less frames -> rule cannot run -> None, with a reason
+    assert cue.suggested_blend_beats is None
+    assert cue.blend_beats_basis == "stability_craft_rule"
+    assert any("A out:" in r or "B in:" in r for r in cue.reasoning)

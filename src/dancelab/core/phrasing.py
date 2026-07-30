@@ -88,6 +88,31 @@ def phrase_alignment_curve(
     return np.exp(-dist / width_sec)
 
 
+# Phrase multiples a DJ counts out by hand. These are structural, not measured.
+CLASSIC_TRANSITION_BEATS: tuple[float, ...] = (8.0, 16.0, 32.0)
+
+
+def preferred_transition_beats() -> tuple[float, ...]:
+    """Transition lengths that score full marks.
+
+    These are the phrase multiples a DJ counts out. They are structural, not
+    measured, and they are deliberately NOT extended with the corpus figure.
+
+    The priors file carries transition_length_beats_median = 94, and that value
+    was briefly wired in here. Auditing the source field killed it: across 11,405
+    corpus transitions, 14.3% of transition_length_beats are NEGATIVE (down to
+    -14526) and 28.7% exceed four minutes (up to 15771). The field measures the
+    gap between two aligned regions — negative when alignments overlap, enormous
+    when unaligned material sits between them — not how long a DJ blended. The
+    median was taken over that contaminated distribution.
+
+    A trustworthy blend length has to be measured from the mix audio around the
+    seam, or from a set whose transitions we actually know. Until then, no number
+    from that field shapes scoring (ADR-005).
+    """
+    return CLASSIC_TRANSITION_BEATS
+
+
 def window_phrase_score(
     start_sec: float,
     end_sec: float,
@@ -116,7 +141,7 @@ def window_phrase_score(
         0.0,
         max(
             1.0 - abs(duration_beats - preferred) / max(preferred, 1.0)
-            for preferred in (8.0, 16.0, 32.0)
+            for preferred in preferred_transition_beats()
         ),
     )
     return float(np.clip(0.65 * boundary_score + 0.35 * length_score, 0.0, 1.0))

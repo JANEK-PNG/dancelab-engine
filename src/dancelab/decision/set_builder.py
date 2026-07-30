@@ -887,12 +887,37 @@ def build_set(
         by_id.values(),
         context=context,
     )
-    energy: dict[str, float] = {}
+    # A track the analysis produced no RMS for has UNKNOWN energy, not zero
+    # energy. Substituting 0.0 made it the floor of the scale, rescaling every
+    # other track and — under a build arc, which opens at the quietest point —
+    # dragging it toward the opener on the strength of a measurement that was
+    # never taken (ADR-005).
+    measured: dict[str, float] = {}
+    unmeasured: list[str] = []
     for track_id in by_id:
         mean_rms = mixability_precomputation.feature_means[track_id]["rms"]
-        energy[track_id] = float(mean_rms) if mean_rms is not None else 0.0
-    e_min = min(energy.values())
-    e_range = max(energy.values()) - e_min or 1.0
+        if mean_rms is None:
+            unmeasured.append(track_id)
+        else:
+            measured[track_id] = float(mean_rms)
+
+    if measured:
+        e_min = min(measured.values())
+        e_range = max(measured.values()) - e_min or 1.0
+        # Unknown energy sits at the middle of the measured pool: neutral for
+        # ranking, and it cannot stretch the scale or claim an extreme.
+        placeholder = float(np.median(list(measured.values())))
+    else:
+        e_min, e_range, placeholder = 0.0, 1.0, 0.0
+
+    energy: dict[str, float] = dict(measured)
+    energy_warnings = [
+        f"energy unavailable for {track_id} (no RMS frames) — "
+        "treated as the pool median and excluded from the energy scale"
+        for track_id in unmeasured
+    ]
+    for track_id in unmeasured:
+        energy[track_id] = placeholder
     forced_opener_id = locked.get(1) or (start_track_id if start_track_id in by_id else None)
     target_profile = _set_arc_target_profile(
         energy,
@@ -982,6 +1007,7 @@ def build_set(
         *dedup_warnings,
         *preference_warnings,
         *constraint_warnings,
+        *energy_warnings,
         *_artist_diversity_warnings(order, artist_tokens),
         *_arc_shape_warnings(order, arc=arc, energy=energy, e_range=e_range),
         *novelty_warnings,

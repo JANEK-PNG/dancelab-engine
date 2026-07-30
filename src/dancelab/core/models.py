@@ -726,7 +726,10 @@ class SetTransition(BaseModel):
     from_track_id: str
     to_track_id: str
     transition_score: float
-    harmonic_relation: str          # "same" | "adjacent" | "relative" | "energy_boost" | "dissonant"
+    # Vocabulary comes from decision/harmonic.py harmonic_relation() and matches
+    # the corpus priors measurement exactly: "exact" | "relative_major_minor" |
+    # "adjacent_same_mode" | "cautious" | "risky" | "unknown".
+    harmonic_relation: str
     key_from: str | None = None     # Camelot
     key_to: str | None = None
     bpm_from: float | None = None
@@ -756,6 +759,11 @@ class TransitionCue(SchemaVersionedOutput):
     b_cue_source: str = "window_only"   # "rekordbox_hotcue" | "dancelab_written_hotcue" | "window_only"
     b_cue_slot: int | None = None        # hot cue slot 1-8 (A-H) when rekordbox_hotcue
     mix_duration_beats: int | None = None
+    # Blend length from the stability craft rule (decision/transition_length):
+    # a named rule over the RMS envelopes, NOT a measurement — kept in its own
+    # field so it can never be mistaken for the measured window length above.
+    suggested_blend_beats: int | None = None
+    blend_beats_basis: str = "stability_craft_rule"
     confidence: float | None = Field(default=None, ge=0, le=1)
     requires_manual_listen: bool = True
     reasoning: list[str] = Field(default_factory=list)

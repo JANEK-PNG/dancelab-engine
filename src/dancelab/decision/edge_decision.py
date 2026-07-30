@@ -80,7 +80,7 @@ def _synthetic_window(track: AnalysisResult, kind: str) -> TransitionWindow | No
         reasoning=["synthetic fallback window — no strong local maxima were available"],
         warnings=["fallback window only — verify transition timing by ear"],
         recommended_strategies=[TransitionStrategy.short_blend],
-        tempo_window_feasibility=TempoFeasibility.medium,
+
         explanation="fallback window synthesized for edge-decision completeness",
     )
 
@@ -219,6 +219,10 @@ def build_edge_decision(
     best_pair = mix.best_pair_windows[0] if mix.best_pair_windows else None
     selected_window_a = _find_window(windows_a, best_pair.track_a_window if best_pair else None)
     selected_window_b = _find_window(windows_b, best_pair.track_b_window if best_pair else None)
+    # best_pair is about to be replaced by a synthesized stand-in when no
+    # measured pair survived. Remember which it was: the confidence term below
+    # rewards real pair evidence, and a fallback is the absence of it.
+    pair_is_measured = best_pair is not None
     if best_pair is None:
         selected_window_a = _preferred_window(windows_a, "out")
         selected_window_b = _preferred_window(windows_b, "in")
@@ -313,7 +317,7 @@ def build_edge_decision(
     confidence = float(
         np.clip(
             0.55 * mix.confidence
-            + 0.15 * (1.0 if best_pair else 0.35)
+            + 0.15 * (1.0 if pair_is_measured else 0.35)
             + 0.15 * (0.85 if context_fit_score is not None else 0.45)
             + 0.15 * (0.9 if strategy.tempo_gate_status != GateStatus.fail else 0.4),
             0.0,
