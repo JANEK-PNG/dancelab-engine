@@ -14,6 +14,7 @@ from __future__ import annotations
 import numpy as np
 
 from dancelab.core.audio_types import AudioSignal
+from dancelab.core.tempo_refine import refine_tempo
 from dancelab.core.errors import MissingDependencyError
 from dancelab.core.models import BeatGrid
 from dancelab.preprocessing.tempo_precision import refine_bpm_from_beat_times
@@ -354,6 +355,27 @@ def estimate_beatgrid(
             "bpm_refined_from_32_beat_spans"
             f"(raw={raw_bpm:.4f},cv={refinement['robust_cv']:.5f})"
         )
+
+    # Last, ask whether a tempo somebody could have typed into a DAW explains these
+    # beats at least as well. Club records are sequenced at 128, 130, 136 — a
+    # detector answering 135.885 is describing its own scatter, and half a BPM of
+    # error is 256 ms of slip across seventy seconds, well past the quarter-beat
+    # where tight becomes a stumble. This does not round: the candidate has to fit
+    # the beats. Measured on one library it held for 38 of 44 records, and where it
+    # held it was usually far better rather than merely equal — one went from 120 ms
+    # of scatter to 11 ms. The six that refused keep their own tempo.
+    #
+    # It runs here rather than only in the render scripts so that everything reading
+    # an AnalysisResult gets the same number: with it only downstream, the planner
+    # and the renderer disagreed with beatgrid.bpm about the same record.
+    musical = refine_tempo(beat_times)
+    if musical is not None and musical.snapped and musical.bpm != bpm:
+        fold_flags.append(
+            f"bpm_snapped_to_musical_grid(free={musical.free_bpm:.4f},"
+            f"residual={musical.residual_sec * 1000:.0f}ms,"
+            f"free_residual={musical.free_residual_sec * 1000:.0f}ms)"
+        )
+        bpm = float(musical.bpm)
 
     # AUD-M2: no detected beats → the 120 is a placeholder, not a measurement.
     # Keep a positive bpm (schema requires >0) but flag it unreliable so

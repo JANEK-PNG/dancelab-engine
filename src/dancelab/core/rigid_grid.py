@@ -27,10 +27,31 @@ import numpy as np
 FOLD_BINS = 96
 BPM_LO, BPM_HI = 60.0, 200.0
 # Below this, no rigid grid explains the record — it was not made to a fixed tempo.
+# Measured, not chosen: across a 49-record sample of one DJ's library the scores
+# fall in two groups with a clear gap. Stems and spoken material land at 1.09-1.99;
+# every actual club record from 2.42 up, to 4.08. The threshold sits in the gap.
+# It had been 2.0, which was calibrated before a fine tempo scan was added — that
+# scan can only raise a score, and it lifted Burial's Archangel to 2.06, letting a
+# record made without a metronome through a gate that had correctly refused it.
+#
 # The threshold lives beside the fit rather than in whichever caller happens to
 # remember it, so a future engine caller cannot get a confident grid for
 # arrhythmic material by forgetting to check.
-MIN_CONTRAST = 2.0
+MIN_CONTRAST = 2.2
+# The coarse scan only settles the octave; the period is then found to a hundredth
+# of a BPM, and the round number is kept only if it explains the onsets within this
+# much of the free fit. Same bargain as core.tempo_refine, different evidence.
+FINE_SPAN_BPM = 0.75
+FINE_STEP_BPM = 0.01
+SNAP_ABS_BPM = 0.05
+MUSICAL_TOLERANCE = 0.995
+# The octave is settled on a shorter stretch. On the whole record the coarse grid's
+# own 0.5 BPM step is the problem it exists to fix: at 128.3 the nearest candidate
+# is 128.5, which drifts a third of a beat across ninety seconds and smears its
+# peak, while 192.5 sits 0.05 from 1.5x the truth, stays sharp, and wins on half
+# the energy. Over a minute a 0.25 BPM error moves a quarter of a beat, too little
+# to flip that comparison.
+OCTAVE_WINDOW_SEC = 60.0
 
 
 @dataclass(frozen=True)
@@ -39,6 +60,8 @@ class RigidGrid:
     first_beat_sec: float
     contrast: float          # how far the folded peak stands above the rest
     beats: np.ndarray
+    snapped_to_musical: bool = True
+    free_bpm: float = 0.0    # the unconstrained best fit, before any snapping
 
     @property
     def confident(self) -> bool:
@@ -108,30 +131,55 @@ def _fold(env: np.ndarray, times: np.ndarray, bpm: float,
     return float(captured / coverage), (peak + 0.5) / FOLD_BINS
 
 
-def _fit_one(y, sr, hop, musical_only, kick_only) -> RigidGrid | None:
+def _fit_one(y, sr, hop, kick_only, tolerance=MUSICAL_TOLERANCE) -> RigidGrid | None:
+    """Coarse musical scan to settle the octave, then a fine scan for the period.
 
+    Scanning whole and half BPM alone is robust — those are the tempos records are
+    made at, and the wide net cannot settle on a neighbour a hundredth away for no
+    musical reason. But taking the winner as the answer quantises every tempo to
+    0.5 BPM, and a quarter of a BPM is 337 ms of walk across a three-minute slot at
+    136 — three times the quarter-beat where tight becomes a stumble. A record that
+    genuinely sits at 133.4 has to be allowed to say so.
+
+    So the musical winner names the neighbourhood, a fine scan finds the period
+    inside it, and the musical value is kept only when it explains the onsets about
+    as well — the same bargain `tempo_refine` strikes on beat times, made here on
+    the fold score because that is the evidence this module has.
+    """
     env, times = _onset_envelope(y, sr, hop, kick_only)
     if env.sum() <= 0:
         return None
-    if musical_only:
-        candidates = np.arange(BPM_LO * 2, BPM_HI * 2 + 1) / 2.0
-    else:
-        candidates = np.arange(BPM_LO, BPM_HI + 0.01, 0.05)
-    scored = [(bpm, *_fold(env, times, bpm)) for bpm in candidates]
 
-    bpm, contrast, phase = max(scored, key=lambda item: item[1])
+    musical = np.arange(BPM_LO * 2, BPM_HI * 2 + 1) / 2.0
+    n = min(env.size, int(OCTAVE_WINDOW_SEC * sr / hop))
+    o_env, o_times = env[:n], times[:n]
+    coarse_bpm = max(musical, key=lambda bpm: _fold(o_env, o_times, bpm)[0])
+    # scored on the whole record once the octave is known
+    m_bpm, m_score, m_phase = coarse_bpm, *_fold(env, times, coarse_bpm)
+
+    fine = np.arange(m_bpm - FINE_SPAN_BPM, m_bpm + FINE_SPAN_BPM + 1e-9, FINE_STEP_BPM)
+    f_bpm, f_score, f_phase = max(((bpm, *_fold(env, times, bpm)) for bpm in fine),
+                                  key=lambda item: item[1])
+
+    # A hundredth of a BPM apart is not a disagreement about tempo, it is noise in
+    # the score; prefer the number somebody could have typed.
+    snapped = (m_score >= f_score * tolerance
+               or abs(f_bpm - m_bpm) <= SNAP_ABS_BPM)
+    bpm, score, phase = ((m_bpm, m_score, m_phase) if snapped
+                         else (f_bpm, f_score, f_phase))
 
     period = 60.0 / bpm
     first = phase * period
     count = int((times[-1] - first) / period) + 1
     if count < 8:
         return None
-    return RigidGrid(float(bpm), float(first), float(contrast),
-                     first + np.arange(count) * period)
+    return RigidGrid(float(bpm), float(first), float(score),
+                     first + np.arange(count) * period,
+                     snapped_to_musical=bool(snapped), free_bpm=float(f_bpm))
 
 
 def fit_rigid_grid(y: np.ndarray, sr: int, *, hop: int = 128,
-                   musical_only: bool = True) -> RigidGrid | None:
+                   tolerance: float = MUSICAL_TOLERANCE) -> RigidGrid | None:
     """The tempo and phase that best explain a record, from whichever view is clearer.
 
     The fit is run twice, once on the kick band and once on the whole spectrum, and
@@ -143,9 +191,18 @@ def fit_rigid_grid(y: np.ndarray, sr: int, *, hop: int = 128,
 
     A low score is not a failure to report as a number — it means no rigid grid
     explains this record, which is the true answer for anything played by hand.
+
+    `snapped_to_musical` says whether the answer is a tempo somebody could have
+    typed into a DAW or a measured one; `free_bpm` carries the unconstrained fit
+    either way, so a caller can see how far the snap moved it.
     """
     if y.size < sr * 8:
         return None
-    fits = [f for f in (_fit_one(y, sr, hop, musical_only, True),
-                        _fit_one(y, sr, hop, musical_only, False)) if f]
-    return max(fits, key=lambda g: g.contrast) if fits else None
+    fits = [f for f in (_fit_one(y, sr, hop, True, tolerance),
+                        _fit_one(y, sr, hop, False, tolerance)) if f]
+    if not fits:
+        return None
+    # A confident view beats a merely loud one: the kick band and the full spectrum
+    # can disagree about whether the record has a fixed tempo at all.
+    confident = [g for g in fits if g.confident]
+    return max(confident or fits, key=lambda g: g.contrast)

@@ -80,3 +80,27 @@ def test_downbeats_are_every_fourth_beat():
     got = fit_rigid_grid(click_track(128.0), SR)
     bars = got.downbeats()
     assert bars[1] - bars[0] == pytest.approx(4 * 60.0 / 128.0)
+
+
+def test_an_off_grid_tempo_is_not_quantised_to_a_half_bpm():
+    # The coarse scan only offers whole and half BPM. Taking its winner as the
+    # answer put every record on a 0.5 grid — a quarter of a BPM is 337 ms of walk
+    # across a three-minute slot at 136, three times the quarter-beat where tight
+    # becomes a stumble. A record that sits at 128.3 has to be able to say so.
+    got = fit_rigid_grid(click_track(128.3, seconds=90.0), SR)
+    assert not got.snapped_to_musical
+    assert got.bpm == pytest.approx(128.3, abs=0.05)
+
+
+def test_a_round_tempo_is_still_reported_exactly_round():
+    # and the snap has to survive: a record made at 128 should come back at 128,
+    # not at 127.99 because the fine scan found a hundredth more energy there
+    got = fit_rigid_grid(click_track(128.0, seconds=90.0), SR)
+    assert got.snapped_to_musical
+    assert got.bpm == 128.0
+
+
+def test_the_free_fit_is_reported_either_way():
+    got = fit_rigid_grid(click_track(130.0, seconds=90.0), SR)
+    assert got.free_bpm > 0
+    assert abs(got.free_bpm - 130.0) < 0.75
