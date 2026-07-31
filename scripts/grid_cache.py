@@ -48,8 +48,13 @@ def raw(path: str) -> dict | None:
     key = str(path)
     if key not in cache:
         got = fit_rigid_grid(S.load_mono(path), S.SR)
+        # snapped/free travel with the tempo so a caller can tell a measured 133.4
+        # from a 133.0 that was rounded there, and see how far the rounding moved it.
+        # Entries fitted before this was recorded simply lack the keys.
         cache[key] = ({"bpm": got.bpm, "first": got.first_beat_sec,
-                       "contrast": got.contrast} if got else None)
+                       "contrast": got.contrast,
+                       "snapped": got.snapped_to_musical,
+                       "free_bpm": got.free_bpm} if got else None)
         _dirty = True
         flush()
     return cache[key]
