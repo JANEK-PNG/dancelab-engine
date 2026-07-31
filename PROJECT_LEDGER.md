@@ -26,6 +26,8 @@ tekstowa dla Korda; obie formy trzymamy w synchronizacji.
 ### ✅ Zatwierdzone przez Janka
 | data | decyzja |
 |---|---|
+| 07-31 | **Grupy brzmieniowe nazywa DJ, nazwy żyją w jego profilu (per-DJ, trwale).** Silnik nie twierdzi „to jest UK garage" — twierdzi, że te płyty brzmią podobnie do siebie. Powód: 72% biblioteki nie ma tagu gatunku w plikach, a w Rekordboksie 53% ma „electronic"/„dance" — menu z tego nie daje wyboru. CLAP rozdzielił bibliotekę na grupy pokrywające się z sensownymi tagami, nie widząc ich |
+| 07-31 | **Plan tempa = wejście, nie decyzja silnika.** Silnik podaje przestrzeń grywalnych planów (`reachable_band`), kształt (płasko / liniowo / klatka schodowa) wybiera DJ. Domyślny plan drukowany w całości przed renderem — punkt startu, nie rekomendacja |
 | 07-16 | Inspiration Board: tylko zmierzone dane, silnik neutralny, talia inspiracji = jawna warstwa profilu (nie ukryty bias) |
 | 07-17 | Konwencja pozytywnego języka: „preferencja/nagroda", nigdy „kara" |
 | 07-17 | Preferencja tej samej oktawy BPM (0.9) + dedup audio wpięte do silnika (ρ 0.30→0.42) |
