@@ -22,49 +22,13 @@ import numpy as np
 import soundfile as sf
 
 import seam_decompose as S
-from dancelab.core.rigid_grid import fit_rigid_grid
+from grid_cache import bars_for, grid_for
 from dancelab.preview.transition_simulation import (
     TRANSITION_DURATION_OPTIONS,
     render_transition_preview,
 )
 
 MIX_BPM = 136.0
-LEAD_BEATS = 16         # a bar or four of the outgoing record alone, on the grid
-
-
-MIN_CONTRAST = 2.0
-_GRIDS = Path(__file__).resolve().parents[1] / "experiments_priv/_cache/rigid_grids.json"
-
-
-def grid(path: str) -> tuple[float, float, float] | None:
-    """Beat period, first beat, and bar length — fitted rigidly to the audio itself.
-
-    Not read from the analysis any more. Tracked beats wandered 60-270 ms about a
-    straight line and gave a track two different tempos for its two halves, which is
-    a quarter of a beat of slip and exactly the galloping the DJ heard. A rigid fit
-    cannot wander, and on this library it returns a whole BPM for every record.
-
-    Cached: the fit costs seconds per track and depends on nothing but the file.
-    """
-    cache = json.loads(_GRIDS.read_text()) if _GRIDS.exists() else {}
-    key = str(path)
-    if key not in cache:
-        got = fit_rigid_grid(S.load_mono(path), S.SR)
-        cache[key] = ({"bpm": got.bpm, "first": got.first_beat_sec,
-                       "contrast": got.contrast} if got else None)
-        _GRIDS.parent.mkdir(parents=True, exist_ok=True)
-        _GRIDS.write_text(json.dumps(cache))
-    g = cache[key]
-    if not g or g["contrast"] < MIN_CONTRAST:
-        return None
-    period = 60.0 / g["bpm"]
-    return period, float(g["first"]), 4.0 * period
-
-
-def grid_bpm(path: str) -> float | None:
-    """Tempo of the rigid grid — the same number the snapping uses, by construction."""
-    g = grid(path)
-    return 60.0 / g[0] if g else None
 
 
 def snap(seconds: float, g: tuple[float, float, float], to_bar: bool = True) -> float:
@@ -72,20 +36,6 @@ def snap(seconds: float, g: tuple[float, float, float], to_bar: bool = True) -> 
     period, origin, bar = g
     step = bar if to_bar else period
     return origin + round((seconds - origin) / step) * step
-
-
-def fold(bpm: float, target: float, measured_rate: float) -> float:
-    """Put a detected BPM in the octave the record was actually played in.
-
-    Beat trackers routinely land an octave out — one record in this set came back
-    at half speed, which would have rendered the whole seam at 89 BPM. The
-    alignment already knows how fast the record ran relative to the mix, so the
-    octave that agrees with it is the right one; nothing here trusts the detector
-    over the measurement.
-    """
-    k = target / max(bpm * measured_rate, 1e-9)
-    power = 2.0 ** round(np.log2(max(k, 1e-9)))
-    return bpm * power
 
 
 def deck_tempo(bpm: float, measured_rate: float, anchor: float = MIX_BPM) -> float:
@@ -159,7 +109,7 @@ def main() -> int:
                 continue
             a, b = s["deck_a"], s["deck_b"]
             beats = snap_beats(s["blend_sec"])
-            ga, gb = grid(a["path"]), grid(b["path"])
+            ga, gb = bars_for(a["path"]), bars_for(b["path"])
             if not ga or not gb:
                 print(f"  POMIJAM {Path(f).stem}: żaden sztywny grid nie pasuje "
                       f"do jednego z utworów",

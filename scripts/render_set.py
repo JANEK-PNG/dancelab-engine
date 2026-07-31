@@ -35,29 +35,16 @@ import librosa
 
 import seam_decompose as S
 from cue_parse import parse_cue
-from dancelab.core.rigid_grid import fit_rigid_grid
+from grid_cache import grid_for
 
 MAX_PITCH = 0.08          # what a pitch fader reaches before it stops being a mix
 BLEND_BEATS = 128
 SOLO_BEATS = 160
 BASS_OPEN_AT = 0.97       # his median: the low end changes hands at the handover
 LOW_HZ, HIGH_HZ = 200.0, 3000.0
-GRIDS = Path(__file__).resolve().parents[1] / "experiments_priv/_cache/rigid_grids.json"
 
 
-def grid_of(path: str) -> dict | None:
-    cache = json.loads(GRIDS.read_text()) if GRIDS.exists() else {}
-    if path not in cache:
-        got = fit_rigid_grid(S.load_mono(path), S.SR)
-        cache[path] = ({"bpm": got.bpm, "first": got.first_beat_sec,
-                        "contrast": got.contrast} if got else None)
-        GRIDS.parent.mkdir(parents=True, exist_ok=True)
-        GRIDS.write_text(json.dumps(cache))
-    g = cache[path]
-    return g if g and g["contrast"] >= 2.0 else None
-
-
-def entry_point(path: str, g: dict, bars: int = 4, need_sec: float = 0.0) -> float:
+def entry_point(y: np.ndarray, g: dict, bars: int = 4, need_sec: float = 0.0) -> float:
     """Where this record wants to be brought in: drums up, low end down.
 
     Measured on the DJ's own sets, 71 % of his entries land on a moment where the
@@ -65,7 +52,6 @@ def entry_point(path: str, g: dict, bars: int = 4, need_sec: float = 0.0) -> flo
     sounds, against 18 % of moments picked at random. Snapped to a phrase because
     nothing else would survive being mixed into.
     """
-    y = S.load_mono(path)
     sos_lo = butter(4, LOW_HZ / (S.SR / 2), btype="lowpass", output="sos")
     low = sosfiltfilt(sos_lo, y).astype(np.float32)
     mid = (y - low).astype(np.float32)
@@ -198,7 +184,7 @@ def main() -> int:
     else:
         ap.error("podaj plik .cue albo --tracks")
 
-    grids = {e.path: grid_of(e.path) for e in order}
+    grids = {e.path: grid_for(e.path) for e in order}
     playable = [e for e in order if grids[e.path]]
     bpms = [grids[e.path]["bpm"] for e in playable]
     master = float(np.median(bpms))
@@ -238,8 +224,12 @@ def main() -> int:
         g = grids[e.path]
         on_air = args.solo_beats + 2 * args.blend_beats
         want = on_air * beat
-        cue = entry_point(e.path, g, need_sec=want * rate)
-        y = warp_stereo(load_stereo(e.path), -cue / rate, rate, 0.0, want)
+        # One read of the file, not three. The grid fit, the entry search and the
+        # render each used to open it separately; on a fifty-minute set that is
+        # twenty-four records read three times over for no gain.
+        source = load_stereo(e.path)
+        cue = entry_point(source.mean(axis=0), g, need_sec=want * rate)
+        y = warp_stereo(source, -cue / rate, rate, 0.0, want)
         n = y.shape[1]
         fade_in = blend_n if i > 0 else 0
         fade_out = blend_n if i < len(keep) - 1 else 0

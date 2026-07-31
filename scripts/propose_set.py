@@ -18,15 +18,11 @@ from pathlib import Path
 
 import numpy as np
 
-import seam_decompose as S
-from dancelab.core.rigid_grid import fit_rigid_grid
-
 from dancelab.core.config import load_config, load_weights
 from dancelab.decision.harmonic import harmonic_relation
 from dancelab.decision.set_builder import build_set
 from dancelab.storage.repositories import FileAnalysisRepository
-
-GRIDS = Path(__file__).resolve().parents[1] / "experiments_priv/_cache/rigid_grids.json"
+from grid_cache import flush, grid_for
 
 RELATION_PL = {
     "exact": "ta sama tonacja",
@@ -72,26 +68,15 @@ def main() -> int:
         from cue_parse import parse_cue
 
         played = {e.path for c in args.exclude_cue for e in parse_cue(c)[1]}
-        before = len(analyses)
-        analyses = [a for a in analyses if a.track.source_path not in played]
-        print(f"pomijam {before - len(analyses)} utworów, które już zagrałeś\n")
-    # Fit any grid the cache is missing rather than treating an absent entry as a
-    # failed fit — the first run silently dropped sixteen records that way and read
-    # as "no rigid grid fits", which was a lie about the music.
-    grids = json.loads(GRIDS.read_text()) if GRIDS.exists() else {}
-    todo = [a for a in analyses if a.track.source_path not in grids]
-    for i, a in enumerate(todo, 1):
-        print(f"  siatka {i}/{len(todo)}: {Path(a.track.source_path).stem[:44]}",
-              flush=True)
-        got = fit_rigid_grid(S.load_mono(a.track.source_path), S.SR)
-        grids[a.track.source_path] = ({"bpm": got.bpm, "first": got.first_beat_sec,
-                                       "contrast": got.contrast} if got else None)
-    if todo:
-        GRIDS.write_text(json.dumps(grids))
-
+        keep = [a for a in analyses if a.track.source_path not in played]
+        print(f"pomijam {len(analyses) - len(keep)} utworów, które już zagrałeś\n")
+        analyses = keep
+    # Fit whatever the cache is missing rather than treating an absent entry as a
+    # failed fit — an earlier run silently dropped sixteen records that way and
+    # reported "no rigid grid fits", which was a lie about the music.
     def bpm_of(a):
-        g = grids.get(a.track.source_path)
-        return g["bpm"] if g and g["contrast"] >= 2.0 else None
+        g = grid_for(a.track.source_path)
+        return g["bpm"] if g else None
 
     # Our own output had leaked back into the input: two entries in the first set
     # were the same drum stem this project exported, once from a directory and once
@@ -99,7 +84,7 @@ def main() -> int:
     # every key and fights nothing — so the planner picked it twice. Anything this
     # toolchain produced, and anything named after a stem, is not music.
     STEM_NAMES = {"drums", "bass", "other", "vocals", "instrumental", "acapella"}
-    before = len(analyses)
+    n_before = len(analyses)
     analyses = [a for a in analyses
                 if "DanceLab_Stem_Export" not in a.track.source_path
                 and Path(a.track.source_path).stem.lower() not in STEM_NAMES]
@@ -110,8 +95,8 @@ def main() -> int:
         if name not in seen_names:
             seen_names.add(name)
             deduped.append(a)
-    if before != len(deduped):
-        print(f"odrzucam {before - len(deduped)} pozycji: nasze własne stemy "
+    if n_before != len(deduped):
+        print(f"odrzucam {n_before - len(deduped)} pozycji: nasze własne stemy "
               f"i duplikaty tego samego utworu\n")
     analyses = deduped
 
@@ -126,7 +111,9 @@ def main() -> int:
         if b:
             a.track.bpm_estimate = b
 
+    print(f"dopasowuję siatki bitów do {len(analyses)} utworów …", flush=True)
     with_tempo = [(a, bpm_of(a)) for a in analyses]
+    flush()
     usable = [(a, b) for a, b in with_tempo if b]
     master = float(np.median([b for _, b in usable]))
     pool = [a for a, b in usable if abs(master / b - 1) <= args.max_pitch]
