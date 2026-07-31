@@ -148,8 +148,14 @@ pierwsza wersja sklejała kawałki i wyglądała na −33 dB, ale różnica sied
 liftami: 5040 miksów daje słownik stylów, trafność 66,6% wobec 33,2% zgadywania.
 **Ale korpus nie pokrywa muzyki Janka** — 81% to house/techno/trance, UK Garage ma
 12 miksów, UK Bass zero. Stąd Discogs (CC0): masters dały 10,8%, bo trzymają tytuł
-wydania zamiast utworu; **88% biblioteki ma w Discogsie swojego artystę**, więc
-sufit jest wysoki. Releases w trakcie parsowania.
+wydania zamiast utworu. Releases (34,3 mln wierszy) dały **54,1% — 960 z 1773**,
+pięć razy więcej. Ważniejsze od procentu: w rozkładzie pojawiły się wreszcie style
+Janka — **80 UK Garage, 76 Breakbeat, 62 Dubstep, 56 Bass Music, 55 Breaks** — czyli
+dokładnie to, czego korpus nie miał (12 miksów UK Garage, zero UK Bass). Biblioteka
+opisuje się własnym słownikiem, a nie cudzą taksonomią naciągniętą na nią.
+**Sufit 88%, więc zostaje 30 punktów luki** — hipoteza: remiksy, edity, promosy
+cyfrowe i bootlegi, których na Discogsie nie ma. NIEZMIERZONE, czeka na decyzję
+Janka, czy dociskać.
 
 *Pułapka warta zapamiętania:* 11 GB pobrane na Pulpit zostało wysłane do iCloud
 i **skasowane z dysku** (`dataless`, zero bloków) — plik wyglądał, jakby był.
