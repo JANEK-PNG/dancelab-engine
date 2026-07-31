@@ -196,8 +196,14 @@ def main() -> int:
 
     grids = {e.path: grid_for(e.path) for e in order}
     playable = [e for e in order if grids[e.path]]
-    bpms = [grids[e.path]["bpm"] for e in playable]
-    master = float(np.median(bpms))
+    # The set runs at a tempo one of its records is actually made at — the lower of
+    # the two middle values, not their average. np.median averages them on an even
+    # count, and on twenty-four records sitting between 138 and 139 it invented
+    # 138.5: a tempo no record in the set has, and a half-BPM master at that, which
+    # is the exact quantisation the grid fit had just been fixed to stop producing.
+    # It hid because the line printing it used no decimals.
+    bpms = sorted(grids[e.path]["bpm"] for e in playable)
+    master = float(bpms[(len(bpms) - 1) // 2])
 
     keep, dropped = [], []
     for e in playable:
@@ -232,7 +238,7 @@ def main() -> int:
          else long_enough.append((e, rate)))
     keep = long_enough
 
-    print(f"tempo setu: {master:.0f} BPM · gra {len(keep)} z {len(order)} utworów")
+    print(f"tempo setu: {master:.2f} BPM · gra {len(keep)} z {len(order)} utworów")
     for e, rate in dropped:
         why = ("brak sztywnej siatki" if rate is None
                else f"wymaga {abs(rate - 1) * 100:.1f}% suwaka")
@@ -302,7 +308,7 @@ def main() -> int:
         mix[:, at:at + n] += voice
         levels.append(float(np.sqrt((y[:, fade_in:fade_in + solo_n] ** 2).mean())))
         print(f"  {placed + 1:2d}. {e.performer[:22]:22s} {e.title[:28]:28s} "
-              f"{g['bpm']:5.1f} → {master:.0f} ({(rate - 1) * 100:+.1f}%)  "
+              f"{g['bpm']:5.1f} → {master:.2f} ({(rate - 1) * 100:+.1f}%)  "
               f"wejście {cue / 60:.0f}:{int(cue) % 60:02d}", flush=True)
         placed += 1
 
@@ -345,7 +351,7 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     sf.write(out, mix.T, S.SR, subtype="PCM_24")
     dur = mix.shape[1] / S.SR
-    print(f"\nWrote {out} — {dur / 60:.1f} min, {master:.0f} BPM przez cały set")
+    print(f"\nWrote {out} — {dur / 60:.1f} min, {master:.2f} BPM przez cały set")
     return 0
 
 
