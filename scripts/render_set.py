@@ -207,11 +207,39 @@ def main() -> int:
         if not grids[e.path]:
             dropped.append((e, None))
 
+    # A record also has to last long enough for its slot, and that is decided here,
+    # from the file's duration, rather than inside the render loop — the loop placed
+    # each record at its index in the queue, so a record refused down there kept its
+    # slot, and five refusals put five holes of seventy seconds into a set that
+    # still reported its full length.
+    #
+    # "Long enough" is not the whole slot, though, and demanding it threw away five
+    # good records over as little as nine seconds. A record's last blend plays under
+    # the next one, so material missing from that tail is never heard: measured on
+    # the previous render, five records running out early left one second of silence
+    # in fifty minutes, all of it at the very end. So a record only has to reach the
+    # point where its successor takes over. What it owes is its slot minus the blend
+    # that covers it.
+    beat = 60.0 / master
+    want = (args.solo_beats + 2 * args.blend_beats) * beat
+    covered = args.blend_beats * beat
+    short: list = []
+    long_enough = []
+    for e, rate in keep:
+        span = sf.info(e.path).duration
+        owed = max(want - covered, 0.0) * rate
+        (short.append((e, span, owed)) if span - owed < grids[e.path]["first"]
+         else long_enough.append((e, rate)))
+    keep = long_enough
+
     print(f"tempo setu: {master:.0f} BPM · gra {len(keep)} z {len(order)} utworów")
     for e, rate in dropped:
         why = ("brak sztywnej siatki" if rate is None
                else f"wymaga {abs(rate - 1) * 100:.1f}% suwaka")
         print(f"  POMIJAM {e.performer} — {e.title}: {why}")
+    for e, have, need in short:
+        print(f"  POMIJAM {e.performer} — {e.title}: {have / 60:.1f} min materiału, "
+              f"slot potrzebuje {need / 60:.1f} min")
 
     # Layout, and the first version had it wrong in a way that mattered more than
     # anything it was being compared against. Records were spaced solo_beats apart
@@ -222,8 +250,6 @@ def main() -> int:
     # A record enters, blends with the one leaving for blend_beats, plays alone for
     # solo_beats, and is still on air through the next blend. So the spacing between
     # entries is blend + solo, and each record is on air for solo + two blends.
-    short: list = []
-    beat = 60.0 / master
     blend_n = int(args.blend_beats * beat * S.SR)
     solo_n = int(args.solo_beats * beat * S.SR)
     step_n = blend_n + solo_n
@@ -231,22 +257,27 @@ def main() -> int:
     mix = np.zeros((2, total), dtype=np.float32)
     levels = []  # solo-section RMS per record; sets the final gain
 
-    for i, (e, rate) in enumerate(keep):
+    # Position comes from how many records have actually been placed, never from the
+    # queue index. The duration check above should mean nothing is refused here, but
+    # a refusal that silently moved every later record a slot down the timeline is
+    # the kind of hole a listener notices and a summary line does not.
+    placed = 0
+    for e, rate in keep:
         g = grids[e.path]
-        on_air = args.solo_beats + 2 * args.blend_beats
-        want = on_air * beat
         # One read of the file, not three. The grid fit, the entry search and the
         # render each used to open it separately; on a fifty-minute set that is
         # twenty-four records read three times over for no gain.
         source = load_stereo(e.path)
-        cue = entry_point(source.mean(axis=0), g, need_sec=want * rate)
+        cue = entry_point(source.mean(axis=0), g,
+                          need_sec=max(want - covered, 0.0) * rate)
         if cue is None:
-            short.append((e, len(source[0]) / S.SR, want * rate))
+            print(f"  POMIJAM {e.performer} — {e.title}: nie ma gdzie wejść",
+                  flush=True)
             continue
         y = warp_stereo(source, -cue / rate, rate, 0.0, want)
         n = y.shape[1]
-        fade_in = blend_n if i > 0 else 0
-        fade_out = blend_n if i < len(keep) - 1 else 0
+        fade_in = blend_n if placed > 0 else 0
+        fade_out = blend_n if placed < len(keep) - 1 else 0
         # A record starts leaving when the NEXT one arrives, which is one spacing
         # after it arrived itself — never "however long it has been playing". The
         # opening record has no fade-in, so measuring from its own entry sent it out
@@ -267,18 +298,13 @@ def main() -> int:
             # bass sits at 0.7 while the mids of two decks sum to unity, measured as
             # 3.4 dB of missing low end for the 44 % of a set inside a blend.
             voice = low_gain[None, :] * lo + fader[None, :] * (md + hi)
-        at = i * step_n
+        at = placed * step_n
         mix[:, at:at + n] += voice
         levels.append(float(np.sqrt((y[:, fade_in:fade_in + solo_n] ** 2).mean())))
-        print(f"  {i + 1:2d}. {e.performer[:22]:22s} {e.title[:28]:28s} "
+        print(f"  {placed + 1:2d}. {e.performer[:22]:22s} {e.title[:28]:28s} "
               f"{g['bpm']:5.1f} → {master:.0f} ({(rate - 1) * 100:+.1f}%)  "
               f"wejście {cue / 60:.0f}:{int(cue) % 60:02d}", flush=True)
-
-    # Level is set from the records, not the peaks: peak normalisation drops a
-    # summed mix 3-4 dB below the same music played alone, which reads as flat.
-    for e, have, need in short:
-        print(f"  POMIJAM {e.performer} — {e.title}: {have / 60:.1f} min materiału, "
-              f"slot potrzebuje {need / 60:.1f} min")
+        placed += 1
 
     # The buffer is allocated generously and the last record ends where it ends, so
     # trim the tail rather than shipping a set that fades into fourteen seconds of
@@ -294,6 +320,21 @@ def main() -> int:
     # range across 14 % of the samples. He named it before it was measured — it is
     # a photograph pushed with ISO instead of exposed properly, bright and grainy
     # rather than clean. Loudness that has to be manufactured is not loudness.
+    # And check the result rather than trusting the layout. A hole is the one fault
+    # a summary line cannot show — a set with ten minutes of silence in it still
+    # reports its full length, because length is measured to the last sample that
+    # made a sound. Measured on the render, in one-second blocks.
+    loud = np.abs(mix).max(axis=0)
+    whole = (loud.size // S.SR) * S.SR
+    quietblk = (loud[:whole].reshape(-1, S.SR).max(axis=1) < 1e-3 if whole
+                else np.zeros(0, dtype=bool))
+    run = gap = 0
+    for q in quietblk:
+        run = run + 1 if q else 0
+        gap = max(gap, run)
+    print(f"cisza: najdluzsza przerwa {gap} s"
+          + ("" if gap <= 2 else "  <-- DZIURA W SECIE"))
+
     peak = float(np.abs(mix).max())
     mix *= 0.89 / max(peak, 1e-9)          # about -1 dBFS, no dynamics touched
     quiet = 20 * np.log10(float(np.sqrt((mix[mix != 0] ** 2).mean())) + 1e-12)
