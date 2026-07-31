@@ -115,6 +115,45 @@ tekstowa dla Korda; obie formy trzymamy w synchronizacji.
 
 ## 6 · RAPORTY DNIA (pracownik → Janek)
 
+**Klaris → Janek · 2026-07-31:** Dzień o tempie i o stylu.
+
+*Tempo — zamknięte.* Silnik przestał kwantować tempo do połówek BPM. Sprawdzone
+przeciwko Rekordboxowi (algorytm nie nasz, 183 utwory): **błąd średni 1,7 milibitu
+wobec 8,0**, zero realnych sporów. Osiem utworów w bibliotece naprawdę nie stoi na
+całkowitym BPM i w każdym trafiamy co do setnej w to samo co Pioneer. `tempo_refine`
+wpięty w pipeline, więc **każdy** konsument dostaje tempo z siatki muzycznej, nie
+tylko skrypty renderu.
+
+*Oktawa — naprawiona, z jedną lekcją.* Trzy utwory (Glue, COIDO, Ahoona) wypadały
+z setów jako „32% od tempa", stojąc 2% od niego. Przyczyna nie była tam, gdzie
+szukałam: pasmo stopy trafiało od początku, przegrywało wybór z pełnym pasmem.
+Próg wzięty z pomiaru na 1074 przykładach negatywnych i 3 pozytywnych. **Pierwsza
+wersja poprawki naprawiła trzy utwory i po cichu zepsuła czwarty** — złapane tylko
+dlatego, że porównałam stare siatki z nowymi zamiast sprawdzić, czy „te trzy działają".
+
+*Render — trzy realne wady.* Utwór odrzucony zostawiał **dziurę 70 s ciszy**, a set
+dalej raportował pełną długość. Reguła odrzucania wyrzucała dobre płyty za brak
+dziewięciu sekund. A mediana przy parzystej liczbie utworów **fabrykowała połówkę
+BPM** — czyli render odtwarzał na końcu dokładnie tę kwantyzację, którą rano
+usunęliśmy z silnika; chowało się przez trzy rendery, bo log drukował tempo bez
+miejsc po przecinku. Render mierzy teraz sam siebie.
+
+*Plan tempa — przebudowany wg decyzji Janka.* Jeden mistrz zastąpiony klatką
+schodową (piętra po kilka utworów, biegi małych stopni, nigdy w dół). Suwak spadł
+z 7,4% na 3,2%, gra 24 z 24 zamiast 23. Wymagało zmiennej prędkości odtwarzania —
+pierwsza wersja sklejała kawałki i wyglądała na −33 dB, ale różnica siedziała
+**wyłącznie w złączeniach**, 30 razy na utwór. Wyrzucone; pozycja liczona z całki.
+
+*Styl — zaczęty, nierozstrzygnięty.* Korpus pierwszy raz dotarł do produktu poza
+liftami: 5040 miksów daje słownik stylów, trafność 66,6% wobec 33,2% zgadywania.
+**Ale korpus nie pokrywa muzyki Janka** — 81% to house/techno/trance, UK Garage ma
+12 miksów, UK Bass zero. Stąd Discogs (CC0): masters dały 10,8%, bo trzymają tytuł
+wydania zamiast utworu; **88% biblioteki ma w Discogsie swojego artystę**, więc
+sufit jest wysoki. Releases w trakcie parsowania.
+
+*Pułapka warta zapamiętania:* 11 GB pobrane na Pulpit zostało wysłane do iCloud
+i **skasowane z dysku** (`dataless`, zero bloków) — plik wyglądał, jakby był.
+
 **Klaris → Janek · 2026-07-21:** Naprawiłam siatkę Qt (Docker, 54 zielone).
 Zamknęłam pętlę priors — 6144 realnych przejść, wagi zmierzone prowadzą nad
 ręcznymi (percentyl 0.427 vs 0.442, p=0.12 — jeszcze bez dowodu). Zmierzyłam,
