@@ -52,6 +52,25 @@ MUSICAL_TOLERANCE = 0.995
 # the energy. Over a minute a 0.25 BPM error moves a quarter of a beat, too little
 # to flip that comparison.
 OCTAVE_WINDOW_SEC = 60.0
+# Captured-energy-per-coverage settles 2x by itself — half tempo can only ever catch
+# half the beats. It does not settle 1.5x or 4/3x, where the faster grid still lands
+# on a real beat often enough to stay sharp: Bicep's Glue fitted at 195 against 130,
+# COIDO at 184 against 138, Ahoona at 160 against 120, and all three then fell out of
+# a set as "32 % away from the tempo" while sitting two percent from it.
+#
+# The kick band decides, not the full spectrum, and the margin is measured. Across
+# 184 records checked against Rekordbox's independent analysis there are 1074 cases
+# where the slower relative is wrong and 3 where it is right, and on the kick band
+# they separate: wrong tops out at 1.210, right starts at 1.323. On the full spectrum
+# the same two groups overlap completely (0.880 to 1.097 against a 0.873 95th
+# percentile), which is the same reason the low-pass exists at all — hats, claps and
+# reverb tails vote on the beat and outvote the kick.
+#
+# So this only demotes a tempo when the kick band says the slower grid explains the
+# kicks distinctly better, not merely as well. Three positive examples is thin
+# evidence for the exact number; the thousand negatives below it are not.
+OCTAVE_RELATIVES = (2.0, 1.5, 4.0 / 3.0)
+OCTAVE_MARGIN = 1.27
 
 
 @dataclass(frozen=True)
@@ -131,7 +150,54 @@ def _fold(env: np.ndarray, times: np.ndarray, bpm: float,
     return float(captured / coverage), (peak + 0.5) / FOLD_BINS
 
 
-def _fit_one(y, sr, hop, kick_only, tolerance=MUSICAL_TOLERANCE) -> RigidGrid | None:
+def _refine(env: np.ndarray, times: np.ndarray, around: float,
+            tolerance: float) -> tuple[float, float, float, bool, float]:
+    """The period near `around`, keeping the round number when it explains as well.
+
+    Returns (bpm, score, phase, snapped, free_bpm). Scanning whole and half BPM alone
+    is robust — those are the tempos records are made at — but taking that winner as
+    the answer quantises every tempo to 0.5 BPM, and a quarter of a BPM is 337 ms of
+    walk across a three-minute slot at 136, three times the quarter-beat where tight
+    becomes a stumble. A record that genuinely sits at 133.30 has to say so.
+    """
+    m_score, m_phase = _fold(env, times, around)
+    fine = np.arange(around - FINE_SPAN_BPM, around + FINE_SPAN_BPM + 1e-9,
+                     FINE_STEP_BPM)
+    f_bpm, f_score, f_phase = max(((bpm, *_fold(env, times, bpm)) for bpm in fine),
+                                  key=lambda item: item[1])
+    # A hundredth of a BPM apart is not a disagreement about tempo, it is noise in
+    # the score; prefer the number somebody could have typed.
+    snapped = m_score >= f_score * tolerance or abs(f_bpm - around) <= SNAP_ABS_BPM
+    bpm, score, phase = ((around, m_score, m_phase) if snapped
+                         else (f_bpm, f_score, f_phase))
+    return bpm, score, phase, snapped, f_bpm
+
+
+def _settle_relatives(bpm: float, env: np.ndarray, times: np.ndarray) -> float:
+    """Demote a tempo to a slower relative when the kick band clearly prefers it.
+
+    `env` is the arbiter — always the kick band, whichever view is being fitted — and
+    `bpm` must already be refined, not the winner of the coarse scan. Comparing
+    against a coarse candidate demotes records that are simply not at a whole tempo:
+    Daphni's Waiting So Long sits at 133.30, the coarse grid offers 133.5, and 0.2 BPM
+    across a whole record smears that reading down to 1.202 while the true tempo
+    scores 3.496. A relative measured against the smear cleared the margin at 1.362
+    and the record came out at 100. Against the real fit it is 0.47.
+    """
+    base = _fold(env, times, bpm)[0]
+    if base <= 0:
+        return bpm
+    for div in sorted(OCTAVE_RELATIVES, reverse=True):
+        cand = bpm / div
+        if cand < BPM_LO:
+            continue
+        if _fold(env, times, cand)[0] >= OCTAVE_MARGIN * base:
+            return cand
+    return bpm
+
+
+def _fit_one(y, sr, hop, kick_only, tolerance=MUSICAL_TOLERANCE,
+             arbiter: tuple[np.ndarray, np.ndarray] | None = None) -> RigidGrid | None:
     """Coarse musical scan to settle the octave, then a fine scan for the period.
 
     Scanning whole and half BPM alone is robust — those are the tempos records are
@@ -154,19 +220,21 @@ def _fit_one(y, sr, hop, kick_only, tolerance=MUSICAL_TOLERANCE) -> RigidGrid | 
     n = min(env.size, int(OCTAVE_WINDOW_SEC * sr / hop))
     o_env, o_times = env[:n], times[:n]
     coarse_bpm = max(musical, key=lambda bpm: _fold(o_env, o_times, bpm)[0])
-    # scored on the whole record once the octave is known
-    m_bpm, m_score, m_phase = coarse_bpm, *_fold(env, times, coarse_bpm)
+    bpm, score, phase, snapped, f_bpm = _refine(env, times, coarse_bpm, tolerance)
 
-    fine = np.arange(m_bpm - FINE_SPAN_BPM, m_bpm + FINE_SPAN_BPM + 1e-9, FINE_STEP_BPM)
-    f_bpm, f_score, f_phase = max(((bpm, *_fold(env, times, bpm)) for bpm in fine),
-                                  key=lambda item: item[1])
-
-    # A hundredth of a BPM apart is not a disagreement about tempo, it is noise in
-    # the score; prefer the number somebody could have typed.
-    snapped = (m_score >= f_score * tolerance
-               or abs(f_bpm - m_bpm) <= SNAP_ABS_BPM)
-    bpm, score, phase = ((m_bpm, m_score, m_phase) if snapped
-                         else (f_bpm, f_score, f_phase))
+    # The window settles which end of the octave range this record lives in; the
+    # dotted and triplet relations are settled on the whole record, by the kick band,
+    # because a minute is not enough evidence and the full spectrum is the wrong
+    # witness. COIDO's full-spectrum view scored its own answer 2.32 and the true
+    # tempo 2.55 — the window had simply misled it.
+    #
+    # It runs on the refined tempo, not the coarse winner, and the record that
+    # proved why is in `_settle_relatives`. A demotion then earns its own refinement,
+    # because a phase and a period found around 195 say nothing about 130.
+    a_env, a_times = arbiter if arbiter is not None else (env, times)
+    slower = _settle_relatives(bpm, a_env, a_times)
+    if slower != bpm:
+        bpm, score, phase, snapped, f_bpm = _refine(env, times, slower, tolerance)
 
     period = 60.0 / bpm
     first = phase * period
@@ -198,8 +266,13 @@ def fit_rigid_grid(y: np.ndarray, sr: int, *, hop: int = 128,
     """
     if y.size < sr * 8:
         return None
-    fits = [f for f in (_fit_one(y, sr, hop, True, tolerance),
-                        _fit_one(y, sr, hop, False, tolerance)) if f]
+    # The kick band arbitrates the octave for both views, so it is computed once here
+    # and handed to the full-spectrum fit as well. Without that the full view kept
+    # answering 1.5x and 4/3x and, being marginally sharper, won the choice below:
+    # 2.70 against 2.37 on Glue, 2.75 against 2.64 on Ahoona.
+    arbiter = _onset_envelope(y, sr, hop, kick_only=True)
+    fits = [f for f in (_fit_one(y, sr, hop, True, tolerance, arbiter),
+                        _fit_one(y, sr, hop, False, tolerance, arbiter)) if f]
     if not fits:
         return None
     # A confident view beats a merely loud one: the kick band and the full spectrum

@@ -3,7 +3,11 @@
 import numpy as np
 import pytest
 
-from dancelab.core.rigid_grid import fit_rigid_grid
+from dancelab.core.rigid_grid import (
+    _onset_envelope,
+    _settle_relatives,
+    fit_rigid_grid,
+)
 
 SR = 22050
 
@@ -104,3 +108,35 @@ def test_the_free_fit_is_reported_either_way():
     got = fit_rigid_grid(click_track(130.0, seconds=90.0), SR)
     assert got.free_bpm > 0
     assert abs(got.free_bpm - 130.0) < 0.75
+
+
+def test_a_dotted_reading_is_demoted_when_the_kick_band_prefers_the_slower_grid():
+    # Bicep's Glue fitted at 195 against Rekordbox's 130 and then fell out of a set
+    # as "32 % away from the tempo" while sitting two percent from it. Captured
+    # energy settles 2x on its own — half tempo can only catch half the beats — but
+    # a 1.5x grid lands on every second real beat and stays sharp enough to win.
+    env, times = _onset_envelope(click_track(130.0, seconds=90.0), SR, 128, True)
+    assert _settle_relatives(195.0, env, times) == pytest.approx(130.0)
+
+
+def test_a_record_really_at_the_faster_tempo_keeps_it():
+    # the other half of the same rule, and the one that keeps it honest: demotion
+    # must need the kick band to explain the slower grid distinctly better, not
+    # merely as well. Measured across 184 records, the nearest false alarm reaches
+    # 1.210 and the nearest true demotion 1.323.
+    env, times = _onset_envelope(click_track(195.0, seconds=90.0), SR, 128, True)
+    assert _settle_relatives(195.0, env, times) == pytest.approx(195.0)
+
+
+def test_the_demotion_cannot_walk_a_record_below_the_searched_range():
+    env, times = _onset_envelope(click_track(130.0, seconds=90.0), SR, 128, True)
+    assert _settle_relatives(70.0, env, times) >= 60.0
+
+
+def test_a_record_off_the_whole_bpm_grid_is_not_demoted_to_three_quarters():
+    # The demotion has to be judged against the record's real tempo, not against the
+    # coarse candidate. Daphni's Waiting So Long sits at 133.30; the coarse grid
+    # offers 133.5, which smears across a whole record down to 1.202 where the truth
+    # scores 3.496 — and 100.00 cleared the margin against the smear and took it.
+    got = fit_rigid_grid(click_track(133.3, seconds=90.0), SR)
+    assert got.bpm == pytest.approx(133.3, abs=0.05)
