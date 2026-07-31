@@ -3,13 +3,14 @@
 Every join so far was rendered in isolation, which hides the two things that only
 appear across an hour: whether the set holds one tempo end to end, and whether the
 level stays where a room expects it. So this builds the timeline itself instead of
-calling the preview renderer, and gains nothing from the isolation: one master
-tempo, every record pitched onto it, one continuous mix.
+calling the preview renderer, and gains nothing from the isolation: one tempo plan,
+every record pitched onto it, one continuous mix.
 
 Three decisions come from the DJ's own measured seams rather than from a template:
 
-  * the set runs at one tempo, and records that cannot reach it on a pitch fader
-    are dropped and named rather than time-stretched into mush;
+  * the set climbs a stairwell rather than holding one number: a flight of small
+    steps, then a floor where several records sit at one tempo, and never a step
+    down. Whether it climbs at all is the DJ's call, not a rule;
   * the incoming record arrives where it leans on its drums and away from its low
     end — measured at 71 % of his entries against 18 % of random moments;
   * its bass stays shut until the handover itself, not the textbook midpoint —
@@ -117,57 +118,109 @@ def warp_stereo(y: np.ndarray, origin: float, rate: float, t0: float,
     return np.stack([S.warp(ch, origin, rate, t0, t1, hq=True) for ch in y])
 
 
-def tempo_ladder(bpms: list[float],
-                 max_pitch: float = MAX_PITCH) -> tuple[list[float], list[int]]:
-    """The tempo each record enters at, and the one it hands over at.
+COMFORT = 0.025      # how far a record is pitched to sit on a plateau
+RISE_BEATS = 64      # how long one step up takes
 
-    A DJ does not run an hour at one number. Each record is pitched onto the deck it
-    is replacing — that is what beatmatching is — and then over its own solo it gets
-    nudged back toward the tempo it was actually made at, until the next record has
-    to be able to meet it there. So the set's tempo walks.
 
-    Returns (keep, T): indices of the records that can follow one another, and for
-    the k-th of those, `T[k]` is its entry tempo and `T[k+1]` the tempo it hands over
-    at — so a record's whole trajectory lives between two numbers it can both reach.
-    A record whose reachable band never touches the previous record's is left out:
-    no shared tempo exists and no amount of fader would make one.
+def tempo_staircase(bpms: list[float], *, landing: int = 4, flight: int = 3,
+                    rising: bool = True, lo: float | None = None,
+                    hi: float | None = None) -> list[float]:
+    """The set's tempo as a stairwell: a flight of small steps, then a floor.
 
-    The single-master renderer this replaces had no way to express any of that: it
-    took one median and dragged everything onto it. On a set spanning 124 to 136 that
-    meant five records pitched over four percent and one over eight, which is not a
-    fader move, it is a different record.
+    The first ladder let each record drift back to the tempo it was made at, so the
+    set's tempo followed whatever order the planner produced — it fell 136 to 124
+    over the first third and climbed back at the end. A set is not built that way.
+    It climbs a flight of small steps, arrives at a floor and stays there for several
+    records, then climbs again. It never goes down.
+
+    `landing` is how many records sit at one tempo, `flight` how many rises come
+    between floors. None of that is a rule and the engine has no opinion about which
+    shape is right — flat, linear, a stairwell, skipping a floor are all the DJ's
+    call. What the engine owes them is the space of plans that can actually be
+    played, which is `reachable_band`; the plan itself is an input.
+
+    With `lo`/`hi` the climb is exactly the range asked for. Without them it is
+    whatever the records themselves span, shifted to sit where they already are, so
+    the pitching is shared out rather than piled onto whichever record comes first.
+    That default is a starting point, not a recommendation — it is printed in full
+    before a single sample is rendered so it can be rejected on sight.
+
+    Returns one tempo per slot, ascending, for records sorted by tempo — the i-th
+    slowest record takes the i-th slot, which is the pairing that asks the least of
+    every record at once.
     """
-    keep: list[int] = []
-    T: list[float] = []
-    for i, b in enumerate(bpms):
-        if not keep:
-            keep.append(i)
-            T.append(b)                       # the opener plays at its own tempo
-            continue
-        home = bpms[keep[-1]]                 # where the outgoing deck wants to be
-        lo, hi = b * (1 - max_pitch), b * (1 + max_pitch)
-        mine_lo, mine_hi = home * (1 - max_pitch), home * (1 + max_pitch)
-        if hi < mine_lo or lo > mine_hi:      # the two bands never touch
-            continue
-        keep.append(i)
-        # as close to the outgoing record's own tempo as the incoming one can reach
-        T.append(min(max(min(max(home, lo), hi), mine_lo), mine_hi))
-    if keep:
-        T.append(bpms[keep[-1]])              # nothing follows the last one
-    return keep, T
+    n = len(bpms)
+    if n == 0:
+        return []
+    if not rising:
+        one = float(round(float(np.median(bpms)))) if lo is None else lo
+        return [one] * n
+    offsets, rise, cycle = [], 0, max(1, landing + flight)
+    for i in range(n):
+        if i and i % cycle >= landing:
+            rise += 1
+        offsets.append(rise)
+    if lo is not None and hi is not None:
+        step = (hi - lo) / max(rise, 1)
+        base = lo
+    else:
+        span = (hi - lo) if (lo is not None and hi is not None) \
+            else max(bpms) - min(bpms)
+        step = span / max(rise, 1)
+        base = (lo if lo is not None else
+                float(np.median([b - o * step
+                                 for b, o in zip(sorted(bpms), offsets)])))
+    return [base + o * step for o in offsets]
 
 
-def tempo_schedule(t_in: float, t_out: float, blend_beats: int,
-                   solo_beats: int) -> list[tuple[float, float, float]]:
+def reachable_band(bpms: list[float], max_pitch: float = MAX_PITCH,
+                   comfort: float = COMFORT) -> dict:
+    """What tempo plans these records could actually be played at.
+
+    This is the part that is measurement rather than taste. Which shape a set takes —
+    flat, linear, a stairwell, skipping a floor — is the DJ's call and the engine has
+    no business having an opinion. But whether a given record can reach a given tempo
+    is the physics of a pitch fader, and it decides which plans are possible at all.
+
+    Returns the band every record can reach, the band each is comfortable in, and
+    how many records reach each whole BPM across the range.
+    """
+    if not bpms:
+        return {}
+    hard = (max(b * (1 - max_pitch) for b in bpms),
+            min(b * (1 + max_pitch) for b in bpms))
+    easy = (max(b * (1 - comfort) for b in bpms),
+            min(b * (1 + comfort) for b in bpms))
+    lo, hi = int(min(bpms) * (1 - max_pitch)), int(max(bpms) * (1 + max_pitch)) + 1
+    census = {t: sum(1 for b in bpms if abs(t / b - 1) <= max_pitch)
+              for t in range(lo, hi + 1)}
+    return {"wszystkie": hard, "bez wysiłku": easy, "ilu dosięga": census}
+
+
+def tempo_schedule(t_in: float, t_out: float, blend_beats: int, solo_beats: int,
+                   rise_beats: int = RISE_BEATS) -> list[tuple[float, float, float]]:
     """One record's whole time on air, as (duration, tempo at start, tempo at end).
 
     The tempo only moves while the record is alone. During either blend it is pinned,
     because two decks sharing a blend share a tempo or they gallop — which is the
-    whole point of the rigid grids. A phrase is counted in beats, so the solo's
-    length in seconds follows from the ramp: beats = D * (t_in + t_out) / 120.
+    whole point of the rigid grids.
+
+    A step up is a move and then a rest, not a slope across the whole solo: the rise
+    is linear over `rise_beats` and the record then holds the new tempo until it
+    hands over. Sliding continuously for a minute and a half is a set that never sits
+    still, which is the opposite of what the staircase is for.
+
+    A phrase is counted in beats, so a ramp's length in seconds follows from it:
+    beats = D * (t_in + t_out) / 120.
     """
+    if abs(t_out - t_in) < 1e-9:
+        return [(blend_beats * 60.0 / t_in, t_in, t_in),
+                (solo_beats * 60.0 / t_in, t_in, t_in),
+                (blend_beats * 60.0 / t_in, t_in, t_in)]
+    rise = min(rise_beats, solo_beats)
     return [(blend_beats * 60.0 / t_in, t_in, t_in),
-            (120.0 * solo_beats / (t_in + t_out), t_in, t_out),
+            (120.0 * rise / (t_in + t_out), t_in, t_out),
+            ((solo_beats - rise) * 60.0 / t_out, t_out, t_out),
             (blend_beats * 60.0 / t_out, t_out, t_out)]
 
 
@@ -303,6 +356,18 @@ def main() -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--blend-beats", type=int, default=BLEND_BEATS)
     ap.add_argument("--solo-beats", type=int, default=SOLO_BEATS)
+    ap.add_argument("--landing", type=int, default=4,
+                    help="Ile utworów siedzi na jednym piętrze")
+    ap.add_argument("--flight", type=int, default=3,
+                    help="Ile stopni w biegu między piętrami")
+    ap.add_argument("--flat", action="store_true",
+                    help="Jedno tempo przez cały set zamiast klatki schodowej")
+    ap.add_argument("--tempo-from", type=float,
+                    help="Tempo, od którego set startuje (domyślnie: z utworów)")
+    ap.add_argument("--tempo-to", type=float,
+                    help="Tempo, do którego set dochodzi (domyślnie: z utworów)")
+    ap.add_argument("--plan-only", action="store_true",
+                    help="Pokaż plan tempa i wyjdź — bez liczenia dźwięku")
     ap.add_argument("--no-eq", action="store_true",
                     help="Never touch the samples: one gain per deck, original audio, "
                          "no band split anywhere in the signal path")
@@ -336,16 +401,44 @@ def main() -> int:
     playable = [e for e in order if grids[e.path]]
     dropped = [(e, "brak sztywnej siatki") for e in order if not grids[e.path]]
 
-    # The set walks its tempo instead of running on one number. See `tempo_ladder`:
-    # the single master this replaces took a median and dragged every record onto it,
-    # which on a set spanning 124 to 136 pitched five records over four percent and
-    # one over eight.
-    idx, T = tempo_ladder([grids[e.path]["bpm"] for e in playable])
-    for j, e in enumerate(playable):
-        if j not in idx:
-            dropped.append((e, f"{grids[e.path]['bpm']:.0f} BPM — nie ma tempa, "
-                               f"które osiągnęłyby oba sąsiednie utwory"))
-    keep = [(playable[j], T[k], T[k + 1]) for k, j in enumerate(idx)]
+    # The set's tempo is a stairwell — see `tempo_staircase`. Fitting records to it
+    # means ordering them by tempo, which is the planner's job and is done here only
+    # so the shape can be heard: the planner still chooses purely on harmony and
+    # energy, so how gentle the steps can be is whatever its choice happens to allow.
+    playable.sort(key=lambda e: grids[e.path]["bpm"])
+    pool_bpms = [grids[e.path]["bpm"] for e in playable]
+    band = reachable_band(pool_bpms)
+    if band:
+        a, b = band["wszystkie"]
+        c, d = band["bez wysiłku"]
+        best = max(band["ilu dosięga"].items(), key=lambda kv: kv[1])
+        print("co te utwory w ogóle potrafią zagrać:")
+        print(f"  wszystkie 24 naraz: {a:.1f}–{b:.1f} BPM"
+              if b >= a else "  nie ma tempa, które osiągnęłyby wszystkie naraz")
+        print(f"  bez wysiłku (±{COMFORT * 100:.1f}%): "
+              + (f"{c:.1f}–{d:.1f} BPM" if d >= c else "brak wspólnego"))
+        print(f"  najgęstsze tempo: {best[0]} BPM dosięga {best[1]} z "
+              f"{len(pool_bpms)} utworów")
+    T = tempo_staircase(pool_bpms, landing=args.landing, flight=args.flight,
+                        rising=not args.flat,
+                        lo=args.tempo_from, hi=args.tempo_to)
+    keep = [(e, T[i], T[min(i + 1, len(T) - 1)]) for i, e in enumerate(playable)]
+    too_far = [(e, t) for e, t, _ in keep
+               if abs(t / grids[e.path]["bpm"] - 1) > MAX_PITCH]
+    for e, t in too_far:
+        dropped.append((e, f"{grids[e.path]['bpm']:.0f} BPM — {t:.1f} to "
+                           f"{abs(t / grids[e.path]['bpm'] - 1) * 100:.0f}% suwaka"))
+    keep = [k for k in keep if (k[0], k[1]) not in too_far]
+
+    print("klatka schodowa:")
+    for i, (e, t_in, t_out) in enumerate(keep):
+        b = grids[e.path]["bpm"]
+        mark = "  ↑" if t_out > t_in + 1e-9 else ""
+        print(f"  {t_in:6.1f} BPM  <- {b:5.1f} ({(t_in / b - 1) * 100:+5.1f}%)  "
+              f"{e.performer[:20]:20s} {e.title[:24]:24s}{mark}")
+
+    if args.plan_only:
+        return 0
 
     # A record also has to last long enough, and that is decided here, from the
     # file's duration, rather than inside the render loop — the loop placed each
@@ -364,7 +457,7 @@ def main() -> int:
     for e, t_in, t_out in keep:
         bpm = grids[e.path]["bpm"]
         sched = tempo_schedule(t_in, t_out, args.blend_beats, args.solo_beats)
-        owed = sum(d * (a + b) / 2.0 for d, a, b in sched[:2]) / bpm
+        owed = sum(d * (a + b) / 2.0 for d, a, b in sched[:-1]) / bpm
         span = sf.info(e.path).duration
         (short.append((e, span, owed)) if span - owed < grids[e.path]["first"]
          else long_enough.append((e, t_in, t_out)))
@@ -398,8 +491,8 @@ def main() -> int:
     starts, at = [], 0.0
     for s in schedules:
         starts.append(at)
-        at += s[0][0] + s[1][0]              # next record arrives after blend + solo
-    total = int((at + schedules[-1][2][0] + 4.0) * S.SR) if schedules else S.SR
+        at += sum(d for d, _, _ in s[:-1])   # next arrives after blend + solo
+    total = int((at + schedules[-1][-1][0] + 4.0) * S.SR) if schedules else S.SR
     mix = np.zeros((2, total), dtype=np.float32)
     levels = []  # solo-section RMS per record; sets the final gain
 
@@ -411,7 +504,9 @@ def main() -> int:
     for k, (e, t_in, t_out) in enumerate(keep):
         g = grids[e.path]
         sched = schedules[k]
-        blend_in_d, solo_d, blend_out_d = (d for d, _, _ in sched)
+        blend_in_d = sched[0][0]
+        blend_out_d = sched[-1][0]
+        solo_d = sum(d for d, _, _ in sched[1:-1])
         # One read of the file, not three. The grid fit, the entry search and the
         # render each used to open it separately; on a fifty-minute set that is
         # twenty-four records read three times over for no gain.
