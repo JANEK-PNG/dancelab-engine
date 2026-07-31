@@ -114,6 +114,9 @@ def main() -> int:
     for i in range(args.split):
         a, b = float(edges[i]), float(edges[i + 1])
         r = align(onset_env(load_mono(args.mix, a, b)), track_env)
+        if r is None:
+            print(f"  mix {a:7.1f}-{b:7.1f}s → utwór krótszy niż okno, brak dopasowania")
+            continue
         # Where, in the mix's own clock, this anchor claims the track began.
         # Independent anchors must all name the same instant; that agreement is
         # the only evidence that the lock is real and not a lucky phrase match.
@@ -123,6 +126,9 @@ def main() -> int:
               f"| rate {r['rate']:.4f} | corr {r['score']:.3f} "
               f"| prom {r['prominence']:5.2f} | origin {r['origin']:8.2f}s")
 
+    if not results:
+        print("\n  NO LOCK — no anchor produced a match at all")
+        return 0
     origins = np.array([r["origin"] for _, r in results])
     med = float(np.median(origins))
     agree = [r for _, r in results if abs(r["origin"] - med) < 0.5]

@@ -38,6 +38,8 @@ def _try_window(mix_path, track_env, t0, t1, splits=4) -> dict | None:
         if b - a < 8:
             continue
         r = align(onset_env(load_env_mono(mix_path, a, b)), track_env)
+        if r is None:          # the stretched track is shorter than this window
+            continue
         r["origin"] = a - r["track_sec"] / r["rate"]
         found.append(r)
     if len(found) < MIN_ANCHORS:

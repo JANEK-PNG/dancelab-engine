@@ -44,7 +44,8 @@ BASS_OPEN_AT = 0.97       # his median: the low end changes hands at the handove
 LOW_HZ, HIGH_HZ = 200.0, 3000.0
 
 
-def entry_point(y: np.ndarray, g: dict, bars: int = 4, need_sec: float = 0.0) -> float:
+def entry_point(y: np.ndarray, g: dict, bars: int = 4,
+                need_sec: float = 0.0) -> float | None:
     """Where this record wants to be brought in: drums up, low end down.
 
     Measured on the DJ's own sets, 71 % of his entries land on a moment where the
@@ -67,7 +68,16 @@ def entry_point(y: np.ndarray, g: dict, bars: int = 4, need_sec: float = 0.0) ->
     # A record must have enough left after its entry to fill its whole slot. Without
     # this the warp simply returns zeros past the end of the file, which put 13.5
     # seconds of silence into the middle of a set.
-    latest = max(g["first"], span - need_sec) if need_sec else min(span * 0.45, 150.0)
+    if need_sec:
+        latest = span - need_sec
+        # max() used to floor this at the first beat, which turned "this record is
+        # too short for its slot" into "start at the beginning" — and the warp then
+        # padded past the end of the file with exact digital silence. Measured: a
+        # 2:30 record in a 3:03 slot contributed 36 s of nothing, 20 % of the slot.
+        if latest < g["first"]:
+            return None
+    else:
+        latest = min(span * 0.45, 150.0)
     best, best_score = g["first"], -1e9
     t = g["first"]
     while t + phrase < min(min(span * 0.45, 150.0), latest):
@@ -212,13 +222,14 @@ def main() -> int:
     # A record enters, blends with the one leaving for blend_beats, plays alone for
     # solo_beats, and is still on air through the next blend. So the spacing between
     # entries is blend + solo, and each record is on air for solo + two blends.
+    short: list = []
     beat = 60.0 / master
     blend_n = int(args.blend_beats * beat * S.SR)
     solo_n = int(args.solo_beats * beat * S.SR)
     step_n = blend_n + solo_n
     total = step_n * len(keep) + blend_n + S.SR * 4
     mix = np.zeros((2, total), dtype=np.float32)
-    levels = []
+    levels = []  # solo-section RMS per record; sets the final gain
 
     for i, (e, rate) in enumerate(keep):
         g = grids[e.path]
@@ -229,6 +240,9 @@ def main() -> int:
         # twenty-four records read three times over for no gain.
         source = load_stereo(e.path)
         cue = entry_point(source.mean(axis=0), g, need_sec=want * rate)
+        if cue is None:
+            short.append((e, len(source[0]) / S.SR, want * rate))
+            continue
         y = warp_stereo(source, -cue / rate, rate, 0.0, want)
         n = y.shape[1]
         fade_in = blend_n if i > 0 else 0
@@ -262,6 +276,10 @@ def main() -> int:
 
     # Level is set from the records, not the peaks: peak normalisation drops a
     # summed mix 3-4 dB below the same music played alone, which reads as flat.
+    for e, have, need in short:
+        print(f"  POMIJAM {e.performer} — {e.title}: {have / 60:.1f} min materiału, "
+              f"slot potrzebuje {need / 60:.1f} min")
+
     # The buffer is allocated generously and the last record ends where it ends, so
     # trim the tail rather than shipping a set that fades into fourteen seconds of
     # nothing.

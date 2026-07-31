@@ -109,15 +109,17 @@ def main() -> int:
 
     runs = {}
     for label, seed_first in (("wolny start", False), ("ten sam pierwszy utwór", True)):
+        # The real kwargs are start_track_id and target_track_count. This used to
+        # pass seed_track_id and target_length, catch the resulting TypeError, and
+        # fall back to an unseeded, unlimited plan — so both rows below were the
+        # same plan, printed under two different labels. A reader would have
+        # concluded that seeding the first track changed nothing, which is a finding
+        # the run never produced.
         kwargs = {}
         if seed_first:
-            kwargs["seed_track_id"] = by_stem[theirs[0]].track.track_id
-        try:
-            plan = build_set(analyses, weights, arc=args.arc, planner_mode="smart",
-                             target_length=len(theirs), **kwargs)
-        except TypeError:
-            # older signature: no seeding, no target length
-            plan = build_set(analyses, weights, arc=args.arc, planner_mode="smart")
+            kwargs["start_track_id"] = by_stem[theirs[0]].track.track_id
+        plan = build_set(analyses, weights, arc=args.arc, planner_mode="smart",
+                         target_track_count=len(theirs), **kwargs)
         stem_of = {a.track.track_id: Path(a.track.source_path).stem for a in analyses}
         mine = [stem_of[t] for t in plan.track_order][: len(theirs)]
         runs[label] = {"order": mine, **agreement(mine, theirs)}

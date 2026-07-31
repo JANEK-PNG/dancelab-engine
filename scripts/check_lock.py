@@ -63,7 +63,7 @@ def main() -> int:
         verdict = ("zablokowane" if gap < 15 else
                    "ciasne" if gap < 40 else
                    "słyszalne" if gap < QUARTER_BEAT_MS else "KOŃ")
-        print(f"{r['seam']:18s} {60 / (60 / ga['bpm']):7.1f} {gb['bpm']:7.1f} "
+        print(f"{r['seam']:18s} {ga['bpm']:7.1f} {gb['bpm']:7.1f} "
               f"{gap:6.0f}ms  {verdict}")
 
     if offsets:

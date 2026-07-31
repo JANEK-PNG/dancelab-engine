@@ -26,6 +26,11 @@ import numpy as np
 
 FOLD_BINS = 96
 BPM_LO, BPM_HI = 60.0, 200.0
+# Below this, no rigid grid explains the record — it was not made to a fixed tempo.
+# The threshold lives beside the fit rather than in whichever caller happens to
+# remember it, so a future engine caller cannot get a confident grid for
+# arrhythmic material by forgetting to check.
+MIN_CONTRAST = 2.0
 
 
 @dataclass(frozen=True)
@@ -34,6 +39,11 @@ class RigidGrid:
     first_beat_sec: float
     contrast: float          # how far the folded peak stands above the rest
     beats: np.ndarray
+
+    @property
+    def confident(self) -> bool:
+        """Whether this grid should be believed at all."""
+        return self.contrast >= MIN_CONTRAST
 
     def downbeats(self, per_bar: int = 4) -> np.ndarray:
         return self.beats[::per_bar]
@@ -78,8 +88,10 @@ def _fold(env: np.ndarray, times: np.ndarray, bpm: float,
     At half the true tempo every second beat folds onto the same phase and the peak
     comes out *sharper* than the truth, so a contrast measure prefers it: the first
     version read a 135 BPM record as 67.5. Asking about captured energy settles the
-    octave without a rule about ranges — half tempo can only ever catch half the
-    beats, and double tempo has to spend twice the time to catch the same ones.
+    octave without a rule about ranges: half tempo can only ever catch half the beats,
+    which is the decisive case (3.84 against 7.46 on a synthetic 85 BPM record).
+    Doubling loses too, but narrowly — 7.31 against 7.46 — because the absolute
+    window halves and transient tails fall outside it, not because coverage changes.
     """
     phase = np.mod(times * bpm / 60.0, 1.0)
     idx = np.minimum((phase * FOLD_BINS).astype(int), FOLD_BINS - 1)

@@ -16,9 +16,8 @@ import json
 from pathlib import Path
 
 import seam_decompose as S
-from dancelab.core.rigid_grid import fit_rigid_grid
+from dancelab.core.rigid_grid import MIN_CONTRAST, fit_rigid_grid
 
-MIN_CONTRAST = 2.0
 PATH = Path(__file__).resolve().parents[1] / "experiments_priv/_cache/rigid_grids.json"
 
 _cache: dict | None = None
@@ -33,7 +32,8 @@ def _load() -> dict:
 
 
 def flush() -> None:
-    """Write the cache once, rather than once per track."""
+    """Persist the cache. Called after each fit — a twenty-minute run that crashes
+    should not throw away the grids it already paid for."""
     global _dirty
     if _dirty and _cache is not None:
         PATH.parent.mkdir(parents=True, exist_ok=True)

@@ -24,6 +24,7 @@ import soundfile as sf
 import seam_decompose as S
 from grid_cache import bars_for, grid_for
 from dancelab.preview.transition_simulation import (
+    _BASS_SWAP_PROFILES as BASS_SWAP_PROFILES,
     TRANSITION_DURATION_OPTIONS,
     render_transition_preview,
 )
@@ -122,7 +123,9 @@ def main() -> int:
             # three quarters of a beat of slip across a long render, which is the
             # gallop. His tempo is preserved by taking the target from what he was
             # actually running on the outgoing deck.
-            raw_a, raw_b = grid_bpm(a["path"]), grid_bpm(b["path"])
+            # Non-None: bars_for above already refused the seam otherwise.
+            raw_a = grid_for(a["path"])["bpm"]
+            raw_b = grid_for(b["path"])["bpm"]
             # The outgoing record sets the tempo, exactly as it does on a mixer;
             # the incoming one is pitched onto it, so the two are identical by
             # construction and cannot slip apart however long the blend runs.
@@ -184,7 +187,12 @@ def main() -> int:
                     playback_rate_a=rate_a, playback_rate_b=rate_b,
                     profile_id=row["profile"],
                     duration_beats=beats,
-                    bass_open_at=open_at,
+                    # Only the templates that hand the low band over can place that
+                    # handover. profile_for returns plain_blend for a short hold,
+                    # and passing the fraction there used to silently take both
+                    # decks' bass off the fader while leaving the curves untouched.
+                    bass_open_at=open_at if row["profile"] in BASS_SWAP_PROFILES
+                    else None,
                     output_path=out / "moje" / f"{name}.wav",
                     tempo_mode="varispeed")
                 row["mine"] = f"moje/{name}.wav"
