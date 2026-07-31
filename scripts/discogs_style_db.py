@@ -98,10 +98,17 @@ def same_record(a1: str, t1: str, a2: str, t2: str) -> bool:
 
 
 def rows(path: pathlib.Path, only_electronic: bool = True):
-    """Stream (key, artist, title, genres, styles, year, release_id) out of the dump."""
+    """Stream (key, artist, title, genres, styles, year, id) out of a dump.
+
+    Handles both dumps Discogs ships. `masters` is the canonical record with every
+    pressing collapsed into one — 567 MB against 5 GB, no duplicates — but it carries
+    only the record's own title, so an album track is not in it. `releases` carries a
+    tracklist and finds those, at ten times the size and with the same record repeated
+    once per pressing. Masters first, releases only if the match rate needs it.
+    """
     with gzip.open(path, "rb") as fh:
         for _, el in ET.iterparse(fh, events=("end",)):
-            if el.tag != "release":
+            if el.tag not in ("release", "master"):
                 continue
             genres = [g.text for g in el.findall("./genres/genre") if g.text]
             styles = [s.text for s in el.findall("./styles/style") if s.text]
@@ -110,9 +117,18 @@ def rows(path: pathlib.Path, only_electronic: bool = True):
                 continue
             names = [a.text for a in el.findall("./artists/artist/name") if a.text]
             main = ", ".join(names)
-            year = (el.findtext("released") or "")[:4]
+            year = (el.findtext("released") or el.findtext("year") or "")[:4]
             rid = el.get("id") or ""
-            for tr in el.findall("./tracklist/track"):
+            tracks = el.findall("./tracklist/track")
+            if not tracks:
+                # a master: the record's own title is the only title there is
+                own = el.findtext("title")
+                if own and main.strip().lower() not in ("", "various", "various artists"):
+                    yield (key(main, own), main, own,
+                           "|".join(genres), "|".join(styles), year, rid)
+                el.clear()
+                continue
+            for tr in tracks:
                 title = tr.findtext("title")
                 if not title:
                     continue
