@@ -197,8 +197,8 @@ def room(
         console.print()
         console.print(_header(current, store))
         rows = _rank(current, library, store, weights)
-        console.print(f"\n[bold]Co może pójść po tym utworze?[/bold] "
-                      f"[dim](propozycje silnika, najlepsze u góry)[/dim]")
+        console.print("\n[bold]Co może pójść po tym utworze?[/bold] "
+                      "[dim](propozycje silnika, najlepsze u góry)[/dim]")
         console.print(_candidate_table(rows))
         console.print(f"[dim]wpisz numer 1-{len(rows)}, zeby posluchac tego "
                       "przejscia   ·   s = inny utwor startowy   ·   "
