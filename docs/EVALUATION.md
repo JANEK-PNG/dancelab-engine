@@ -48,11 +48,13 @@ The first version of this evaluation reported top-1 accuracy over 333 observatio
 
 `scripts/priors_validation.py` → `data/reports/corpus_priors/validation_v1.json`
 
-| Scorer | Rank percentile (lower = better) | Top-1, n≥5 subset |
+| Scorer | Rank percentile, all 1,604 (lower = better) | Top-1, n≥5 subset (n = 333) |
 |---|---|---|
 | **Measured** (likelihood ratios from the corpus) | **0.427** | **24.3%** |
 | Hand (the engine's original weights) | 0.442 | 20.7% |
-| Random | 0.490 | 18% |
+| Random | 0.490 | 14.4% |
+
+The two columns are measured on different samples and must not be quoted as one: the rank percentile covers all 1,604 observations, while top-1 is only meaningful where there are enough candidates to rank, so it is reported on the 333 observations with five or more. An earlier version of this table gave the random top-1 as 18%; the source artifact says 14.4%, and the figure is corrected here.
 
 Both beat random decisively. Measured beats hand consistently in direction across every metric, and the paired bootstrap gives **p = 0.12** — *not* significant at α = 0.05. It is reported that way here and everywhere else in the project.
 
