@@ -80,10 +80,14 @@ def test_cli_rejects_an_unknown_profile_and_names_the_real_ones():
 
 
 def test_context_flag_is_offered_by_both_set_building_commands():
-    from typer.testing import CliRunner
+    from typer.main import get_command
+
     from dancelab.cli.analyze import app
 
-    runner = CliRunner()
-    for command in ("smart-playlist", "export-rekordbox"):
-        out = runner.invoke(app, [command, "--help"]).output
-        assert "--context" in out, f"{command} cannot be told where it is playing"
+    root = get_command(app)
+    for command_name in ("smart-playlist", "export-rekordbox"):
+        command = root.commands[command_name]
+        context_params = [param for param in command.params if param.name == "context"]
+
+        assert len(context_params) == 1
+        assert "--context" in context_params[0].opts
