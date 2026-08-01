@@ -16,6 +16,12 @@ import venv
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--extra",
+        action="append",
+        default=[],
+        help="Wheel extra to install and probe (repeatable).",
+    )
     parser.add_argument("wheel", type=Path, help="Path to one built DanceLab wheel")
     return parser
 
@@ -45,6 +51,10 @@ def main() -> int:
     wheel = args.wheel.expanduser().resolve(strict=True)
     if wheel.suffix != ".whl":
         raise ValueError(f"expected a wheel, got: {wheel}")
+    extras = sorted(set(args.extra))
+    install_target = str(wheel)
+    if extras:
+        install_target = f"{wheel}[{','.join(extras)}]"
 
     with tempfile.TemporaryDirectory(prefix="dancelab-clean-install-") as raw_temp:
         temp_dir = Path(raw_temp)
@@ -62,7 +72,7 @@ def main() -> int:
                 "install",
                 "--disable-pip-version-check",
                 "--no-input",
-                str(wheel),
+                install_target,
             ],
             cwd=temp_dir,
         )
@@ -84,10 +94,21 @@ def main() -> int:
             print(f"clean headless import: {{package_path}}")
             """
         )
+        if "rekordbox" in extras:
+            probe += textwrap.dedent(
+                """
+
+                import pyrekordbox
+                import dancelab.ingestion.rb_backup
+                import dancelab.ingestion.rekordbox_cue_writer
+                print("clean Rekordbox writer import: ok")
+                """
+            )
         _run([str(python), "-I", "-c", probe], cwd=temp_dir)
         _run([str(dancelab), "--help"], cwd=temp_dir)
 
-    print(f"clean wheel verification passed: {wheel.name}")
+    profile = ",".join(extras) if extras else "base"
+    print(f"clean wheel verification passed: {wheel.name} ({profile})")
     return 0
 
 

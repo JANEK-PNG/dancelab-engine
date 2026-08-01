@@ -35,10 +35,10 @@ Minimum benchmark gate:
 - one session may be open review, but at least one should use blind rating mode,
 - export every session as `*_transition_ratings.csv`.
 
-The desktop host writes these files to:
+Keep these user-authored files outside the engine cache, for example:
 
 ```bash
-~/Library/Application Support/DanceLab/cache/validation/
+data/annotations/dj_sessions/
 ```
 
 After each pass, aggregate the benchmark:
@@ -78,9 +78,11 @@ For the current analyzed corpus, `dancelab validation-pack` now emits:
 - filtered review sheets for the active processed subset,
 - a coverage summary showing what is and is not labeled yet,
 - metrics only where DJ labels already exist,
-- a Markdown + JSON report that stays honest about partial completion,
-- a `swipe_review/` bundle with small, card-based review decks for pairs,
-  transition windows, and set function.
+- a Markdown + JSON report that stays honest about partial completion.
+
+The command is headless. Review sheets are ordinary CSV files that can be
+opened in a spreadsheet editor, annotated, and passed back into the next
+validation round.
 
 Example:
 

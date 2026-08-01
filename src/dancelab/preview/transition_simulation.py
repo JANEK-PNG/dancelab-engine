@@ -49,6 +49,7 @@ class TransitionEnvelope:
     low_b: tuple[float, ...]
     mid_b: tuple[float, ...]
     high_b: tuple[float, ...]
+    low_independent: bool = False
     provenance: str = "research_inspired_template_v1"
 
     def curves(self) -> dict[str, tuple[float, ...]]:
@@ -152,6 +153,10 @@ PROFILE_OPTIONS: tuple[tuple[str, str], ...] = (
 )
 
 
+# Templates whose low band changes hands, and so the only ones where moving that
+# handover means anything.
+_BASS_SWAP_PROFILES = frozenset({"bass_swap", "tops_swap", "contour_blend"})
+
 _PROFILE_DESCRIPTIONS = {
     "linear": "Reference crossfade with no EQ movement. Useful as a neutral baseline.",
     "plain_blend": "Equal-power crossfade; all three frequency bands remain open.",
@@ -186,8 +191,18 @@ def build_transition_envelope(
     *,
     duration_beats: int = DEFAULT_DURATION_BEATS,
     grid_beats: int = DEFAULT_GRID_BEATS,
+    bass_open_at: float | None = None,
 ) -> TransitionEnvelope:
-    """Build one transparent preview template on phrase-grid control knots."""
+    """Build one transparent preview template on phrase-grid control knots.
+
+    bass_open_at moves where the low band changes hands, as a fraction of the
+    transition, and applies to the templates that swap bass at all. The stock
+    bass_swap hands over at the midpoint, which is the textbook move; measured
+    across 13 hand-verified seams from one DJ's own recordings the median was
+    0.97 — the incoming bass stayed shut until the handover itself. That is a
+    property of a player rather than of transitions in general, so it is a
+    parameter and the template keeps its own timing by default.
+    """
     if duration_beats <= 0 or grid_beats <= 0 or duration_beats % grid_beats:
         raise ValueError("duration_beats must be a positive multiple of grid_beats")
     labels = dict(PROFILE_OPTIONS)
@@ -235,6 +250,29 @@ def build_transition_envelope(
         high_a = np.array([1, 0.96, 0.82, 0.64, 0.48, 0.28, 0.12, 0.04, 0], dtype=float)
         high_b = np.array([0, 0.16, 0.38, 0.62, 0.82, 0.94, 1, 1, 1], dtype=float)
 
+    # Validate before deciding whether the profile can use it: with the check
+    # inside the profile test, an out-of-range value passed to plain_blend sailed
+    # through silently — and still took the low band off the fader, changing the
+    # audio on a template whose low curves it had not touched.
+    low_swapped = False
+    if bass_open_at is not None:
+        if not 0.0 < bass_open_at <= 1.05:
+            raise ValueError("bass_open_at must be a fraction in (0, 1.05]")
+        if profile_id not in _BASS_SWAP_PROFILES:
+            raise ValueError(
+                f"bass_open_at has no meaning for profile {profile_id!r}: it moves "
+                f"a low-band handover, and this template does not hand the low band "
+                f"over. Use one of {sorted(_BASS_SWAP_PROFILES)}."
+            )
+        # A knob turns over a beat or two, not instantly and not over the whole
+        # phrase, so the handover keeps the width of one grid step wherever it is
+        # placed. Built from `progress` rather than by reshaping the nine stock
+        # knots, which cannot express a handover that lands near either end.
+        width = max(grid_beats / float(duration_beats), 0.02)
+        ramp = np.clip((progress - (bass_open_at - width / 2.0)) / width, 0.0, 1.0)
+        low_b, low_a = ramp, 1.0 - ramp
+        low_swapped = True
+
     return TransitionEnvelope(
         profile_id=profile_id,
         label=labels[profile_id],
@@ -248,6 +286,7 @@ def build_transition_envelope(
         mid_a=_as_curve(mid_a, count),
         high_a=_as_curve(high_a, count),
         low_b=_as_curve(low_b, count),
+        low_independent=low_swapped,
         mid_b=_as_curve(mid_b, count),
         high_b=_as_curve(high_b, count),
     )
@@ -299,6 +338,8 @@ def transition_preview_cache_path(
     preview_bpm: float | None = None,
     tempo_strategy: str = "follow_outgoing",
     duration_beats: int = DEFAULT_DURATION_BEATS,
+    tempo_mode: str = "varispeed",
+    bass_open_at: float | None = None,
 ) -> Path:
     def source_stamp(value: str | Path) -> Mapping[str, object]:
         path = Path(value).expanduser()
@@ -319,6 +360,12 @@ def transition_preview_cache_path(
         "tempo_strategy": str(tempo_strategy),
         "profile_id": profile_id,
         "duration_beats": int(duration_beats),
+        # Everything that changes the rendered audio has to change the path, or two
+        # different renders share one file. Neither of these was in the key: a
+        # varispeed and a phase-vocoder render of the same cue collided, and so did
+        # two bass handovers placed at opposite ends of the same blend.
+        "tempo_mode": str(tempo_mode),
+        "bass_open_at": None if bass_open_at is None else round(float(bass_open_at), 6),
     }
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -466,18 +513,34 @@ def _apply_deck_curves(
     bands: tuple[np.ndarray, np.ndarray, np.ndarray],
     curves: Mapping[str, np.ndarray],
     deck: str,
+    low_independent: bool = False,
 ) -> np.ndarray:
+    """One deck's contribution: its three bands, each at its own EQ position.
+
+    low_independent takes the low band off the line fader, which is how a mixer
+    behaves when the DJ leaves the fader up and swaps bass on the knob. With the
+    fader in the chain a handover placed early drops the low end to whatever the
+    incoming fader happens to be — a fifth of the way in that is a third of level,
+    and the measured result was a twenty-five second hole where neither record had
+    any bass. The DJ's own recording shows the incoming bass at 1.05 while its mids
+    sat at 0.50, which only happens if the knob is independent of the fader.
+    """
     low, mid, high = bands
     fader = curves[f"fader_{deck}"][np.newaxis, :]
-    return np.asarray(
-        fader
-        * (
-            curves[f"low_{deck}"][np.newaxis, :] * low
-            + curves[f"mid_{deck}"][np.newaxis, :] * mid
-            + curves[f"high_{deck}"][np.newaxis, :] * high
-        ),
-        dtype=np.float32,
-    )
+    low_gain = curves[f"low_{deck}"][np.newaxis, :]
+    mid_gain = curves[f"mid_{deck}"][np.newaxis, :]
+    high_gain = curves[f"high_{deck}"][np.newaxis, :]
+    if not low_independent:
+        # Written exactly as before this parameter existed, term order included.
+        # These are float32 arrays, so re-associating either the multiply or the
+        # three-term sum shifts about 2 % of samples by one ULP — one LSB at
+        # 24-bit, inaudible, but enough to break a stored checksum or golden WAV.
+        return np.asarray(
+            fader * (low_gain * low + mid_gain * mid + high_gain * high),
+            dtype=np.float32,
+        )
+    return np.asarray(low_gain * low + fader * (mid_gain * mid + high_gain * high),
+                      dtype=np.float32)
 
 
 def _waveform_summary(samples: np.ndarray, bins: int = DEFAULT_WAVEFORM_BINS) -> TransitionWaveform:
@@ -515,6 +578,7 @@ def render_transition_preview(
     duration_beats: int = DEFAULT_DURATION_BEATS,
     grid_beats: int = DEFAULT_GRID_BEATS,
     tempo_mode: str = "varispeed",
+    bass_open_at: float | None = None,
 ) -> TransitionRenderResult:
     """Render one phrase-locked A→B preview to a single sample-accurate WAV.
 
@@ -536,6 +600,7 @@ def render_transition_preview(
         profile_id,
         duration_beats=duration_beats,
         grid_beats=grid_beats,
+        bass_open_at=bass_open_at,
     )
     duration_sec = duration_beats * 60.0 / float(bpm_master)
     output_samples = max(2, int(round(duration_sec * sample_rate)))
@@ -560,8 +625,10 @@ def render_transition_preview(
     )
 
     curves = sample_transition_envelope(envelope, output_samples)
-    rendered_a = _apply_deck_curves(_split_three_bands(outgoing, sample_rate), curves, "a")
-    rendered_b = _apply_deck_curves(_split_three_bands(incoming, sample_rate), curves, "b")
+    rendered_a = _apply_deck_curves(_split_three_bands(outgoing, sample_rate), curves,
+                                    "a", envelope.low_independent)
+    rendered_b = _apply_deck_curves(_split_three_bands(incoming, sample_rate), curves,
+                                    "b", envelope.low_independent)
     mixed = np.asarray(rendered_a + rendered_b, dtype=np.float32)
     peak = float(np.max(np.abs(mixed), initial=0.0))
     normalization_gain = min(1.0, 0.98 / peak) if peak > 0 else 1.0

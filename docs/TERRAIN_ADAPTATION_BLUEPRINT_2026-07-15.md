@@ -1,5 +1,10 @@
 # DanceLab Pro: blueprint adaptacji aktywnego produktu do TERRAIN
 
+> **Dokument historyczny (2026-07-28).** Opisany poniżej interfejs TERRAIN nie
+> jest już aktywną powierzchnią produktu ani ścieżką QA. DanceLab działa obecnie
+> jako program terminalowy; aktualny punkt wejścia opisuje
+> [indeks dokumentacji](README.md).
+
 **Status decyzji:** TERRAIN jest zatwierdzonym, domyślnym UI produktu.  
 **Data:** 2026-07-15  
 **Zakres:** migracja aktywnego Simple Mode do TERRAIN bez przepisywania silnika.  

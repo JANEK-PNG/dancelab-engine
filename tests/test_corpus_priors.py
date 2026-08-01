@@ -4,7 +4,25 @@ import json
 
 import pytest
 
+from dancelab.core.models import AnalysisResult, FeatureFrame, Track
 from dancelab.decision import corpus_priors as cp
+
+
+def _track(track_id: str, camelot: str, bpm: float, rms: float) -> AnalysisResult:
+    return AnalysisResult(
+        engine_version="0.1.0",
+        track=Track(track_id=track_id, key_estimate=camelot, bpm_estimate=bpm),
+        features=[
+            FeatureFrame(
+                track_id=track_id,
+                timestamp_sec=float(timestamp),
+                rms=rms,
+                low_freq_energy_ratio=0.5,
+                bass_energy=50.0,
+            )
+            for timestamp in range(30)
+        ],
+    )
 
 
 @pytest.fixture()
@@ -74,12 +92,10 @@ def test_weight_zero_leaves_transition_score_untouched(priors_file):
     weights_on = load_weights("configs/descriptor_weights.yaml")
     weights_off = weights_on.model_copy(update={"corpus_priors_weight": 0.0})
 
-    from tests.test_set_builder import track  # reuse the AnalysisResult helper
-
     tracks = [
-        track("t1", "8A", 128, 0.2),
-        track("t2", "9A", 129, 0.3),
-        track("t3", "3B", 140, 0.4),
+        _track("t1", "8A", 128, 0.2),
+        _track("t2", "9A", 129, 0.3),
+        _track("t3", "3B", 140, 0.4),
     ]
     plan_on = build_set(tracks, weights_on, arc="build")
     plan_off = build_set(tracks, weights_off, arc="build")

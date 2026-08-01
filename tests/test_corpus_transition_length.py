@@ -1,18 +1,21 @@
 """The corpus transition length is NOT trustworthy enough to shape scoring.
 
-priors_v1.json carries transition_length_beats_median = 94 and it was briefly
-wired into core/phrasing. Auditing the source field killed it: across 11,405
-corpus transitions, 14.3% of transition_length_beats are negative (to -14526)
-and 28.7% exceed four minutes (to 15771). The field measures the gap between two
-aligned regions, not how long a DJ blended, and the median was taken over that.
+The external priors_v1.json report carries transition_length_beats_median = 94
+and it was briefly wired into core/phrasing. Auditing the source field killed
+it: across 11,405 corpus transitions, 14.3% of transition_length_beats are
+negative (to -14526) and 28.7% exceed four minutes (to 15771). The field
+measures the gap between two aligned regions, not how long a DJ blended, and
+the median was taken over that.
 
 These tests pin the retreat: the value stays readable and documented, but no
 number derived from that field reaches the scoring path (ADR-005).
 """
 
+import json
+
 from dancelab.core.models import BeatGrid
-from dancelab.core.phrasing import preferred_transition_beats, window_phrase_score
-from dancelab.decision.corpus_priors import transition_length_beats
+from dancelab.core.phrasing import preferred_transition_beats
+from dancelab.decision import corpus_priors as cp
 
 
 def _grid(bpm=120.0):
@@ -22,8 +25,16 @@ def _grid(bpm=120.0):
                     downbeats_sec=[i * 2.0 for i in range(75)])
 
 
-def test_corpus_median_is_readable_from_the_priors_file():
-    assert transition_length_beats() == 94
+def test_corpus_median_is_readable_from_an_explicit_source_artifact(tmp_path, monkeypatch):
+    """The reader works without making an ignored local report a test dependency."""
+    path = tmp_path / "priors.json"
+    path.write_text(json.dumps({"transition_length_beats_median": 94}))
+    monkeypatch.setenv(cp.ENV_OVERRIDE, str(path))
+    cp._transition_length.cache_clear()
+
+    assert cp.transition_length_beats() == 94
+
+    cp._transition_length.cache_clear()
 
 
 def test_the_contaminated_corpus_median_does_not_shape_scoring():

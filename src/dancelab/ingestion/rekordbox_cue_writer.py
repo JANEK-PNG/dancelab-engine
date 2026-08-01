@@ -14,7 +14,6 @@ beatgrid data (DjmdContent tempo fields, DjmdBeatGrid).
 
 from __future__ import annotations
 
-import shutil
 import uuid
 from pathlib import Path
 
@@ -229,7 +228,7 @@ def write_plan(
     backup_dir: Path,
     timestamp: str,
     meta: dict | None = None,
-    safe_swap: bool = False,
+    safe_swap: bool = True,
     playlist_name: str | None = None,
     playlist_content_ids: list[str] | None = None,
     playlist_folder: str = "DanceLab",

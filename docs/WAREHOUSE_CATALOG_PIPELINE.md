@@ -9,7 +9,7 @@ catalogue into a reviewable relationship graph:
 
 It is deliberately separate from the DanceLab recommendation engine. Building or
 reviewing this dataset does not tune ranking weights, change transition rules, or
-modify Simple Mode.
+modify the supported terminal workflow.
 
 ## Source contract
 

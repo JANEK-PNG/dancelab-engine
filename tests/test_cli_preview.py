@@ -5,8 +5,6 @@ the fastest judgement a DJ can make — what does the seam sound like — was
 unreachable from the CLI.
 """
 
-from pathlib import Path
-
 from typer.testing import CliRunner
 
 from dancelab.cli.analyze import app

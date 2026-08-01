@@ -1,5 +1,9 @@
 # DanceLab Pro: audyt pokrycia designu przez kod
 
+> **Dokument historyczny (2026-07-28).** Audyt opisuje usuniętą aplikację
+> desktopową i nie jest aktualną instrukcją produktu ani testów. Obowiązującą
+> powierzchnią jest CLI opisane w [indeksie dokumentacji](README.md).
+
 **Data audytu:** 2026-07-15  
 **Zakres:** aktywny Simple Mode, silnik, review, projekt/cache i eksport Rekordbox  
 **Poza zakresem:** rozwijanie dawnego Graph Mode

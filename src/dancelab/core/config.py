@@ -107,8 +107,28 @@ class DescriptorWeights(BaseModel):
     corpus_priors_weight: float = 0.0
 
 
-def _read_yaml(path: str | Path) -> dict:
+# Where the shipped configs live, found from this file rather than from the
+# working directory. Every default path in this module is relative, which only
+# resolved when the caller happened to be standing in the repository — so
+# `dancelab room` from the home directory could not find its own defaults.
+_INSTALL_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _resolve_config_path(path: str | Path) -> Path:
+    """The path as given, or the same path next to the installation.
+
+    The working directory wins: a user's own configs/descriptor_weights.yaml
+    must never be shadowed by the shipped one.
+    """
     p = Path(path)
+    if p.exists() or p.is_absolute():
+        return p
+    shipped = _INSTALL_ROOT / p
+    return shipped if shipped.exists() else p
+
+
+def _read_yaml(path: str | Path) -> dict:
+    p = _resolve_config_path(path)
     if not p.exists():
         raise ConfigError(f"Config file not found: {p}")
     with p.open() as f:

@@ -25,7 +25,6 @@ from dancelab.decision.mixability import compute_mixability
 from dancelab.decision.transition_windows import detect_transition_windows
 from dancelab.security import spreadsheet_safe_value
 from dancelab.storage.repositories import FileAnalysisRepository
-from dancelab.visualization.mixability_waveforms import render_mixability_waveform_gallery
 
 
 def _write_json(data: object, path: str | Path) -> Path:
@@ -282,9 +281,8 @@ def build_decision_report(
     *,
     config_path: str = "configs/default.yaml",
     context_id: str | None = None,
-    top_n_waveforms: int = 10,
 ) -> dict[str, Path]:
-    """Create a disk report with pair decisions and waveform visuals."""
+    """Create a headless disk report with pair decisions and review data."""
     cfg = load_config(config_path)
     weights = load_weights(cfg.weights_file)
     repo = FileAnalysisRepository(processed_dir)
@@ -423,7 +421,6 @@ def build_decision_report(
         context_id=context.context_id if context else None,
         track_count=len(analyses),
         ordered_pair_count=len(pair_rows),
-        top_n_waveforms=min(top_n_waveforms, len(pair_rows)),
         artifacts={
             "analysis_summary": str(analysis_summary_path.resolve()),
             "mixability_pairs": str(mixability_pairs_path.resolve()),
@@ -431,23 +428,6 @@ def build_decision_report(
             "edge_decision_payloads": str(edge_payloads_path.resolve()),
             "edge_decision_review": str(edge_review_path.resolve()),
         },
-    )
-    decision_summary_path = _write_json(
-        decision_manifest.model_dump(mode="json"),
-        report_dir / "decision_summary.json",
-    )
-    waveform_paths = render_mixability_waveform_gallery(
-        report_dir,
-        top_n=min(top_n_waveforms, len(pair_rows)),
-    )
-    decision_manifest = decision_manifest.model_copy(
-        update={
-            "artifacts": {
-                **decision_manifest.artifacts,
-                "waveform_overview": str(waveform_paths["overview"].resolve()),
-                "waveform_index": str(waveform_paths["index"].resolve()),
-            }
-        }
     )
     decision_summary_path = _write_json(
         decision_manifest.model_dump(mode="json"),
@@ -462,6 +442,4 @@ def build_decision_report(
         "edge_decision_review": edge_review_path,
         "decision_telemetry_manifest": decision_summary_path,
         "decision_summary": decision_summary_path,
-        "waveform_overview": waveform_paths["overview"],
-        "waveform_index": waveform_paths["index"],
     }

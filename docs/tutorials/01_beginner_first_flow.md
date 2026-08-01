@@ -2,98 +2,92 @@
 
 ## Goal
 
-Create, review, save, and export a small DanceLab set through the guided
-desktop workflow.
-
-## What You Touch
-
-- DanceLab Pro Simple Mode
-- audio import and Initial Check
-- set brief and generated sequence
-- transition review
-- project save and Rekordbox XML export
+Analyze a familiar music folder, create a five-track playlist, hear one proposed
+transition, and export a Rekordbox XML without touching the Rekordbox database.
 
 ## Input
 
-Use one or more folders containing at least five tracks you know well. Stable
-4/4 tracks with clear intros and outros make the first review easier.
+Use a folder containing at least five complete tracks you know well. A first
+test is easiest with stable 4/4 material and clear phrases.
 
-## Steps
-
-### Exercise 1: Open DanceLab Pro
-
-Run:
+## 1. Check the installation
 
 ```bash
-dancelab-host
+dancelab version
+dancelab --help
+```
+
+Pass check: both commands finish normally and the help lists `batch`,
+`smart-playlist`, `preview`, and `export-rekordbox`.
+
+## 2. Analyze the folder
+
+```bash
+dancelab batch "/path/to/music" \
+  --output-dir "/path/to/work/processed"
+```
+
+Analysis JSON is cached in the output directory. Running the command again
+skips completed tracks unless `--recompute` is supplied.
+
+Pass check:
+
+- supported audio files produce analysis JSON,
+- failures name the affected file,
+- BPM, beatgrid, key, structure, and energy remain attached to the same track.
+
+## 3. Build a small playlist
+
+```bash
+dancelab smart-playlist "/path/to/music" \
+  --count 5 \
+  --processed-dir "/path/to/work/processed" \
+  --output "/path/to/work/first_set.xml" \
+  --name "DanceLab First Set"
 ```
 
 Pass check:
 
-- the DanceLab Pro window opens
-- the left stepper starts at `Import Tracks`
-- the project bar reports whether the project is saved
+- the command reports an ordered five-track set,
+- `first_set.xml` exists,
+- each playlist entry points to the intended source file.
 
-### Exercise 2: Import tracks
+## 4. Hear one transition
 
-Choose one or more music folders. Review any warning for audio shorter than
-2 minutes or longer than 10 minutes before accepting it.
+Choose two adjacent source files from the generated sequence:
 
-Pass check:
+```bash
+dancelab preview "/path/to/track_a.wav" "/path/to/track_b.wav" \
+  --output "/path/to/work/a_to_b.wav" \
+  --profile contour_blend \
+  --beats 64
+```
 
-- the import page lists the selected audio files
-- non-audio files are ignored
-- the next action is clear
-
-### Exercise 3: Run Initial Check
-
-Start Initial Check and wait for analysis to complete. You can stop between
-tracks; completed analyses stay cached.
+The preview is a separate WAV artifact. Beat sync and EQ automation exist only
+inside this audition; they do not overwrite track BPM or Rekordbox beatgrids.
 
 Pass check:
 
-- every successful track appears in the analyzed library
-- BPM, key, energy, and available style metadata are visible
-- failures are reported instead of silently disappearing
+- the printed A and B cue times are plausible,
+- the rendered file contains the intended two tracks,
+- the handoff remains rhythmically aligned.
 
-### Exercise 4: Generate a set
+## 5. Import the XML in Rekordbox
 
-Choose 5 tracks, select a starting brief, and adjust style, BPM, role, or
-energy only when needed. Select `Generate Set`.
-
-Pass check:
-
-- an ordered sequence appears
-- the energy timeline is visible
-- the context panel explains the active constraints
-
-### Exercise 5: Review transitions
-
-Open `Review Transitions`, select each pair, and preview the proposed handoff.
+Use Rekordbox's XML import workflow and inspect the playlist before using it in
+a performance.
 
 Pass check:
 
-- Deck A and Deck B show the correct track names
-- cue positions and waveforms change with the selected pair
-- the incoming deck uses preview-only beat sync and 8-beat quantization
-
-### Exercise 6: Save and export
-
-Save the project as a `.dlproj`, then export the set as Rekordbox XML.
-
-Pass check:
-
-- reopening the project restores the session
-- the XML file exists and contains the playlist order and hot cues
-- DanceLab does not overwrite Rekordbox BPM or beatgrid data
+- order and track identity match the terminal result,
+- source tracks remain unchanged,
+- no native Rekordbox database write was required.
 
 ## Common Failure Signals
 
-- No tracks found: the selected folder contains no supported audio files.
-- Analysis failed: inspect the reported file instead of retrying the whole library.
-- Generate Set disabled: Initial Check or the minimum candidate count is incomplete.
-- Export disabled: a set has not been generated yet.
+- `no such audio file`: the path is wrong or the drive is unavailable.
+- No analysis output: the folder contains no supported complete tracks.
+- No usable transition window: inspect another pair instead of forcing a cue.
+- Wrong audio under a title: stop and treat it as an identity regression.
 
-## What To Do Next
-
-Move to [02_intermediate_corpus_set_workflows.md](/Users/jantrybus/Desktop/AI/dancelab-engine/docs/tutorials/02_intermediate_corpus_set_workflows.md).
+Continue with [Shape and inspect a real set](02_intermediate_corpus_set_workflows.md).

@@ -1,5 +1,9 @@
 # DanceLab Pro Simple Mode Design System
 
+> **Historical document (2026-07-28).** The desktop product described below
+> has been removed and is not a supported launch or QA path. DanceLab is
+> terminal-first; see [the documentation index](README.md).
+
 Status: current-state design system, v0.1  
 Scope: the guided DanceLab Pro desktop product only. The legacy visual graph
 editor has been removed; headless engine adapters remain an implementation detail.

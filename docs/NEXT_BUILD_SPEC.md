@@ -2,6 +2,11 @@
 
 # DanceLab Pro — Next Build Specification (Demo Hardening)
 
+> **Historical specification (2026-07-28).** Sections describing Simple Mode,
+> desktop UX, or GUI delivery no longer represent the supported product.
+> Current operation is terminal-first; see the
+> [documentation index](README.md).
+
 Status: accepted engineering spec · 2026-07-11
 Scope: 7 areas raised in product review. Each section states what changes in
 the **engine**, **tooling**, **cache/storage**, **UX**, and what **QC** must

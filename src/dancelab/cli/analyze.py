@@ -25,12 +25,19 @@ from dancelab.storage.artifact_store import save_json
 
 app = typer.Typer(name="dancelab", help="DanceLab Engine CLI", no_args_is_help=True)
 
-CONFIG_OPT = typer.Option("configs/default.yaml", "--config", "-c", help="Engine config YAML")
-CONTEXT_OPT = typer.Option(
-    None, "--context",
-    help="Where you are playing (configs/context_profiles.yaml), e.g. club_peak, "
-         "festival_daytime. Conditions scoring; omit to score without a venue.",
-)
+def _config_option():
+    """Return a fresh Typer option for every command declaration."""
+    return typer.Option("configs/default.yaml", "--config", "-c", help="Engine config YAML")
+
+
+def _context_option():
+    """Return a fresh context option; Typer mutates option metadata per command."""
+    return typer.Option(
+        None,
+        "--context",
+        help="Where you are playing (configs/context_profiles.yaml), e.g. club_peak, "
+             "festival_daytime. Conditions scoring; omit to score without a venue.",
+    )
 
 
 def _resolve_context(context_id: str | None):
@@ -51,7 +58,7 @@ def _resolve_context(context_id: str | None):
 
 
 @app.command()
-def version(config: str = CONFIG_OPT) -> None:
+def version(config: str = _config_option()) -> None:
     """Print engine, config and weights versions."""
     for key, value in engine_versions(load_config(config)).items():
         typer.echo(f"{key}: {value}")
@@ -65,7 +72,7 @@ def analyze(
     bpm: float = typer.Option(None, "--bpm", help="Known BPM hint (tightens beat tracking)"),
     title: str = typer.Option(None, "--title", help="Override track title"),
     artist: str = typer.Option(None, "--artist", help="Override artist"),
-    config: str = CONFIG_OPT,
+    config: str = _config_option(),
 ) -> None:
     """Analyze a single track → JSON output.
 
@@ -101,8 +108,8 @@ def export_rekordbox(
     playlist_name: str = typer.Option("DanceLab Set", "--name"),
     arc: str = typer.Option("build", "--arc", help="Energy arc: build/peak/flat"),
     planner_mode: str = typer.Option("smart", "--planner-mode", help="smart/harmonic/bpm"),
-    context: str | None = CONTEXT_OPT,
-    config: str = CONFIG_OPT,
+    context: str | None = _context_option(),
+    config: str = _config_option(),
 ) -> None:
     """Build a set from analyzed tracks and export a Rekordbox XML."""
     from dancelab.core.config import load_weights
@@ -112,6 +119,7 @@ def export_rekordbox(
     from dancelab.export.rekordbox import build_rekordbox_xml, write_rekordbox_xml
     from dancelab.storage.repositories import FileAnalysisRepository
 
+    context_profile = _resolve_context(context)
     cfg = load_config(config)
     weights = load_weights(cfg.weights_file)
     repo = FileAnalysisRepository(processed_dir)
@@ -120,8 +128,13 @@ def export_rekordbox(
         typer.secho("need >=2 analyzed tracks", fg="red", err=True)
         sys.exit(2)
 
-    plan = build_set(analyses, weights, arc=arc, planner_mode=planner_mode,
-                     context=_resolve_context(context))
+    plan = build_set(
+        analyses,
+        weights,
+        arc=arc,
+        planner_mode=planner_mode,
+        context=context_profile,
+    )
     windows = {
         a.track.track_id: detect_transition_windows(
             TransitionWindowInput(track_id=a.track.track_id, segments=a.segments,
@@ -145,10 +158,10 @@ def smart_playlist(
     playlist_name: str = typer.Option("DanceLab Smart Set", "--name"),
     arc: str = typer.Option("build", "--arc", help="Energy arc: build/peak/flat"),
     planner_mode: str = typer.Option("smart", "--planner-mode", help="smart/harmonic/bpm"),
-    context: str | None = CONTEXT_OPT,
+    context: str | None = _context_option(),
     analysis_depth: str = typer.Option("normal", "--analysis-depth", help="normal/deep"),
     recompute: bool = typer.Option(False, "--recompute", help="Re-analyze tracks even if cached"),
-    config: str = CONFIG_OPT,
+    config: str = _config_option(),
 ) -> None:
     """Analyze a folder, build a smart set, and export Rekordbox XML."""
     from dancelab.workflows.smart_playlist import build_smart_playlist_from_folder
@@ -285,6 +298,10 @@ app.add_typer(_cues_app, name="cues")
 from dancelab.cli.preview import render as _preview_render  # noqa: E402
 
 app.command(name="preview")(_preview_render)
+
+from dancelab.cli.tui import room as _room  # noqa: E402
+
+app.command(name="room")(_room)
 
 
 if __name__ == "__main__":
