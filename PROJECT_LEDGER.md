@@ -116,6 +116,24 @@ tekstowa dla Korda; obie formy trzymamy w synchronizacji.
 
 ## 6 · RAPORTY DNIA (pracownik → Janek)
 
+**Klaris → Janek · 2026-08-01 — TEST PRZEJŚĆ NA SETACH JANKA (wynik negatywny, kluczowy):**
+Janek prosił o to wielokrotnie; test wreszcie zrobiony i mówi rzecz twardą.
+Pytanie: mając utwór A i całą bibliotekę (~230 kandydatów), jak wysoko produkcyjny
+`transition_score` (smart, lifty z 6144 par) stawia utwór, który Janek NAPRAWDĘ
+zagrał następny? **28 prawdziwych przejść z jego dwóch nagranych setów:**
+top-5 **0%** · top-10 3,6% (losowo 4,2%) · **średni percentyl 0,597** (0,5 = ślepy)
+· score par prawdziwych 0,507 vs losowych 0,482. Tempo z siatek (jak w produkcie;
+bez łaty siatek było 0,533 — łata pomaga, ale nie ratuje).
+**Wnioski:** (1) „średnia zgodność przejść 0,93" z propose_set to silnik oceniający
+własne preferencje — NIE miara podobieństwa do Janka; przestać pokazywać jako dowód
+jakości. (2) Wcześniejsze 24,3% z pętli priors to inne, ŁATWIEJSZE zadanie (pula
+wewnątrz jednego miksu, ~20 kandydatów; tu cała biblioteka). (3) W score NIE MA
+niczego, co zmierzyliśmy o Janku: podobieństwa brzmienia (CLAP), ciągłości grupy
+brzmieniowej, reguły wejścia, wykonalności szwu — jest tylko harmonia+BPM+energia+
+mixability+lifty. Jego najgorzej ocenione wybory to celowe skoki stylu (BAD GIRLS →
+Underworld), które silnik karze. **Test zostaje jako bramka** (1 min,
+`experiments_priv/2026-08-01_test_przejsc/`) — każda zmiana scoringu musi go przejść.
+
 **Klaris → Janek · 2026-07-31:** Dzień o tempie i o stylu.
 
 *Tempo — zamknięte.* Silnik przestał kwantować tempo do połówek BPM. Sprawdzone
