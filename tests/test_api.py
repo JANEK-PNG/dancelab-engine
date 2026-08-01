@@ -69,7 +69,6 @@ def test_openapi_lists_contracted_endpoints(client):
         "/sets/recommend-next",
         "/sets/recommend-sequence",
         "/sets/build",
-        "/sets/export-rekordbox",
         "/sets/smart-playlist",
         "/stems/export",
     ):
@@ -186,37 +185,6 @@ def test_build_set_endpoint_rejects_conflicting_constraints(client, monkeypatch,
     assert r.status_code == 422
     assert "exceed target_track_count" in r.json()["detail"]
 
-
-def test_export_rekordbox_endpoint_returns_and_writes_xml(client, monkeypatch, tmp_path):
-    monkeypatch.setenv("DANCELAB_PROCESSED_DIR", str(tmp_path / "processed"))
-    monkeypatch.setenv("DANCELAB_API_OUTPUT_ROOTS", str(tmp_path))
-    repo = FileAnalysisRepository(tmp_path / "processed")
-    repo.save(_stored_analysis("track_alpha", "8A", 128.0, "/tmp/Track Alpha.mp3"))
-    repo.save(_stored_analysis("track_beta", "9A", 128.0, "/tmp/Track Beta.mp3"))
-    output_path = tmp_path / "exports" / "api_set.xml"
-
-    r = client.post(
-        "/sets/export-rekordbox",
-        json={
-            "track_ids": ["track_alpha", "track_beta"],
-            "start_track_id": "track_alpha",
-            "locked_positions": {"1": "track_alpha"},
-            "playlist_name": "API Test Set",
-            "output_path": str(output_path),
-        },
-    )
-
-    assert r.status_code == 200
-    body = r.json()
-    assert body["schema_version"] == DANCELAB_SCHEMA_VERSION
-    assert body["set_plan"]["schema_version"] == DANCELAB_SCHEMA_VERSION
-    assert body["playlist_name"] == "API Test Set"
-    assert body["track_count"] == 2
-    assert body["output_path"] == str(output_path)
-    assert "DJ_PLAYLISTS" in body["xml"]
-    assert "API Test Set" in output_path.read_text(encoding="utf-8")
-
-
 def test_stem_export_endpoint_returns_artifacts(client, monkeypatch, tmp_path):
     output_root = tmp_path / "stem_exports"
     source_path = tmp_path / "Track Alpha.mp3"
@@ -261,7 +229,7 @@ def test_stem_export_endpoint_returns_artifacts(client, monkeypatch, tmp_path):
 
 
 def test_smart_playlist_endpoint_builds_from_folder(client, monkeypatch, tmp_path):
-    output_path = tmp_path / "exports" / "api_smart.xml"
+    output_path = tmp_path / "exports" / "api_smart.cues.json"
     music_folder = tmp_path / "music"
     music_folder.mkdir()
     monkeypatch.setenv("DANCELAB_API_INPUT_ROOTS", str(tmp_path))
@@ -284,7 +252,7 @@ def test_smart_playlist_endpoint_builds_from_folder(client, monkeypatch, tmp_pat
             processed_dir=str(tmp_path / "processed"),
             output_path=str(output_path),
             set_plan=plan,
-            xml="<DJ_PLAYLISTS />",
+            bundle_path=str(output_path),
             analyzed_track_ids=["track_a", "track_b"],
             failed_tracks=[],
         )

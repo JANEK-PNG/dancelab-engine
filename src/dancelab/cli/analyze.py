@@ -101,59 +101,11 @@ def analyze(
         typer.echo(result.model_dump_json(indent=2))
 
 
-@app.command(name="export-rekordbox")
-def export_rekordbox(
-    processed_dir: Path = typer.Argument(Path("data/processed"), help="Dir of analysis JSONs"),
-    output: Path = typer.Option(Path("dancelab_set.xml"), "--output", "-o"),
-    playlist_name: str = typer.Option("DanceLab Set", "--name"),
-    arc: str = typer.Option("build", "--arc", help="Energy arc: build/peak/flat"),
-    planner_mode: str = typer.Option("smart", "--planner-mode", help="smart/harmonic/bpm"),
-    context: str | None = _context_option(),
-    config: str = _config_option(),
-) -> None:
-    """Build a set from analyzed tracks and export a Rekordbox XML."""
-    from dancelab.core.config import load_weights
-    from dancelab.core.models import TransitionWindowInput
-    from dancelab.decision.set_builder import build_set
-    from dancelab.decision.transition_windows import detect_transition_windows
-    from dancelab.export.rekordbox import build_rekordbox_xml, write_rekordbox_xml
-    from dancelab.storage.repositories import FileAnalysisRepository
-
-    context_profile = _resolve_context(context)
-    cfg = load_config(config)
-    weights = load_weights(cfg.weights_file)
-    repo = FileAnalysisRepository(processed_dir)
-    analyses = [repo.get(t) for t in repo.list_track_ids()]
-    if len(analyses) < 2:
-        typer.secho("need >=2 analyzed tracks", fg="red", err=True)
-        sys.exit(2)
-
-    plan = build_set(
-        analyses,
-        weights,
-        arc=arc,
-        planner_mode=planner_mode,
-        context=context_profile,
-    )
-    windows = {
-        a.track.track_id: detect_transition_windows(
-            TransitionWindowInput(track_id=a.track.track_id, segments=a.segments,
-                                  feature_frames=a.features, beatgrid=a.beatgrid),
-            weights.transition_window, top_k=cfg.analysis.transition_top_n).windows
-        for a in analyses
-    }
-    xml = build_rekordbox_xml(analyses, set_plan=plan, windows_by_track=windows,
-                              playlist_name=playlist_name)
-    write_rekordbox_xml(xml, output)
-    typer.echo(f"Wrote {output} — {len(plan.track_order)} tracks, mean transition {plan.mean_transition_score}")
-    typer.echo("Import: see docs/rekordbox_import.md (enable rekordbox-xml view, uncheck Beatgrid analysis)")
-
-
 @app.command(name="smart-playlist")
 def smart_playlist(
     directory: Path = typer.Argument(..., help="Folder with music files"),
     count: int = typer.Option(10, "--count", "-n", help="Playlist length: 5, 10, 15, or 20"),
-    output: Path | None = typer.Option(None, "--output", "-o", help="Write Rekordbox XML here"),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Gdzie zapisać paczkę cue (.cues.json)"),
     processed_dir: Path | None = typer.Option(None, "--processed-dir", help="Where analysis JSONs are cached"),
     playlist_name: str = typer.Option("DanceLab Smart Set", "--name"),
     arc: str = typer.Option("build", "--arc", help="Energy arc: build/peak/flat"),
@@ -163,7 +115,7 @@ def smart_playlist(
     recompute: bool = typer.Option(False, "--recompute", help="Re-analyze tracks even if cached"),
     config: str = _config_option(),
 ) -> None:
-    """Analyze a folder, build a smart set, and export Rekordbox XML."""
+    """Analizuje folder, buduje set i zapisuje paczkę cue do master.db."""
     from dancelab.workflows.smart_playlist import build_smart_playlist_from_folder
 
     try:

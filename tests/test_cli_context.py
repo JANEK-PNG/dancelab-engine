@@ -74,7 +74,7 @@ def test_cli_rejects_an_unknown_profile_and_names_the_real_ones():
     from typer.testing import CliRunner
     from dancelab.cli.analyze import app
 
-    result = CliRunner().invoke(app, ["export-rekordbox", "--context", "nope"])
+    result = CliRunner().invoke(app, ["smart-playlist", ".", "--context", "nope"])
     assert result.exit_code == 2
     assert "club_peak" in result.output
 
@@ -85,7 +85,8 @@ def test_context_flag_is_offered_by_both_set_building_commands():
     from dancelab.cli.analyze import app
 
     root = get_command(app)
-    for command_name in ("smart-playlist", "export-rekordbox"):
+    # XML wycięty 01.08 — kontekst oferuje już tylko droga produktowa
+    for command_name in ("smart-playlist",):
         command = root.commands[command_name]
         context_params = [param for param in command.params if param.name == "context"]
 

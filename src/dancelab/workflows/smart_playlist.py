@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import inspect
 import re
 from collections.abc import Callable, Sequence
@@ -13,7 +15,10 @@ from dancelab.core.models import AnalysisResult, ContextProfile, SetPlan, Transi
 from dancelab.core.pipeline import analyze_track, analyze_track_with_stems
 from dancelab.decision.set_builder import build_set
 from dancelab.decision.transition_windows import detect_transition_windows
-from dancelab.export.rekordbox import build_rekordbox_xml, write_rekordbox_xml
+# XML wycięty z drogi produktowej (decyzja Janka 01.08): lądował w osobnym
+# widoku „rekordbox xml", a nie w bibliotece DJ-a. Produkt pisze teraz paczkę
+# cue, którą `dancelab cues write` wkłada wprost do master.db — cue na padach
+# i playlista w prawdziwej bibliotece.
 from dancelab.ingestion.loader import SUPPORTED_EXTENSIONS
 from dancelab.ingestion.metadata import make_track_id
 from dancelab.stems.workflow import stem_enabled_config
@@ -42,7 +47,7 @@ class SmartPlaylistResult:
     processed_dir: str
     output_path: str
     set_plan: SetPlan
-    xml: str
+    bundle_path: str
     analyzed_track_ids: list[str] = field(default_factory=list)
     failed_tracks: list[SmartPlaylistFailure] = field(default_factory=list)
 
@@ -67,7 +72,7 @@ def _safe_filename(value: str) -> str:
 
 
 def _default_output_path(config: EngineConfig, playlist_name: str) -> Path:
-    return Path(config.paths.data_dir).expanduser() / "exports" / f"{_safe_filename(playlist_name)}.xml"
+    return Path(config.paths.data_dir).expanduser() / "exports" / f"{_safe_filename(playlist_name)}.cues.json"
 
 
 def _default_processed_dir(config: EngineConfig) -> Path:
@@ -462,7 +467,7 @@ def build_smart_playlist_from_folder(
     context: ContextProfile | None = None,
     analyze_fn: Callable[..., AnalysisResult] = analyze_track,
 ) -> SmartPlaylistResult:
-    """Analyze a music folder and write a Rekordbox XML playlist."""
+    """Analiza folderu → set → paczka cue gotowa do wpisania w master.db."""
     if target_track_count < MIN_PLAYLIST_TRACKS:
         raise ValueError(f"target_track_count must be at least {MIN_PLAYLIST_TRACKS}")
 
@@ -504,14 +509,22 @@ def build_smart_playlist_from_folder(
     selected_ids = set(plan.track_order)
     selected_analyses = [analysis for analysis in analyses if analysis.track.track_id in selected_ids]
     windows = _transition_windows_for_playlist(selected_analyses, config=effective_config)
-    xml = build_rekordbox_xml(
-        selected_analyses,
-        set_plan=plan,
-        windows_by_track=windows,
-        playlist_name=playlist_name,
-    )
-    final_output_path = Path(output_path).expanduser() if output_path else _default_output_path(config, playlist_name)
-    written_path = write_rekordbox_xml(xml, final_output_path)
+    # Paczka w kształcie, którego oczekuje `dancelab cues write`:
+    # {set_plan, analyses, windows}. Sam zapis do master.db zostaje osobną,
+    # jawną komendą — nic nie dotyka biblioteki DJ-a bez jego decyzji.
+    bundle = {
+        "set_plan": plan.model_dump(mode="json"),
+        "analyses": {a.track.track_id: a.model_dump(mode="json")
+                     for a in selected_analyses},
+        "windows": {tid: [w.model_dump(mode="json") for w in ws]
+                    for tid, ws in windows.items()},
+        "playlist_name": playlist_name,
+    }
+    final_output_path = (Path(output_path).expanduser() if output_path
+                         else _default_output_path(config, playlist_name))
+    final_output_path.parent.mkdir(parents=True, exist_ok=True)
+    final_output_path.write_text(json.dumps(bundle, ensure_ascii=False))
+    written_path = final_output_path
     return SmartPlaylistResult(
         playlist_name=playlist_name,
         source_folder=str(Path(folder_path).expanduser()),
@@ -521,7 +534,7 @@ def build_smart_playlist_from_folder(
         processed_dir=str(processed_root),
         output_path=str(written_path),
         set_plan=plan,
-        xml=xml,
+        bundle_path=str(written_path),
         analyzed_track_ids=[analysis.track.track_id for analysis in analyses],
         failed_tracks=failures,
     )

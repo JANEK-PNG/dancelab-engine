@@ -48,13 +48,13 @@ def _analysis_from_path(path: str | Path, _config: EngineConfig) -> AnalysisResu
     )
 
 
-def test_build_smart_playlist_from_folder_writes_rekordbox_xml(tmp_path):
+def test_build_smart_playlist_writes_a_cue_bundle_for_rekordbox(tmp_path):
     music_dir = tmp_path / "music"
     music_dir.mkdir()
     for index in range(1, 7):
         (music_dir / f"Track_{index}.wav").write_bytes(f"fake wav {index}".encode())
 
-    output_path = tmp_path / "exports" / "tomorrow.xml"
+    output_path = tmp_path / "exports" / "tomorrow.cues.json"
     result = build_smart_playlist_from_folder(
         music_dir,
         EngineConfig(),
@@ -70,10 +70,14 @@ def test_build_smart_playlist_from_folder_writes_rekordbox_xml(tmp_path):
     assert len(result.set_plan.track_order) == 5
     assert result.output_path == str(output_path)
     assert output_path.exists()
-    xml = output_path.read_text(encoding="utf-8")
-    assert "Tomorrow Set" in xml
-    assert "POSITION_MARK" in xml
-    assert xml.count("TrackID=") == 5
+    # Paczka musi mieć kształt, którego oczekuje `dancelab cues write`,
+    # bo to ona — a nie XML — wkłada cue i playlistę w master.db.
+    import json
+    bundle = json.loads(output_path.read_text(encoding="utf-8"))
+    assert bundle["playlist_name"] == "Tomorrow Set"
+    assert set(bundle) >= {"set_plan", "analyses", "windows"}
+    assert len(bundle["set_plan"]["track_order"]) == 5
+    assert set(bundle["analyses"]) == set(bundle["set_plan"]["track_order"])
 
 
 def test_analysis_repository_ignores_incremental_library_manifest(tmp_path):

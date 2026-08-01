@@ -99,7 +99,7 @@ class BuildSetRequest(BaseModel):
 
 
 class RekordboxExportRequest(BaseModel):
-    """POST /sets/export-rekordbox — returns XML and optionally writes it to disk."""
+    """Odpowiedź budowy setu — ścieżka do paczki cue dla `dancelab cues write`."""
 
     track_ids: list[TrackId] = Field(default_factory=list, max_length=2_000)
     set_plan: SetPlan | None = None
@@ -119,7 +119,7 @@ class RekordboxExportResponse(BaseModel):
     track_count: int
     output_path: str | None = None
     set_plan: SetPlan
-    xml: str
+    bundle_path: str
 
 
 class SmartPlaylistRequest(BaseModel):
@@ -154,7 +154,7 @@ class SmartPlaylistResponse(BaseModel):
     analyzed_track_ids: list[str] = Field(default_factory=list)
     failed_tracks: list[SmartPlaylistFailureResponse] = Field(default_factory=list)
     set_plan: SetPlan
-    xml: str
+    bundle_path: str
 
 
 class StemExportRequest(BaseModel):

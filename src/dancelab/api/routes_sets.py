@@ -32,7 +32,6 @@ from dancelab.decision.next_track import recommend_next as recommend_next_engine
 from dancelab.decision.sequence import recommend_sequence as recommend_sequence_engine
 from dancelab.decision.set_builder import build_set as build_set_engine
 from dancelab.decision.transition_windows import detect_transition_windows
-from dancelab.export.rekordbox import build_rekordbox_xml, write_rekordbox_xml
 from dancelab.storage.repositories import FileAnalysisRepository
 from dancelab.workflows.smart_playlist import build_smart_playlist_from_folder
 
@@ -117,59 +116,6 @@ async def build_set(request: BuildSetRequest) -> SetPlan:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-@router.post("/export-rekordbox", response_model=RekordboxExportResponse)
-async def export_rekordbox(request: RekordboxExportRequest) -> RekordboxExportResponse:
-    """Export analyzed tracks to Rekordbox XML without forking CLI logic."""
-    config = _config()
-    repo = _repository(config)
-    weights = load_weights(config.weights_file)
-    analyses = _requested_analyses(repo, request.track_ids)
-    try:
-        set_plan = request.set_plan or build_set_engine(
-            analyses,
-            weights,
-            arc=request.arc,
-            planner_mode=request.planner_mode,
-            start_track_id=request.start_track_id,
-            target_track_count=request.target_track_count,
-            locked_positions=request.locked_positions,
-            pinned_track_ids=request.pinned_track_ids,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    windows = {
-        analysis.track.track_id: detect_transition_windows(
-            TransitionWindowInput(
-                track_id=analysis.track.track_id,
-                segments=analysis.segments,
-                feature_frames=analysis.features,
-                beatgrid=analysis.beatgrid,
-            ),
-            weights.transition_window,
-            top_k=config.analysis.transition_top_n,
-        ).windows
-        for analysis in analyses
-    }
-    xml = build_rekordbox_xml(
-        analyses,
-        set_plan=set_plan,
-        windows_by_track=windows,
-        playlist_name=request.playlist_name,
-    )
-    output_path = None
-    if request.output_path:
-        policy = ApiPathPolicy.from_config(config)
-        safe_output = policy.output_path(request.output_path)
-        output_path = str(write_rekordbox_xml(xml, safe_output))
-    return RekordboxExportResponse(
-        playlist_name=request.playlist_name,
-        track_count=len(set_plan.track_order),
-        output_path=output_path,
-        set_plan=set_plan,
-        xml=xml,
-    )
-
-
 @router.post("/smart-playlist", response_model=SmartPlaylistResponse)
 async def smart_playlist(
     request: SmartPlaylistRequest,
@@ -219,5 +165,5 @@ async def smart_playlist(
             for failure in result.failed_tracks
         ],
         set_plan=result.set_plan,
-        xml=result.xml,
+        bundle_path=result.bundle_path,
     )
