@@ -43,7 +43,11 @@ stems = ["demucs>=4.0", "torch>=2.0"]
 dev = [
     "pytest>=8.2",
     "httpx>=0.28",
-    "ruff>=0.5",
+    # Upper bound deliberate: uv.lock pins 0.15.x and CI runs that. Ruff 0.16
+    # widened its default rule set, so an unbounded `pip install -e ".[dev]"`
+    # handed a reviewer a linter stricter than the gate and 288 findings on a
+    # clean clone. Raise both together, never just this one.
+    "ruff>=0.15,<0.16",
     "pre-commit>=3.7",
     "bandit>=1.8,<2",
     "pip-audit>=2.9,<3",

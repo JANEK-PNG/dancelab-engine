@@ -565,7 +565,7 @@ requires-dist = [
     { name = "pyrekordbox", marker = "extra == 'rekordbox'", specifier = ">=0.4.4,<0.5" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.2" },
     { name = "pyyaml", specifier = ">=6.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.15,<0.16" },
     { name = "scikit-learn", marker = "extra == 'audio'", specifier = ">=1.5" },
     { name = "scipy", marker = "extra == 'audio'", specifier = ">=1.13" },
     { name = "soundfile", marker = "extra == 'audio'", specifier = ">=0.12" },
