@@ -18,6 +18,7 @@ import hashlib
 import json
 import re
 import sys
+import os
 from pathlib import Path
 
 import numpy as np
@@ -25,7 +26,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-LIBRARY_ROOT = Path("/Users/jantrybus/Music")
+LIBRARY_ROOT = Path(os.environ.get("DANCELAB_LIBRARY", Path.home() / "Music"))
 EMB = ROOT / "data/reports/library_embeddings.json"
 OUT_M3U = ROOT / "data/reports/four_tet_playlist.m3u"
 OUT_XML = ROOT / "data/reports/four_tet_playlist.rekordbox.xml"

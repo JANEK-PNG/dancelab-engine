@@ -121,7 +121,7 @@ DJ preference probability. `eligible_for_engine_influence` remains `false`.
 ## Reproduce
 
 ```bash
-cd /Users/jantrybus/Desktop/AI/dancelab-engine
+cd $REPO
 PYTHONPATH=src ./.venv/bin/python -m dancelab.validation.raveform \
   --archive /tmp/raveform.zip \
   --output data/reports/raveform_prior_v1/raveform_duration_prior.json

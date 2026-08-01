@@ -6,7 +6,7 @@
 # Exits when the downloader is done AND no alignable mixes remain.
 
 ROOT="/Volumes/MY_PC/DanceLabCorpus"
-ENGINE="/Users/jantrybus/Developer/dancelab-engine"
+ENGINE="${DANCELAB_ENGINE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 SLEEP=900   # 15 min between passes
 WORKERS=5
 

@@ -57,11 +57,11 @@ Verified locally on `2026-07-07`:
 Current reproducible Phase 2 artifacts live inside the repo:
 
 - processed analyses for `15` tracks:
-  `/Users/jantrybus/Desktop/AI/dancelab-engine/data/phase2_refresh_lekcja5/processed/`
+  `$REPO/data/phase2_refresh_lekcja5/processed/`
 - refreshed decision-layer report:
-  `/Users/jantrybus/Desktop/AI/dancelab-engine/data/reports/phase2_refresh_lekcja5/`
+  `$REPO/data/reports/phase2_refresh_lekcja5/`
 - waveform gallery:
-  `/Users/jantrybus/Desktop/AI/dancelab-engine/data/reports/phase2_refresh_lekcja5/waveforms/index.html`
+  `$REPO/data/reports/phase2_refresh_lekcja5/waveforms/index.html`
 
 Observed from the refreshed report:
 

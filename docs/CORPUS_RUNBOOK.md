@@ -8,14 +8,14 @@ Aktualizować przy każdej zmianie parametrów.
 Downloader:
 ```bash
 cd /Volumes/MY_PC/DanceLabCorpus && nohup caffeinate -i python3 \
-  /Users/jantrybus/Desktop/AI/dancelab-engine/scripts/corpus_downloader.py \
+  $REPO/scripts/corpus_downloader.py \
   --root /Volumes/MY_PC/DanceLabCorpus >> logs/resume_dl.log 2>&1 &
 ```
 
 Alignment (matching) — **workers 5 = uzgodniony standard** (24 GB RAM,
 benchmark 2026-07-16; 6+ ryzykuje swap i SPOWALNIA):
 ```bash
-cd /Users/jantrybus/Desktop/AI/dancelab-engine && PYTHONPATH=src nohup \
+cd $REPO && PYTHONPATH=src nohup \
   caffeinate -i .venv/bin/python scripts/corpus_align.py \
   --root /Volumes/MY_PC/DanceLabCorpus --workers 5 --min-tracks 4 \
   >> /Volumes/MY_PC/DanceLabCorpus/logs/resume_align.log 2>&1 &
@@ -36,7 +36,7 @@ cd /Users/jantrybus/Desktop/AI/dancelab-engine && PYTHONPATH=src nohup \
 Alignment jest szybszy niż (rate-limited) downloader i dogania kolejkę,
 kończąc pojedynczy przebieg. Zamiast ręcznego wznawiania — pętla:
 ```bash
-nohup caffeinate -i /Users/jantrybus/Desktop/AI/dancelab-engine/scripts/corpus_align_loop.sh \
+nohup caffeinate -i $REPO/scripts/corpus_align_loop.sh \
   >> /Volumes/MY_PC/DanceLabCorpus/logs/align_loop.log 2>&1 &
 ```
 Re-odpala matching co 15 min (workers 5), dobiera mixy w miarę jak dociągają

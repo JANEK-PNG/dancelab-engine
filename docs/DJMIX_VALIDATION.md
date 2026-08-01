@@ -37,7 +37,7 @@ and must be reported as such.
 Install the existing DanceLab audio extra, then run:
 
 ```bash
-cd /Users/jantrybus/Desktop/AI/dancelab-engine
+cd $REPO
 PYTHONPATH=src ./.venv/bin/python -m dancelab.validation.djmix \
   --mix /absolute/path/to/dj_mix.wav \
   --track /absolute/path/to/original_track_a.wav \

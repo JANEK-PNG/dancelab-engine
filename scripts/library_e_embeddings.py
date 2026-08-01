@@ -15,6 +15,7 @@ import hashlib
 import json
 import sys
 import time
+import os
 from pathlib import Path
 
 import numpy as np
@@ -22,7 +23,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-LIBRARY_ROOT = Path("/Users/jantrybus/Music")
+LIBRARY_ROOT = Path(os.environ.get("DANCELAB_LIBRARY", Path.home() / "Music"))
 EXCLUDE_DIRS = {"GarageBand", "Logic", "Audio Music Apps"}
 AUDIO_EXT = {".wav", ".mp3", ".aiff", ".aif", ".flac", ".m4a"}
 CATALOG = ROOT / "data/reports/library_embeddings.json"
