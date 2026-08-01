@@ -188,3 +188,34 @@ tests/               unit, contract, integration, security, and real-audio tests
 Start with [docs/architecture.md](docs/architecture.md) for the current system
 map and [docs/tutorials/README.md](docs/tutorials/README.md) for the guided test
 path.
+
+## Documentation
+
+| If you want to | Read |
+|---|---|
+| See the engine work | The quickstart at the top of this file |
+| Understand the system | [docs/architecture.md](docs/architecture.md) |
+| Check the research claims | [docs/EVALUATION.md](docs/EVALUATION.md) |
+| Know why it is built this way | [docs/DECISIONS.md](docs/DECISIONS.md) |
+| Read the computation spec | [docs/formulas.md](docs/formulas.md) |
+| Use the HTTP surface | [docs/api.md](docs/api.md) |
+| Know how corpus data may be used | [docs/CORPUS_ETHICS.md](docs/CORPUS_ETHICS.md) |
+| Work in the repository | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Write documentation for it | [docs/DOCUMENTATION_STANDARD.md](docs/DOCUMENTATION_STANDARD.md) |
+
+Documentation is treated as code: it lives beside the source, changes in the same
+commit as the behaviour it describes, and the part that can be measured —
+docstring coverage of modules, classes and public callables — is ratcheted in CI
+by `scripts/docstring_coverage.py`.
+
+## Support
+
+Questions and bug reports belong in
+[GitHub issues](https://github.com/JANEK-PNG/dancelab-engine/issues). There is no
+other support channel; this is a research engine, not a product with an SLA.
+
+## License
+
+[To be settled — `pyproject.toml` currently declares `Proprietary` and the
+repository carries no LICENSE file, which under GitHub's terms means all rights
+reserved. Add a LICENSE file that says what you actually intend.]
