@@ -3,6 +3,8 @@
 import numpy as np
 import pytest
 
+pytest.importorskip("librosa")  # real beat tracking belongs to the [audio] profile
+
 from dancelab.core.audio_types import AudioSignal
 from dancelab.preprocessing.beatgrid import estimate_beatgrid
 

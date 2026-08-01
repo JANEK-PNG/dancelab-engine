@@ -3,6 +3,8 @@
 import numpy as np
 import pytest
 
+pytest.importorskip("librosa")  # onset extraction belongs to the [audio] profile
+
 from dancelab.core.rigid_grid import (
     _onset_envelope,
     _settle_relatives,
