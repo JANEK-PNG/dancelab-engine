@@ -31,3 +31,17 @@ tmp/
 *.fig
 *.zip
 *.key
+
+# --- audio never enters this repository, on any path ---
+# Policy: docs/CORPUS_ETHICS.md — features are kept, source audio is deleted and
+# never redistributed. The rules above were path-scoped, which let
+# data/phase2_refresh_lekcja5/raw/ (15 commercial tracks) reach a public repo.
+# These are format-scoped so no future path can repeat it.
+*.mp3
+*.wav
+*.aiff
+*.aif
+*.flac
+*.m4a
+*.ogg
+*.opus
