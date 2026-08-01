@@ -15,6 +15,14 @@ Kord (bramka/walidacja/statystyka; śpi do 29.07).
    wetu Janka) · 🔒 `zamrożona przez Korda` (zmiana wymaga Korda).
 5. Swoboda WYKONANIA — tak. Swoboda DECYZJI — nie: rzeczy istotne trafiają
    najpierw do sekcji PYTANIA.
+6. **Prośba Janka o test/pomiar = karta w rejestrze W TEJ SAMEJ SESJI, z datą.**
+   W 24 h: pomiar albo pisemna odmowa z powodem. Zakaz podstawiania sąsiedniego,
+   łatwiejszego testu i raportowania go jako odpowiedzi. Przeczucie Janka =
+   hipoteza o wysokim priorytecie — sprawdzana pomiarem, nie oceniana na oko.
+   (01.08, po audycie: „korpus = niska jakość" żyło tygodniami bez jednej liczby,
+   a test przejść w trudności produktu powstał 10 dni po tym, jak dane były gotowe.)
+7. **Każde twierdzenie w raporcie ma etykietę: POMIAR albo OPINIA.** Opinia bez
+   planu pomiaru nie blokuje żadnej decyzji o danych.
 
 **Widok Janka:** artefakt „Tablica zespołu" (kolumny = osoby). Ten plik = kopia
 tekstowa dla Korda; obie formy trzymamy w synchronizacji.
