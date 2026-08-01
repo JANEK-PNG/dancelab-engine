@@ -68,6 +68,7 @@ tekstowa dla Korda; obie formy trzymamy w synchronizacji.
 ## 2 · ZAPARKOWANE (odłożone ŚWIADOMIE — nie „zapomniane")
 | co | czemu czeka | odblokowuje |
 |---|---|---|
+| **Muzyka generatywna — WYDZIELONA do osobnego wątku (Janek, 01.08).** 12 utworów z czystego DSP, wzór Kordiego S=A+B+C·R_D+Syn·Φ(H), lekcje o fazie/pamięci/ramie. Całość + README-mapa: `experiments_priv/2026-07-31_utwor/` | żeby nie rozmywać rdzenia przed pierwszymi testami playlist | osobna sesja (chip) |
 | Wpięcie zmierzonych liftów w produkcyjny `set_builder`/`mixability` + prior energii | zatwierdzone kierunkowo, przerwane rejestrem | Klaris, zaraz |
 | **BPM cross-check przy słabym gridzie** — case „Red Light Fever": silnik 120.01, realnie 117.45 (+2.2%), quality 0.5555 a `reliable=True` przepuściło; ucho Janka złapało. Fix: cross-walidacja tempogramem gdy quality&lt;0.7, rozjazd &gt;1.5% ⇒ unreliable | realny przypadek 22.07, cache poprawiony z prowenancją | Klaris/Kord |
 | Przeliczenie setu Four-Tet z pełnego 12k-sąsiedztwa | pełny CLAP liczy się w tle (ETA ~2h od 21.07) | koniec runu |
