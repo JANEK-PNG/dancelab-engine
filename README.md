@@ -10,6 +10,51 @@ The product question is:
 Does this track make sense next, in this set and in this context?
 ```
 
+## Quickstart: See It Work In Ten Minutes
+
+Verified end to end from a clean clone on macOS, 2026-08-01.
+
+**Before you start.** You need **Python 3.11+** — macOS ships 3.9, which will not
+work. Get 3.12 with `brew install python@3.12`, `uv python install 3.12`, or
+pyenv.
+
+**Bring your own music.** This repository ships no audio, deliberately: source
+audio is never redistributed (see [docs/CORPUS_ETHICS.md](docs/CORPUS_ETHICS.md)).
+Copy **5–10 electronic tracks** — MP3, WAV, AIFF or FLAC — into a folder first.
+
+```bash
+git clone https://github.com/JANEK-PNG/dancelab-engine.git
+cd dancelab-engine
+python3.12 -m venv .venv
+./.venv/bin/python -m pip install -e ".[dev,audio,rekordbox]"
+
+# 1. Does it run?
+./.venv/bin/dancelab version
+
+# 2. Analyze one track  (~2 min for a 3-minute track, single-threaded)
+./.venv/bin/dancelab analyze "/path/to/one-track.mp3" --output track.json
+
+# 3. The whole point: a folder in, a sequenced set out  (~2 min per track)
+./.venv/bin/dancelab smart-playlist /path/to/your/folder --count 5 --output set.xml
+
+# 4. The test suite  (~2 min, no audio needed)
+./.venv/bin/python -m pytest -q
+```
+
+**What you should see.** Step 2 writes an `AnalysisResult`: tempo, beat times,
+downbeats, grid-quality score, segments, descriptor curves, and a `notes` array
+naming which descriptors are proxies rather than validated measurements. Step 3
+prints a line like `Playlist: DanceLab Smart Set · 5 tracks · mean transition
+0.63` and writes a Rekordbox XML carrying key, tempo and named cue markers
+(`Mix In`, `Mix Out`, `Bridge`) — import it into Rekordbox to see the decisions
+on the pads.
+
+**Where the research is.** The measured results, the baselines, the negative
+findings and the numbers this project withdrew from its own work are in
+[docs/EVALUATION.md](docs/EVALUATION.md). Those numbers are computed from a
+corpus that is not redistributable, so they are not reproducible from a clone —
+that document says so explicitly and names the script behind each figure.
+
 ## Current Product Workflow
 
 The supported product surface is the `dancelab` command-line application:
@@ -74,6 +119,11 @@ Optional deep analysis and stem export:
 ```bash
 ./.venv/bin/python -m pip install -e ".[stems]"
 ```
+
+The `PYTHONPATH=src` prefix used in the examples below is a fallback: macOS can
+hide the editable-install marker so `import dancelab` fails at runtime (ENV-1 in
+`pyproject.toml`). On a clean clone `./.venv/bin/dancelab` works without it —
+add the prefix only if you hit `ModuleNotFoundError: dancelab`.
 
 ## CLI And API
 
