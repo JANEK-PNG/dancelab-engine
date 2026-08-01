@@ -1,5 +1,14 @@
 # REJESTR PROJEKTU — DanceLab
 
+> **Language note (English).** This file is the project owner's working log and
+> is kept in Polish deliberately — it is a personal control panel, not
+> reader-facing documentation, and translating it would break the tool it is. It
+> is one of two documented exceptions to the English-everywhere rule in
+> [docs/DOCUMENTATION_STANDARD.md](docs/DOCUMENTATION_STANDARD.md) §1; the other
+> is `docs/CORPUS_ETHICS.pl.md`, a preserved original kept beside its English
+> version. For decisions read [docs/DECISIONS.md](docs/DECISIONS.md); for results
+> read [docs/EVALUATION.md](docs/EVALUATION.md). Both are in English.
+
 **Cel:** żadna istotna decyzja nie zapada niewidocznie. Janek nie czyta kodu —
 ten plik to jego panel kontrolny.
 

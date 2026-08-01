@@ -216,6 +216,11 @@ other support channel; this is a research engine, not a product with an SLA.
 
 ## License
 
-[To be settled — `pyproject.toml` currently declares `Proprietary` and the
-repository carries no LICENSE file, which under GitHub's terms means all rights
-reserved. Add a LICENSE file that says what you actually intend.]
+**Source-available, not open source.** You may read this code, run it on your own
+machine, and modify it locally for personal, academic, journalistic or evaluation
+purposes. Commercial use and redistribution require written permission. See
+[LICENSE](LICENSE).
+
+The distinction is deliberate. The point of publishing the engine is that its
+methods and its failures can be inspected; that does not require giving away the
+right to build a product on it.

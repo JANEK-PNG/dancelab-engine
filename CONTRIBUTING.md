@@ -4,8 +4,10 @@ How to set up an environment, what the quality gate checks, and what a change is
 expected to carry. Conventions for writing the documentation itself live in
 [docs/DOCUMENTATION_STANDARD.md](docs/DOCUMENTATION_STANDARD.md).
 
-> **Contributions from outside the project** are not being accepted yet — the
-> licensing terms are still being settled. Issues and questions are welcome.
+> **Contributions from outside the project** are not being accepted. The engine
+> is source-available rather than open source: it may be read, run and modified
+> locally for non-commercial purposes, but it is not a shared codebase. See
+> [LICENSE](LICENSE). Issues and questions are welcome.
 
 ---
 

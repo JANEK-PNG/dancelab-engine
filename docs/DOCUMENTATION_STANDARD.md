@@ -13,15 +13,28 @@ be measured are measured in CI.
 
 ## 1. Language
 
-**English, everywhere, without exception.** Source, docstrings, comments, commit
-messages, documentation, schema descriptions and error strings.
+**English for anything a reader is directed to.** Source, docstrings, comments,
+commit messages, schema descriptions, error strings, and every document reachable
+from the README, from [`EVALUATION.md`](EVALUATION.md), from
+[`DECISIONS.md`](DECISIONS.md) or from [`../CONTRIBUTING.md`](../CONTRIBUTING.md).
 
-The project is developed bilingually and some working notes were written in
-Polish. Those are being converted; `docs/CORPUS_ETHICS.pl.md` is the one
-deliberate exception, kept as a preserved original beside its canonical English
-version and named so that the exception is visible.
+A reader who cannot read a document cannot review it. That is the whole argument,
+and it is also the limit of the rule: it binds what a reader is pointed at, not
+every private note in the repository.
 
-A reader who cannot read a document cannot review it. That is the whole argument.
+**Two documented exceptions**, both labelled in English at the top of the file so
+that no reader hits Polish without warning:
+
+- [`../PROJECT_LEDGER.md`](../PROJECT_LEDGER.md) — the owner's working log. It is
+  a personal control panel rather than reader-facing documentation, and
+  translating it would break the tool it is.
+- [`CORPUS_ETHICS.pl.md`](CORPUS_ETHICS.pl.md) — the preserved Polish original of
+  the fair-play policy, kept beside its canonical English version.
+
+**Working notes not yet converted.** Twelve further documents under `docs/` are
+Polish working notes that nothing links to — research logs, product sketches,
+status reports. They are stated here rather than quietly ignored. Any one of them
+becomes English the moment something points a reader at it.
 
 ---
 

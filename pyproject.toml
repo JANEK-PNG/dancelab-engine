@@ -8,8 +8,8 @@ version = "0.1.1"
 description = "DanceLab Engine v0 — universal analytical engine for electronic music and DJ decisions"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Proprietary" }
-authors = [{ name = "DanceLab" }]
+license = { text = "Source-available, non-commercial; all rights reserved. See LICENSE." }
+authors = [{ name = "Jan Trybus" }]
 dependencies = [
     "pydantic>=2.7",
     "pyyaml>=6.0",
