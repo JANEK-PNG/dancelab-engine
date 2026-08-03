@@ -533,6 +533,13 @@ class AnalysisResult(SchemaVersionedOutput):
 
     engine_version: str
     weights_version: str | None = None
+    # Odcisk PLIKU wag, którym policzono tę analizę — nie numer wersji, tylko
+    # skrót zawartości. `weights_version` mówi „0.1.0" i nie zmienia się, gdy
+    # ktoś podkręci wagę w środku; skrót zmienia się zawsze. Dzięki temu analiza
+    # sama o sobie mówi, czym powstała, i da się ją ponownie użyć w innym
+    # katalogu niż ten, w którym powstała — bez tego pola trzeba ją przeliczyć,
+    # bo „nie wiem, czym to policzono" nie jest podstawą do użycia (ADR-005).
+    formula_version: str | None = None
     track: Track
     beatgrid: BeatGrid | None = None
     segments: list[Segment] = Field(default_factory=list)

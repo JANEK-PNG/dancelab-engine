@@ -208,6 +208,20 @@ def _analyze_track_impl(
         if on_stage is not None:
             on_stage(name)
 
+    def _formula_hash_or_none(weights_file) -> str | None:  # noqa: ANN001
+        """Odcisk pliku wag, albo None gdy nie da się go policzyć.
+
+        None znaczy „nie wiem, czym to policzono" i taka analiza NIE zostanie
+        ponownie użyta w innym katalogu — przeliczy się. Lepiej zapłacić
+        analizą niż podać wynik z nieznanych wag (ADR-005).
+        """
+        from dancelab.storage.library_manifest import formula_hash
+
+        try:
+            return formula_hash(weights_file)
+        except Exception:                                          # noqa: BLE001
+            return None
+
     np.random.seed(config.engine.random_seed)
     weights = load_weights(config.weights_file)
     _stage("Loading audio")
@@ -355,6 +369,7 @@ def _analyze_track_impl(
     return AnalysisResult(
         engine_version=__version__,
         weights_version=weights.version,
+        formula_version=_formula_hash_or_none(config.weights_file),
         track=track,
         beatgrid=beatgrid,
         segments=segments,

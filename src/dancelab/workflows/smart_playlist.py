@@ -10,6 +10,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from dancelab import __version__ as ENGINE_VERSION
 from dancelab.core.config import EngineConfig, load_weights
 from dancelab.core.models import AnalysisResult, ContextProfile, SetPlan, TransitionWindowInput
 from dancelab.core.pipeline import analyze_track, analyze_track_with_stems
@@ -143,6 +144,50 @@ def auto_analysis_workers() -> int:
     return max(1, min((_os.cpu_count() or 2) // 2, 8))
 
 
+def adopt_orphan_analysis(
+    repo: FileAnalysisRepository,
+    manifest,
+    track_id: str,
+    *,
+    source_path: Path,
+    source_checksum: str,
+    tier: str,
+    weights_hash: str,
+) -> bool:
+    """Przygarnij analizę, która leży na dysku, ale nie ma jej w rejestrze.
+
+    Janek zapłacił za to godziną: podał katalog z 243 gotowymi analizami, a silnik
+    przeliczył wszystko od nowa. Pliki BYŁY, klucze się zgadzały — brakowało wpisu
+    w rejestrze, a to rejestr trzyma sumę kontrolną i odcisk wag. Bez wpisu silnik
+    nie wie, CZYM policzono to, co widzi, więc liczy jeszcze raz. Ostrożność jest
+    słuszna: analiza naprawdę zależy od wag (groove_density, bass_salience,
+    tension), więc użycie cudzego pliku w ciemno dałoby wynik z nieznanych wag.
+
+    Odkąd analiza nosi w sobie `formula_version`, da się to sprawdzić bez rejestru
+    — i wtedy, i tylko wtedy, plik zostaje przygarnięty i dopisany do rejestru.
+    Analizy sprzed tego pola nie mają jak się wylegitymować i przeliczą się;
+    to jednorazowy koszt, nie stały.
+    """
+    if not repo._path(track_id).exists():
+        return False
+    try:
+        stored = repo.get(track_id)
+    except Exception:                                              # noqa: BLE001
+        return False
+    if stored.engine_version != ENGINE_VERSION:
+        return False
+    if getattr(stored, "formula_version", None) != weights_hash:
+        return False
+    manifest.mark_analyzed(
+        track_id,
+        source_path=str(source_path),
+        source_checksum=source_checksum,
+        analysis_tier=tier,
+        formula_version=weights_hash,
+    )
+    return True
+
+
 def _analyze_one_subprocess(
     path_str: str, config_json: str, processed_dir_str: str
 ) -> tuple[str, str | None]:
@@ -247,6 +292,15 @@ def analyze_files(
                     analysis_file_exists=repo._path(track_id).exists(),
                 )
             )
+            # „Jeszcze nie liczone" bywa nieprawdą: analiza może leżeć obok,
+            # tylko powstała inną drogą (skrypt, inny katalog, poprzednia
+            # sesja). Jeśli sama potwierdzi, czym ją policzono — bierzemy ją.
+            if reason == "not analyzed yet" and not recompute and adopt_orphan_analysis(
+                repo, manifest, track_id,
+                source_path=path, source_checksum=checksum,
+                tier=tier, weights_hash=weights_hash,
+            ):
+                reason = None
             if reason is None:
                 result = repo.get(track_id)  # §7: valid analysis → zero compute
                 if track_done is not None:
@@ -322,6 +376,12 @@ def _analyze_files_parallel(
                 analysis_file_exists=repo._path(track_id).exists(),
             )
         )
+        if reason == "not analyzed yet" and not recompute and adopt_orphan_analysis(
+            repo, manifest, track_id,
+            source_path=Path(path_str), source_checksum=checksum,
+            tier=tier, weights_hash=weights_hash,
+        ):
+            reason = None
         if reason is None:
             results[path_str] = repo.get(track_id)
             done_count += 1
