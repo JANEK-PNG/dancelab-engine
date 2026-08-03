@@ -521,6 +521,7 @@ def build_smart_playlist_from_folder(
     processed_dir: str | Path | None = None,
     arc: str = "build",
     planner_mode: str = "smart",
+    tempo_shape: str = "off",
     analysis_depth: str = "normal",
     recursive: bool = True,
     recompute: bool = False,
@@ -565,6 +566,7 @@ def build_smart_playlist_from_folder(
         target_track_count=target_track_count,
         planner_mode=planner_mode,
         context=context,
+        tempo_shape=tempo_shape,
     )
     selected_ids = set(plan.track_order)
     selected_analyses = [analysis for analysis in analyses if analysis.track.track_id in selected_ids]

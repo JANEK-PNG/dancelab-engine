@@ -164,6 +164,10 @@ def zagraj(
         False, "--allow-live", help="Wymagane, żeby dotknąć ŻYWEJ biblioteki. Najpierw kopia."),
     arc: str = typer.Option("build", "--arc", help="Łuk energii: build/peak/flat"),
     planner_mode: str = typer.Option("smart", "--planner-mode", help="smart/harmonic/bpm"),
+    tempo_shape: str = typer.Option(
+        "off", "--tempo",
+        help="Plan tempa: off (jak dotąd) / linear (równe wznoszenie) / "
+             "staircase (piętra i podejścia, nigdy w dół)"),
     processed_dir: Path | None = typer.Option(None, "--processed-dir",
                                               help="Gdzie leżą wyniki analizy (cache)"),
     analysis_depth: str = typer.Option("normal", "--analysis-depth", help="normal/deep"),
@@ -195,6 +199,7 @@ def zagraj(
             processed_dir=processed_dir,
             arc=arc,
             planner_mode=planner_mode,
+            tempo_shape=tempo_shape,
             context=_resolve_context(context),
             analysis_depth=analysis_depth,
             recompute=recompute,

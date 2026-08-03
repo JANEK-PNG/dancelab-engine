@@ -96,6 +96,142 @@ def _normalize_artist_token(value: str) -> str:
 # jest odtwarzanie cudzej kolejności zamiast układania własnej.
 MAX_PER_RELEASE = 2
 
+# Kształty planu tempa. "off" to zachowanie dotychczasowe: planer nie ma zdania
+# o tempie w skali setu i tempo wychodzi z kolejności, a nie odwrotnie.
+TEMPO_SHAPE_OFF = "off"
+TEMPO_SHAPE_LINEAR = "linear"
+TEMPO_SHAPE_STAIRCASE = "staircase"
+TEMPO_SHAPES = (TEMPO_SHAPE_OFF, TEMPO_SHAPE_LINEAR, TEMPO_SHAPE_STAIRCASE)
+
+# Zakres pitchu, w którym utwór wolno postawić na cudzym tempie. ±6% to
+# domyślne ustawienie CDJ-a; przy większym zakresie zmienia się barwa i to
+# przestaje być decyzja o tempie, a staje się decyzją o brzmieniu.
+MAX_PITCH_PCT = 6.0
+
+# Ile płyt stoi na jednym piętrze i ile podejść dzieli piętra. Wartości z
+# rendererów, gdzie zostały wysłuchane; silnik nie twierdzi, że są jedyne
+# słuszne — to punkt wyjścia, który DJ może zmienić.
+STAIRCASE_LANDING = 4
+STAIRCASE_FLIGHT = 3
+
+
+def tempo_plan(
+    bpms: Sequence[float],
+    shape: str,
+    *,
+    slots: int,
+    landing: int = STAIRCASE_LANDING,
+    flight: int = STAIRCASE_FLIGHT,
+) -> list[float] | None:
+    """Zaplanowane tempo dla każdego miejsca w secie. None = brak planu.
+
+    Do tej pory tempo setu było SKUTKIEM kolejności: planer układał utwory według
+    harmonii i energii, a tempo szło tam, gdzie akurat wypadło — w jednym
+    z renderów spadło ze 136 na 124 przez pierwszą trzecią i wróciło na końcu.
+    Set tak się nie buduje. Wchodzi się schodami: kilka płyt na jednym tempie,
+    potem podejście wyżej, i nigdy w dół.
+
+    Kształt jest WEJŚCIEM, nie wynikiem — silnik nie ma zdania, który jest
+    słuszny. „linear" to równomierne wznoszenie, „staircase" to piętra i podejścia,
+    „off" zostawia dotychczasowe zachowanie. Zakres brany jest z tego, co pula
+    naprawdę ma, żeby plan dało się zagrać bez rozciągania płyt poza pitch.
+    """
+    known = sorted(float(b) for b in bpms if b)
+    if shape == TEMPO_SHAPE_OFF or slots <= 0 or len(known) < 2:
+        return None
+    # Zakres z DZIESIĄTEGO i DZIEWIĘĆDZIESIĄTEGO percentyla, nie ze skrajności.
+    # Pierwsza wersja brała min i max, a w bibliotece Janka skrajnymi były 70
+    # i 178 — czyli w większości oktawy tego samego tempa i pojedyncze dziwolągi.
+    # Plan rozciągnięty na taki zakres kazał silnikowi szukać utworów w tempach,
+    # których pula nie ma, i wychodził GORZEJ niż brak planu.
+    lo = float(np.percentile(known, 10))
+    hi = float(np.percentile(known, 90))
+    if hi - lo < 0.5:                      # cała pula na jednym tempie
+        return [lo] * slots
+    if shape == TEMPO_SHAPE_LINEAR:
+        return [lo + (hi - lo) * i / max(slots - 1, 1) for i in range(slots)]
+    if shape == TEMPO_SHAPE_STAIRCASE:
+        cycle = max(1, landing + flight)
+        rises, level = [], 0
+        for i in range(slots):
+            if i and i % cycle >= landing:
+                level += 1
+            rises.append(level)
+        step = (hi - lo) / max(level, 1)
+        return [lo + step * r for r in rises]
+    return None
+
+
+def _tempo_plan_candidates(
+    candidates: list[str],
+    *,
+    index: int,
+    plan: list[float] | None,
+    bpm_of: dict[str, float | None],
+    previous_bpm: float | None = None,
+    max_pitch_pct: float = MAX_PITCH_PCT,
+    descent_tolerance_bpm: float = 0.5,
+) -> list[str]:
+    """Zostaw tych, których da się zagrać na zaplanowanym tempie i NIE W DÓŁ.
+
+    Miękko, jak reszta ograniczeń: jeśli nikt nie mieści się w pitchu, wracamy do
+    pełnej listy, zamiast zwracać set krótszy niż zamówiony. Utwór bez znanego
+    tempa nie jest karany — nie wiemy, czy pasuje, a niewiedza to nie jest powód
+    do odrzucenia (ADR-005).
+    """
+    if not plan or index >= len(plan) or not candidates:
+        return candidates
+    target = plan[index]
+    band = target * max_pitch_pct / 100.0
+    # Porównanie z uwzględnieniem oktawy: płyta zmierzona na 70 stoi na tej
+    # samej podłodze co plan 140 — grana jest tak samo, liczy się tylko, na
+    # której oktawie DJ ją odtwarza.
+    fits = []
+    for track_id in candidates:
+        bpm = bpm_of.get(track_id)
+        if bpm is None:
+            fits.append(track_id)
+            continue
+        variant = nearest_bpm_variant(target, bpm)
+        if variant is None or abs(variant - target) > band:
+            continue
+        # Sam plan nie wystarcza i to jest zmierzone: przy paśmie pitchu ±6%
+        # (przy 120 to ±7 BPM) mieści się utwór wolniejszy o trzy uderzenia,
+        # więc set nadal skakał w górę i w dół wewnątrz pasma — 5 spadków tempa
+        # na 20 płytach, czyli tyle samo co bez planu. Słowo Janka brzmiało
+        # „tendencja raczej zwyżkowa, nie up and down", a to jest zakaz
+        # schodzenia, nie bliskość planu. Więc jest zapisany wprost.
+        if previous_bpm is not None and variant < previous_bpm - descent_tolerance_bpm:
+            continue
+        fits.append(track_id)
+    return fits or candidates
+
+
+def _tempo_plan_warnings(
+    order: Sequence[str],
+    plan: list[float] | None,
+    bpm_of: dict[str, float | None],
+    max_pitch_pct: float = MAX_PITCH_PCT,
+) -> list[str]:
+    """Powiedz, ile miejsc planu nie udało się obsadzić — nie chowaj tego."""
+    if not plan:
+        return []
+    missed = []
+    for i, t in enumerate(order):
+        if i >= len(plan) or bpm_of.get(t) is None:
+            continue
+        variant = nearest_bpm_variant(plan[i], bpm_of[t]) or bpm_of[t]
+        if abs(variant - plan[i]) > plan[i] * max_pitch_pct / 100.0:
+            missed.append((i + 1, variant, plan[i]))
+    if not missed:
+        return []
+    worst = max(missed, key=lambda m: abs(m[1] - m[2]))
+    return [
+        f"plan tempa nietrafiony w {len(missed)} z {len(order)} miejsc "
+        f"(najgorsze: pozycja {worst[0]}, {worst[1]:.1f} zamiast {worst[2]:.1f}) — "
+        f"pula nie ma utworów w tym tempie"
+    ]
+
 
 def _release_token(analysis: AnalysisResult) -> str | None:
     """Z jakiego wydawnictwa jest ten utwór — po katalogu, w którym leży plik.
@@ -802,6 +938,8 @@ def _constrained_order(
     target_profile: Sequence[float],
     artist_tokens: dict[str, set[str]],
     release_tokens: dict[str, str | None],
+    tempo_targets: list[float] | None,
+    bpm_of: dict[str, float | None],
     planner_mode: str,
     context: ContextProfile | None,
     mixability_precomputation: MixabilityPrecomputation,
@@ -812,6 +950,10 @@ def _constrained_order(
     remaining = set(by_id) - locked_track_ids
     order: list[str] = []
     current: str | None = None
+    # Tempo POPRZEDNIEJ płyty tak, jak realnie zabrzmiała — czyli sprowadzone do
+    # oktawy, na której DJ ją odtwarza. Bez tego zakaz schodzenia porównywałby
+    # 70 ze 140 i wyrzucał utwór, który stoi dokładnie na miejscu.
+    played_bpm: float | None = None
 
     for index in range(target_count):
         if index in locked_slots:
@@ -826,6 +968,16 @@ def _constrained_order(
                 candidates,
                 order=order,
                 release_tokens=release_tokens,
+            )
+            # Plan tempa jest wejściem DJ-a, więc zawęża pole zanim silnik
+            # zacznie wybierać po harmonii i energii — inaczej tempo znów
+            # byłoby skutkiem kolejności, a nie jej ramą.
+            candidates = _tempo_plan_candidates(
+                candidates,
+                index=index,
+                plan=tempo_targets,
+                bpm_of=bpm_of,
+                previous_bpm=played_bpm,
             )
             candidates = _artist_diverse_candidates(
                 candidates,
@@ -877,6 +1029,11 @@ def _constrained_order(
 
         order.append(chosen)
         current = chosen
+        chosen_bpm = bpm_of.get(chosen)
+        if chosen_bpm:
+            played_bpm = (
+                nearest_bpm_variant(played_bpm, chosen_bpm) if played_bpm else chosen_bpm
+            ) or chosen_bpm
 
     return order
 
@@ -897,6 +1054,7 @@ def build_set(
     novelty_mode: str = "deterministic",
     history: Sequence["PlaylistFingerprint"] | None = None,
     seed: int | None = None,
+    tempo_shape: str = TEMPO_SHAPE_OFF,
 ) -> SetPlan:
     """Greedy harmonic/energy set ordering with optional lock/pin constraints.
 
@@ -1041,6 +1199,10 @@ def build_set(
     )
     artist_tokens = {tid: _artist_tokens(analysis) for tid, analysis in by_id.items()}
     release_tokens = _release_tokens(by_id)
+    bpm_of = {tid: (a.track.bpm_estimate or None) for tid, a in by_id.items()}
+    tempo_targets = tempo_plan(
+        [b for b in bpm_of.values() if b], tempo_shape, slots=target_track_count
+    )
 
     novelty = NoveltyContext.build(
         mode=novelty_mode,
@@ -1064,6 +1226,8 @@ def build_set(
             target_profile=target_profile,
             artist_tokens=artist_tokens,
             release_tokens=release_tokens,
+            tempo_targets=tempo_targets,
+            bpm_of=bpm_of,
             planner_mode=planner_mode,
             context=context,
             mixability_precomputation=mixability_precomputation,
@@ -1124,6 +1288,7 @@ def build_set(
         *energy_warnings,
         *_artist_diversity_warnings(order, artist_tokens),
         *_release_diversity_warnings(order, release_tokens),
+        *_tempo_plan_warnings(order, tempo_targets, bpm_of),
         *_arc_shape_warnings(order, arc=arc, energy=energy, e_range=e_range),
         *novelty_warnings,
     ]
