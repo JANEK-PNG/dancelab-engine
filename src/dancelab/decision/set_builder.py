@@ -36,6 +36,7 @@ from dancelab.core.provenance import provenance_for
 from dancelab.decision._common import nearest_bpm_variant, tempo_proximity_score
 from dancelab.decision.dedup import dedupe_by_audio
 from dancelab.decision.corpus_priors import transition_prior_lift
+from dancelab.decision.sound_affinity import blend, cosine_affinity
 from dancelab.decision.harmonic import harmonic_compatibility, harmonic_relation, parse_camelot
 from dancelab.decision.history import NoveltyContext, PlaylistFingerprint
 from dancelab.decision.library_profile import bpm_in_range, normalize_style_list, style_matches
@@ -493,6 +494,16 @@ def transition_score(
     w = _planner_component_weights(weights, planner_mode)
     component_values = {"harmonic": h, "bpm": bp, "energy": en, "mixability": mix}
     score = sum(w[name] * component_values[name] for name in COMPONENTS)
+
+    # Brzmienie wmieszane PO rdzeniu i tylko w trybie smart — czyste tryby
+    # harmonic/bpm to jawna wola usera i zostają dokładnie tym, o co prosił.
+    # Zmierzone na 45 miksach: dolna tercja DJ-ów +0,071 (patrz sound_affinity).
+    sound_note = None
+    if planner_mode == PLANNER_MODE_SMART:
+        sound_w = getattr(weights, "sound_affinity_weight", 0.0) or 0.0
+        if sound_w > 0:
+            aff = cosine_affinity(a.track.sound_embedding, b.track.sound_embedding)
+            score, sound_note = blend(score, aff, sound_w)
     reasoning = [
         f"planner mode {planner_mode}",
         f"harmonic {rel} ({a.track.key_estimate}->{b.track.key_estimate}) score {h:.2f}",
@@ -500,6 +511,8 @@ def transition_score(
         f"energy Δ {d_energy:+.2f} ({arc}) score {en:.2f}",
         f"mixability {mix:.2f}",
     ]
+    if sound_note:
+        reasoning.append(sound_note)
     # corpus prior only in SMART mode: pure harmonic/bpm modes are the user's
     # explicit override and must stay exactly what they ask for
     prior_weight = getattr(weights, "corpus_priors_weight", 0.0) or 0.0

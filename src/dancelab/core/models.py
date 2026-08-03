@@ -291,6 +291,10 @@ class Track(BaseModel):
     camelot_mode: str | None = None            # "A" (minor) | "B" (major)
     key_detection_source: str | None = None    # detector | file_tag | rekordbox | manual
     key_verified_by: str | None = None         # manual override / DJ verifier
+    # Odcisk brzmienia (CLAP). Opcjonalny: biblioteka bez osadzeń działa dalej,
+    # składnik brzmienia jest wtedy pomijany, a nie zerowany — patrz
+    # decision/sound_affinity.py.
+    sound_embedding: list[float] | None = None
 
     def with_manual_key(self, camelot: str, verified_by: str = "manual") -> "Track":
         """Return a copy with a DJ-supplied key override (R&D: support manual override)."""

@@ -108,3 +108,10 @@ sequence:
 # Corpus-measured transition priors (6,144 real DJ transitions vs chance).
 # Measured 2026-07-21; see data/reports/corpus_priors/priors_v1.json.
 corpus_priors_weight: 1.0
+
+# Udział podobieństwa brzmienia (CLAP) w ocenie przejścia, tryb smart.
+# Zmierzone 2026-08-03 na 45 miksach korpusu, kryterium = dolna tercja DJ-ów:
+#   bez brzmienia  nieprzew. 0,683 · środek 0,795 · zachow. 0,864
+#   przy 0,60      nieprzew. 0,754 · środek 0,834 · zachow. 0,900
+# Utwór bez osadzenia nie jest karany — składnik jest pomijany.
+sound_affinity_weight: 0.6

@@ -105,6 +105,10 @@ class DescriptorWeights(BaseModel):
     # corpus-measured transition priors (decision/corpus_priors.py):
     # 0 = off, 1 = full measured strength; explicit + versioned, never hidden
     corpus_priors_weight: float = 0.0
+    # Udział podobieństwa brzmienia w ocenie przejścia (tryb smart).
+    # 0 = wyłączone. 0,60 to wartość zmierzona 2026-08-03: największy zysk
+    # dolnej tercji DJ-ów bez kosztu dla pozostałych.
+    sound_affinity_weight: float = 0.0
 
 
 # Where the shipped configs live, found from this file rather than from the
