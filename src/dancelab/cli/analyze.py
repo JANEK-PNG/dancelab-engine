@@ -150,6 +150,81 @@ def smart_playlist(
             typer.secho(f"fail {Path(failure.source_path).name}: {failure.error}", fg="yellow")
 
 
+@app.command(name="zagraj")
+def zagraj(
+    directory: Path = typer.Argument(..., help="Folder z muzyką"),
+    count: int = typer.Option(10, "--count", "-n", help="Ile utworów w secie"),
+    name: str = typer.Option("DanceLab set", "--name", help="Nazwa playlisty w Rekordboksie"),
+    db: Path = typer.Option(None, "--db",
+                            help="Na której bazie Rekordboxa pracować. "
+                                 "Domyślnie ŻYWA — wtedy zapis wymaga --allow-live."),
+    write_changes: bool = typer.Option(
+        False, "--write", help="Naprawdę zapisz. Bez tego komenda tylko planuje i pokazuje."),
+    allow_live: bool = typer.Option(
+        False, "--allow-live", help="Wymagane, żeby dotknąć ŻYWEJ biblioteki. Najpierw kopia."),
+    arc: str = typer.Option("build", "--arc", help="Łuk energii: build/peak/flat"),
+    planner_mode: str = typer.Option("smart", "--planner-mode", help="smart/harmonic/bpm"),
+    processed_dir: Path | None = typer.Option(None, "--processed-dir",
+                                              help="Gdzie leżą wyniki analizy (cache)"),
+    analysis_depth: str = typer.Option("normal", "--analysis-depth", help="normal/deep"),
+    recompute: bool = typer.Option(False, "--recompute", help="Policz od nowa, ignoruj cache"),
+    context: str | None = _context_option(),
+    config: str = _config_option(),
+) -> None:
+    """Od folderu do cue w Rekordboksie jedną komendą — domyślnie bez zapisu.
+
+    Dotąd trzeba było uruchomić `smart-playlist`, znaleźć plik `.cues.json`, który
+    z niej wypadł, i podać go ręcznie do `cues write`. Dwa kroki i przenoszenie
+    pliku między nimi to jedyne, co dzieliło DJ-a od zagrania tego, co silnik
+    ułoży — a przenoszenie plików jest dokładnie tą czynnością, której DJ robić
+    nie powinien.
+
+    Domyślne zachowanie jest takie samo jak w `cues write`: plan i raport, zero
+    zapisu. Bezpieczeństwo nie jest tu powtórzone, tylko wołane z jednego miejsca
+    (`cues.plan_and_write`), żeby nie dało się go rozjechać między komendami.
+    """
+    from dancelab.workflows.smart_playlist import build_smart_playlist_from_folder
+    from dancelab.cli.cues import _load_bundle, plan_and_write
+
+    try:
+        result = build_smart_playlist_from_folder(
+            directory,
+            load_config(config),
+            target_track_count=count,
+            playlist_name=name,
+            processed_dir=processed_dir,
+            arc=arc,
+            planner_mode=planner_mode,
+            context=_resolve_context(context),
+            analysis_depth=analysis_depth,
+            recompute=recompute,
+        )
+    except ValueError as exc:
+        typer.secho(f"INPUT ERROR: {exc}", fg="red", err=True)
+        sys.exit(2)
+    except DanceLabError as exc:
+        typer.secho(f"ERROR: {exc}", fg="red", err=True)
+        sys.exit(1)
+
+    typer.echo(f"Set: {len(result.set_plan.track_order)} utworów "
+               f"· średnia zgodność przejść {result.set_plan.mean_transition_score}")
+    for failure in result.failed_tracks[:8]:
+        typer.secho(f"nie udało się przeanalizować {Path(failure.source_path).name}: "
+                    f"{failure.error}", fg="yellow")
+    typer.echo(f"Paczka cue: {result.bundle_path}\n")
+
+    # Paczka jest wczytywana z powrotem z dysku, a nie przekazywana w pamięci —
+    # dzięki temu ta komenda planuje z DOKŁADNIE tego pliku, który zostaje na
+    # dysku i który da się potem podać do `cues write` osobno. Gdyby te dwie
+    # drogi mogły się różnić, plik przestałby być dowodem tego, co się stało.
+    set_plan, analyses, windows = _load_bundle(Path(result.bundle_path))
+    plan_and_write(
+        set_plan, analyses, windows,
+        write_changes=write_changes, allow_live=allow_live, db=db,
+        playlist=True, playlist_name=name,
+    )
+
+
 @app.command(name="validate-annotations")
 def validate_annotations(
     annotations_dir: Path = typer.Argument(Path("data/annotations")),

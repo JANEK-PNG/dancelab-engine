@@ -20,6 +20,7 @@ import math
 import re
 import unicodedata
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 
 import numpy as np
 
@@ -88,6 +89,96 @@ def _normalize_artist_token(value: str) -> str:
     ascii_text = re.sub(r"\([^)]*\)", " ", ascii_text)
     ascii_text = re.sub(r"[^a-zA-Z0-9]+", " ", ascii_text).strip().lower()
     return re.sub(r"\s+", " ", ascii_text)
+
+
+# Ile utworów z jednej płyty wolno wziąć do setu. Dwa, bo jeden to zakaz
+# grania składanek, których DJ-e używają normalnie, a trzy na ośmiu to już
+# jest odtwarzanie cudzej kolejności zamiast układania własnej.
+MAX_PER_RELEASE = 2
+
+
+def _release_token(analysis: AnalysisResult) -> str | None:
+    """Z jakiego wydawnictwa jest ten utwór — po katalogu, w którym leży plik.
+
+    Janek zobaczył to na pierwszym secie, który wypuściliśmy do jego Rekordboxa:
+    siedem z ośmiu utworów pochodziło z tej samej ściągniętej składanki. Reguła
+    różnorodności zadziałała poprawnie i nie miała z tym nic wspólnego — ona
+    pilnuje ARTYSTY, a na tej składance każdy utwór jest innego artysty. Reguły
+    o wspólnym wydawnictwie po prostu nie było.
+
+    Metadanych albumu w analizie nie mamy, ale katalog jest wiarygodnym
+    zastępnikiem: pobrane albumy i składanki lądują w swoim folderze. To
+    heurystyka, nie fakt — dlatego jest miękka i wyłączalna (patrz niżej).
+    """
+    path = getattr(analysis.track, "source_path", None)
+    if not path:
+        return None
+    token = _normalize_artist_token(Path(str(path)).parent.name)
+    return token or None
+
+
+def _release_tokens(by_id: dict[str, AnalysisResult]) -> dict[str, str | None]:
+    """Tokeny wydawnictw — albo puste, gdy nie ma czego różnicować.
+
+    Jeśli CAŁA pula siedzi w jednym katalogu, ten katalog nie jest wydawnictwem,
+    tylko folderem z muzyką. Limit „dwa z płyty" obciąłby wtedy set do dwóch
+    utworów. Więc w takim wypadku reguła sama się wyłącza — brak różnorodności
+    do wymuszenia to nie jest powód, żeby odmówić ułożenia setu.
+    """
+    tokens = {tid: _release_token(a) for tid, a in by_id.items()}
+    distinct = {t for t in tokens.values() if t}
+    if len(distinct) <= 1:
+        return {tid: None for tid in tokens}
+    return tokens
+
+
+def _release_diverse_candidates(
+    candidates: list[str],
+    *,
+    order: Sequence[str],
+    release_tokens: dict[str, str | None],
+    max_per_release: int = MAX_PER_RELEASE,
+) -> list[str]:
+    """Odetnij kandydatów z płyty, z której wzięliśmy już dosyć.
+
+    Miękko, tak samo jak przy artyście: jeśli po odcięciu nie zostaje nikt,
+    wracamy do pełnej listy. Set niepełny byłby gorszy niż set z trzecim
+    utworem z tej samej składanki, a decyzję „lepiej mniej" podejmuje DJ,
+    nie silnik.
+    """
+    if not candidates:
+        return candidates
+    counts: dict[str, int] = {}
+    for track_id in order:
+        token = release_tokens.get(track_id)
+        if token:
+            counts[token] = counts.get(token, 0) + 1
+    allowed = [
+        track_id
+        for track_id in candidates
+        if not release_tokens.get(track_id)
+        or counts.get(release_tokens[track_id], 0) < max_per_release
+    ]
+    return allowed or candidates
+
+
+def _release_diversity_warnings(
+    order: Sequence[str],
+    release_tokens: dict[str, str | None],
+    max_per_release: int = MAX_PER_RELEASE,
+) -> list[str]:
+    """Powiedz wprost, gdy set i tak przekroczył limit — nie chowaj tego."""
+    counts: dict[str, int] = {}
+    for track_id in order:
+        token = release_tokens.get(track_id)
+        if token:
+            counts[token] = counts.get(token, 0) + 1
+    return [
+        f"{n} utworów z jednego wydawnictwa ({token}) — pula nie miała czego "
+        f"zaproponować zamiast"
+        for token, n in sorted(counts.items())
+        if n > max_per_release
+    ]
 
 
 def _artist_tokens(analysis: AnalysisResult) -> set[str]:
@@ -710,6 +801,7 @@ def _constrained_order(
     energy_range: float,
     target_profile: Sequence[float],
     artist_tokens: dict[str, set[str]],
+    release_tokens: dict[str, str | None],
     planner_mode: str,
     context: ContextProfile | None,
     mixability_precomputation: MixabilityPrecomputation,
@@ -728,6 +820,13 @@ def _constrained_order(
             open_slots = sum(1 for slot in range(index, target_count) if slot not in locked_slots)
             remaining_pinned = [track_id for track_id in pinned_track_ids if track_id in remaining]
             candidates = sorted(remaining_pinned if len(remaining_pinned) >= open_slots else remaining)
+            # Wydawnictwo przed artystą: jest grubszym sitem. Na składance każdy
+            # utwór ma innego artystę, więc sito artysty przepuszcza ją w całości.
+            candidates = _release_diverse_candidates(
+                candidates,
+                order=order,
+                release_tokens=release_tokens,
+            )
             candidates = _artist_diverse_candidates(
                 candidates,
                 order=order,
@@ -941,6 +1040,7 @@ def build_set(
         forced_opener_id=forced_opener_id,
     )
     artist_tokens = {tid: _artist_tokens(analysis) for tid, analysis in by_id.items()}
+    release_tokens = _release_tokens(by_id)
 
     novelty = NoveltyContext.build(
         mode=novelty_mode,
@@ -963,6 +1063,7 @@ def build_set(
             energy_range=e_range,
             target_profile=target_profile,
             artist_tokens=artist_tokens,
+            release_tokens=release_tokens,
             planner_mode=planner_mode,
             context=context,
             mixability_precomputation=mixability_precomputation,
@@ -1022,6 +1123,7 @@ def build_set(
         *constraint_warnings,
         *energy_warnings,
         *_artist_diversity_warnings(order, artist_tokens),
+        *_release_diversity_warnings(order, release_tokens),
         *_arc_shape_warnings(order, arc=arc, energy=energy, e_range=e_range),
         *novelty_warnings,
     ]

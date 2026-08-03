@@ -77,6 +77,41 @@ def write(
         help="Backup timestamp; defaults to now. Must be unique per backup.",
     ),
 ):
+    set_plan, analyses, windows = _load_bundle(bundle)
+    plan_and_write(
+        set_plan, analyses, windows,
+        mode=mode, on_conflict=on_conflict, review=review, write_changes=write_changes,
+        allow_live=allow_live, safe_swap=safe_swap, db=db, labels=labels,
+        backup_dir=backup_dir, playlist=playlist, playlist_name=playlist_name,
+        timestamp=timestamp,
+    )
+
+
+def plan_and_write(
+    set_plan: SetPlan,
+    analyses: dict,
+    windows: dict,
+    *,
+    mode: CueContentMode = CueContentMode.in_out,
+    on_conflict: ConflictAction = ConflictAction.merge,
+    review: bool = False,
+    write_changes: bool = False,
+    allow_live: bool = False,
+    safe_swap: bool = True,
+    db: Path | None = None,
+    labels: Path | None = None,
+    backup_dir: Path = DEFAULT_BACKUP_DIR,
+    playlist: bool = True,
+    playlist_name: str | None = None,
+    timestamp: str | None = None,
+) -> None:
+    """Plan cues against a library, report, and — only if asked — write them.
+
+    Split out of `write` so a set can go from builder to Rekordbox in one command
+    without a second trip through argument parsing. The safety rules live here and
+    nowhere else: plan-only is the default, the LIVE library needs `--allow-live`
+    on top of `--write`, and the writer takes a rollback backup of its own.
+    """
     timestamp = timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
     target_db = Path(db) if db is not None else DEFAULT_DB
     is_live = target_db.resolve() == DEFAULT_DB.resolve()
@@ -85,7 +120,6 @@ def write(
         typer.echo("Test on a copy first:  --db /path/to/copy.db --write")
         raise typer.Exit(2)
 
-    set_plan, analyses, windows = _load_bundle(bundle)
     label_map = load_cue_labels(labels)
     plan = plan_cues(set_plan, analyses=analyses, windows_by_track=windows,
                      labels=label_map, mode=mode)
@@ -102,6 +136,7 @@ def write(
             build_track_refs, match_tracks, remap_plan_content_ids,
         )
         from dancelab.ingestion.rekordbox_cue_writer import read_existing_cues
+        from dancelab.ingestion.rekordbox_grid_snap import snap_plan_to_rekordbox_grid
 
         rdb = Rekordbox6Database(path=str(target_db))
         mapping, unmatched = match_tracks(build_track_refs(analyses), rdb, tables)
@@ -110,6 +145,11 @@ def write(
         plan, dropped = remap_plan_content_ids(plan, mapping)
         for tid in dropped:
             typer.echo(f"⚠ dropped cues for unmatched track {tid}")
+        # Ostatni krok przed konfliktami: pozycje przechodzą z naszej siatki na
+        # siatkę Rekordboxa. Nasza wybiera MIEJSCE, jego rozstrzyga, gdzie ono
+        # leży — bo to jego takty widzi DJ na ekranie i na CDJ-u.
+        plan, snap_report = snap_plan_to_rekordbox_grid(plan, rdb, tables)
+        typer.echo(snap_report.render())
         existing_by_cid = read_existing_cues(rdb, tables)
         # ordered ContentIDs for the native playlist (full set order, matched only)
         playlist_ids = [mapping[tid] for tid in set_plan.track_order if tid in mapping]
@@ -127,7 +167,7 @@ def write(
 
     if not write_changes:
         typer.echo("\n(plan only — nothing written; pass --write to apply)")
-        raise typer.Exit(0)
+        return
 
     pl_name = (playlist_name or f"DanceLab set {timestamp}") if playlist else None
     from dancelab.ingestion.rekordbox_cue_writer import write_plan
