@@ -1,13 +1,49 @@
-"""Fast import preflight checks before full audio analysis."""
+"""Fast import preflight checks before full audio analysis.
+
+Co w bibliotece DJ-a NIE jest płytą, choć jest plikiem audio. Cztery rodzaje:
+nagrania własnych setów (40–120 min), cudze miksy ściągnięte do nauki, pętle
+i sample (kilka sekund) oraz stemy, które sami wyprodukowaliśmy.
+
+Progi 2–10 min są potwierdzone pomiarem 2026-08-03 na paśmie 130–135 BPM
+z biblioteki Janka: prawdziwe płyty rozciągają się od 2:53 do 8:48 przy medianie
+4:55, a jedyny odstający plik miał 52:13 (jego własny nagrany set „Open Deck").
+
+Ten moduł ISTNIAŁ i nie był wołany z żadnej ścieżki produktowej — dlatego to
+nagranie weszło do pierwszej listy kandydatów na set. Sprawdzenie po długości
+jest teraz wołane z `discover_audio_files` i z wyboru kandydatów po briefie.
+"""
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 MIN_TRACK_DURATION_SEC = 2 * 60.0
 MAX_TRACK_DURATION_SEC = 10 * 60.0
+
+# Nazwy plików, które wychodzą z NASZEJ separacji na stemy. Plik nazwany
+# dokładnie tak jest naszym produktem ubocznym, nie płytą do zagrania.
+STEM_NAMES = frozenset({"vocals", "drums", "bass", "other", "no_vocals", "accompaniment"})
+
+# Katalog, w którym Rekordbox zapisuje to, co DJ ZAGRAŁ. Nagranie setu ma tempo,
+# ma tonację i jest plikiem audio — po samych cechach nie różni się od płyty.
+_RECORDING_DIR = re.compile(r"(^|/)recordings?(/|$)", re.I)
+
+
+def suspicious_path_reason(path: str | Path) -> str | None:
+    """Powód widoczny po samej ścieżce, bez otwierania pliku — albo None.
+
+    Sprawdzenie po długości wymaga przeczytania nagłówka, a te dwa przypadki
+    da się rozstrzygnąć wcześniej i taniej, jeszcze przed listą do analizy.
+    """
+    p = Path(str(path))
+    if p.stem.strip().lower() in STEM_NAMES:
+        return "our own stem, not a record"
+    if _RECORDING_DIR.search(str(p.parent).replace("\\", "/")):
+        return "sits in a recordings folder - a set you played, not a record"
+    return None
 
 
 @dataclass(frozen=True)
@@ -46,9 +82,9 @@ def suspicious_duration_reason(
     if duration_sec is None:
         return None
     if duration_sec < min_sec:
-        return "shorter than 2 minutes"
+        return f"shorter than {min_sec / 60:.0f} minutes - a loop or a sample"
     if duration_sec > max_sec:
-        return "longer than 10 minutes"
+        return f"longer than {max_sec / 60:.0f} minutes - a mix or a recorded set"
     return None
 
 

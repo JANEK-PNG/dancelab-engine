@@ -59,11 +59,18 @@ def discover_audio_files(folder_path: str | Path, *, recursive: bool = True) -> 
         raise ValueError(f"folder_path does not exist: {folder}")
     if not folder.is_dir():
         raise ValueError(f"folder_path must be a directory: {folder}")
+    # `preflight` istniał od dawna i nie był wołany z żadnej ścieżki produktowej
+    # — dlatego 52-minutowe nagranie setu Janka trafiło do listy kandydatów.
+    # Tu działa jego tania połowa (po ścieżce); próg długości wymaga otwarcia
+    # pliku i pilnuje go wybór kandydatów.
+    from dancelab.ingestion.preflight import suspicious_path_reason
+
     iterator = folder.rglob("*") if recursive else folder.glob("*")
     return sorted(
         path
         for path in iterator
         if path.is_file() and path.suffix.lower() in SUPPORTED_EXTENSIONS
+        and suspicious_path_reason(path) is None
     )
 
 
