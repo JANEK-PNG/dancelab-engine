@@ -26,7 +26,13 @@ import unicodedata as U
 
 # Style, które brief wyklucza. Dopasowanie po fragmencie nazwy, bo Beatport pisze
 # „Melodic House & Techno" i „Afro House" — jedno słowo „house" łapie oba.
-DAYTIME = ("house", "afro", "melodic", "mainstage", "dance / pop", "pop", "loop samples")
+#
+# Lista rośnie razem z briefem: Janek dopisał techno, trap i jungle już po
+# pierwszym odsiewie. To jest normalne i tak ma być — brief jest wejściem, które
+# DJ poprawia, patrząc na to, co wypadło, a nie wróżbą na starcie.
+EXCLUDED = ("house", "afro", "melodic", "mainstage", "dance / pop", "pop",
+            "loop samples", "techno", "trap", "jungle")
+DAYTIME = EXCLUDED          # stara nazwa, zanim brief urósł poza „dzienne"
 
 # Style, które brief chce. Nie są wymagane — są premiowane w wypisie, żeby DJ
 # widział, ile z jego kierunku pula naprawdę ma.
@@ -92,7 +98,6 @@ def main() -> int:
 
     from dancelab.core.config import load_config, load_weights
     from dancelab.decision.set_builder import build_set
-    from dancelab.decision.transition_windows import detect_transition_windows
     from dancelab.workflows.smart_playlist import analyze_files, auto_analysis_workers
 
     pool, skipped = candidates(args.bpm_min, args.bpm_max, exclude=not args.keep_daytime)
@@ -145,10 +150,13 @@ def main() -> int:
     for w in plan.warnings:
         print(f"  ⚠ {w}")
 
-    windows = {
-        a.track.track_id: detect_transition_windows(a, weights)
-        for a in analyses if a.track.track_id in set(plan.track_order)
-    }
+    # Nie budujemy okien ręcznie: workflow ma na to jedno miejsce i to ono zna
+    # kształt wejścia oraz `transition_top_n` z konfiguracji. Napisanie tego
+    # drugi raz było błędem — i od razu się zemściło złą sygnaturą.
+    from dancelab.workflows.smart_playlist import _transition_windows_for_playlist
+
+    wybrane = [a for a in analyses if a.track.track_id in set(plan.track_order)]
+    windows = _transition_windows_for_playlist(wybrane, config=cfg)
     out = pathlib.Path(args.out or f"data/exports/{args.name}.cues.json")
     out.parent.mkdir(parents=True, exist_ok=True)
     import json

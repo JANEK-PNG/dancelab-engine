@@ -148,8 +148,23 @@ def tempo_plan(
     hi = float(np.percentile(known, 90))
     if hi - lo < 0.5:                      # cała pula na jednym tempie
         return [lo] * slots
+
+    # Plan idzie po KWANTYLACH puli, nie po rozciągnięciu od lo do hi. Różnica
+    # jest zmierzona i kosztowała cały ogon dwugodzinnego setu Janka: pula
+    # 130–140 jest dwugarbna (dużo płyt przy 132–136, garstka przy 140), więc
+    # plan rozłożony równomiernie prosił o siedem utworów po 140, gdy istniały
+    # cztery. Set wspinał się ładnie przez dwadzieścia pozycji, a potem musiał
+    # zejść na 132, bo nie było czym rosnąć.
+    #
+    # Po kwantylach każde piętro dostaje z definicji tyle płyt, ile plan prosi:
+    # jeśli 25% puli stoi przy 140, to plan spędza przy 140 ostatnią ćwiartkę
+    # setu, a nie połowę. Silnik nadal nie ma zdania o kształcie — ma zdanie
+    # o tym, co półka DJ-a jest w stanie obsadzić.
+    def _at(frac: float) -> float:
+        return float(np.quantile(known, min(max(frac, 0.0), 1.0)))
+
     if shape == TEMPO_SHAPE_LINEAR:
-        return [lo + (hi - lo) * i / max(slots - 1, 1) for i in range(slots)]
+        return [_at(i / max(slots - 1, 1)) for i in range(slots)]
     if shape == TEMPO_SHAPE_STAIRCASE:
         cycle = max(1, landing + flight)
         rises, level = [], 0
@@ -157,8 +172,8 @@ def tempo_plan(
             if i and i % cycle >= landing:
                 level += 1
             rises.append(level)
-        step = (hi - lo) / max(level, 1)
-        return [lo + step * r for r in rises]
+        top = max(rises) or 1
+        return [_at(r / top) for r in rises]
     return None
 
 
@@ -182,29 +197,50 @@ def _tempo_plan_candidates(
     if not plan or index >= len(plan) or not candidates:
         return candidates
     target = plan[index]
-    band = target * max_pitch_pct / 100.0
-    # Porównanie z uwzględnieniem oktawy: płyta zmierzona na 70 stoi na tej
-    # samej podłodze co plan 140 — grana jest tak samo, liczy się tylko, na
-    # której oktawie DJ ją odtwarza.
-    fits = []
+    # Pasmo rozszerzane STOPNIOWO, nie od razu do granicy pitchu. Pierwsza
+    # wersja brała wszystko w ±6% i to zepsuło cały set na dwie godziny: plan
+    # zaczynał się na 130, a pierwszy utwór wszedł na 137, bo mieścił się
+    # w paśmie. Set osiągnął 140 po sześciu płytach, wypalił wszystkie
+    # sto czterdziestki i na kolejnych piętnaście miejsc nie miał już czym
+    # rosnąć — więc zakaz schodzenia musiał ustąpić i tempo spadło na 133.
+    # Pasmo pitchu mówi, co DA SIĘ zagrać obok siebie; nie jest pozwoleniem na
+    # olanie planu. Więc najpierw blisko planu, a szerzej dopiero gdy pusto.
+    for tol in (1.0, 2.0, 4.0, max_pitch_pct):
+        fits = _within(candidates, target, bpm_of, tol, previous_bpm,
+                       descent_tolerance_bpm)
+        if fits:
+            return fits
+    return candidates
+
+
+def _within(
+    candidates: list[str],
+    target: float,
+    bpm_of: dict[str, float | None],
+    tol_pct: float,
+    previous_bpm: float | None,
+    descent_tolerance_bpm: float,
+) -> list[str]:
+    """Kandydaci mieszczący się w danym procencie od planu i nie schodzący w dół."""
+    band = target * tol_pct / 100.0
+    fits: list[str] = []
     for track_id in candidates:
         bpm = bpm_of.get(track_id)
         if bpm is None:
             fits.append(track_id)
             continue
+        # Porównanie z uwzględnieniem oktawy: płyta zmierzona na 70 stoi na tej
+        # samej podłodze co plan 140 — grana jest tak samo, liczy się tylko, na
+        # której oktawie DJ ją odtwarza.
         variant = nearest_bpm_variant(target, bpm)
         if variant is None or abs(variant - target) > band:
             continue
-        # Sam plan nie wystarcza i to jest zmierzone: przy paśmie pitchu ±6%
-        # (przy 120 to ±7 BPM) mieści się utwór wolniejszy o trzy uderzenia,
-        # więc set nadal skakał w górę i w dół wewnątrz pasma — 5 spadków tempa
-        # na 20 płytach, czyli tyle samo co bez planu. Słowo Janka brzmiało
-        # „tendencja raczej zwyżkowa, nie up and down", a to jest zakaz
-        # schodzenia, nie bliskość planu. Więc jest zapisany wprost.
+        # Zakaz schodzenia. Sama bliskość planu tego nie załatwia: zmierzone
+        # na 20 płytach dawało 5 spadków, czyli tyle co bez planu.
         if previous_bpm is not None and variant < previous_bpm - descent_tolerance_bpm:
             continue
         fits.append(track_id)
-    return fits or candidates
+    return fits
 
 
 def _tempo_plan_warnings(
@@ -962,22 +998,26 @@ def _constrained_order(
             open_slots = sum(1 for slot in range(index, target_count) if slot not in locked_slots)
             remaining_pinned = [track_id for track_id in pinned_track_ids if track_id in remaining]
             candidates = sorted(remaining_pinned if len(remaining_pinned) >= open_slots else remaining)
-            # Wydawnictwo przed artystą: jest grubszym sitem. Na składance każdy
-            # utwór ma innego artystę, więc sito artysty przepuszcza ją w całości.
-            candidates = _release_diverse_candidates(
-                candidates,
-                order=order,
-                release_tokens=release_tokens,
-            )
-            # Plan tempa jest wejściem DJ-a, więc zawęża pole zanim silnik
-            # zacznie wybierać po harmonii i energii — inaczej tempo znów
-            # byłoby skutkiem kolejności, a nie jej ramą.
+            # PLAN TEMPA IDZIE PIERWSZY. Kolejność sit nie jest kosmetyką:
+            # gdy różnorodność wydawnictwa szła przed nim, na 22. pozycji
+            # dwugodzinnego setu odcięła utwory z już użytych folderów — a to
+            # właśnie tam siedziały ostatnie płyty przy 140. Plan dostawał listę
+            # bez niczego szybkiego, ustępował i tempo spadało ze 140 na 132.
+            # Plan tempa to jawne wejście DJ-a; różnorodność to udogodnienie,
+            # które ma się układać wewnątrz jego ramy, a nie łamać ją.
             candidates = _tempo_plan_candidates(
                 candidates,
                 index=index,
                 plan=tempo_targets,
                 bpm_of=bpm_of,
                 previous_bpm=played_bpm,
+            )
+            # Wydawnictwo przed artystą: jest grubszym sitem. Na składance każdy
+            # utwór ma innego artystę, więc sito artysty przepuszcza ją w całości.
+            candidates = _release_diverse_candidates(
+                candidates,
+                order=order,
+                release_tokens=release_tokens,
             )
             candidates = _artist_diverse_candidates(
                 candidates,

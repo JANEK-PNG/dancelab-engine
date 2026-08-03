@@ -82,9 +82,9 @@ def suspicious_duration_reason(
     if duration_sec is None:
         return None
     if duration_sec < min_sec:
-        return f"shorter than {min_sec / 60:.0f} minutes - a loop or a sample"
+        return f"shorter than {min_sec / 60:.0f} minutes"
     if duration_sec > max_sec:
-        return f"longer than {max_sec / 60:.0f} minutes - a mix or a recorded set"
+        return f"longer than {max_sec / 60:.0f} minutes"
     return None
 
 
