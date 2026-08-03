@@ -136,7 +136,9 @@ def plan_and_write(
             build_track_refs, match_tracks, remap_plan_content_ids,
         )
         from dancelab.ingestion.rekordbox_cue_writer import read_existing_cues
-        from dancelab.ingestion.rekordbox_grid_snap import snap_plan_to_rekordbox_grid
+        from dancelab.ingestion.rekordbox_grid_snap import (
+            snap_plan_to_rekordbox_grid, tempo_disputes,
+        )
 
         rdb = Rekordbox6Database(path=str(target_db))
         mapping, unmatched = match_tracks(build_track_refs(analyses), rdb, tables)
@@ -150,6 +152,11 @@ def plan_and_write(
         # leży — bo to jego takty widzi DJ na ekranie i na CDJ-u.
         plan, snap_report = snap_plan_to_rekordbox_grid(plan, rdb, tables)
         typer.echo(snap_report.render())
+        # Pioneer policzył te płyty własnym algorytmem. Tam, gdzie się z nim nie
+        # zgadzamy, DJ ma o tym wiedzieć PRZED graniem — nie bierzemy jego liczby,
+        # tylko przestajemy udawać, że znamy swoją.
+        for line in tempo_disputes(analyses, mapping, rdb):
+            typer.echo(line)
         existing_by_cid = read_existing_cues(rdb, tables)
         # ordered ContentIDs for the native playlist (full set order, matched only)
         playlist_ids = [mapping[tid] for tid in set_plan.track_order if tid in mapping]

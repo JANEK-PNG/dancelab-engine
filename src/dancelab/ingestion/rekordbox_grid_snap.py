@@ -103,6 +103,63 @@ def rekordbox_downbeats(db, content) -> list[int]:
     return []
 
 
+# Powyżej ilu procent różnicy przestajemy twierdzić, że znamy tempo. 1,5% to
+# przy 130 BPM dwa uderzenia — tyle wystarczy, żeby po 32 taktach utwory się
+# rozjechały, więc to nie jest spór o zaokrąglenie.
+TEMPO_DISPUTE_PCT = 1.5
+
+
+def tempo_disputes(
+    analyses: dict,
+    mapping: dict,
+    db,
+    *,
+    threshold_pct: float = TEMPO_DISPUTE_PCT,
+) -> list[str]:
+    """Gdzie nasze tempo kłóci się z tempem Pioneera — zdania dla DJ-a.
+
+    Lipcowy wpis w rejestrze mówił, że trzeba dorobić cross-check tempogramem,
+    bo „Red Light Fever: silnik 120,01, realnie 117,45". Sprawdzone 2026-08-03
+    wprost na tym pliku: dopasowanie przy 120,00 wynosi 3,00, a przy 117,45
+    tylko 1,02 — i jest to wąski pik, nie plateau. Utwór stoi na 120. Rekordbox
+    mówi 120,02. Przesłanka tamtej poprawki była fałszywa i tamtej poprawki
+    nie ma po co pisać.
+
+    Ale klasa błędu istnieje, tylko inna. Na 191 płytach nasze tempo rozjeżdża
+    się z Rekordboxem powyżej 1,5% w czterech przypadkach, z czego TRZY silnik
+    oznaczył jako pewne — i wszystkie trzy to wybór oktawy albo relacji (70
+    zamiast 140, 69 zamiast 138, 101 zamiast 135), nie dryf. Tego tempogram by
+    nie złapał, a Pioneer łapie od razu.
+
+    Nie kopiujemy tu wartości Rekordboxa — on zostaje sędzią, nie składnikiem
+    odpowiedzi. Jedyne, co robimy, to przestajemy twierdzić, że wiemy, kiedy
+    dwa wiarygodne źródła mówią co innego (ADR-005).
+    """
+    out: list[str] = []
+    for track_id, content_id in mapping.items():
+        analysis = analyses.get(track_id)
+        if analysis is None or not analysis.beatgrid:
+            continue
+        ours = float(analysis.beatgrid.bpm or 0)
+        content = db.get_content(ID=content_id)
+        theirs = float(getattr(content, "BPM", 0) or 0) / 100.0
+        if ours <= 0 or theirs <= 0:
+            continue
+        # Oktawa nie jest sporem sama w sobie — ale jeśli po sprowadzeniu do
+        # wspólnej oktawy nadal się nie zgadzają, to jest.
+        variants = [ours * r for r in (0.25, 1 / 3, 0.5, 2 / 3, 0.75, 1.0, 4 / 3, 1.5, 2.0, 3.0, 4.0)]
+        closest = min(variants, key=lambda v: abs(v - theirs))
+        if abs(closest - theirs) / theirs * 100.0 <= threshold_pct:
+            continue
+        title = (analysis.track.title or track_id)[:44]
+        pewne = " (a silnik uznał siatkę za pewną)" if analysis.beatgrid.reliable else ""
+        out.append(
+            f"⚠ {title}: nasze tempo {ours:.2f}, Rekordbox {theirs:.2f} — "
+            f"nie zgadzamy się{pewne}. Sprawdź uchem przed graniem."
+        )
+    return out
+
+
 def _nearest(values: list[int], target: int) -> int:
     """Najbliższa wartość z posortowanej listy. Lista nigdy nie jest pusta."""
     import bisect
