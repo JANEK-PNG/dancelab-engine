@@ -183,16 +183,16 @@ def test_biblioteka_renderuje_i_filtruje_na_zywo():
     asyncio.run(go())
 
 
-def test_g_wysyla_filary_do_set_buildera(tmp_path, monkeypatch):
-    """G z <3 filarami odmawia i zostaje w Bibliotece; z 3 przenosi do Set
-    i odpala budowę."""
+def test_g_wstawia_szkic_filarow_bez_budowy(tmp_path, monkeypatch):
+    """G z <3 filarami odmawia; z 3 przenosi do Set jako SZKIC (bez budowy —
+    brief zostaje w grze), filary w tabeli oznaczone ⚑ i złotem."""
     import dancelab.tui.user_store as store
     monkeypatch.setattr(store, "STATE_PATH", tmp_path / "stan.json")
 
     async def go():
         app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
         async with app.run_test() as pilot:
-            from textual.widgets import TabbedContent
+            from textual.widgets import DataTable, Static, TabbedContent
             tc = app.query_one("#tabs", TabbedContent)
             app._set_library(list(LIB))
             await pilot.pause()
@@ -206,7 +206,38 @@ def test_g_wysyla_filary_do_set_buildera(tmp_path, monkeypatch):
                 {"track_id": "e", "path": "/m/e.mp3"})
             app.action_build_from_filary()
             await pilot.pause()
-            assert tc.active == "tab-set", "3 filary = jedziemy budować"
+            assert tc.active == "tab-set"
+            assert sorted(app._order) == ["a", "b", "e"], "szkic = same filary"
+            assert app._engine_order == [], "NIC nie zbudowano — brief czeka"
+            assert "SZKIC" in str(app.query_one("#progress", Static).render())
+            from textual.coordinate import Coordinate
+            from rich.text import Text
+            table = app.query_one("#set", DataTable)
+            cell = table.get_cell_at(Coordinate(0, 0))
+            assert isinstance(cell, Text) and str(cell).startswith("⚑")
+    asyncio.run(go())
+
+
+def test_sortowanie_klikiem_w_naglowek():
+    """Kolumna nazwa A-Z, BPM malejąco; braki ZAWSZE na końcu."""
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import DataTable
+            from textual.coordinate import Coordinate
+            app._set_library(list(LIB))
+            await pilot.pause()
+            table = app.query_one("#lib-table", DataTable)
+            app._lib_sort = (8, False)          # utwór A-Z
+            app._render_library()
+            await pilot.pause()
+            assert "Bez Tempa" in str(table.get_cell_at(Coordinate(0, 8)))
+            app._lib_sort = (2, True)           # BPM malejąco
+            app._render_library()
+            await pilot.pause()
+            assert "Hodge" in str(table.get_cell_at(Coordinate(0, 8)))
+            assert "Bez Tempa" in str(
+                table.get_cell_at(Coordinate(4, 8))), "brak tempa na końcu"
     asyncio.run(go())
 
 

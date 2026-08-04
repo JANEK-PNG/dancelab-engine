@@ -36,9 +36,14 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
   utwór, który MUSI zagrać w budowanym secie. Filarów jest **od 3 do 10** —
   silnik projektuje drogę MIĘDZY filarami, reszta należy do niego.
   Legenda z tymi skrótami jest cały czas widoczna nad tabelą.
-- **G** albo przycisk **„→ Zbuduj z filarów"** — przenosi do zakładki Set
-  i buduje set wokół zaznaczonych filarów. Potem dokooptowujesz utwory
-  jak zwykle: A dopisuje, Z podmienia, X wycina.
+- **G** albo przycisk **„→ Zbuduj z filarów"** — przenosi filary do zakładki
+  Set jako **szkic** (złote wiersze z flagą ⚑), CELOWO bez budowania: najpierw
+  uzupełniasz brief po lewej (minuty, okno tempa, gatunki, kotwica), dopiero
+  **B** buduje set wokół filarów. Filary zostają oznaczone ⚑ i złotem także
+  w gotowym secie. Potem dokooptowujesz utwory: A dopisuje, Z podmienia,
+  X wycina.
+- **Sortowanie**: klik w nagłówek kolumny sortuje (drugi klik odwraca);
+  utwory bez wartości idą zawsze na koniec.
 - Na dole wiersz **Analizuj**: wklej ścieżkę folderu z muzyką i kliknij —
   tak dogrywasz nowe pliki do puli (i tak zaczyna pierwszy użytkownik).
 

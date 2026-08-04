@@ -156,6 +156,56 @@ def _filary_for_build(state: dict, by_id: dict, bpm_min: float | None,
 # (i-1→i, i→i+1), dlatego gradient nie jest podpisany żadną liczbą (ADR-005).
 _INFLUENCE_RAMP = {1: "#5aa9d6", 2: "#3d7396", 3: "#2a4d64"}
 
+# Filary w tabeli setu: złota flaga ⚑ + złoty tekst. Kolor celowo z innej
+# rodziny niż niebieska poświata zasięgu — te dwa znaczenia nie mogą się mylić.
+PILLAR_COLOR = "#d9a441"
+
+
+def _lib_sort_missing(col: int, a, energy: dict) -> bool:
+    """Czy utwór nie ma wartości w sortowanej kolumnie — braki idą NA KONIEC
+    niezależnie od kierunku sortowania (brak to brak, nie zero)."""
+    t = a.track
+    if col == 2:
+        return t.bpm_estimate is None
+    if col == 3:
+        return t.key_estimate is None
+    if col == 4:
+        return t.key_confidence is None
+    if col == 5:
+        return energy.get(t.track_id) is None
+    if col == 6:
+        return not t.style_label
+    return False
+
+
+def _lib_sort_key(col: int, favs: set, filary: set, energy: dict):
+    """Klucz sortowania Biblioteki po klikniętej kolumnie (standard branży)."""
+    def name(a):
+        return pathlib.Path(a.track.source_path).stem.lower()
+
+    def key(a):
+        t = a.track
+        if col == 0:
+            return (t.track_id not in favs, name(a))
+        if col == 1:
+            return (t.track_id not in filary, name(a))
+        if col == 2:
+            return t.bpm_estimate or 0.0
+        if col == 3:
+            k = str(t.key_estimate or "")
+            num = int(k[:-1]) if len(k) > 1 and k[:-1].isdigit() else 99
+            return (num, k[-1:])
+        if col == 4:
+            return t.key_confidence or 0.0
+        if col == 5:
+            return energy.get(t.track_id) or 0
+        if col == 6:
+            return (t.style_label or "").lower()
+        if col == 7:
+            return t.duration_sec or 0.0
+        return name(a)
+    return key
+
 
 def influence_color(dist: int) -> str | None:
     return _INFLUENCE_RAMP.get(abs(dist))
@@ -289,6 +339,7 @@ class DanceLabTUI(App):
         self._lib_energy: dict[str, float | None] = {}   # tid → energia 0-100
         self._user_state: dict = {"ulubione_utwory": [],
                                   "ulubione_playlisty": [], "filary": []}
+        self._lib_sort: tuple[int, bool] = (2, False)   # domyślnie BPM rosnąco
 
     # ------------------------------------------------------------- układ
 
@@ -467,12 +518,16 @@ class DanceLabTUI(App):
         search, key, lo, hi, err = self._lib_filters()
         rows = filter_library(self._lib, search=search, key=key,
                               bpm_lo=lo, bpm_hi=hi)
-        rows.sort(key=lambda a: (a.track.bpm_estimate or 0,
-                                 str(a.track.key_estimate or "")))
         by_id = {a.track.track_id: a for a in self._lib}
         favs, _ = resolve_tracks(self._user_state["ulubione_utwory"], by_id)
         filary, _ = resolve_tracks(self._user_state["filary"], by_id)
         favs, filary = set(favs), set(filary)
+        col, rev = self._lib_sort
+        znane = [a for a in rows if not _lib_sort_missing(col, a, self._lib_energy)]
+        braki = [a for a in rows if _lib_sort_missing(col, a, self._lib_energy)]
+        znane.sort(key=_lib_sort_key(col, favs, filary, self._lib_energy),
+                   reverse=rev)
+        rows = znane + braki                 # braki zawsze na końcu
         section = getattr(self, "_lib_section", "all")
         if section == "fav":
             rows = [a for a in rows if a.track.track_id in favs]
@@ -501,7 +556,7 @@ class DanceLabTUI(App):
         info = (f"{sekcja}: {len(rows)} z {len(self._lib)} utworów   ·   "
                 f"filary: {len(self._user_state['filary'])} (min 3, max 10)"
                 f"   ·   ♥ {len(self._user_state['ulubione_utwory'])}"
-                f"   ·   U=♥  F=filar  G=zbuduj z filarów")
+                f"   ·   U=♥  F=filar  G=filary do Set  ·  sort: klik w nagłówek")
         if err:
             info += f"   ·   filtr BPM: {err}"
         self.query_one("#lib-count", Static).update(info)
@@ -541,6 +596,16 @@ class DanceLabTUI(App):
         if event.input.id in ("lib-search", "lib-key", "lib-bpm"):
             self._render_library()
 
+    def on_data_table_header_selected(self, event) -> None:
+        """Klik w nagłówek kolumny Biblioteki sortuje; drugi klik odwraca.
+        Tabela setu celowo NIE sortuje — tam kolejność JEST treścią."""
+        if getattr(event.data_table, "id", None) != "lib-table":
+            return
+        col = event.column_index
+        cur, rev = self._lib_sort
+        self._lib_sort = (col, not rev if col == cur else False)
+        self._render_library(keep_cursor=True)
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "go":
             self.action_build()          # przycisk robi to samo co B —
@@ -550,17 +615,52 @@ class DanceLabTUI(App):
             self.action_build_from_filary()
 
     def action_build_from_filary(self) -> None:
-        """G / przycisk w Bibliotece: filary → zakładka Set → budowa wokół nich.
-        Potem zwykła edycja: A dokooptowuje, Z podmienia, X wycina."""
-        from dancelab.tui.user_store import MIN_FILARY
+        """G / przycisk w Bibliotece: filary → zakładka Set jako SZKIC.
+
+        CELOWO BEZ automatycznej budowy (Janek 05.08: „przez to omijamy całą
+        sekcję briefu") — filary lądują w tabelce podświetlone na złoto,
+        użytkownik uzupełnia formularz i dopiero B buduje wokół nich."""
+        from dancelab.core.config import load_config, load_weights
+        from dancelab.tui.user_store import MIN_FILARY, resolve_tracks
         n = len(self._user_state["filary"])
         if n < MIN_FILARY:
             self.notify(f"do budowy z filarów trzeba minimum {MIN_FILARY} "
                         f"(masz {n}) — klawisz F w Bibliotece zaznacza",
                         severity="warning", timeout=6)
             return
+        if not self._lib:
+            self.notify("Biblioteka jeszcze się ładuje — chwila", timeout=4)
+            return
+        by_id = {a.track.track_id: a for a in self._lib}
+        ids, missing = resolve_tracks(self._user_state["filary"], by_id)
+        for m in missing:
+            self._note(f"FILAR nieobecny w puli (pominięty): {m}")
+        if len(ids) < MIN_FILARY:
+            self.notify(f"po dopasowaniu do puli zostało {len(ids)} filarów "
+                        f"(minimum {MIN_FILARY}) — szczegóły pod L",
+                        severity="warning", timeout=6)
+            return
+        try:
+            p = self._params()
+        except ValueError as exc:
+            self.notify(f"popraw formularz: {exc}", severity="warning", timeout=6)
+            return
+        cfg = load_config("configs/default.yaml")
+        self._ctx = dict(by_id=by_id, weights=load_weights(cfg.weights_file),
+                         arc=p["arc"], planner=p["planner"],
+                         bpm_min=p["bpm_min"], bpm_max=p["bpm_max"],
+                         anchor=None, params=p, filary=list(ids))
+        self._order = list(ids)
+        self._engine_order = []
+        self._edits = []
+        self._mean_score = None
+        self._plan_name = "TUI filary"
         self.query_one("#tabs", TabbedContent).active = "tab-set"
-        self.action_build()
+        self._render_order(by_id)
+        self.query_one("#progress", Static).update(
+            f"SZKIC: {len(ids)} filarów (⚑ złote) — uzupełnij brief po lewej "
+            f"i naciśnij B; filary MUSZĄ zagrać w zbudowanym secie")
+        self._note(f"filary wstawione jako szkic: {len(ids)} — budowa po B")
 
     @work(thread=True, exclusive=True, group="lib")
     def _lib_analyze_worker(self) -> None:
@@ -770,7 +870,8 @@ class DanceLabTUI(App):
             bpm_min=p["bpm_min"], bpm_max=p["bpm_max"],
             anchor=(anchor.centroid if anchor else None),
             params=p,
-        )
+            filary=filary,   # już po mapowaniu na egzemplarze kanoniczne —
+        )                    # flagi ⚑ w tabeli muszą trafiać w to, co GRA
         notes = [*emb.notes, *gen.notes, *filar_notes,
                  f"dokarmione: wektory {emb.attached}, gatunki {gen.attached}"]
         self._plan_name = (f"TUI {p['dj'] or 'set'} "
@@ -788,11 +889,18 @@ class DanceLabTUI(App):
             self._note(note)
 
     def _render_order(self, by_id) -> None:
+        from rich.text import Text
+        from dancelab.tui.user_store import resolve_tracks
         table = self.query_one("#set", DataTable)
         table.clear()
         total = 0.0
         self._plan_paths = []
         self._row_cells = []
+        # flagi z kontekstu budowy (id już po mapowaniu duplikatów);
+        # bez kontekstu (świeży szkic/wczytany plan) — ze stanu użytkownika
+        filary = set(self._ctx.get("filary") or
+                     resolve_tracks(self._user_state.get("filary", []),
+                                    by_id)[0])
         for i, tid in enumerate(self._order, 1):
             t = by_id[tid].track
             total += t.duration_sec or 0
@@ -800,14 +908,18 @@ class DanceLabTUI(App):
             key = str(t.key_estimate or "?")
             key_cell = key if (conf or 0) >= 0.5 else f"[dim]{key}?[/]"
             name = pathlib.Path(t.source_path).stem[:46]
+            is_filar = tid in filary
+            nr = f"⚑{i}" if is_filar else str(i)
+            base = PILLAR_COLOR if is_filar else None
             table.add_row(
-                str(i), f"{t.bpm_estimate or 0:.1f}", key_cell,
+                Text(nr, style=f"bold {base}") if base else nr,
+                f"{t.bpm_estimate or 0:.1f}", key_cell,
                 f"{conf:.2f}" if conf is not None else "—",
                 (t.style_label or "")[:22], f"{total/60:5.1f}",
-                name,
+                Text(name, style=base) if base else name,
             )
             self._plan_paths.append(t.source_path)
-            self._row_cells.append((str(i), name))
+            self._row_cells.append((nr, name, base))
         self._paint_influence(table.cursor_row)
         n = len(self._order)
         score = self._mean_score if self._mean_score is not None else "—"
@@ -823,7 +935,9 @@ class DanceLabTUI(App):
             self._paint_influence(event.cursor_row)
 
     def _paint_influence(self, sel: int | None) -> None:
-        """Gasnąca poświata wokół zaznaczenia — patrz notka przy _INFLUENCE_RAMP."""
+        """Gasnąca poświata wokół zaznaczenia — patrz notka przy _INFLUENCE_RAMP.
+        Filar pod poświatą przyjmuje jej kolor, ale flaga ⚑ w tekście zostaje —
+        tożsamość filaru nie znika przy ruchu kursora."""
         if sel is None or not self._row_cells:
             return
         from rich.text import Text
@@ -831,8 +945,8 @@ class DanceLabTUI(App):
         table = self.query_one("#set", DataTable)
         if table.row_count != len(self._row_cells):
             return                        # w trakcie przebudowy tabeli — odpuść
-        for i, (nr, name) in enumerate(self._row_cells):
-            color = influence_color(i - sel)
+        for i, (nr, name, base) in enumerate(self._row_cells):
+            color = influence_color(i - sel) or base
             for col, raw in ((0, nr), (6, name)):
                 value = Text(raw, style=color) if color else raw
                 table.update_cell_at(Coordinate(i, col), value)
