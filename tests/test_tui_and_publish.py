@@ -49,6 +49,77 @@ def test_tui_wstaje_i_ma_formularz():
     asyncio.run(go())
 
 
+def test_tui_edycje_bez_setu_odmawiaja_z_powodem():
+    """X/A/S/V/Z przed budową = odmowa z powodem, nie traceback."""
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            for key in ("x", "a", "s", "v", "z"):
+                await pilot.press(key)
+                await pilot.pause()
+            lines = " ".join(str(l) for l in app.query_one("#warnings").lines)
+            assert lines.count("najpierw zbuduj") >= 5
+    asyncio.run(go())
+
+
+def _fake_pool(*tids):
+    class _T:
+        def __init__(self, tid):
+            self.track_id = tid
+            self.source_path = f"/m/{tid}.mp3"
+            self.duration_sec = 300.0
+            self.bpm_estimate = 130.0
+            self.key_estimate = "8A"
+            self.key_confidence = 0.9
+            self.style_label = "test"
+            self.sound_embedding = None
+
+    class _A:
+        def __init__(self, tid):
+            self.track = _T(tid)
+            self.features = []
+    return {tid: _A(tid) for tid in tids}
+
+
+def test_tui_ciecie_i_przesuniecie_loguja_werdykty(tmp_path, monkeypatch):
+    """X wycina, Shift+↑ przesuwa; oba ruchy lądują w dzienniku werdyktów."""
+    import dancelab.tui.app as app_mod
+    monkeypatch.setattr(app_mod, "WERDYKTY_DIR", tmp_path)
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            by_id = _fake_pool("A", "B", "C")
+            app._ctx = dict(by_id=by_id, weights=None, arc="build",
+                            planner="smart", bpm_min=None, bpm_max=None,
+                            anchor=None, params={})
+            app._order = ["A", "B", "C"]
+            app._engine_order = ["A", "B", "C"]
+            app._render_order(by_id)
+            await pilot.pause()
+            from textual.widgets import DataTable
+            table = app.query_one("#set", DataTable)
+            table.move_cursor(row=1)
+            table.focus()
+            await pilot.press("x")            # wycina B
+            await pilot.pause()
+            assert app._order == ["A", "C"]
+            await pilot.press("shift+up")     # C przed A
+            await pilot.pause()
+            assert app._order == ["C", "A"]
+            await pilot.press("v")            # świadomy werdykt
+            await pilot.pause()
+            assert len(app._edits) == 2
+    asyncio.run(go())
+
+    log = (tmp_path / "tui_edycje.jsonl").read_text().splitlines()
+    assert len(log) == 2 and '"ciecie"' in log[0] and '"przesuniecie"' in log[1]
+    werdykty = list(tmp_path.glob("tui_werdykt_*.json"))
+    assert len(werdykty) == 1
+    tekst = werdykty[0].read_text()
+    assert '"plan_silnika"' in tekst and '"stan_dja"' in tekst
+
+
 def test_tui_odmowa_budowy_pokazuje_powod():
     """Pusta pula = ODMOWA z powodem w panelu ostrzeżeń, nie traceback."""
     async def go():

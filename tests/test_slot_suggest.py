@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from dancelab.decision.slot_suggest import suggest_for_slot
+from dancelab.decision.slot_suggest import suggest_for_insertion, suggest_for_slot
 
 
 class _Track:
@@ -87,3 +87,37 @@ def test_top_k_przycina():
     by_id = _pool(*specs)
     out = suggest_for_slot(by_id, ["A", "B"], 1, k=10, score_fn=_fixed({}))
     assert len(out) == 10
+
+
+# --- dopisywanie: szczelina MIĘDZY utworami, nikt nie wypada ---------------
+
+def test_dopisanie_ocenia_szczeline_miedzy_sasiadami():
+    by_id = _pool(("A", 130, None), ("B", 130, None),
+                  ("X", 130, None), ("Y", 130, None))
+    scores = {("A", "X"): 0.9, ("X", "B"): 0.9,   # X: średnia 0.9
+              ("A", "Y"): 0.5, ("Y", "B"): 0.5}   # Y: średnia 0.5
+    out = suggest_for_insertion(by_id, ["A", "B"], 0, score_fn=_fixed(scores))
+    assert [s.track_id for s in out] == ["X", "Y"]
+    assert out[0].score == pytest.approx(0.9)
+    assert "wejście" in out[0].why and "wyjście" in out[0].why
+
+
+def test_dopisanie_za_ostatnim_to_brzeg():
+    by_id = _pool(("A", 130, None), ("B", 130, None), ("X", 130, None))
+    out = suggest_for_insertion(by_id, ["A", "B"], 1, score_fn=_fixed({}))
+    assert [s.track_id for s in out] == ["X"]
+    assert "brzeg setu" in out[0].why
+
+
+def test_dopisanie_wyklucza_utwory_z_setu():
+    by_id = _pool(("A", 130, None), ("B", 130, None))
+    out = suggest_for_insertion(by_id, ["A", "B"], 0, score_fn=_fixed({}))
+    assert out == []
+
+
+def test_dopisanie_odmawia_poza_setem_i_na_pustym():
+    by_id = _pool(("A", 130, None))
+    with pytest.raises(ValueError):
+        suggest_for_insertion(by_id, ["A"], 3, score_fn=_fixed({}))
+    with pytest.raises(ValueError):
+        suggest_for_insertion(by_id, [], 0, score_fn=_fixed({}))

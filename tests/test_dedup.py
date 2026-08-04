@@ -42,3 +42,28 @@ def test_dedupe_keeps_missing_files_never_merges_on_uncertainty(tmp_path):
     unique, warnings = dedupe_by_audio(analyses)
     assert [x.track.track_id for x in unique] == ["gone1", "gone2", "real"]  # nothing merged
     assert warnings == []
+
+
+def test_dedupe_survives_unreadable_file(tmp_path, monkeypatch):
+    """stat() succeeds but open() is denied (macOS TCC on ~/Music) — the file
+    is kept as-is and the build lives on. Caught live 04.08: one unreadable
+    mp3 killed the whole TUI build with ODMOWA."""
+    import dancelab.decision.dedup as dedup_mod
+
+    locked = tmp_path / "locked.mp3"
+    locked.write_bytes(b"CANNOT-READ")
+    ok = tmp_path / "ok.mp3"
+    ok.write_bytes(b"FINE")
+
+    real_checksum = dedup_mod.file_checksum
+
+    def deny_locked(path):
+        if path.name == "locked.mp3":
+            raise PermissionError(1, "Operation not permitted", str(path))
+        return real_checksum(path)
+
+    monkeypatch.setattr(dedup_mod, "file_checksum", deny_locked)
+    analyses = [_analysis("locked", str(locked)), _analysis("ok", str(ok))]
+    unique, warnings = dedupe_by_audio(analyses)
+    assert [x.track.track_id for x in unique] == ["locked", "ok"]
+    assert warnings == []

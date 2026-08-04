@@ -29,11 +29,22 @@ cd ~/Developer/dancelab-engine && .venv/bin/dancelab tui
 3. Klikasz utwór w tabeli i **Z** — po prawej otwiera się panel z 10 propozycjami
    podmiany, ocenianymi w TYM miejscu setu (jak wchodzi po poprzednim i jak
    wychodzi w następny). Klikasz propozycję i znów **Z** — podmiana zrobiona.
-4. **W** — wgrywa playlistę do Rekordboxa. **Rekordbox musi być ZAMKNIĘTY** —
+4. **Edycja setu** (te same ruchy, które robiłeś ręcznie w Rekordboksie):
+   - **X** — wycina zaznaczony utwór;
+   - **Shift+↑ / Shift+↓** — przesuwa zaznaczony utwór w górę/dół;
+   - **A** — dopisuje NOWY utwór ZA zaznaczonym: panel 10 propozycji jak przy Z,
+     klik + drugie **A** dopisuje (nikt nie wypada).
+   Każda taka edycja zapisuje się jako Twój werdykt — silnik się z nich uczy.
+5. **S** — zapisuje plan na dysk; **O** — wczytuje zapisany plan (także po
+   ponownym uruchomieniu aplikacji; utwory, których nie ma już w puli, są
+   pomijane z wyraźną notką).
+6. **V** — świadomy werdykt: zrzuca obok siebie „co ułożył silnik" i „co
+   zostawiłeś po swoich zmianach".
+7. **W** — wgrywa playlistę do Rekordboxa. **Rekordbox musi być ZAMKNIĘTY** —
    inaczej aplikacja odmówi i nic nie dotknie. Przed każdym zapisem sama robi
    kopię bazy (`DanceLab_backups/`), a po zapisie sprawdza odczytem, czy w bazie
    jest dokładnie to, co miało być.
-5. **Esc** — zamyka panel podmian albo przerywa budowę. **Q** — wyjście.
+8. **Esc** — zamyka panel po prawej albo przerywa budowę. **Q** — wyjście.
 
 ## Jak czytać ekran (zasada uczciwości)
 

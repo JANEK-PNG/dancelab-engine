@@ -7,6 +7,10 @@ w następny — dokładnie tym samym `transition_score`, którym set powstał.
 Kotwica brzmienia (gdy była użyta przy budowie) dokłada się tą samą wagą,
 którą dokładała się przy budowie — sugestie nie mogą mieć innego gustu niż set.
 
+Drugi wariant tej samej szczeliny (Janek, 04.08 wieczór: „dopiszmy kilka
+utworów"): `suggest_for_insertion` ocenia kandydata MIĘDZY dwoma istniejącymi
+utworami, niczego nie wyrzucając — szczelina to (order[i], order[i+1]).
+
 Uczciwość: kandydaci przechodzą przez te same sita co budowa (okno tempa,
 higiena puli); gdy szczelina jest na brzegu setu, oceniana jest jedna strona
 i mówi to wprost w polu `why`.
@@ -44,33 +48,28 @@ def _default_score_fn(weights, arc: str, planner_mode: str,
     return fn
 
 
-def suggest_for_slot(
+def _suggest_for_gap(
     by_id: dict[str, AnalysisResult],
-    order: Sequence[str],
-    index: int,
+    prev_id: str | None,
+    next_id: str | None,
+    exclude: set[str],
     *,
-    k: int = 10,
-    weights=None,
-    arc: str = "build",
-    planner_mode: str = "smart",
-    energy: dict[str, float] | None = None,
-    energy_range: float = 1.0,
-    bpm_min: float | None = None,
-    bpm_max: float | None = None,
-    anchor: Sequence[float] | None = None,
-    anchor_weight: float = DEFAULT_ANCHOR_WEIGHT,
-    score_fn: Callable[[AnalysisResult, AnalysisResult], float] | None = None,
+    k: int,
+    weights,
+    arc: str,
+    planner_mode: str,
+    energy: dict[str, float] | None,
+    energy_range: float,
+    bpm_min: float | None,
+    bpm_max: float | None,
+    anchor: Sequence[float] | None,
+    anchor_weight: float,
+    score_fn: Callable[[AnalysisResult, AnalysisResult], float] | None,
 ) -> list[SlotSuggestion]:
-    """Najlepsi kandydaci do podmiany `order[index]`, posortowani malejąco."""
-    if not (0 <= index < len(order)):
-        raise ValueError(f"index {index} poza setem ({len(order)} pozycji)")
+    """Wspólny rdzeń: oceń kandydatów w szczelinie (prev → kandydat → next)."""
     if score_fn is None:
         score_fn = _default_score_fn(weights, arc, planner_mode,
                                      energy or {}, energy_range)
-
-    prev_id = order[index - 1] if index > 0 else None
-    next_id = order[index + 1] if index + 1 < len(order) else None
-    in_set = set(order)
 
     anchor_vec = None
     if anchor is not None:
@@ -79,7 +78,7 @@ def suggest_for_slot(
 
     out: list[SlotSuggestion] = []
     for tid, analysis in by_id.items():
-        if tid in in_set:
+        if tid in exclude:
             continue
         bpm = analysis.track.bpm_estimate or 0.0
         if bpm_min is not None and bpm < bpm_min:
@@ -114,3 +113,72 @@ def suggest_for_slot(
 
     out.sort(key=lambda s: (-s.score, s.track_id))
     return out[:k]
+
+
+def suggest_for_slot(
+    by_id: dict[str, AnalysisResult],
+    order: Sequence[str],
+    index: int,
+    *,
+    k: int = 10,
+    weights=None,
+    arc: str = "build",
+    planner_mode: str = "smart",
+    energy: dict[str, float] | None = None,
+    energy_range: float = 1.0,
+    bpm_min: float | None = None,
+    bpm_max: float | None = None,
+    anchor: Sequence[float] | None = None,
+    anchor_weight: float = DEFAULT_ANCHOR_WEIGHT,
+    score_fn: Callable[[AnalysisResult, AnalysisResult], float] | None = None,
+) -> list[SlotSuggestion]:
+    """Najlepsi kandydaci do PODMIANY `order[index]`, posortowani malejąco."""
+    if not (0 <= index < len(order)):
+        raise ValueError(f"index {index} poza setem ({len(order)} pozycji)")
+    return _suggest_for_gap(
+        by_id,
+        order[index - 1] if index > 0 else None,
+        order[index + 1] if index + 1 < len(order) else None,
+        set(order),
+        k=k, weights=weights, arc=arc, planner_mode=planner_mode,
+        energy=energy, energy_range=energy_range,
+        bpm_min=bpm_min, bpm_max=bpm_max,
+        anchor=anchor, anchor_weight=anchor_weight, score_fn=score_fn)
+
+
+def suggest_for_insertion(
+    by_id: dict[str, AnalysisResult],
+    order: Sequence[str],
+    after_index: int,
+    *,
+    k: int = 10,
+    weights=None,
+    arc: str = "build",
+    planner_mode: str = "smart",
+    energy: dict[str, float] | None = None,
+    energy_range: float = 1.0,
+    bpm_min: float | None = None,
+    bpm_max: float | None = None,
+    anchor: Sequence[float] | None = None,
+    anchor_weight: float = DEFAULT_ANCHOR_WEIGHT,
+    score_fn: Callable[[AnalysisResult, AnalysisResult], float] | None = None,
+) -> list[SlotSuggestion]:
+    """Najlepsi kandydaci do DOPISANIA za `order[after_index]` — nikt nie wypada.
+
+    Szczelina to (order[after_index], order[after_index+1]); za ostatnim
+    utworem szczelina ma jedną stronę i `why` mówi o brzegu setu.
+    """
+    if not order:
+        raise ValueError("pusty set — nie ma za czym dopisywać (najpierw budowa)")
+    if not (0 <= after_index < len(order)):
+        raise ValueError(
+            f"after_index {after_index} poza setem ({len(order)} pozycji)")
+    return _suggest_for_gap(
+        by_id,
+        order[after_index],
+        order[after_index + 1] if after_index + 1 < len(order) else None,
+        set(order),
+        k=k, weights=weights, arc=arc, planner_mode=planner_mode,
+        energy=energy, energy_range=energy_range,
+        bpm_min=bpm_min, bpm_max=bpm_max,
+        anchor=anchor, anchor_weight=anchor_weight, score_fn=score_fn)

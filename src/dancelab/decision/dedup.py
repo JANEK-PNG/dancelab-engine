@@ -32,7 +32,12 @@ def _cached_checksum(source_path: str | None) -> str | None:
     key = (str(path), stat.st_size, stat.st_mtime_ns)
     cached = _checksum_cache.get(key)
     if cached is None:
-        cached = file_checksum(path)
+        try:
+            cached = file_checksum(path)
+        except OSError:
+            # stat() may succeed where open() is denied (macOS TCC on ~/Music):
+            # an unreadable file is kept as-is, it must never kill the build
+            return None
         _checksum_cache[key] = cached
     return cached
 

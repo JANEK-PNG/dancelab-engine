@@ -15,6 +15,12 @@ Zasada ADR-005 jako zasada UI: każde „nie wiem" silnika ma swój piksel —
 `SetPlan.warnings` są stale widoczne pod tabelą, nigdy zwinięte; tonacja
 o pewności <0,5 jest przygaszona; pasek statusu mówi wprost, czy Rekordbox
 jest otwarty (wtedy `W` odmawia, zanim spróbuje).
+
+Edycja gotowego setu (audyt 04.08: brakowało DOKŁADNIE ruchów, którymi Janek
+werdyktował piątkowy set ręcznie w Rekordboksie): X wycina, Shift+↑/↓ przesuwa,
+A dopisza przez ten sam panel sugestii co Z, S/O zapisuje i wczytuje plan,
+V zrzuca werdykt „plan silnika vs stan po Twoich zmianach". Każda edycja
+ląduje w dzienniku werdyktów — to rosnąca prawda o guście DJ-a.
 """
 
 from __future__ import annotations
@@ -48,6 +54,10 @@ PROCESSED_DEFAULT = "experiments_priv/2026-07-30_rebuild/processed"
 # a „Janek.mp3" (43-minutowy cudzy set) wskoczył kiedyś na 1. miejsce.
 STEM_NAMES = {"drums", "bass", "other", "vocals", "no_vocals", "accompaniment"}
 MAX_TRACK_SEC = 15 * 60
+
+# Dziennik werdyktów DJ-a: każda ręczna edycja setu (podmiana, cięcie,
+# przesunięcie, dopisanie) to darmowa prawda o guście — dopisujemy, nie gubimy.
+WERDYKTY_DIR = pathlib.Path("experiments_priv/2026-08-04_werdykty")
 
 
 def _parse_bpm(text: str) -> tuple[float | None, float | None, str | None]:
@@ -83,7 +93,14 @@ class DanceLabTUI(App):
     BINDINGS = [
         Binding("b", "build", "Buduj"),
         Binding("w", "write", "→ Rekordbox"),
-        Binding("z", "replace", "Zamień utwór"),
+        Binding("z", "replace", "Zamień"),
+        Binding("x", "cut", "Wytnij"),
+        Binding("a", "add", "Dopisz"),
+        Binding("shift+up", "move_up", "przesuń ▲", show=False),
+        Binding("shift+down", "move_down", "przesuń ▼", show=False),
+        Binding("s", "save_plan", "Zapisz plan"),
+        Binding("o", "load_plan", "Wczytaj"),
+        Binding("v", "verdict", "Werdykt"),
         Binding("escape", "cancel", "Anuluj"),
         Binding("q", "quit", "Wyjdź"),
     ]
@@ -95,9 +112,12 @@ class DanceLabTUI(App):
         self._plan_paths: list[str] = []
         self._plan_name = ""
         self._order: list[str] = []
+        self._engine_order: list[str] = []
+        self._edits: list[dict] = []
         self._mean_score = None
         self._ctx: dict = {}
         self._suggest_slot: int | None = None
+        self._panel_mode: str | None = None   # "suggest" | "insert" | "plans"
 
     # ------------------------------------------------------------- układ
 
@@ -207,12 +227,28 @@ class DanceLabTUI(App):
             planner=get("#planner", Select).value,
         )
 
+    def _library_analyses(self):
+        """Pula z cache analiz + higiena (stemy, >15 min, brakujące pliki)."""
+        from dancelab.storage.repositories import FileAnalysisRepository
+        repo = FileAnalysisRepository(self.processed_dir)
+        analyses = [repo.get(t) for t in repo.list_track_ids()]
+        before = len(analyses)
+        analyses = [a for a in analyses
+                    if pathlib.Path(a.track.source_path).exists()
+                    and pathlib.Path(a.track.source_path).stem.strip().lower()
+                    not in STEM_NAMES
+                    and (a.track.duration_sec or 0) <= MAX_TRACK_SEC]
+        notes = []
+        if before - len(analyses):
+            notes.append(f"higiena puli: odrzucone {before - len(analyses)} "
+                         f"(stemy / pliki >15 min / brak pliku)")
+        return analyses, notes
+
     def _build_plan(self):
         from dancelab.core.config import load_config, load_weights
         from dancelab.decision.set_builder import build_set
         from dancelab.ingestion.analysis_enrichment import (
             attach_rekordbox_genres, attach_sound_embeddings)
-        from dancelab.storage.repositories import FileAnalysisRepository
         from dancelab.workflows.smart_playlist import (
             analyze_files, discover_audio_files, estimate_track_count_for_duration)
 
@@ -237,18 +273,9 @@ class DanceLabTUI(App):
                 ui(self._note, f"nie przeanalizowano {pathlib.Path(f.source_path).name}: {f.error}")
         else:
             ui(progress.update, "Wczytuję analizy z biblioteki…")
-            repo = FileAnalysisRepository(self.processed_dir)
-            analyses = [repo.get(t) for t in repo.list_track_ids()]
-            before = len(analyses)
-            analyses = [a for a in analyses
-                        if pathlib.Path(a.track.source_path).exists()
-                        and pathlib.Path(a.track.source_path).stem.strip().lower()
-                        not in STEM_NAMES
-                        and (a.track.duration_sec or 0) <= MAX_TRACK_SEC]
-            dropped = before - len(analyses)
-            if dropped:
-                ui(self._note, f"higiena puli: odrzucone {dropped} "
-                               f"(stemy / pliki >15 min / brak pliku)")
+            analyses, hygiene = self._library_analyses()
+            for note in hygiene:
+                ui(self._note, note)
         if self._stop.is_set():
             raise ValueError("anulowane")
         if not analyses:
@@ -281,6 +308,7 @@ class DanceLabTUI(App):
             arc=p["arc"], planner=p["planner"],
             bpm_min=p["bpm_min"], bpm_max=p["bpm_max"],
             anchor=(anchor.centroid if anchor else None),
+            params=p,
         )
         notes = [*emb.notes, *gen.notes,
                  f"dokarmione: wektory {emb.attached}, gatunki {gen.attached}"]
@@ -291,6 +319,8 @@ class DanceLabTUI(App):
 
     def _show_plan(self, plan, by_id, extra_notes) -> None:
         self._order = list(plan.track_order)
+        self._engine_order = list(plan.track_order)   # pierwotny plan — do werdyktu V
+        self._edits = []
         self._mean_score = plan.mean_transition_score
         self._render_order(by_id)
         for note in [*plan.warnings, *extra_notes]:
@@ -315,10 +345,11 @@ class DanceLabTUI(App):
             )
             self._plan_paths.append(t.source_path)
         n = len(self._order)
+        score = self._mean_score if self._mean_score is not None else "—"
         self.query_one("#progress", Static).update(
             f"SET: {n} utworów · {total/60:.0f} min pełnych "
             f"(~{max(0,(total-75*(n-1)))/60:.0f} min przy blendach 75 s) "
-            f"· zgodność {self._mean_score}")
+            f"· zgodność {score}")
 
     # ------------------------------------------------------------- zapis
 
@@ -328,38 +359,106 @@ class DanceLabTUI(App):
             return
         self._write_worker()
 
-    def action_replace(self) -> None:
+    # Panel po prawej gra w trzech trybach tym samym wzorcem dwóch naciśnięć
+    # (klik/strzałki = wybierz, ten sam klawisz = potwierdź, Esc = zostaw):
+    # Z podmienia, A dopisza, O wczytuje plan.
+
+    def _panel_choice(self, mode: str) -> str | None:
+        """Podświetlony wybór, jeśli panel otwarty w danym trybie."""
         panel = self.query_one("#suggest")
         lst = self.query_one("#suggest-list", OptionList)
-        # FAZA 2: panel otwarty i podświetlona sugestia → drugie Z zamienia.
-        if panel.has_class("open") and self._suggest_slot is not None \
+        if panel.has_class("open") and self._panel_mode == mode \
                 and lst.highlighted is not None:
-            choice = lst.get_option_at_index(lst.highlighted).id
+            return lst.get_option_at_index(lst.highlighted).id
+        return None
+
+    def _close_panel(self) -> None:
+        self.query_one("#suggest").remove_class("open")
+        self._suggest_slot = None
+        self._panel_mode = None
+
+    def _cursor_row(self, po_co: str) -> int | None:
+        idx = self.query_one("#set", DataTable).cursor_row
+        if not self._order or not self._ctx:
+            self._note("najpierw zbuduj set (B) albo wczytaj plan (O)")
+            return None
+        if idx is None or not (0 <= idx < len(self._order)):
+            self._note(f"ustaw kursor na utworze — {po_co}")
+            return None
+        return idx
+
+    def action_replace(self) -> None:
+        choice = self._panel_choice("suggest")
+        if choice is not None and self._suggest_slot is not None:
             self._apply_swap(self._suggest_slot, choice)
             return
-        # FAZA 1: Z na tabeli setu → otwórz panel z sugestiami dla kursora.
-        if not self._order or not self._ctx:
-            self._note("najpierw zbuduj set (B)")
+        self._close_panel()
+        idx = self._cursor_row("podmiana")
+        if idx is not None:
+            self._suggest_worker(idx, "suggest")
+
+    def action_add(self) -> None:
+        choice = self._panel_choice("insert")
+        if choice is not None and self._suggest_slot is not None:
+            self._apply_insert(self._suggest_slot, choice)
             return
-        idx = self.query_one("#set", DataTable).cursor_row
-        if idx is None or not (0 <= idx < len(self._order)):
-            self._note("ustaw kursor na utworze do podmiany")
+        self._close_panel()
+        idx = self._cursor_row("dopisuję ZA zaznaczonym")
+        if idx is not None:
+            self._suggest_worker(idx, "insert")
+
+    def action_cut(self) -> None:
+        self._close_panel()
+        idx = self._cursor_row("cięcie")
+        if idx is None:
             return
-        self._suggest_worker(idx)
+        by_id = self._ctx["by_id"]
+        tid = self._order.pop(idx)
+        path = by_id[tid].track.source_path
+        self._log_verdict("ciecie", pozycja=idx + 1, out=path)
+        self._render_order(by_id)
+        self._note(f"CIĘCIE #{idx+1}: {pathlib.Path(path).stem[:40]} "
+                   f"(werdykt zapisany)")
+        table = self.query_one("#set", DataTable)
+        if self._order:
+            table.move_cursor(row=min(idx, len(self._order) - 1))
+        table.focus()
+
+    def action_move_up(self) -> None:
+        self._move(-1)
+
+    def action_move_down(self) -> None:
+        self._move(+1)
+
+    def _move(self, delta: int) -> None:
+        self._close_panel()
+        idx = self._cursor_row("przesuwanie")
+        if idx is None:
+            return
+        j = idx + delta
+        if not (0 <= j < len(self._order)):
+            return                                   # brzeg setu — nie ma dokąd
+        self._order[idx], self._order[j] = self._order[j], self._order[idx]
+        by_id = self._ctx["by_id"]
+        self._log_verdict("przesuniecie", z=idx + 1, na=j + 1,
+                          utwor=by_id[self._order[j]].track.source_path)
+        self._render_order(by_id)
+        table = self.query_one("#set", DataTable)
+        table.move_cursor(row=j)
+        table.focus()
 
     def action_cancel(self) -> None:
-        panel = self.query_one("#suggest")
-        if panel.has_class("open"):
-            panel.remove_class("open")
-            self._suggest_slot = None
+        if self.query_one("#suggest").has_class("open"):
+            self._close_panel()
             self.query_one("#set", DataTable).focus()
             return
         self._stop.set()
         self._note("anulowanie — dokończę bieżący utwór i stanę (cache zostaje)")
 
     @work(thread=True, exclusive=True)
-    def _suggest_worker(self, idx: int) -> None:
-        from dancelab.decision.slot_suggest import suggest_for_slot
+    def _suggest_worker(self, idx: int, mode: str) -> None:
+        from dancelab.decision.slot_suggest import (
+            suggest_for_insertion, suggest_for_slot)
         ui = self.call_from_thread
         ctx = self._ctx
         by_id = ctx["by_id"]
@@ -370,20 +469,21 @@ class DanceLabTUI(App):
             return float(sum(vals) / len(vals)) if vals else 0.5
         energy = {tid: energy_of(a) for tid, a in by_id.items()}
         e_rng = (max(energy.values()) - min(energy.values())) or 1.0
+        fn = suggest_for_slot if mode == "suggest" else suggest_for_insertion
         try:
-            sugg = suggest_for_slot(
-                by_id, self._order, idx, k=10,
-                weights=ctx["weights"], arc=ctx["arc"],
-                planner_mode=ctx["planner"], energy=energy, energy_range=e_rng,
-                bpm_min=ctx["bpm_min"], bpm_max=ctx["bpm_max"],
-                anchor=ctx["anchor"])
+            sugg = fn(by_id, self._order, idx, k=10,
+                      weights=ctx["weights"], arc=ctx["arc"],
+                      planner_mode=ctx["planner"], energy=energy,
+                      energy_range=e_rng,
+                      bpm_min=ctx["bpm_min"], bpm_max=ctx["bpm_max"],
+                      anchor=ctx["anchor"])
         except Exception as exc:  # noqa: BLE001
             ui(self._note, f"sugestie nie wyszły: {exc}")
             return
         if not sugg:
             ui(self._note, "brak kandydatów do tej szczeliny (okno tempa? pula?)")
             return
-        old = by_id[self._order[idx]].track
+        here = pathlib.Path(by_id[self._order[idx]].track.source_path).stem[:40]
         options = []
         for sg in sugg:
             t = by_id[sg.track_id].track
@@ -392,18 +492,23 @@ class DanceLabTUI(App):
                 f"{str(t.key_estimate or '?'):>3} "
                 f"{pathlib.Path(t.source_path).stem[:30]}",
                 sg.track_id))
-        title = (f"#{idx+1} {pathlib.Path(old.source_path).stem[:40]}\n"
-                 f"klik/strzałki = wybierz · Z = zamień · Esc = zostaw")
-        ui(self._open_suggest_panel, idx, title, options)
+        if mode == "suggest":
+            title = (f"#{idx+1} {here}\n"
+                     f"klik/strzałki = wybierz · Z = zamień · Esc = zostaw")
+        else:
+            title = (f"DOPISZ za #{idx+1} {here}\n"
+                     f"klik/strzałki = wybierz · A = dopisz · Esc = zostaw")
+        ui(self._open_suggest_panel, idx, title, options, mode)
 
-    def _open_suggest_panel(self, idx: int, title: str,
-                            options: list[tuple[str, str]]) -> None:
+    def _open_suggest_panel(self, idx: int | None, title: str,
+                            options: list[tuple[str, str]], mode: str) -> None:
         self._suggest_slot = idx
+        self._panel_mode = mode
         self.query_one("#suggest-title", Label).update(title)
         lst = self.query_one("#suggest-list", OptionList)
         lst.clear_options()
-        for label, tid in options:
-            lst.add_option(Option(label, id=tid))
+        for label, oid in options:
+            lst.add_option(Option(label, id=oid))
         self.query_one("#suggest").add_class("open")
         lst.highlighted = 0
         lst.focus()
@@ -415,26 +520,179 @@ class DanceLabTUI(App):
         self._render_order(by_id)
         old_n = pathlib.Path(by_id[old_id].track.source_path).stem[:40]
         new_n = pathlib.Path(by_id[choice].track.source_path).stem[:40]
-        self._note(f"PODMIANA #{idx+1}: {old_n} → {new_n} (ręczna — do werdyktu)")
-        self._log_swap(idx, old_id, choice)
-        self.query_one("#suggest").remove_class("open")
-        self._suggest_slot = None
+        self._note(f"PODMIANA #{idx+1}: {old_n} → {new_n} (werdykt zapisany)")
+        self._log_verdict("podmiana", pozycja=idx + 1,
+                          **{"out": by_id[old_id].track.source_path,
+                             "in": by_id[choice].track.source_path})
+        self._close_panel()
         table = self.query_one("#set", DataTable)
         table.move_cursor(row=idx)
         table.focus()
 
-    def _log_swap(self, idx: int, old_id: str, new_id: str) -> None:
-        """Ręczna podmiana to werdykt DJ-a — dopisujemy, nie gubimy."""
+    def _apply_insert(self, after_idx: int, choice: str) -> None:
+        by_id = self._ctx["by_id"]
+        self._order.insert(after_idx + 1, choice)
+        self._render_order(by_id)
+        path = by_id[choice].track.source_path
+        self._note(f"DOPISANE #{after_idx+2}: {pathlib.Path(path).stem[:40]} "
+                   f"(werdykt zapisany)")
+        self._log_verdict("dopisanie", pozycja=after_idx + 2, **{"in": path})
+        self._close_panel()
+        table = self.query_one("#set", DataTable)
+        table.move_cursor(row=after_idx + 1)
+        table.focus()
+
+    def _log_verdict(self, typ: str, **fields) -> None:
+        """Każda ręczna edycja to werdykt DJ-a — dopisujemy, nie gubimy."""
+        import json
+        import time
+        rec = {"ts": time.strftime("%Y-%m-%d %H:%M:%S"), "typ": typ, **fields}
+        self._edits.append(rec)
+        WERDYKTY_DIR.mkdir(parents=True, exist_ok=True)
+        with (WERDYKTY_DIR / "tui_edycje.jsonl").open("a") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+    # ------------------------------------------------- plan: zapis / wczytanie
+
+    def action_save_plan(self) -> None:
+        if not self._order or not self._ctx:
+            self._note("najpierw zbuduj set (B) albo wczytaj plan (O)")
+            return
+        from dancelab.tui.plan_store import save_plan
+        path = save_plan(self._order, self._ctx["by_id"],
+                         name=self._plan_name or "TUI plan",
+                         params=self._ctx.get("params", {}),
+                         engine_order=self._engine_order, edits=self._edits)
+        self._note(f"plan zapisany: {path}")
+
+    def action_load_plan(self) -> None:
+        choice = self._panel_choice("plans")
+        if choice is not None:
+            self._close_panel()
+            self._load_plan_worker(choice)
+            return
+        self._close_panel()
+        from dancelab.tui.plan_store import list_plans
+        plans = list_plans()
+        if not plans:
+            self._note("brak zapisanych planów (S zapisuje bieżący)")
+            return
+        options = [(f"{p['zapisano'][5:16]} · {p['n']:2d} utw · {p['nazwa'][:22]}",
+                    p["path"]) for p in plans[:30]]
+        self._open_suggest_panel(
+            None, "WCZYTAJ PLAN\nklik/strzałki = wybierz · O = wczytaj · Esc = zostaw",
+            options, "plans")
+
+    @work(thread=True, exclusive=True)
+    def _load_plan_worker(self, path: str) -> None:
+        from dancelab.tui.plan_store import match_order, read_plan
+        ui = self.call_from_thread
+        try:
+            rec = read_plan(path)
+            if not self._ctx:
+                self._ctx = self._pool_ctx_for(rec.get("parametry", {}))
+            order, notes = match_order(rec, self._ctx["by_id"])
+        except Exception as exc:  # noqa: BLE001 — powód, nie traceback
+            ui(self._note, f"wczytanie nie wyszło: {exc}")
+            return
+        if not order:
+            ui(self._note, "w planie nie został żaden utwór obecny w puli — nie wczytuję")
+            return
+        ui(self._after_plan_load, rec, order, notes)
+
+    def _pool_ctx_for(self, params: dict) -> dict:
+        """Kontekst oceniania dla wczytanego planu, gdy nic nie zbudowano:
+        pula z biblioteki + dokarmienie + parametry zapisane w planie —
+        dzięki temu Z/A po samym O oceniają tak, jak oceniała budowa."""
+        from dancelab.core.config import load_config, load_weights
+        from dancelab.ingestion.analysis_enrichment import (
+            attach_rekordbox_genres, attach_sound_embeddings)
+        ui = self.call_from_thread
+        ui(self.query_one("#progress", Static).update,
+           "Wczytuję pulę z biblioteki pod plan…")
+        analyses, hygiene = self._library_analyses()
+        for note in hygiene:
+            ui(self._note, note)
+        if not analyses:
+            raise ValueError("pusta pula — nie mam do czego dopasować planu")
+        attach_sound_embeddings(analyses)
+        attach_rekordbox_genres(analyses)
+        anchor = None
+        if params.get("dj"):
+            from dancelab.decision.anchors import resolve_anchor
+            anchor = resolve_anchor(params["dj"])
+        cfg = load_config("configs/default.yaml")
+        return dict(
+            by_id={a.track.track_id: a for a in analyses},
+            weights=load_weights(cfg.weights_file),
+            arc=params.get("arc", "build"), planner=params.get("planner", "smart"),
+            bpm_min=params.get("bpm_min"), bpm_max=params.get("bpm_max"),
+            anchor=(anchor.centroid if anchor else None),
+            params=params,
+        )
+
+    def _after_plan_load(self, rec: dict, order: list[str],
+                         notes: list[str]) -> None:
+        self._order = order
+        self._engine_order = list(rec.get("plan_silnika", []))
+        self._edits = list(rec.get("edycje", []))
+        self._plan_name = rec.get("nazwa") or "TUI plan"
+        self._mean_score = None      # po edycjach nie udajemy zgodności z budowy
+        self._set_form(rec.get("parametry", {}))
+        self._render_order(self._ctx["by_id"])
+        for note in notes:
+            self._note(note)
+        self._note(f"plan wczytany: {self._plan_name} ({len(order)} utworów, "
+                   f"zapisany {rec.get('zapisano', '?')})")
+        self.query_one("#set", DataTable).focus()
+
+    def _set_form(self, p: dict) -> None:
+        """Przywróć formularz z planu — żeby ponowna budowa była odtwarzalna.
+        Pojedyncze pole może nie wejść (np. kotwica zniknęła z pliku) —
+        wtedy notka, nie wywrotka."""
+        try:
+            if p.get("minutes"):
+                self.query_one("#minutes", Input).value = f"{p['minutes']:g}"
+            if p.get("bpm_min") is not None and p.get("bpm_max") is not None:
+                self.query_one("#bpm", Input).value = \
+                    f"{p['bpm_min']:g}-{p['bpm_max']:g}"
+            self.query_one("#styles", Input).value = ", ".join(p.get("styles", []))
+            for wid, key in (("#arc", "arc"), ("#tempo", "tempo"),
+                             ("#planner", "planner")):
+                if p.get(key):
+                    self.query_one(wid, Select).value = p[key]
+            if p.get("dj"):
+                self.query_one("#dj", Select).value = p["dj"]
+            self.query_one("#contour", Switch).value = bool(p.get("contour"))
+        except Exception as exc:  # noqa: BLE001
+            self._note(f"formularza nie dało się w pełni przywrócić: {exc}")
+
+    # ------------------------------------------------------------- werdykt V
+
+    def action_verdict(self) -> None:
+        """Świadomy zrzut: plan silnika vs stan po Twoich edycjach."""
+        if not self._order or not self._ctx:
+            self._note("najpierw zbuduj set (B) albo wczytaj plan (O)")
+            return
         import json
         import time
         by_id = self._ctx["by_id"]
-        rec = {"ts": time.strftime("%Y-%m-%d %H:%M:%S"), "pozycja": idx + 1,
-               "out": by_id[old_id].track.source_path,
-               "in": by_id[new_id].track.source_path}
-        path = pathlib.Path("experiments_priv/2026-08-04_werdykty/tui_podmiany.jsonl")
-        path.parent.mkdir(exist_ok=True)
-        with path.open("a") as f:
-            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+        def rows(ids):
+            return [{"track_id": t, "path": by_id[t].track.source_path}
+                    for t in ids if t in by_id]
+        rec = {"ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+               "nazwa": self._plan_name,
+               "parametry": self._ctx.get("params", {}),
+               "plan_silnika": rows(self._engine_order),
+               "stan_dja": rows(self._order),
+               "edycje": self._edits}
+        WERDYKTY_DIR.mkdir(parents=True, exist_ok=True)
+        path = WERDYKTY_DIR / f"tui_werdykt_{time.strftime('%Y%m%d_%H%M%S')}.json"
+        path.write_text(json.dumps(rec, ensure_ascii=False, indent=1))
+        self._note(f"WERDYKT: plan {len(self._engine_order)} utworów vs "
+                   f"Twoje {len(self._order)}, edycji {len(self._edits)} "
+                   f"→ {path.name}")
 
     @work(thread=True, exclusive=True)
     def _write_worker(self) -> None:
