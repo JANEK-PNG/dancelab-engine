@@ -119,6 +119,31 @@ def filter_library(analyses, *, search: str = "", key: str = "",
     return out
 
 
+def _rozstaw_filary(filary: list[str], by_id: dict,
+                    count: int) -> dict[int, str]:
+    """Filary → pozycje w secie, metafora Janka (05.08): filar ma PODPIERAĆ
+    konstrukcję, nie leżeć na końcu. Chciwy budowniczy z samym „musi zagrać"
+    odkładał niewygodne filary na ogon (zmierzone: 6 filarów na pozycjach
+    13-18 z 18) — więc pozycje wyznaczamy Z GÓRY: równomiernie po całym
+    secie, a silnik projektuje przęsła między nimi.
+
+    Kolejność filarów na pozycjach: rosnąco po tempie — zgodnie ze schodkami
+    tempa (plan `staircase`) i łukiem `build`, którymi Janek gra. Ograniczenie
+    v1, nazwane wprost: przy łuku `peak` (wznoszenie i opadanie) przydział
+    powinien kiedyś patrzeć w krzywą tempa, nie tylko rosnąć."""
+    posortowane = sorted(filary,
+                         key=lambda t: by_id[t].track.bpm_estimate or 0.0)
+    k = len(posortowane)
+    pozycje: dict[int, str] = {}
+    prev = 0
+    for i, tid in enumerate(posortowane):
+        pos = int((i + 0.5) * count / k + 0.5)
+        pos = min(max(pos, prev + 1), count - (k - 1 - i))
+        pozycje[pos] = tid
+        prev = pos
+    return pozycje
+
+
 def _filary_for_build(state: dict, by_id: dict, bpm_min: float | None,
                       bpm_max: float | None, count: int | None
                       ) -> tuple[list[str], list[str]]:
@@ -850,15 +875,21 @@ class DanceLabTUI(App):
         from dancelab.decision.dedup import canonical_ids
         mapping = canonical_ids(analyses)
         filary = list(dict.fromkeys(mapping.get(t, t) for t in filary))
+        by_id_all = {a.track.track_id: a for a in analyses}
+        rozstaw = _rozstaw_filary(filary, by_id_all, count) if filary else {}
+        if rozstaw:
+            filar_notes.append(
+                "filary rozstawione po konstrukcji (rosnąco po tempie): "
+                + ", ".join(f"#{pos}" for pos in sorted(rozstaw)))
         ui(progress.update, f"Budowa: {count} utworów z {len(analyses)}"
-                            + (f" wokół {len(filary)} filarów…" if filary else "…"))
+                            + (f" na {len(filary)} filarach…" if filary else "…"))
         plan = build_set(
             analyses, load_weights(cfg.weights_file),
             arc=p["arc"], target_track_count=count, planner_mode=p["planner"],
             tempo_shape=p["tempo"],
             preferred_styles=p["styles"] or None,
             bpm_min=p["bpm_min"], bpm_max=p["bpm_max"],
-            pinned_track_ids=filary or None,
+            locked_positions=rozstaw or None,
             sound_anchor=anchor.centroid if anchor else None,
             anchor_name=anchor.name if anchor else None,
             jump_contour=(anchor.contour if (anchor and p["contour"]) else None),

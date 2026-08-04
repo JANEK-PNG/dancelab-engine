@@ -288,3 +288,38 @@ def test_po_polsku_tlumaczy_znane_i_przepuszcza_nieznane():
     # nieznany komunikat przechodzi bez zmian — żadnego zgadywania
     assert po_polsku("some brand new warning") == "some brand new warning"
     assert po_polsku("higiena puli: odrzucone 17") == "higiena puli: odrzucone 17"
+
+
+def test_rozstaw_filary_rownomiernie_i_rosnaco_po_tempie():
+    """Metafora Janka: filary podpierają CAŁĄ konstrukcję — równomierne
+    pozycje, kolejność rosnąco po BPM (schodki tempa), nigdy zbite na ogonie."""
+    from dancelab.tui.app import _rozstaw_filary
+    by_id = _by_id()
+    # a=132, b=130, e=131 → kolejność pozycji: b(130), e(131), a(132)
+    out = _rozstaw_filary(["a", "b", "e"], by_id, 12)
+    assert out == {2: "b", 6: "e", 10: "a"}
+    # 6 filarów w 18 slotach — rozrzut po całości, nie 13-18
+    szesc = {t: 120 + i for i, t in enumerate("pqrstu")}
+
+    class _FA:
+        def __init__(self, bpm):
+            self.track = type("T", (), {"bpm_estimate": float(bpm)})()
+    duzy = {t: _FA(b) for t, b in szesc.items()}
+    pozycje = sorted(_rozstaw_filary(list(szesc), duzy, 18))
+    assert pozycje == [2, 5, 8, 11, 14, 17]
+
+
+def test_rozstaw_filary_ciasny_set_bez_kolizji():
+    """k bliskie n: pozycje ściśle rosnące, wszystkie w zakresie."""
+    from dancelab.tui.app import _rozstaw_filary
+
+    class _FA:
+        def __init__(self, bpm):
+            self.track = type("T", (), {"bpm_estimate": float(bpm)})()
+    by_id = {t: _FA(120 + i) for i, t in enumerate("abcde")}
+    out = _rozstaw_filary(list("abcde"), by_id, 5)
+    assert sorted(out) == [1, 2, 3, 4, 5]
+    out = _rozstaw_filary(list("abcd"), by_id, 5)
+    poz = sorted(out)
+    assert len(poz) == 4 and poz[0] >= 1 and poz[-1] <= 5
+    assert all(x < y for x, y in zip(poz, poz[1:]))

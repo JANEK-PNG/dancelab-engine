@@ -39,8 +39,9 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
 - **G** albo przycisk **„→ Zbuduj z filarów"** — przenosi filary do zakładki
   Set jako **szkic** (złote wiersze z flagą ⚑), CELOWO bez budowania: najpierw
   uzupełniasz brief po lewej (minuty, okno tempa, gatunki, kotwica), dopiero
-  **B** buduje set wokół filarów. Filary zostają oznaczone ⚑ i złotem także
-  w gotowym secie. Potem dokooptowujesz utwory: A dopisuje, Z podmienia,
+  **B** buduje set wokół filarów. Filary są **rozstawiane równomiernie po
+  całym secie** (rosnąco po tempie — jak schodki, którymi grasz), a silnik
+  buduje przęsła między nimi; w gotowym secie zostają oznaczone ⚑ i złotem. Potem dokooptowujesz utwory: A dopisuje, Z podmienia,
   X wycina.
 - **Sortowanie**: klik w nagłówek kolumny sortuje (drugi klik odwraca);
   utwory bez wartości idą zawsze na koniec.
