@@ -20,8 +20,9 @@ warnings zawsze widoczne, tonacja o pewności <0,5 przygaszona, stan Rekordboxa 
 | `SetPlan.track_order` | DataTable: # · BPM · ton · pewność · gatunek · Σ min · utwór |
 | `SetPlan.warnings` + notki dokarmiania | Log #warnings — stały, nigdy zwinięty |
 | `ingestion.playlist_publish` (backup→dopasowanie→weryfikacja odczytem) | klawisz W |
+| `decision.slot_suggest` — kandydat oceniany W SZCZELINIE (wejście+wyjście, ta sama kotwica co budowa) | klawisz Z → doszyty panel po prawej (42 kolumny); klik propozycji + Z = podmiana, logowana jako werdykt (`tui_podmiany.jsonl`) |
 | stan Rekordboxa + liczba backupów | Static #status, odświeżany co 5 s |
-| anulowanie | Esc → `threading.Event` → `should_stop` |
+| anulowanie | Esc → `threading.Event` → `should_stop` (Esc najpierw zamyka panel Z) |
 
 ## Ekran 2 · BIBLIOTEKA (projekt)
 analizy (sztywna siatka, tonacja+pewność, energia) → tabela z filtrami; frazy RB (1740
