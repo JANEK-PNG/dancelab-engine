@@ -33,6 +33,7 @@ from dancelab.ingestion.loader import load_audio
 from dancelab.ingestion.metadata import build_track
 from dancelab.ingestion.tags import read_audio_tags
 from dancelab.preprocessing.beatgrid import estimate_beatgrid
+from dancelab.preprocessing.rigid_beatgrid import estimate_beatgrid_best
 from dancelab.preprocessing.segmentation import segment_track
 from dancelab.stems import (
     StemBundle,
@@ -247,12 +248,13 @@ def _analyze_track_impl(
         update={"key_estimate": camelot, "key_name": key_name, "key_confidence": key_conf}
     )
     _stage("Beat tracking (BPM)")
-    beatgrid = estimate_beatgrid(
+    beatgrid = estimate_beatgrid_best(
         signal,
         hop_size=hop,
         bpm_hint=effective_bpm_hint,
         tempo_min=config.analysis.tempo_min,
         tempo_max=config.analysis.tempo_max,
+        rigid=config.analysis.rigid_grid,
     )
     _stage("Onset detection")
     onset_times = detect_onsets(signal.samples, signal.sample_rate, hop_size=hop)
