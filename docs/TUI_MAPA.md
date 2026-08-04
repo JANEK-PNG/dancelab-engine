@@ -18,7 +18,8 @@ warnings zawsze widoczne, tonacja o pewności <0,5 przygaszona, stan Rekordboxa 
 | kontur skoków | Switch #contour |
 | łuk / plan tempa / tryb | Selecty #arc #tempo #planner |
 | `SetPlan.track_order` | DataTable: # · BPM · ton · pewność · gatunek · Σ min · utwór |
-| `SetPlan.warnings` + notki dokarmiania | Log #warnings — SCHOWANY domyślnie (decyzja Janka 04.08), klawisz I przełącza; licznik notek ZAWSZE w pasku statusu, ODMOWA i wynik zapisu dodatkowo dymkiem (kanał uczciwości przeniesiony, nie usunięty) |
+| `SetPlan.warnings` + notki dokarmiania | Log #warnings — SCHOWANY domyślnie (decyzja Janka 04.08), klawisz L (log) przełącza; licznik notek ZAWSZE w pasku statusu, ODMOWA i wynik zapisu dodatkowo dymkiem (kanał uczciwości przeniesiony, nie usunięty) |
+| karta INFO utworu: metadane silnika + ścieżka + `ingestion.rekordbox_lookup` (BPM wg RB, komentarz, playlisty z master.db — TYLKO odczyt, działa przy otwartym RB; dopasowanie jak w publikatorze: ścieżka NFC, potem jedyny bliźniak po tytule, inaczej „nie ma w kolekcji") | klawisz I — panel po prawej w trybie info; drugie I / Esc zamyka |
 | tryby oceny sugestii = `_planner_component_weights` silnika (smart / bpm 0,55 / harmonic 0,55) | Select #suggest-mode w panelu; zmiana przelicza sugestie na żywo; bpm/harmonic bez kotwicy — tryb nazywa to, co ocenia |
 | poświata „influence" wokół zaznaczenia (pomysł Janka; wizualna ORIENTACJA zasięgu szczeliny, ±3, bez liczb — mierzalny wpływ to pary bezpośrednie) | podświetlenie #/utwór gasnącym kolorem przy ruchu kursora |
 | `ingestion.playlist_publish` (backup→dopasowanie→weryfikacja odczytem) | klawisz W |

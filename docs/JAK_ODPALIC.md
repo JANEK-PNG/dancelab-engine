@@ -46,6 +46,10 @@ cd ~/Developer/dancelab-engine && .venv/bin/dancelab tui
    pomijane z wyraźną notką).
 6. **V** — świadomy werdykt: zrzuca obok siebie „co ułożył silnik" i „co
    zostawiłeś po swoich zmianach".
+   **I** — karta informacji o zaznaczonym utworze: metadane silnika (BPM,
+   tonacja z pewnością, gatunek, długość), lokalizacja pliku na dysku oraz
+   to, co wie Rekordbox (jego BPM, komentarz i playlisty, w których utwór
+   aktualnie leży — prosto z master.db). Drugie **I** albo **Esc** zamyka.
 7. **W** — wgrywa playlistę do Rekordboxa. **Rekordbox musi być ZAMKNIĘTY** —
    inaczej aplikacja odmówi i nic nie dotknie. Przed każdym zapisem sama robi
    kopię bazy (`DanceLab_backups/`), a po zapisie sprawdza odczytem, czy w bazie
@@ -55,8 +59,8 @@ cd ~/Developer/dancelab-engine && .venv/bin/dancelab tui
 ## Jak czytać ekran (zasada uczciwości)
 
 - Przygaszony wiersz = silnik nie jest pewny tonacji (pewność poniżej 0,5).
-- Notki silnika („czego nie wiem, co odrzuciłem") są schowane — **I** je
-  pokazuje i chowa; licznik notek widać zawsze w pasku statusu. Odmowy
+- Notki silnika („czego nie wiem, co odrzuciłem") są schowane — **L** (log)
+  je pokazuje i chowa; licznik notek widać zawsze w pasku statusu. Odmowy
   i wynik zapisu do Rekordboxa wyskakują same jako dymek.
 - Pasek statusu pokazuje, czy Rekordbox chodzi i ile jest kopii zapasowych.
 

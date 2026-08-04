@@ -11,7 +11,32 @@ import asyncio
 
 import dancelab.ingestion.playlist_publish as publish_mod
 from dancelab.ingestion.playlist_publish import publish_playlist
-from dancelab.tui.app import DanceLabTUI, _mode_params, _parse_bpm, influence_color
+from dancelab.tui.app import (
+    DanceLabTUI, _format_track_info, _mode_params, _parse_bpm, influence_color)
+
+
+def test_karta_info_nazywa_zrodla_i_mowi_czego_nie_wie():
+    class _T:
+        bpm_estimate = 131.5
+        key_estimate = "8A"
+        key_confidence = 0.83
+        style_label = "UK Garage"
+        duration_sec = 245.0
+        sound_embedding = [0.1]
+        source_path = "/m/x/a [remix].mp3"
+
+    rb = {"bpm": 132.0, "comment": "bangier", "matched_by": "path",
+          "playlists": ["DanceLab/piatek", "ulubione"]}
+    txt = _format_track_info(_T(), rb, None)
+    assert "SILNIK" in txt and "131.5" in txt and "8A" in txt
+    assert "/m/x/a [remix].mp3" in txt                      # lokalizacja na dysku
+    assert "BPM wg Rekordboxa: 132.0" in txt                # źródło nazwane
+    assert "DanceLab/piatek" in txt and "ulubione" in txt   # playlisty z master.db
+    assert "bangier" in txt
+
+    assert "nie ma w kolekcji" in _format_track_info(_T(), None, None)
+    assert "master.db nieodczytany: pad" in \
+        _format_track_info(_T(), None, "master.db nieodczytany: pad")
 
 
 def test_influence_poswiata_gasnie_z_odlegloscia():
@@ -71,11 +96,11 @@ def test_tui_edycje_bez_setu_odmawiaja_z_powodem():
     async def go():
         app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
         async with app.run_test() as pilot:
-            for key in ("x", "a", "s", "v", "z"):
+            for key in ("x", "a", "s", "v", "z", "i"):
                 await pilot.press(key)
                 await pilot.pause()
             lines = " ".join(str(l) for l in app.query_one("#warnings").lines)
-            assert lines.count("najpierw zbuduj") >= 5
+            assert lines.count("najpierw zbuduj") >= 6
     asyncio.run(go())
 
 
@@ -128,11 +153,11 @@ def test_tui_ciecie_i_przesuniecie_loguja_werdykty(tmp_path, monkeypatch):
             await pilot.pause()
             assert len(app._edits) == 2
 
-            # notki schowane domyślnie, I pokazuje; poświata pomalowała sąsiada
+            # notki schowane domyślnie, L pokazuje; poświata pomalowała sąsiada
             from textual.widgets import Log
             log = app.query_one("#warnings", Log)
             assert not log.has_class("open")
-            await pilot.press("i")
+            await pilot.press("l")
             await pilot.pause()
             assert log.has_class("open")
             app._paint_influence(0)
@@ -148,6 +173,24 @@ def test_tui_ciecie_i_przesuniecie_loguja_werdykty(tmp_path, monkeypatch):
     assert len(werdykty) == 1
     tekst = werdykty[0].read_text()
     assert '"plan_silnika"' in tekst and '"stan_dja"' in tekst
+
+
+def test_tui_budowa_bez_kotwicy_nie_pada_na_noselection():
+    """Regres 05.08: puste „Graj jak…" dawało obiekt NoSelection zamiast None
+    i budowa padała na ODMOWIE zanim doszła do puli. Prawidłowa odmowa przy
+    pustej puli to „pusta pula", nigdy NoSelection."""
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            await pilot.press("b")
+            for _ in range(40):
+                await pilot.pause(0.1)
+                lines = " ".join(str(l) for l in app.query_one("#warnings").lines)
+                if "ODMOWA" in lines:
+                    break
+            assert "NoSelection" not in lines
+            assert "pusta pula" in lines
+    asyncio.run(go())
 
 
 def test_tui_odmowa_budowy_pokazuje_powod():

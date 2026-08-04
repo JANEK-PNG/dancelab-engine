@@ -88,6 +88,47 @@ def influence_color(dist: int) -> str | None:
     return _INFLUENCE_RAMP.get(abs(dist))
 
 
+def _format_track_info(track, rb: dict | None, rb_note: str | None) -> str:
+    """Karta INFO (klawisz I): metadane zaznaczonego utworu z NAZWANYM źródłem
+    każdej liczby — silnik osobno, Rekordbox osobno (niezależny sędzia tempa)."""
+    conf = track.key_confidence
+    dur = track.duration_sec or 0
+    lines = [
+        "SILNIK:",
+        f"  BPM {track.bpm_estimate or '—'} · ton {track.key_estimate or '?'}"
+        + (f" (pew. {conf:.2f})" if conf is not None else ""),
+        f"  gatunek: {track.style_label or '—'}",
+        f"  długość: {int(dur // 60)}:{int(dur % 60):02d}",
+        "  wektor brzmienia: "
+        + ("jest" if getattr(track, "sound_embedding", None) is not None
+           else "brak"),
+        "",
+        "PLIK:",
+        f"  {track.source_path}",
+        "",
+        "REKORDBOX:",
+    ]
+    if rb_note:
+        lines.append(f"  {rb_note}")
+    elif rb is None:
+        lines.append("  nie ma w kolekcji")
+    else:
+        if rb.get("matched_by") == "twin":
+            lines.append("  (dopasowany po tytule — inna ścieżka)")
+        lines.append(f"  BPM wg Rekordboxa: {rb.get('bpm') or '—'}")
+        if rb.get("comment"):
+            lines.append(f"  komentarz: {str(rb['comment'])[:60]}")
+        pls = rb.get("playlists") or []
+        if pls:
+            lines.append(f"  playlisty ({len(pls)}):")
+            lines += [f"   · {p}" for p in pls[:12]]
+            if len(pls) > 12:
+                lines.append(f"   … i {len(pls) - 12} więcej")
+        else:
+            lines.append("  poza wszystkimi playlistami")
+    return "\n".join(lines)
+
+
 def _mode_params(mode: object, ctx: dict) -> tuple[str, object]:
     """Tryb panelu sugestii → (planner_mode silnika, kotwica).
 
@@ -116,6 +157,9 @@ class DanceLabTUI(App):
     #suggest-title { color: $accent; text-style: bold; }
     #suggest-mode { margin: 1 0; }
     #suggest-mode.hide { display: none; }
+    #suggest-list.hide { display: none; }
+    #suggest-info { display: none; margin: 1 0; }
+    #suggest-info.show { display: block; }
     .field-label { color: $text-muted; }
     """
     BINDINGS = [
@@ -129,15 +173,16 @@ class DanceLabTUI(App):
         Binding("s", "save_plan", "Zapisz plan"),
         Binding("o", "load_plan", "Wczytaj"),
         Binding("v", "verdict", "Werdykt"),
-        Binding("i", "toggle_notes", "Info"),
+        Binding("i", "track_info", "Info"),
+        Binding("l", "toggle_notes", "Log"),
         Binding("escape", "cancel", "Anuluj"),
         Binding("q", "quit", "Wyjdź"),
     ]
 
     # Notki (kanał uczciwości ADR-005) są domyślnie SCHOWANE na życzenie Janka
-    # (04.08: „usera to nie interesuje… niech będzie pod guzikiem i") — ale nie
-    # giną: licznik zawsze w pasku statusu, I pokazuje pełną listę, a odmowy
-    # i wynik zapisu wyskakują dymkiem same.
+    # (04.08: „usera to nie interesuje") — ale nie giną: licznik zawsze w pasku
+    # statusu, L pokazuje pełną listę, a odmowy i wynik zapisu wyskakują dymkiem
+    # same. I to karta INFO zaznaczonego utworu (metadane + dysk + playlisty RB).
 
     def __init__(self, processed_dir: str = PROCESSED_DEFAULT):
         super().__init__()
@@ -198,6 +243,7 @@ class DanceLabTUI(App):
                               ("tonacja najpierw", "harmonic")],
                              value="smart", id="suggest-mode", allow_blank=False)
                 yield OptionList(id="suggest-list")
+                yield Static("", id="suggest-info")
         yield Static("", id="status")
         yield Footer()
 
@@ -224,7 +270,7 @@ class DanceLabTUI(App):
             else "✅ Rekordbox zamknięty — W dostępne"
         n_bak = len(list(BACKUP_DIR.glob("*.db"))) if BACKUP_DIR.exists() else 0
         self.query_one("#status", Static).update(
-            f"{rb}   ·   backupy: {n_bak}   ·   notki: {self._n_notes} (I)"
+            f"{rb}   ·   backupy: {n_bak}   ·   notki: {self._n_notes} (L)"
             f"   ·   pula: {self.processed_dir}")
 
     def _note(self, line: str) -> None:
@@ -253,7 +299,7 @@ class DanceLabTUI(App):
         except Exception as exc:  # noqa: BLE001 — pokazujemy powód, nie traceback
             ui(self._note, f"ODMOWA: {exc}")
             ui(self.query_one("#progress", Static).update,
-               "Nie zbudowano — powód pod I.")
+               "Nie zbudowano — powód pod L.")
             self.call_from_thread(self.notify, f"ODMOWA: {exc}",
                                   severity="error", timeout=8)
             return
@@ -265,13 +311,15 @@ class DanceLabTUI(App):
         if err:
             raise ValueError(err)
         minutes = float(get("#minutes", Input).value or 90)
+        # puste „Graj jak…" to NoSelection, NIE zawsze identyczne z Select.BLANK
+        # (złapane 05.08: budowa bez kotwicy padała na ODMOWIE) — bierzemy tylko str
         dj = get("#dj", Select).value
         return dict(
             pool=get("#pool", Select).value,
             folder=get("#folder", Input).value.strip(),
             minutes=minutes, bpm_min=lo, bpm_max=hi,
             styles=[s.strip() for s in get("#styles", Input).value.split(",") if s.strip()],
-            dj=None if dj is Select.BLANK else dj,
+            dj=dj if isinstance(dj, str) and dj else None,
             contour=get("#contour", Switch).value,
             arc=get("#arc", Select).value,
             tempo=get("#tempo", Select).value,
@@ -593,6 +641,8 @@ class DanceLabTUI(App):
         self._suggest_slot = idx
         self._panel_mode = mode
         self.query_one("#suggest-mode", Select).set_class(mode == "plans", "hide")
+        self.query_one("#suggest-list", OptionList).remove_class("hide")
+        self.query_one("#suggest-info", Static).remove_class("show")
         self.query_one("#suggest-title", Label).update(title)
         lst = self.query_one("#suggest-list", OptionList)
         lst.clear_options()
@@ -783,6 +833,48 @@ class DanceLabTUI(App):
                    f"Twoje {len(self._order)}, edycji {len(self._edits)} "
                    f"→ {path.name}")
 
+    # ------------------------------------------------------------- karta INFO
+
+    def action_track_info(self) -> None:
+        """I: metadane zaznaczonego utworu + dysk + playlisty z master.db."""
+        if self._panel_mode == "info" \
+                and self.query_one("#suggest").has_class("open"):
+            self._close_panel()
+            self.query_one("#set", DataTable).focus()
+            return
+        self._close_panel()
+        idx = self._cursor_row("info o utworze")
+        if idx is not None:
+            self._info_worker(idx)
+
+    @work(thread=True, exclusive=True)
+    def _info_worker(self, idx: int) -> None:
+        ui = self.call_from_thread
+        t = self._ctx["by_id"][self._order[idx]].track
+        rb, rb_note = None, None
+        try:
+            from dancelab.ingestion.rekordbox_lookup import track_in_rekordbox
+            rb = track_in_rekordbox(t.source_path)
+        except Exception as exc:  # noqa: BLE001 — karta mówi, czego nie wie
+            rb_note = f"master.db nieodczytany: {exc}"
+        text = _format_track_info(t, rb, rb_note)
+        title = (f"INFO #{idx+1} {pathlib.Path(t.source_path).stem[:36]}\n"
+                 f"I / Esc = zamknij")
+        ui(self._open_info_panel, title, text)
+
+    def _open_info_panel(self, title: str, text: str) -> None:
+        from rich.text import Text
+        self._suggest_slot = None
+        self._panel_mode = "info"
+        self.query_one("#suggest-mode", Select).add_class("hide")
+        self.query_one("#suggest-list", OptionList).add_class("hide")
+        info = self.query_one("#suggest-info", Static)
+        info.update(Text(text))          # Text, nie markup — ścieżki miewają [ ]
+        info.add_class("show")
+        self.query_one("#suggest-title", Label).update(title)
+        self.query_one("#suggest").add_class("open")
+        self.query_one("#set", DataTable).focus()
+
     @work(thread=True, exclusive=True)
     def _write_worker(self) -> None:
         from dancelab.ingestion.playlist_publish import publish_playlist
@@ -798,8 +890,8 @@ class DanceLabTUI(App):
                 self.notify,
                 f"✅ {report.playlist_name}: {report.written} utworów w Rekordboksie")
         elif not report.ok:
-            ui(self._note, "❌ zapis nieudany — szczegóły pod I")
-            self.call_from_thread(self.notify, "❌ zapis nieudany — szczegóły pod I",
+            ui(self._note, "❌ zapis nieudany — szczegóły pod L")
+            self.call_from_thread(self.notify, "❌ zapis nieudany — szczegóły pod L",
                                   severity="error", timeout=8)
         ui(self._refresh_status)
 
