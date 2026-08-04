@@ -5,14 +5,13 @@ technicznej nie przeszkadza.
 
 ## Sposób 1 — podwójne kliknięcie (polecany)
 
-1. Otwórz Finder → folder domowy → `Developer` → `dancelab-engine`.
-2. Kliknij dwa razy plik **`DanceLab.command`**. Otworzy się okno Terminala
-   i po chwili wstanie aplikacja.
-3. Wygodniej na co dzień: kliknij ten plik prawym przyciskiem → **Utwórz alias**
-   i przeciągnij alias na biurko. Od tej pory startujesz z biurka.
+Na biurku leży **`DanceLab.command`** — kliknij dwa razy i aplikacja wstaje.
+Skrót zawsze odpala AKTUALNY kod z repo, więc po każdej aktualizacji
+dostajesz nową wersję bez robienia czegokolwiek.
 
-Przy pierwszym uruchomieniu macOS może zapytać, czy na pewno otworzyć —
-kliknij prawym → **Otwórz**, potem już nie pyta.
+(Drugi egzemplarz tego pliku leży w `Developer/dancelab-engine` — gdyby ten
+z biurka kiedyś zginął. Przy pierwszym uruchomieniu macOS może zapytać, czy
+na pewno otworzyć — kliknij prawym → **Otwórz**, potem już nie pyta.)
 
 ## Sposób 2 — ręcznie w Terminalu
 
