@@ -104,7 +104,7 @@ def analyze(
 @app.command(name="smart-playlist")
 def smart_playlist(
     directory: Path = typer.Argument(..., help="Folder with music files"),
-    count: int = typer.Option(10, "--count", "-n", help="Playlist length: 5, 10, 15, or 20"),
+    count: int = typer.Option(10, "--count", "-n", help="Ile utworów (dowolna liczba >= 2)"),
     output: Path | None = typer.Option(None, "--output", "-o", help="Gdzie zapisać paczkę cue (.cues.json)"),
     processed_dir: Path | None = typer.Option(None, "--processed-dir", help="Where analysis JSONs are cached"),
     playlist_name: str = typer.Option("DanceLab Smart Set", "--name"),
@@ -150,10 +150,23 @@ def smart_playlist(
             typer.secho(f"fail {Path(failure.source_path).name}: {failure.error}", fg="yellow")
 
 
+@app.command(name="tui")
+def tui(
+    processed_dir: Path | None = typer.Option(None, "--processed-dir",
+                                              help="Katalog z analizami (cache)"),
+) -> None:
+    """Interfejs terminalowy: formularz → postęp → tabela → W (Rekordbox)."""
+    from dancelab.tui.app import PROCESSED_DEFAULT, DanceLabTUI
+    DanceLabTUI(processed_dir=str(processed_dir or PROCESSED_DEFAULT)).run()
+
+
 @app.command(name="zagraj")
 def zagraj(
     directory: Path = typer.Argument(..., help="Folder z muzyką"),
-    count: int = typer.Option(10, "--count", "-n", help="Ile utworów w secie"),
+    count: int = typer.Option(0, "--count", "-n",
+                              help="Ile utworów w secie (0 = wylicz z --minutes)"),
+    minutes: float = typer.Option(0.0, "--minutes", "-m",
+                                  help="Docelowa długość setu w minutach"),
     name: str = typer.Option("DanceLab set", "--name", help="Nazwa playlisty w Rekordboksie"),
     db: Path = typer.Option(None, "--db",
                             help="Na której bazie Rekordboxa pracować. "
@@ -172,6 +185,19 @@ def zagraj(
                                               help="Gdzie leżą wyniki analizy (cache)"),
     analysis_depth: str = typer.Option("normal", "--analysis-depth", help="normal/deep"),
     recompute: bool = typer.Option(False, "--recompute", help="Policz od nowa, ignoruj cache"),
+    styles: str = typer.Option(
+        "", "--gatunki", "--styles",
+        help="Preferowane gatunki po przecinku (Twoje tagi z Rekordboxa), "
+             "np. 'garage,breaks,bass'. Preferencja z uczciwym rozluźnieniem, "
+             "nie twardy filtr."),
+    bpm: str = typer.Option(
+        "", "--bpm", help="Okno tempa, np. '128-140'"),
+    play_like: str = typer.Option(
+        "", "--jak", help="Graj jak ten DJ (kotwica brzmienia z dj_anchors.json). "
+                          "'?' wypisuje dostępnych."),
+    contour: bool = typer.Option(
+        False, "--kontur", help="Prowadź skoki brzmienia konturem tego DJ-a "
+                                "(wymaga --jak)"),
     context: str | None = _context_option(),
     config: str = _config_option(),
 ) -> None:
@@ -190,11 +216,35 @@ def zagraj(
     from dancelab.workflows.smart_playlist import build_smart_playlist_from_folder
     from dancelab.cli.cues import _load_bundle, plan_and_write
 
+    if not count and not minutes:
+        typer.secho("podaj --count albo --minutes", fg="red", err=True)
+        sys.exit(2)
+    if play_like.strip() == "?":
+        from dancelab.decision.anchors import list_anchors
+        typer.echo("Dostępne kotwice (nazwa · wektorów · mediana skoku):")
+        for anchor_name, n, med in list_anchors():
+            typer.echo(f"  {n:4d} · {med if med is not None else '—'} · {anchor_name}")
+        raise typer.Exit(0)
+    if contour and not play_like:
+        typer.secho("--kontur wymaga --jak (czyj kontur mam prowadzić?)",
+                    fg="red", err=True)
+        sys.exit(2)
+    bpm_min = bpm_max = None
+    if bpm.strip():
+        try:
+            lo_s, hi_s = bpm.replace(" ", "").split("-", 1)
+            bpm_min, bpm_max = float(lo_s), float(hi_s)
+        except ValueError:
+            typer.secho(f"--bpm ma być zakresem 'lo-hi', dostałem {bpm!r}",
+                        fg="red", err=True)
+            sys.exit(2)
+
     try:
         result = build_smart_playlist_from_folder(
             directory,
             load_config(config),
-            target_track_count=count,
+            target_track_count=count or None,
+            target_minutes=minutes or None,
             playlist_name=name,
             processed_dir=processed_dir,
             arc=arc,
@@ -203,6 +253,11 @@ def zagraj(
             context=_resolve_context(context),
             analysis_depth=analysis_depth,
             recompute=recompute,
+            preferred_styles=[x.strip() for x in styles.split(",") if x.strip()] or None,
+            bpm_min=bpm_min,
+            bpm_max=bpm_max,
+            play_like=play_like.strip() or None,
+            use_contour=contour,
         )
     except ValueError as exc:
         typer.secho(f"INPUT ERROR: {exc}", fg="red", err=True)
@@ -213,6 +268,8 @@ def zagraj(
 
     typer.echo(f"Set: {len(result.set_plan.track_order)} utworów "
                f"· średnia zgodność przejść {result.set_plan.mean_transition_score}")
+    for note in result.set_plan.warnings:
+        typer.secho(f"  · {note}", fg="cyan")
     for failure in result.failed_tracks[:8]:
         typer.secho(f"nie udało się przeanalizować {Path(failure.source_path).name}: "
                     f"{failure.error}", fg="yellow")
