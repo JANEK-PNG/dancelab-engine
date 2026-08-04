@@ -40,6 +40,45 @@ class LengthSuggestion:
     runway_a_beats: float | None
     runway_b_beats: float | None
     reasoning: list[str] = field(default_factory=list)
+    phrase_a_beats: float | None = None
+    phrase_b_beats: float | None = None
+
+
+def phrase_runway_beats(phrases, cue_sec: float, bpm: float | None
+                        ) -> tuple[float | None, str]:
+    """Ile bitów od cue utwór trzyma TĘ SAMĄ sekcję (Rekordbox Phrase Analysis).
+
+    Reguła rzemieślnicza, nie pomiar: blend nie powinien przeciągać się poza
+    moment, w którym płyta zmienia sekcję — bo tam zmienia się to, z czym
+    druga płyta ma się kleić. Kolejne frazy o TYM SAMYM typie (trzy UP-y pod
+    rząd) są jedną ciągłością i nie kończą zapasu; dopiero zmiana etykiety
+    (UP → DOWN, CHORUS → OUTRO) go kończy.
+
+    Etykiety pochodzą z analizy Pioneera, nie z naszego pomiaru — dlatego
+    ten człon jest OPCJONALNY i zawsze nazwany w uzasadnieniu.
+    None + powód, gdy nie ma z czego liczyć (ADR-005).
+    """
+    if phrases is None:
+        return None, "brak analizy fraz"
+    if not bpm or bpm <= 0:
+        return None, "brak tempa — nie wyrażę zapasu w bitach"
+    here = phrases.at(cue_sec)
+    if here is None or here.label is None:
+        return None, "cue poza frazami albo słownik niepotwierdzony"
+
+    end_sec = here.end_sec
+    for p in phrases.phrases:
+        if p.start_sec is None or p.start_sec <= cue_sec:
+            continue
+        if p.label == here.label:      # ta sama sekcja trwa dalej
+            end_sec = p.end_sec
+            continue
+        end_sec = p.start_sec
+        break
+    if end_sec is None:
+        return None, "brak przeliczenia frazy na sekundy"
+    beats = max(0.0, (end_sec - cue_sec) * bpm / 60.0)
+    return beats, f"sekcja {here.label} trzyma {beats:.0f} bitów od cue"
 
 
 def _bpm(analysis: AnalysisResult) -> float | None:
@@ -121,6 +160,9 @@ def suggest_transition_beats(
     cue_a_sec: float,
     analysis_b: AnalysisResult,
     cue_b_sec: float,
+    *,
+    phrases_a=None,
+    phrases_b=None,
 ) -> LengthSuggestion:
     """Suggested blend length for this pair, from the weaker side's runway.
 
@@ -131,11 +173,19 @@ def suggest_transition_beats(
     runway_b, why_b = stability_runway_beats(analysis_b, cue_b_sec, side="incoming")
     reasoning = [f"A out: {why_a}", f"B in: {why_b}"]
 
-    if runway_a is None or runway_b is None:
-        return LengthSuggestion(None, runway_a, runway_b, reasoning)
+    # Struktura z Rekordboxa, gdy jest — skraca zapas do końca sekcji.
+    ph_a, why_pa = phrase_runway_beats(phrases_a, cue_a_sec, _bpm(analysis_a))
+    ph_b, why_pb = phrase_runway_beats(phrases_b, cue_b_sec, _bpm(analysis_b))
+    if phrases_a is not None or phrases_b is not None:
+        reasoning += [f"A frazy: {why_pa}", f"B frazy: {why_pb}"]
 
-    governed = min(runway_a, runway_b)
-    side = "A" if runway_a <= runway_b else "B"
+    if runway_a is None or runway_b is None:
+        return LengthSuggestion(None, runway_a, runway_b, reasoning, ph_a, ph_b)
+
+    limits = [runway_a, runway_b] + [x for x in (ph_a, ph_b) if x is not None]
+    governed = min(limits)
+    side = ("A" if runway_a <= runway_b else "B") if governed in (runway_a, runway_b) \
+        else ("A (sekcja)" if governed == ph_a else "B (sekcja)")
     fitting = [o for o in SUGGESTION_OPTIONS if o <= governed]
     beats = max(fitting) if fitting else SUGGESTION_OPTIONS[0]
     reasoning.append(
@@ -143,4 +193,4 @@ def suggest_transition_beats(
         f"suggesting {beats}"
         + ("" if fitting else " (shortest option; runway is thinner than that)")
     )
-    return LengthSuggestion(beats, runway_a, runway_b, reasoning)
+    return LengthSuggestion(beats, runway_a, runway_b, reasoning, ph_a, ph_b)
