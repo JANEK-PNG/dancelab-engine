@@ -11,7 +11,24 @@ import asyncio
 
 import dancelab.ingestion.playlist_publish as publish_mod
 from dancelab.ingestion.playlist_publish import publish_playlist
-from dancelab.tui.app import DanceLabTUI, _parse_bpm
+from dancelab.tui.app import DanceLabTUI, _mode_params, _parse_bpm, influence_color
+
+
+def test_influence_poswiata_gasnie_z_odlegloscia():
+    """100% ma kursor (natywne zaznaczenie), sąsiedzi gasną, dalej brak."""
+    assert influence_color(0) is None            # kursor maluje sam Textual
+    assert influence_color(1) == influence_color(-1) is not None
+    assert influence_color(1) != influence_color(2) != influence_color(3)
+    assert influence_color(4) is None and influence_color(9) is None
+
+
+def test_tryby_sugestii_mapuja_na_tryby_silnika():
+    """bpm/harmonic = oficjalne tryby plannera, bez kotwicy; smart = kontekst
+    budowy Z kotwicą — panel nie może mieć innego gustu niż budowa."""
+    ctx = {"planner": "smart", "anchor": [0.1, 0.2]}
+    assert _mode_params("bpm", ctx) == ("bpm", None)
+    assert _mode_params("harmonic", ctx) == ("harmonic", None)
+    assert _mode_params("smart", ctx) == ("smart", [0.1, 0.2])
 
 
 def test_parse_bpm_poprawne_i_puste():
@@ -110,6 +127,19 @@ def test_tui_ciecie_i_przesuniecie_loguja_werdykty(tmp_path, monkeypatch):
             await pilot.press("v")            # świadomy werdykt
             await pilot.pause()
             assert len(app._edits) == 2
+
+            # notki schowane domyślnie, I pokazuje; poświata pomalowała sąsiada
+            from textual.widgets import Log
+            log = app.query_one("#warnings", Log)
+            assert not log.has_class("open")
+            await pilot.press("i")
+            await pilot.pause()
+            assert log.has_class("open")
+            app._paint_influence(0)
+            from textual.coordinate import Coordinate
+            from rich.text import Text
+            neighbour = table.get_cell_at(Coordinate(1, 6))
+            assert isinstance(neighbour, Text)   # dist 1 → pomalowany
     asyncio.run(go())
 
     log = (tmp_path / "tui_edycje.jsonl").read_text().splitlines()

@@ -29,6 +29,12 @@ cd ~/Developer/dancelab-engine && .venv/bin/dancelab tui
 3. Klikasz utwór w tabeli i **Z** — po prawej otwiera się panel z 10 propozycjami
    podmiany, ocenianymi w TYM miejscu setu (jak wchodzi po poprzednim i jak
    wychodzi w następny). Klikasz propozycję i znów **Z** — podmiana zrobiona.
+   - W panelu jest **wybór trybu oceny**: `smart` (pełna ocena, którą powstał
+     set, plus kotwica), `BPM najpierw` albo `tonacja najpierw` — zmiana trybu
+     od razu przelicza propozycje.
+   - Zaznaczony utwór dostaje **poświatę zasięgu**: sąsiedzi obok gasną
+     stopniowo (±3 pozycje) — widzisz, gdzie sięga szczelina, w którą
+     wchodzi podmiana.
 4. **Edycja setu** (te same ruchy, które robiłeś ręcznie w Rekordboksie):
    - **X** — wycina zaznaczony utwór;
    - **Shift+↑ / Shift+↓** — przesuwa zaznaczony utwór w górę/dół;
@@ -49,7 +55,9 @@ cd ~/Developer/dancelab-engine && .venv/bin/dancelab tui
 ## Jak czytać ekran (zasada uczciwości)
 
 - Przygaszony wiersz = silnik nie jest pewny tonacji (pewność poniżej 0,5).
-- Panel ostrzeżeń na dole nigdy się nie chowa — tam silnik mówi, czego nie wie.
+- Notki silnika („czego nie wiem, co odrzuciłem") są schowane — **I** je
+  pokazuje i chowa; licznik notek widać zawsze w pasku statusu. Odmowy
+  i wynik zapisu do Rekordboxa wyskakują same jako dymek.
 - Pasek statusu pokazuje, czy Rekordbox chodzi i ile jest kopii zapasowych.
 
 ## Gdy coś nie działa

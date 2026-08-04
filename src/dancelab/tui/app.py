@@ -77,17 +77,45 @@ def _parse_bpm(text: str) -> tuple[float | None, float | None, str | None]:
     return lo, hi, None
 
 
+# Poświata „influence" wokół zaznaczenia (pomysł Janka, 04.08): pełny kolor ma
+# kursor, sąsiedzi gasną z odległością (80/60/40%). To ORIENTACJA „gdzie sięga
+# szczelina", nie pomiar — mierzalny wpływ podmiany to bezpośrednie pary
+# (i-1→i, i→i+1), dlatego gradient nie jest podpisany żadną liczbą (ADR-005).
+_INFLUENCE_RAMP = {1: "#5aa9d6", 2: "#3d7396", 3: "#2a4d64"}
+
+
+def influence_color(dist: int) -> str | None:
+    return _INFLUENCE_RAMP.get(abs(dist))
+
+
+def _mode_params(mode: object, ctx: dict) -> tuple[str, object]:
+    """Tryb panelu sugestii → (planner_mode silnika, kotwica).
+
+    smart = pełna ocena, którą set powstał, plus kotwica z budowy;
+    bpm / harmonic = OFICJALNE tryby plannera silnika (te same wagi, których
+    używa budowa w trybie bpm/harmonic: 0,55 na tempo albo na koło Camelota),
+    bez kotwicy — tryb nazywa dokładnie to, co ocenia."""
+    if mode == "bpm":
+        return "bpm", None
+    if mode == "harmonic":
+        return "harmonic", None
+    return ctx.get("planner", "smart"), ctx.get("anchor")
+
+
 class DanceLabTUI(App):
     TITLE = "DanceLab — budowa setu"
     CSS = """
     #form { width: 44; padding: 0 1; border-right: solid $primary; }
     #form Input, #form Select { margin-bottom: 1; }
     #results { padding: 0 1; }
-    #warnings { height: 9; border-top: solid $warning; }
+    #warnings { height: 9; border-top: solid $warning; display: none; }
+    #warnings.open { display: block; }
     #status { height: 1; background: $panel; color: $text-muted; padding: 0 1; }
     #suggest { width: 42; border-left: solid $accent; padding: 0 1; display: none; }
     #suggest.open { display: block; }
     #suggest-title { color: $accent; text-style: bold; }
+    #suggest-mode { margin: 1 0; }
+    #suggest-mode.hide { display: none; }
     .field-label { color: $text-muted; }
     """
     BINDINGS = [
@@ -101,9 +129,15 @@ class DanceLabTUI(App):
         Binding("s", "save_plan", "Zapisz plan"),
         Binding("o", "load_plan", "Wczytaj"),
         Binding("v", "verdict", "Werdykt"),
+        Binding("i", "toggle_notes", "Info"),
         Binding("escape", "cancel", "Anuluj"),
         Binding("q", "quit", "Wyjdź"),
     ]
+
+    # Notki (kanał uczciwości ADR-005) są domyślnie SCHOWANE na życzenie Janka
+    # (04.08: „usera to nie interesuje… niech będzie pod guzikiem i") — ale nie
+    # giną: licznik zawsze w pasku statusu, I pokazuje pełną listę, a odmowy
+    # i wynik zapisu wyskakują dymkiem same.
 
     def __init__(self, processed_dir: str = PROCESSED_DEFAULT):
         super().__init__()
@@ -118,6 +152,8 @@ class DanceLabTUI(App):
         self._ctx: dict = {}
         self._suggest_slot: int | None = None
         self._panel_mode: str | None = None   # "suggest" | "insert" | "plans"
+        self._row_cells: list[tuple[str, str]] = []   # (nr, utwór) do poświaty
+        self._n_notes = 0
 
     # ------------------------------------------------------------- układ
 
@@ -157,6 +193,10 @@ class DanceLabTUI(App):
                 yield Log(id="warnings", highlight=False)
             with Vertical(id="suggest"):
                 yield Label("", id="suggest-title")
+                yield Select([("smart — pełna ocena + kotwica", "smart"),
+                              ("BPM najpierw", "bpm"),
+                              ("tonacja najpierw", "harmonic")],
+                             value="smart", id="suggest-mode", allow_blank=False)
                 yield OptionList(id="suggest-list")
         yield Static("", id="status")
         yield Footer()
@@ -184,16 +224,24 @@ class DanceLabTUI(App):
             else "✅ Rekordbox zamknięty — W dostępne"
         n_bak = len(list(BACKUP_DIR.glob("*.db"))) if BACKUP_DIR.exists() else 0
         self.query_one("#status", Static).update(
-            f"{rb}   ·   backupy: {n_bak}   ·   pula: {self.processed_dir}")
+            f"{rb}   ·   backupy: {n_bak}   ·   notki: {self._n_notes} (I)"
+            f"   ·   pula: {self.processed_dir}")
 
     def _note(self, line: str) -> None:
         self.query_one("#warnings", Log).write_line(f"· {line}")
+        self._n_notes += 1
+        self._refresh_status()
+
+    def action_toggle_notes(self) -> None:
+        self.query_one("#warnings", Log).toggle_class("open")
 
     # ------------------------------------------------------------- budowa
 
     def action_build(self) -> None:
         self.query_one("#warnings", Log).clear()
+        self._n_notes = 0
         self.query_one("#set", DataTable).clear()
+        self._row_cells = []
         self._stop.clear()
         self._build_worker()
 
@@ -204,7 +252,10 @@ class DanceLabTUI(App):
             plan, by_id, warnings = self._build_plan()
         except Exception as exc:  # noqa: BLE001 — pokazujemy powód, nie traceback
             ui(self._note, f"ODMOWA: {exc}")
-            ui(self.query_one("#progress", Static).update, "Nie zbudowano — powód niżej.")
+            ui(self.query_one("#progress", Static).update,
+               "Nie zbudowano — powód pod I.")
+            self.call_from_thread(self.notify, f"ODMOWA: {exc}",
+                                  severity="error", timeout=8)
             return
         ui(self._show_plan, plan, by_id, warnings)
 
@@ -331,25 +382,50 @@ class DanceLabTUI(App):
         table.clear()
         total = 0.0
         self._plan_paths = []
+        self._row_cells = []
         for i, tid in enumerate(self._order, 1):
             t = by_id[tid].track
             total += t.duration_sec or 0
             conf = t.key_confidence
             key = str(t.key_estimate or "?")
             key_cell = key if (conf or 0) >= 0.5 else f"[dim]{key}?[/]"
+            name = pathlib.Path(t.source_path).stem[:46]
             table.add_row(
                 str(i), f"{t.bpm_estimate or 0:.1f}", key_cell,
                 f"{conf:.2f}" if conf is not None else "—",
                 (t.style_label or "")[:22], f"{total/60:5.1f}",
-                pathlib.Path(t.source_path).stem[:46],
+                name,
             )
             self._plan_paths.append(t.source_path)
+            self._row_cells.append((str(i), name))
+        self._paint_influence(table.cursor_row)
         n = len(self._order)
         score = self._mean_score if self._mean_score is not None else "—"
         self.query_one("#progress", Static).update(
             f"SET: {n} utworów · {total/60:.0f} min pełnych "
             f"(~{max(0,(total-75*(n-1)))/60:.0f} min przy blendach 75 s) "
             f"· zgodność {score}")
+
+    # ---------------------------------------------------- poświata zasięgu
+
+    def on_data_table_row_highlighted(self, event) -> None:
+        if getattr(event.data_table, "id", None) == "set" and self._row_cells:
+            self._paint_influence(event.cursor_row)
+
+    def _paint_influence(self, sel: int | None) -> None:
+        """Gasnąca poświata wokół zaznaczenia — patrz notka przy _INFLUENCE_RAMP."""
+        if sel is None or not self._row_cells:
+            return
+        from rich.text import Text
+        from textual.coordinate import Coordinate
+        table = self.query_one("#set", DataTable)
+        if table.row_count != len(self._row_cells):
+            return                        # w trakcie przebudowy tabeli — odpuść
+        for i, (nr, name) in enumerate(self._row_cells):
+            color = influence_color(i - sel)
+            for col, raw in ((0, nr), (6, name)):
+                value = Text(raw, style=color) if color else raw
+                table.update_cell_at(Coordinate(i, col), value)
 
     # ------------------------------------------------------------- zapis
 
@@ -470,13 +546,15 @@ class DanceLabTUI(App):
         energy = {tid: energy_of(a) for tid, a in by_id.items()}
         e_rng = (max(energy.values()) - min(energy.values())) or 1.0
         fn = suggest_for_slot if mode == "suggest" else suggest_for_insertion
+        score_mode = self.query_one("#suggest-mode", Select).value
+        planner, anchor = _mode_params(score_mode, ctx)
         try:
             sugg = fn(by_id, self._order, idx, k=10,
                       weights=ctx["weights"], arc=ctx["arc"],
-                      planner_mode=ctx["planner"], energy=energy,
+                      planner_mode=planner, energy=energy,
                       energy_range=e_rng,
                       bpm_min=ctx["bpm_min"], bpm_max=ctx["bpm_max"],
-                      anchor=ctx["anchor"])
+                      anchor=anchor)
         except Exception as exc:  # noqa: BLE001
             ui(self._note, f"sugestie nie wyszły: {exc}")
             return
@@ -492,18 +570,29 @@ class DanceLabTUI(App):
                 f"{str(t.key_estimate or '?'):>3} "
                 f"{pathlib.Path(t.source_path).stem[:30]}",
                 sg.track_id))
+        mode_label = {"bpm": "BPM najpierw", "harmonic": "tonacja najpierw"} \
+            .get(score_mode, "smart")
         if mode == "suggest":
             title = (f"#{idx+1} {here}\n"
-                     f"klik/strzałki = wybierz · Z = zamień · Esc = zostaw")
+                     f"[{mode_label}] klik + Z = zamień · Esc = zostaw")
         else:
             title = (f"DOPISZ za #{idx+1} {here}\n"
-                     f"klik/strzałki = wybierz · A = dopisz · Esc = zostaw")
+                     f"[{mode_label}] klik + A = dopisz · Esc = zostaw")
         ui(self._open_suggest_panel, idx, title, options, mode)
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        """Zmiana trybu oceny przy otwartym panelu → przelicz sugestie na żywo."""
+        if getattr(event.select, "id", None) != "suggest-mode":
+            return
+        if self._panel_mode in ("suggest", "insert") \
+                and self._suggest_slot is not None:
+            self._suggest_worker(self._suggest_slot, self._panel_mode)
 
     def _open_suggest_panel(self, idx: int | None, title: str,
                             options: list[tuple[str, str]], mode: str) -> None:
         self._suggest_slot = idx
         self._panel_mode = mode
+        self.query_one("#suggest-mode", Select).set_class(mode == "plans", "hide")
         self.query_one("#suggest-title", Label).update(title)
         lst = self.query_one("#suggest-list", OptionList)
         lst.clear_options()
@@ -705,8 +794,13 @@ class DanceLabTUI(App):
             ui(self._note,
                f"✅ zapisane: {report.playlist_name} ({report.written} utworów) "
                f"· backup {report.backup_path}")
+            self.call_from_thread(
+                self.notify,
+                f"✅ {report.playlist_name}: {report.written} utworów w Rekordboksie")
         elif not report.ok:
-            ui(self._note, "❌ zapis nieudany — szczegóły wyżej")
+            ui(self._note, "❌ zapis nieudany — szczegóły pod I")
+            self.call_from_thread(self.notify, "❌ zapis nieudany — szczegóły pod I",
+                                  severity="error", timeout=8)
         ui(self._refresh_status)
 
 

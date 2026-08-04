@@ -18,7 +18,9 @@ warnings zawsze widoczne, tonacja o pewności <0,5 przygaszona, stan Rekordboxa 
 | kontur skoków | Switch #contour |
 | łuk / plan tempa / tryb | Selecty #arc #tempo #planner |
 | `SetPlan.track_order` | DataTable: # · BPM · ton · pewność · gatunek · Σ min · utwór |
-| `SetPlan.warnings` + notki dokarmiania | Log #warnings — stały, nigdy zwinięty |
+| `SetPlan.warnings` + notki dokarmiania | Log #warnings — SCHOWANY domyślnie (decyzja Janka 04.08), klawisz I przełącza; licznik notek ZAWSZE w pasku statusu, ODMOWA i wynik zapisu dodatkowo dymkiem (kanał uczciwości przeniesiony, nie usunięty) |
+| tryby oceny sugestii = `_planner_component_weights` silnika (smart / bpm 0,55 / harmonic 0,55) | Select #suggest-mode w panelu; zmiana przelicza sugestie na żywo; bpm/harmonic bez kotwicy — tryb nazywa to, co ocenia |
+| poświata „influence" wokół zaznaczenia (pomysł Janka; wizualna ORIENTACJA zasięgu szczeliny, ±3, bez liczb — mierzalny wpływ to pary bezpośrednie) | podświetlenie #/utwór gasnącym kolorem przy ruchu kursora |
 | `ingestion.playlist_publish` (backup→dopasowanie→weryfikacja odczytem) | klawisz W |
 | `decision.slot_suggest` — kandydat oceniany W SZCZELINIE (wejście+wyjście, ta sama kotwica co budowa) | klawisz Z → doszyty panel po prawej (42 kolumny); klik propozycji + Z = podmiana |
 | `decision.slot_suggest.suggest_for_insertion` — szczelina MIĘDZY utworami, nikt nie wypada | klawisz A (dopisz ZA zaznaczonym) — ten sam panel i wzorzec dwóch naciśnięć co Z |
