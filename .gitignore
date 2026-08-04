@@ -21,6 +21,8 @@ data/reports/real_e2e_*/transition_preview.*
 # --- large data & derived artifacts (regenerable via scripts, iCloud-backed) ---
 data/reports/
 data/processed/
+data/cache/
+data/exports/
 data/examples/*.wav
 data/examples/*.mp3
 outputs/
