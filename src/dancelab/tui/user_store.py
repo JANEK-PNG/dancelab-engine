@@ -25,15 +25,20 @@ STATE_PATH = pathlib.Path("data/exports/tui_stan.json")
 MIN_FILARY = 3
 MAX_FILARY = 10
 
-_EMPTY = {"ulubione_utwory": [], "ulubione_playlisty": [], "filary": []}
+_EMPTY = {"ulubione_utwory": [], "ulubione_playlisty": [], "filary": [],
+          "tryb_filarow": "rozstaw"}
+
+
+def _kopia(v):
+    return list(v) if isinstance(v, list) else v
 
 
 def load_state() -> dict:
     if not STATE_PATH.exists():
-        return {k: list(v) for k, v in _EMPTY.items()}
+        return {k: _kopia(v) for k, v in _EMPTY.items()}
     state = json.loads(STATE_PATH.read_text())
     for key, default in _EMPTY.items():
-        state.setdefault(key, list(default))
+        state.setdefault(key, _kopia(default))
     return state
 
 

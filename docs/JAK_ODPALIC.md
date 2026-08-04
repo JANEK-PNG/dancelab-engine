@@ -37,12 +37,19 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
   silnik projektuje drogę MIĘDZY filarami, reszta należy do niego.
   Legenda z tymi skrótami jest cały czas widoczna nad tabelą.
 - **G** albo przycisk **„→ Zbuduj z filarów"** — przenosi filary do zakładki
-  Set jako **szkic** (złote wiersze z flagą ⚑), CELOWO bez budowania: najpierw
-  uzupełniasz brief po lewej (minuty, okno tempa, gatunki, kotwica), dopiero
-  **B** buduje set wokół filarów. Filary są **rozstawiane równomiernie po
-  całym secie** (rosnąco po tempie — jak schodki, którymi grasz), a silnik
-  buduje przęsła między nimi; w gotowym secie zostają oznaczone ⚑ i złotem. Potem dokooptowujesz utwory: A dopisuje, Z podmienia,
-  X wycina.
+  Set jako **szkic** (złote wiersze z flagą ⚑), CELOWO bez budowania. Po G
+  otwiera się **panel trybów filarów** (drugie **F** w zakładce Set otwiera go
+  w każdej chwili; klik + F wybiera):
+  - **Podpory** — silnik najpierw buduje konstrukcję bez filarów, mierzy
+    każde przęsło i wstawia filary w zmierzone najsłabsze miejsca;
+  - **Równy rozstaw** — filary równomiernie po całym secie;
+  - **Rama** — najwolniejszy filar otwiera set, najszybszy zamyka, środek
+    równomiernie.
+  Potem uzupełniasz brief po lewej (minuty, okno tempa, gatunki, kotwica)
+  i **B** buduje. Filary w gotowym secie są oznaczone ⚑ i złotem, a zachowują
+  się jak zwykłe utwory (przesuwanie, dopisywanie, podmiana);
+  **wycięcie filaru (X) zdejmuje też pin** — F w Bibliotece przypina
+  z powrotem.
 - **Sortowanie**: klik w nagłówek kolumny sortuje (drugi klik odwraca);
   utwory bez wartości idą zawsze na koniec.
 - Na dole wiersz **Analizuj**: wklej ścieżkę folderu z muzyką i kliknij —
@@ -64,9 +71,6 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
    - W panelu jest **wybór trybu oceny**: `smart` (pełna ocena, którą powstał
      set, plus kotwica), `BPM najpierw` albo `tonacja najpierw` — zmiana trybu
      od razu przelicza propozycje.
-   - Zaznaczony utwór dostaje **poświatę zasięgu**: sąsiedzi obok gasną
-     stopniowo (±3 pozycje) — widzisz, gdzie sięga szczelina, w którą
-     wchodzi podmiana.
 4. **Edycja setu** (te same ruchy, które robiłeś ręcznie w Rekordboksie):
    - **X** — wycina zaznaczony utwór;
    - **Shift+↑ / Shift+↓** — przesuwa zaznaczony utwór w górę/dół;
@@ -90,7 +94,11 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
 
 ## Jak czytać ekran (zasada uczciwości)
 
-- Przygaszony wiersz = silnik nie jest pewny tonacji (pewność poniżej 0,5).
+- BPM i tonacja stoją na granatowej podkładce — łatwiej łapać je wzrokiem.
+- Przygaszona tonacja ze znakiem „?" = silnik nie jest jej pewny (pewność
+  poniżej 0,5).
+- Pasek skrótów na dole jest kontekstowy: w Bibliotece widzisz klawisze
+  Biblioteki, w Secie — Setu.
 - Notki silnika („czego nie wiem, co odrzuciłem") są schowane — **L** (log)
   je pokazuje i chowa; licznik notek widać zawsze w pasku statusu. Odmowy
   i wynik zapisu do Rekordboxa wyskakują same jako dymek.

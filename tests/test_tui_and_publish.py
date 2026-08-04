@@ -12,7 +12,7 @@ import asyncio
 import dancelab.ingestion.playlist_publish as publish_mod
 from dancelab.ingestion.playlist_publish import publish_playlist
 from dancelab.tui.app import (
-    DanceLabTUI, _format_track_info, _mode_params, _parse_bpm, influence_color)
+    DanceLabTUI, _format_track_info, _mode_params, _parse_bpm)
 
 
 def test_karta_info_nazywa_zrodla_i_mowi_czego_nie_wie():
@@ -37,14 +37,6 @@ def test_karta_info_nazywa_zrodla_i_mowi_czego_nie_wie():
     assert "nie ma w kolekcji" in _format_track_info(_T(), None, None)
     assert "master.db nieodczytany: pad" in \
         _format_track_info(_T(), None, "master.db nieodczytany: pad")
-
-
-def test_influence_poswiata_gasnie_z_odlegloscia():
-    """100% ma kursor (natywne zaznaczenie), sąsiedzi gasną, dalej brak."""
-    assert influence_color(0) is None            # kursor maluje sam Textual
-    assert influence_color(1) == influence_color(-1) is not None
-    assert influence_color(1) != influence_color(2) != influence_color(3)
-    assert influence_color(4) is None and influence_color(9) is None
 
 
 def test_tryby_sugestii_mapuja_na_tryby_silnika():
@@ -96,6 +88,9 @@ def test_tui_edycje_bez_setu_odmawiaja_z_powodem():
     async def go():
         app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
         async with app.run_test() as pilot:
+            from textual.widgets import TabbedContent
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
             for key in ("x", "a", "s", "v", "z", "i"):
                 await pilot.press(key)
                 await pilot.pause()
@@ -131,6 +126,9 @@ def test_tui_ciecie_i_przesuniecie_loguja_werdykty(tmp_path, monkeypatch):
     async def go():
         app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
         async with app.run_test() as pilot:
+            from textual.widgets import TabbedContent
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
             by_id = _fake_pool("A", "B", "C")
             app._ctx = dict(by_id=by_id, weights=None, arc="build",
                             planner="smart", bpm_min=None, bpm_max=None,
@@ -160,11 +158,11 @@ def test_tui_ciecie_i_przesuniecie_loguja_werdykty(tmp_path, monkeypatch):
             await pilot.press("l")
             await pilot.pause()
             assert log.has_class("open")
-            app._paint_influence(0)
             from textual.coordinate import Coordinate
             from rich.text import Text
-            neighbour = table.get_cell_at(Coordinate(1, 6))
-            assert isinstance(neighbour, Text)   # dist 1 → pomalowany
+            bpm_cell = table.get_cell_at(Coordinate(0, 1))
+            assert isinstance(bpm_cell, Text)    # BPM na podkładce tła
+            assert "on #" in str(bpm_cell.style)
     asyncio.run(go())
 
     log = (tmp_path / "tui_edycje.jsonl").read_text().splitlines()
@@ -182,6 +180,9 @@ def test_tui_budowa_bez_kotwicy_nie_pada_na_noselection():
     async def go():
         app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
         async with app.run_test() as pilot:
+            from textual.widgets import TabbedContent
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
             await pilot.press("b")
             for _ in range(40):
                 await pilot.pause(0.1)
@@ -198,6 +199,9 @@ def test_tui_odmowa_budowy_pokazuje_powod():
     async def go():
         app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
         async with app.run_test() as pilot:
+            from textual.widgets import TabbedContent
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
             await pilot.press("b")
             for _ in range(40):                    # worker w wątku — czekamy krótko
                 await pilot.pause(0.1)

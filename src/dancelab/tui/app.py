@@ -92,6 +92,15 @@ def _energy_raw(a) -> float | None:
     return float(sum(vals) / len(vals)) if vals else None
 
 
+def _energia_do_oceny(by_id: dict) -> tuple[dict[str, float], float]:
+    """Mapa energii pod transition_score (0,5 gdy brak ramek — do OCENY,
+    nie do wyświetlania) + rozpiętość. Wspólne dla sugestii i trybu Podpory."""
+    energy = {tid: (_energy_raw(a) if _energy_raw(a) is not None else 0.5)
+              for tid, a in by_id.items()}
+    e_rng = (max(energy.values()) - min(energy.values())) or 1.0
+    return energy, e_rng
+
+
 def filter_library(analyses, *, search: str = "", key: str = "",
                    bpm_lo: float | None = None,
                    bpm_hi: float | None = None) -> list:
@@ -119,22 +128,37 @@ def filter_library(analyses, *, search: str = "", key: str = "",
     return out
 
 
-def _rozstaw_filary(filary: list[str], by_id: dict,
-                    count: int) -> dict[int, str]:
+def _rozstaw_filary(filary: list[str], by_id: dict, count: int,
+                    tryb: str = "rozstaw") -> dict[int, str]:
     """Filary → pozycje w secie, metafora Janka (05.08): filar ma PODPIERAĆ
-    konstrukcję, nie leżeć na końcu. Chciwy budowniczy z samym „musi zagrać"
-    odkładał niewygodne filary na ogon (zmierzone: 6 filarów na pozycjach
-    13-18 z 18) — więc pozycje wyznaczamy Z GÓRY: równomiernie po całym
-    secie, a silnik projektuje przęsła między nimi.
+    konstrukcję, nie leżeć na końcu (zmierzone: z samym „musi zagrać" 6
+    filarów lądowało na pozycjach 13-18 z 18). Pozycje wyznaczamy Z GÓRY,
+    a silnik projektuje przęsła między nimi.
 
-    Kolejność filarów na pozycjach: rosnąco po tempie — zgodnie ze schodkami
-    tempa (plan `staircase`) i łukiem `build`, którymi Janek gra. Ograniczenie
-    v1, nazwane wprost: przy łuku `peak` (wznoszenie i opadanie) przydział
-    powinien kiedyś patrzeć w krzywą tempa, nie tylko rosnąć."""
+    Tryby pozycyjne: `rozstaw` — równomiernie po całym secie; `rama` —
+    pierwszy filar ZAWSZE otwiera set, ostatni ZAWSZE zamyka, środek
+    równomiernie. (Tryb `podpory` nie jest pozycyjny — patrz _wstaw_podpory.)
+
+    Kolejność filarów wzdłuż setu: rosnąco po tempie — zgodnie ze schodkami
+    tempa (`staircase`) i łukiem `build`, którymi Janek gra. Ograniczenie v1,
+    nazwane wprost: przy łuku `peak` przydział powinien kiedyś patrzeć
+    w krzywą tempa, nie tylko rosnąć."""
     posortowane = sorted(filary,
                          key=lambda t: by_id[t].track.bpm_estimate or 0.0)
     k = len(posortowane)
     pozycje: dict[int, str] = {}
+    if tryb == "rama" and k >= 2 and count >= k:
+        pozycje[1] = posortowane[0]
+        pozycje[count] = posortowane[-1]
+        srodek = posortowane[1:-1]
+        m = len(srodek)
+        prev = 1
+        for i, tid in enumerate(srodek):
+            pos = int((i + 0.5) * (count - 2) / m + 0.5) + 1
+            pos = min(max(pos, prev + 1), count - 1 - (m - 1 - i))
+            pozycje[pos] = tid
+            prev = pos
+        return pozycje
     prev = 0
     for i, tid in enumerate(posortowane):
         pos = int((i + 0.5) * count / k + 0.5)
@@ -175,15 +199,71 @@ def _filary_for_build(state: dict, by_id: dict, bpm_min: float | None,
     return kept, notes
 
 
-# Poświata „influence" wokół zaznaczenia (pomysł Janka, 04.08): pełny kolor ma
-# kursor, sąsiedzi gasną z odległością (80/60/40%). To ORIENTACJA „gdzie sięga
-# szczelina", nie pomiar — mierzalny wpływ podmiany to bezpośrednie pary
-# (i-1→i, i→i+1), dlatego gradient nie jest podpisany żadną liczbą (ADR-005).
-_INFLUENCE_RAMP = {1: "#5aa9d6", 2: "#3d7396", 3: "#2a4d64"}
+# Poświata „influence" ŻYŁA JEDEN DZIEŃ: pomysł Janka 04.08, jego własne weto
+# 05.08 po użyciu („makes no sense and it's distracting") — usunięta w całości.
+# Ta notka zostaje, żeby pomysł nie wrócił bez pamięci o werdykcie.
 
-# Filary w tabeli setu: złota flaga ⚑ + złoty tekst. Kolor celowo z innej
-# rodziny niż niebieska poświata zasięgu — te dwa znaczenia nie mogą się mylić.
+# Filary w tabeli setu: złota flaga ⚑ + złoty tekst.
 PILLAR_COLOR = "#d9a441"
+
+# Podkładka pod BPM i tonacją (prośba Janka 05.08: „nie odróżniają się od
+# reszty tekstu") — biały tekst zostaje, tło ciemnogranatowe, obie tabele.
+_COL_BG = "#20283c"
+
+
+def _bpm_cell(t):
+    from rich.text import Text
+    return Text(f"{t.bpm_estimate or 0:.1f}", style=f"on {_COL_BG}")
+
+
+def _key_cell(t):
+    from rich.text import Text
+    conf = t.key_confidence
+    k = str(t.key_estimate or "?")
+    if (conf or 0) >= 0.5:
+        return Text(k, style=f"on {_COL_BG}")
+    return Text(f"{k}?", style=f"dim on {_COL_BG}")
+
+
+# Tryby rozstawiania filarów (Janek, 05.08 — krok konfiguracji po G):
+TRYBY_FILAROW = [
+    ("podpory", "Podpory — w najsłabsze przęsła"),
+    ("rozstaw", "Równy rozstaw — po całym secie"),
+    ("rama", "Rama — brzegi + środek równo"),
+]
+_TRYB_LABEL = dict(TRYBY_FILAROW)
+
+
+def _wstaw_podpory(core: list[str], filary: list[str],
+                   score) -> tuple[list[str], list[str]]:
+    """Tryb PODPORY — dosłowna wersja metafory Janka: najpierw konstrukcja
+    BEZ filarów, potem pomiar każdego przęsła (ten sam transition_score,
+    którym stoi budowa), i filar wchodzi tam, gdzie konstrukcja najsłabsza.
+    Przydział filar→przęsło: dla każdego z k najsłabszych przęseł wybieramy
+    filar, który je najlepiej mostkuje (średnia wejścia i wyjścia).
+
+    Wymaga przęseł >= filarów; wołający przy braku spada na równy rozstaw
+    Z NOTKĄ, nigdy po cichu."""
+    if len(core) - 1 < len(filary):
+        raise ValueError("za mało przęseł na tryb Podpory")
+    seams = sorted((score(core[i], core[i + 1]), i)
+                   for i in range(len(core) - 1))
+    wolne = list(filary)
+    inserts: dict[int, str] = {}
+    notes: list[str] = []
+    for slabosc, i in seams[:len(filary)]:
+        best = max(wolne, key=lambda p: (score(core[i], p)
+                                         + score(p, core[i + 1])) / 2)
+        wolne.remove(best)
+        inserts[i] = best
+        notes.append(f"podpora w przęśle #{i+1}→#{i+2} "
+                     f"(było {slabosc:.2f})")
+    final: list[str] = []
+    for i, tid in enumerate(core):
+        final.append(tid)
+        if i in inserts:
+            final.append(inserts[i])
+    return final, notes
 
 
 def _lib_sort_missing(col: int, a, energy: dict) -> bool:
@@ -231,9 +311,6 @@ def _lib_sort_key(col: int, favs: set, filary: set, energy: dict):
         return name(a)
     return key
 
-
-def influence_color(dist: int) -> str | None:
-    return _INFLUENCE_RAMP.get(abs(dist))
 
 
 def _format_track_info(track, rb: dict | None, rb_note: str | None) -> str:
@@ -479,6 +556,24 @@ class DanceLabTUI(App):
 
     # ------------------------------------------------------------ zakładki
 
+    # Pasek skrótów jest KONTEKSTOWY (prośba Janka: „lista skrótów rośnie") —
+    # w Bibliotece widać klawisze Biblioteki, w Secie klawisze Setu.
+    _LIB_ONLY = {"toggle_fav", "build_from_filary"}
+    _SET_ONLY = {"build", "write", "replace", "cut", "add", "move_up",
+                 "move_down", "save_plan", "load_plan", "verdict",
+                 "track_info"}
+
+    def check_action(self, action: str, parameters) -> bool:
+        try:
+            active = self.query_one("#tabs", TabbedContent).active
+        except Exception:  # noqa: BLE001 — przed zmontowaniem zakładek
+            return True
+        if action in self._LIB_ONLY:
+            return active == "tab-lib"
+        if action in self._SET_ONLY:
+            return active == "tab-set"
+        return True
+
     def action_next_tab(self) -> None:
         self._switch_tab(+1)
 
@@ -489,6 +584,10 @@ class DanceLabTUI(App):
         tc = self.query_one("#tabs", TabbedContent)
         i = _TAB_ORDER.index(tc.active) if tc.active in _TAB_ORDER else 0
         tc.active = _TAB_ORDER[(i + delta) % len(_TAB_ORDER)]
+        self.refresh_bindings()
+
+    def on_tabbed_content_tab_activated(self, event) -> None:
+        self.refresh_bindings()              # klik w zakładkę też odświeża pasek
 
     # ----------------------------------------------------------- Biblioteka
 
@@ -561,14 +660,12 @@ class DanceLabTUI(App):
         for a in rows:
             t = a.track
             conf = t.key_confidence
-            k = str(t.key_estimate or "?")
-            key_cell = k if (conf or 0) >= 0.5 else f"[dim]{k}?[/]"
             en = self._lib_energy.get(t.track_id)
             dur = t.duration_sec or 0
             table.add_row(
                 "♥" if t.track_id in favs else "",
                 "F" if t.track_id in filary else "",
-                f"{t.bpm_estimate or 0:.1f}", key_cell,
+                _bpm_cell(t), _key_cell(t),
                 f"{conf:.2f}" if conf is not None else "—",
                 f"{en:3d}" if en is not None else "—",
                 (t.style_label or "")[:20],
@@ -592,7 +689,35 @@ class DanceLabTUI(App):
         self._lib_toggle("ulubione_utwory", "♥")
 
     def action_toggle_filar(self) -> None:
+        """F: w Bibliotece przypina/odpina filar; w zakładce Set otwiera
+        TRYB FILARÓW (krok konfiguracji z wizji — wzorzec dwóch naciśnięć)."""
+        if self.query_one("#tabs", TabbedContent).active == "tab-set":
+            choice = self._panel_choice("pillar_mode")
+            if choice is not None:
+                self._apply_pillar_mode(choice)
+                return
+            self._close_panel()
+            self._open_pillar_mode_panel()
+            return
         self._lib_toggle("filary", "filar")
+
+    def _open_pillar_mode_panel(self) -> None:
+        aktualny = self._user_state.get("tryb_filarow", "rozstaw")
+        options = [(label + ("   ✓" if mode == aktualny else ""), mode)
+                   for mode, label in TRYBY_FILAROW]
+        self._open_suggest_panel(
+            None, "TRYB FILARÓW\nklik + F = wybierz · Esc = zostaw",
+            options, "pillar_mode")
+
+    def _apply_pillar_mode(self, mode: str) -> None:
+        from dancelab.tui.user_store import save_state
+        self._user_state["tryb_filarow"] = mode
+        save_state(self._user_state)
+        self._close_panel()
+        dopisek = " — zastosuje się przy budowie (B)"
+        self._note(f"tryb filarów: {_TRYB_LABEL.get(mode, mode)}{dopisek}")
+        self.notify(f"Tryb filarów: {_TRYB_LABEL.get(mode, mode)}", timeout=4)
+        self.query_one("#set", DataTable).focus()
 
     def _lib_toggle(self, kind: str, label: str) -> None:
         from dancelab.tui.user_store import save_state, toggle_track
@@ -683,9 +808,11 @@ class DanceLabTUI(App):
         self.query_one("#tabs", TabbedContent).active = "tab-set"
         self._render_order(by_id)
         self.query_one("#progress", Static).update(
-            f"SZKIC: {len(ids)} filarów (⚑ złote) — uzupełnij brief po lewej "
-            f"i naciśnij B; filary MUSZĄ zagrać w zbudowanym secie")
+            f"SZKIC: {len(ids)} filarów (⚑ złote) — wybierz tryb (F), "
+            f"uzupełnij brief po lewej i naciśnij B")
         self._note(f"filary wstawione jako szkic: {len(ids)} — budowa po B")
+        # krok konfiguracji z wizji: panel trybów otwiera się sam po G
+        self._open_pillar_mode_panel()
 
     @work(thread=True, exclusive=True, group="lib")
     def _lib_analyze_worker(self) -> None:
@@ -876,27 +1003,61 @@ class DanceLabTUI(App):
         mapping = canonical_ids(analyses)
         filary = list(dict.fromkeys(mapping.get(t, t) for t in filary))
         by_id_all = {a.track.track_id: a for a in analyses}
-        rozstaw = _rozstaw_filary(filary, by_id_all, count) if filary else {}
-        if rozstaw:
-            filar_notes.append(
-                "filary rozstawione po konstrukcji (rosnąco po tempie): "
-                + ", ".join(f"#{pos}" for pos in sorted(rozstaw)))
-        ui(progress.update, f"Budowa: {count} utworów z {len(analyses)}"
-                            + (f" na {len(filary)} filarach…" if filary else "…"))
-        plan = build_set(
-            analyses, load_weights(cfg.weights_file),
-            arc=p["arc"], target_track_count=count, planner_mode=p["planner"],
-            tempo_shape=p["tempo"],
+        tryb = self._user_state.get("tryb_filarow", "rozstaw")
+
+        wspolne = dict(
+            arc=p["arc"], planner_mode=p["planner"], tempo_shape=p["tempo"],
             preferred_styles=p["styles"] or None,
             bpm_min=p["bpm_min"], bpm_max=p["bpm_max"],
-            locked_positions=rozstaw or None,
             sound_anchor=anchor.centroid if anchor else None,
             anchor_name=anchor.name if anchor else None,
             jump_contour=(anchor.contour if (anchor and p["contour"]) else None),
         )
+        weights = load_weights(cfg.weights_file)
+
+        if filary and tryb == "podpory" and (count - len(filary)) - 1 < len(filary):
+            filar_notes.append("za krótki set na tryb Podpory — spadam na "
+                               "równy rozstaw")
+            tryb = "rozstaw"
+
+        if filary and tryb == "podpory":
+            # metafora dosłownie: konstrukcja bez filarów → pomiar przęseł →
+            # filar w najsłabsze; plan tempa/łuk kształtują KONSTRUKCJĘ,
+            # podpory wchodzą po pomiarze
+            core_pool = [a for a in analyses
+                         if a.track.track_id not in set(filary)]
+            ui(progress.update, f"Budowa konstrukcji: {count - len(filary)} "
+                                f"utworów, potem {len(filary)} podpór…")
+            plan = build_set(core_pool, weights,
+                             target_track_count=count - len(filary), **wspolne)
+            from dancelab.decision.slot_suggest import _default_score_fn
+            energy, e_rng = _energia_do_oceny(by_id_all)
+            fn = _default_score_fn(weights, p["arc"], p["planner"],
+                                   energy, e_rng)
+            score = lambda x, y: fn(by_id_all[x], by_id_all[y])  # noqa: E731
+            final, podpory_notes = _wstaw_podpory(
+                list(plan.track_order), filary, score)
+            filar_notes.extend(podpory_notes)
+            filar_notes.append(f"zgodność konstrukcji (bez podpór): "
+                               f"{plan.mean_transition_score}")
+            # zgodność CAŁOŚCI nie jest tą samą liczbą co z budowy — nie udajemy
+            plan = plan.model_copy(update={"track_order": final,
+                                           "mean_transition_score": None})
+        else:
+            rozstaw = _rozstaw_filary(filary, by_id_all, count, tryb) \
+                if filary else {}
+            if rozstaw:
+                filar_notes.append(
+                    f"filary rozstawione ({_TRYB_LABEL.get(tryb, tryb)}): "
+                    + ", ".join(f"#{pos}" for pos in sorted(rozstaw)))
+            ui(progress.update,
+               f"Budowa: {count} utworów z {len(analyses)}"
+               + (f" na {len(filary)} filarach…" if filary else "…"))
+            plan = build_set(analyses, weights, target_track_count=count,
+                             locked_positions=rozstaw or None, **wspolne)
         by_id = {a.track.track_id: a for a in analyses}
         self._ctx = dict(
-            by_id=by_id, weights=load_weights(cfg.weights_file),
+            by_id=by_id, weights=weights,
             arc=p["arc"], planner=p["planner"],
             bpm_min=p["bpm_min"], bpm_max=p["bpm_max"],
             anchor=(anchor.centroid if anchor else None),
@@ -936,51 +1097,25 @@ class DanceLabTUI(App):
             t = by_id[tid].track
             total += t.duration_sec or 0
             conf = t.key_confidence
-            key = str(t.key_estimate or "?")
-            key_cell = key if (conf or 0) >= 0.5 else f"[dim]{key}?[/]"
             name = pathlib.Path(t.source_path).stem[:46]
             is_filar = tid in filary
             nr = f"⚑{i}" if is_filar else str(i)
             base = PILLAR_COLOR if is_filar else None
             table.add_row(
                 Text(nr, style=f"bold {base}") if base else nr,
-                f"{t.bpm_estimate or 0:.1f}", key_cell,
+                _bpm_cell(t), _key_cell(t),
                 f"{conf:.2f}" if conf is not None else "—",
                 (t.style_label or "")[:22], f"{total/60:5.1f}",
                 Text(name, style=base) if base else name,
             )
             self._plan_paths.append(t.source_path)
             self._row_cells.append((nr, name, base))
-        self._paint_influence(table.cursor_row)
         n = len(self._order)
         score = self._mean_score if self._mean_score is not None else "—"
         self.query_one("#progress", Static).update(
             f"SET: {n} utworów · {total/60:.0f} min pełnych "
             f"(~{max(0,(total-75*(n-1)))/60:.0f} min przy blendach 75 s) "
             f"· zgodność {score}")
-
-    # ---------------------------------------------------- poświata zasięgu
-
-    def on_data_table_row_highlighted(self, event) -> None:
-        if getattr(event.data_table, "id", None) == "set" and self._row_cells:
-            self._paint_influence(event.cursor_row)
-
-    def _paint_influence(self, sel: int | None) -> None:
-        """Gasnąca poświata wokół zaznaczenia — patrz notka przy _INFLUENCE_RAMP.
-        Filar pod poświatą przyjmuje jej kolor, ale flaga ⚑ w tekście zostaje —
-        tożsamość filaru nie znika przy ruchu kursora."""
-        if sel is None or not self._row_cells:
-            return
-        from rich.text import Text
-        from textual.coordinate import Coordinate
-        table = self.query_one("#set", DataTable)
-        if table.row_count != len(self._row_cells):
-            return                        # w trakcie przebudowy tabeli — odpuść
-        for i, (nr, name, base) in enumerate(self._row_cells):
-            color = influence_color(i - sel) or base
-            for col, raw in ((0, nr), (6, name)):
-                value = Text(raw, style=color) if color else raw
-                table.update_cell_at(Coordinate(i, col), value)
 
     # ------------------------------------------------------------- zapis
 
@@ -1046,14 +1181,51 @@ class DanceLabTUI(App):
         by_id = self._ctx["by_id"]
         tid = self._order.pop(idx)
         path = by_id[tid].track.source_path
-        self._log_verdict("ciecie", pozycja=idx + 1, out=path)
+        odpiety = self._odepnij_filar(tid, path)
+        self._log_verdict("ciecie", pozycja=idx + 1, out=path, filar=odpiety)
         self._render_order(by_id)
-        self._note(f"CIĘCIE #{idx+1}: {pathlib.Path(path).stem[:40]} "
-                   f"(werdykt zapisany)")
+        nazwa = pathlib.Path(path).stem[:40]
+        if odpiety:
+            self._note(f"CIĘCIE #{idx+1}: {nazwa} — FILAR ODPIĘTY "
+                       f"(F w Bibliotece przypina z powrotem)")
+        else:
+            self._note(f"CIĘCIE #{idx+1}: {nazwa} (werdykt zapisany)")
         table = self.query_one("#set", DataTable)
         if self._order:
             table.move_cursor(row=min(idx, len(self._order) - 1))
         table.focus()
+
+    def _odepnij_filar(self, tid: str, path: str) -> bool:
+        """Wycięcie filaru zdejmuje pin (decyzja Janka 05.08: „wyciąłem,
+        a on wraca przy następnej budowie" to najgorsze zaskoczenie).
+        Filar-duplikat: wpis w stanie może wskazywać bliźniaka bajt-w-bajt —
+        dopasowujemy też przez mapę kanoniczną (cache skrótów ciepły po budowie)."""
+        entries = self._user_state.get("filary", [])
+        if not entries:
+            return False
+        by_id = self._ctx["by_id"]
+        trafiony = None
+        for j, e in enumerate(entries):
+            if e.get("track_id") == tid or e.get("path") == path:
+                trafiony = j
+                break
+        if trafiony is None and tid in set(self._ctx.get("filary") or []):
+            from dancelab.decision.dedup import canonical_ids
+            from dancelab.tui.user_store import resolve_tracks
+            mapping = canonical_ids(list(by_id.values()))
+            for j, e in enumerate(entries):
+                ids, _ = resolve_tracks([e], by_id)
+                if ids and mapping.get(ids[0], ids[0]) == tid:
+                    trafiony = j
+                    break
+        if trafiony is None:
+            return False
+        entries.pop(trafiony)
+        from dancelab.tui.user_store import save_state
+        save_state(self._user_state)
+        if self._lib:
+            self._render_library(keep_cursor=True)
+        return True
 
     def action_move_up(self) -> None:
         self._move(-1)
@@ -1093,13 +1265,7 @@ class DanceLabTUI(App):
         ui = self.call_from_thread
         ctx = self._ctx
         by_id = ctx["by_id"]
-
-        def energy_of(a):
-            vals = [f.rms for f in (getattr(a, "features", None) or [])
-                    if getattr(f, "rms", None) is not None]
-            return float(sum(vals) / len(vals)) if vals else 0.5
-        energy = {tid: energy_of(a) for tid, a in by_id.items()}
-        e_rng = (max(energy.values()) - min(energy.values())) or 1.0
+        energy, e_rng = _energia_do_oceny(by_id)
         fn = suggest_for_slot if mode == "suggest" else suggest_for_insertion
         score_mode = self.query_one("#suggest-mode", Select).value
         planner, anchor = _mode_params(score_mode, ctx)
@@ -1147,7 +1313,8 @@ class DanceLabTUI(App):
                             options: list[tuple[str, str]], mode: str) -> None:
         self._suggest_slot = idx
         self._panel_mode = mode
-        self.query_one("#suggest-mode", Select).set_class(mode == "plans", "hide")
+        self.query_one("#suggest-mode", Select).set_class(
+            mode not in ("suggest", "insert"), "hide")
         self.query_one("#suggest-list", OptionList).remove_class("hide")
         self.query_one("#suggest-info", Static).remove_class("show")
         self.query_one("#suggest-title", Label).update(title)

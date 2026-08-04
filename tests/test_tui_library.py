@@ -323,3 +323,92 @@ def test_rozstaw_filary_ciasny_set_bez_kolizji():
     poz = sorted(out)
     assert len(poz) == 4 and poz[0] >= 1 and poz[-1] <= 5
     assert all(x < y for x, y in zip(poz, poz[1:]))
+
+
+def test_rozstaw_rama_brzegi_i_srodek():
+    """Rama: najwolniejszy filar OTWIERA set, najszybszy ZAMYKA, środek równo."""
+    from dancelab.tui.app import _rozstaw_filary
+    by_id = _by_id()   # a=132, b=130, e=131
+    out = _rozstaw_filary(["a", "b", "e"], by_id, 12, tryb="rama")
+    assert out[1] == "b" and out[12] == "a"
+    assert out[6] == "e"                       # środek równomiernie
+
+
+def test_wstaw_podpory_w_najslabsze_przesla():
+    """Konstrukcja zmierzona, filar wchodzi w najsłabsze przęsło, przydział
+    filar→przęsło po najlepszym mostku."""
+    from dancelab.tui.app import _wstaw_podpory
+    core = ["A", "B", "C", "D"]
+    scores = {("A", "B"): 0.9, ("B", "C"): 0.2, ("C", "D"): 0.5,
+              # mostki: P świetny w B→C, Q lepszy w C→D
+              ("B", "P"): 0.9, ("P", "C"): 0.9, ("B", "Q"): 0.3,
+              ("Q", "C"): 0.3, ("C", "P"): 0.4, ("P", "D"): 0.4,
+              ("C", "Q"): 0.8, ("Q", "D"): 0.8}
+    final, notes = _wstaw_podpory(core, ["P", "Q"],
+                                  lambda a, b: scores.get((a, b), 0.5))
+    assert final == ["A", "B", "P", "C", "Q", "D"]
+    assert any("#2→#3" in n for n in notes)    # najsłabsze przęsło nazwane
+
+    import pytest as _pytest
+    with _pytest.raises(ValueError, match="za mało przęseł"):
+        _wstaw_podpory(["A", "B"], ["P", "Q"], lambda a, b: 0.5)
+
+
+def test_f_w_secie_otwiera_tryby_a_wybor_sie_zapisuje(tmp_path, monkeypatch):
+    """Podwójne F w zakładce Set = panel trybów (wzorzec dwóch naciśnięć);
+    wybór trwa w stanie użytkownika."""
+    import dancelab.tui.user_store as store
+    monkeypatch.setattr(store, "STATE_PATH", tmp_path / "stan.json")
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import OptionList, TabbedContent
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
+            await pilot.press("f")
+            await pilot.pause()
+            assert app._panel_mode == "pillar_mode"
+            lst = app.query_one("#suggest-list", OptionList)
+            lst.highlighted = 0                # Podpory
+            await pilot.press("f")
+            await pilot.pause()
+            assert app._user_state["tryb_filarow"] == "podpory"
+            assert app._panel_mode is None     # panel zamknięty po wyborze
+    asyncio.run(go())
+    import json
+    assert json.loads((tmp_path / "stan.json").read_text())[
+        "tryb_filarow"] == "podpory"
+
+
+def test_wyciecie_filaru_zdejmuje_pin(tmp_path, monkeypatch):
+    """Decyzja Janka: X na filarze tnie z setu I odpina w Bibliotece."""
+    import dancelab.tui.app as app_mod
+    import dancelab.tui.user_store as store
+    monkeypatch.setattr(app_mod, "WERDYKTY_DIR", tmp_path)
+    monkeypatch.setattr(store, "STATE_PATH", tmp_path / "stan.json")
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import DataTable, TabbedContent
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
+            by_id = {a.track.track_id: a for a in LIB}
+            app._ctx = dict(by_id=by_id, weights=None, arc="build",
+                            planner="smart", bpm_min=None, bpm_max=None,
+                            anchor=None, params={}, filary=["b"])
+            app._user_state["filary"] = [{"track_id": "b", "path": "/m/b.mp3"}]
+            app._order = ["a", "b", "c"]
+            app._engine_order = ["a", "b", "c"]
+            app._render_order(by_id)
+            await pilot.pause()
+            table = app.query_one("#set", DataTable)
+            table.move_cursor(row=1)           # filar b
+            table.focus()
+            await pilot.press("x")
+            await pilot.pause()
+            assert app._order == ["a", "c"]
+            assert app._user_state["filary"] == [], "pin zdjęty razem z cięciem"
+            assert app._edits[-1]["filar"] is True
+    asyncio.run(go())
