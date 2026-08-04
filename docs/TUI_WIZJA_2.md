@@ -1,6 +1,9 @@
 # DanceLab TUI 2.0 — wizja (spisane ze słów Janka, 05.08)
 
-Stan: **SZKIC DO DECYZJI — nic z tego nie jest zaimplementowane.**
+Stan: **ZATWIERDZONE przez Janka 05.08** („filary wchodzą, układ i kolejność
+zatwierdzam"). Postęp: kroki **(a) zakładki+Biblioteka, (b) ulubione+filary,
+(c) filary w silniku — ZROBIONE 05.08**; zostały (d) porównanie pary wizualne,
+(e) dźwięk (szczebel do wyboru przez Janka), (f) edytor cue w Export.
 Inspiracja: [rmpc](https://rmpc.mierak.dev/) — „czyste złoto", zwłaszcza system
 zakładek. Ten dokument porządkuje dyktat Janka; rozstrzygnięcia na końcu.
 

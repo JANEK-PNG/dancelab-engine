@@ -1,13 +1,25 @@
 # DanceLab TUI — mapa komponentów silnika na interfejs
 
-Stan: 2026-08-04. Ekran 1 (budowa setu) ZBUDOWANY (`dancelab tui`, `src/dancelab/tui/`).
-Ekrany 2–4 zaprojektowane, nie zbudowane. Framework: Textual (czysty Python, ten sam venv,
-testy headless przez `run_test()`).
+Stan: 2026-08-05. Układ 2.0 wg TUI_WIZJA_2 (zatwierdzony): ZAKŁADKI
+**Biblioteka · Set · Export/Cue**, Ctrl+Tab krąży. Framework: Textual
+(czysty Python, ten sam venv, testy headless przez `run_test()`).
+
+## Zakładka BIBLIOTEKA ✅ (krok a+b+c wizji)
+| komponent silnika | widget |
+|---|---|
+| pula = `_library_analyses` (te same sita higieny co budowa) | DataTable #lib-table: ♥ · F · BPM · ton · pew. · energia · gatunek · min · utwór |
+| `filter_library` — podciąg nazwa/gatunek, dokładna tonacja, domknięte okno BPM | Inputy #lib-search #lib-key #lib-bpm, filtr na żywo; zły filtr = powód w liczniku |
+| energia RELATYWNA 0-100 w obrębie biblioteki; brak ramek RMS = „—", nie zmyślona | kolumna „energia" |
+| `tui/user_store` — ulubione (2 piny: utwory + playlisty) i FILARY (limit 10 z uzasadnieniem) | klawisze U i F na tabeli; znaczniki ♥/F; licznik w #lib-count; stan w `data/exports/tui_stan.json` |
+| filary → `build_set(pinned_track_ids=…)` (istniejący mechanizm silnika); `_filary_for_build` pomija imiennie filar spoza puli/okna tempa, odmawia gdy filarów > miejsc; `dedup.canonical_ids` mapuje filar-duplikat na egzemplarz kanoniczny | budowa w zakładce Set „wokół N filarów" |
+| onboarding: folder → `analyze_files` z postępem etapów | wiersz #lib-folder + przycisk Analizuj |
+
+## Zakładka EXPORT/CUE — atrapa (krok f wizji: edytor hot cue)
 
 Zasada nadrzędna (ADR-005 jako zasada UI): każde „nie wiem" silnika ma swój piksel —
 warnings zawsze widoczne, tonacja o pewności <0,5 przygaszona, stan Rekordboxa w pasku.
 
-## Ekran 1 · BUDOWA SETU ✅
+## Zakładka SET (dawny Ekran 1 · BUDOWA SETU) ✅
 | komponent silnika | widget |
 |---|---|
 | pula: cache analiz / folder | Select #pool + Input #folder (tryb Folder = `analyze_files` z realnym `stage_progress` i `should_stop` — hooki po Qt, pierwszy konsument od 24.07) |

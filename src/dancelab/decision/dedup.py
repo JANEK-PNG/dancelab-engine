@@ -42,6 +42,26 @@ def _cached_checksum(source_path: str | None) -> str | None:
     return cached
 
 
+def canonical_ids(analyses: list[AnalysisResult]) -> dict[str, str]:
+    """track_id → id kanonicznego egzemplarza (ten sam porządek zwycięzców co
+    w `dedupe_by_audio`: pierwsza kopia wygrywa). Dla plików nieczytelnych
+    i unikatów mapuje na samego siebie.
+
+    Po co: przypięcia użytkownika (filary) mogą wskazywać duplikat, który
+    deduplikacja wytnie — bez tego mapowania budowa odmawiałaby „unknown
+    track" o utworze, który W SENSIE MUZYKI w puli jest (złapane E2E 05.08)."""
+    seen: dict[str, str] = {}
+    mapping: dict[str, str] = {}
+    for analysis in analyses:
+        tid = analysis.track.track_id
+        checksum = _cached_checksum(analysis.track.source_path)
+        if checksum is None:
+            mapping[tid] = tid
+            continue
+        mapping[tid] = seen.setdefault(checksum, tid)
+    return mapping
+
+
 def dedupe_by_audio(
     analyses: list[AnalysisResult],
 ) -> tuple[list[AnalysisResult], list[str]]:

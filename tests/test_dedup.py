@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dancelab.core.models import AnalysisResult, Track
-from dancelab.decision.dedup import dedupe_by_audio
+from dancelab.decision.dedup import canonical_ids, dedupe_by_audio
 
 
 def _analysis(track_id: str, path: str) -> AnalysisResult:
@@ -67,3 +67,20 @@ def test_dedupe_survives_unreadable_file(tmp_path, monkeypatch):
     unique, warnings = dedupe_by_audio(analyses)
     assert [x.track.track_id for x in unique] == ["locked", "ok"]
     assert warnings == []
+
+
+def test_canonical_ids_mapuje_duplikat_na_zwyciezce(tmp_path):
+    """Filar wskazujący duplikat ma trafić w kanoniczny egzemplarz — ten sam
+    zwycięzca co w dedupe_by_audio (pierwsza kopia wygrywa)."""
+    a = tmp_path / "oryginal.aif"
+    b = tmp_path / "kopia inna nazwa.aif"
+    c = tmp_path / "inny utwor.aif"
+    a.write_bytes(b"SAME-BYTES")
+    b.write_bytes(b"SAME-BYTES")
+    c.write_bytes(b"OTHER")
+    analyses = [_analysis("id_a", str(a)), _analysis("id_b", str(b)),
+                _analysis("id_c", str(c))]
+    mapping = canonical_ids(analyses)
+    assert mapping == {"id_a": "id_a", "id_b": "id_a", "id_c": "id_c"}
+    kept = {x.track.track_id for x in dedupe_by_audio(analyses)[0]}
+    assert set(mapping.values()) <= kept, "mapowanie celuje tylko w ocalałych"

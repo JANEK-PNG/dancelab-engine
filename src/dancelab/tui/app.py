@@ -45,6 +45,8 @@ from textual.widgets import (
     Select,
     Static,
     Switch,
+    TabbedContent,
+    TabPane,
 )
 
 PROCESSED_DEFAULT = "experiments_priv/2026-07-30_rebuild/processed"
@@ -75,6 +77,73 @@ def _parse_bpm(text: str) -> tuple[float | None, float | None, str | None]:
     if lo >= hi:
         return None, None, f"puste okno: {lo:g} >= {hi:g}"
     return lo, hi, None
+
+
+# Zakładki wg TUI_WIZJA_2 (inspiracja rmpc, układ zatwierdzony 05.08):
+# Biblioteka → Set → Export/Cue; Ctrl+Tab krąży (część terminali połyka
+# Ctrl+Tab — stąd też skróty w nawiasach na etykietach zakładek).
+_TAB_ORDER = ("tab-lib", "tab-set", "tab-export")
+
+
+def _energy_raw(a) -> float | None:
+    """Średni RMS z ramek — do WYŚWIETLANIA: brak ramek = None, nie 0,5."""
+    vals = [f.rms for f in (getattr(a, "features", None) or [])
+            if getattr(f, "rms", None) is not None]
+    return float(sum(vals) / len(vals)) if vals else None
+
+
+def filter_library(analyses, *, search: str = "", key: str = "",
+                   bpm_lo: float | None = None,
+                   bpm_hi: float | None = None) -> list:
+    """Filtr Biblioteki: podciąg w nazwie pliku LUB gatunku (bez wielkości
+    liter), dokładna tonacja Camelota, domknięte okno BPM. Utwór bez tempa
+    przy aktywnym oknie BPM odpada — okno ma znaczyć to, co mówi."""
+    s = search.strip().lower()
+    k = key.strip().upper()
+    out = []
+    for a in analyses:
+        t = a.track
+        if s:
+            name = pathlib.Path(t.source_path).stem.lower()
+            genre = (t.style_label or "").lower()
+            if s not in name and s not in genre:
+                continue
+        if k and str(t.key_estimate or "").upper() != k:
+            continue
+        bpm = t.bpm_estimate or 0.0
+        if bpm_lo is not None and bpm < bpm_lo:
+            continue
+        if bpm_hi is not None and bpm > bpm_hi:
+            continue
+        out.append(a)
+    return out
+
+
+def _filary_for_build(state: dict, by_id: dict, bpm_min: float | None,
+                      bpm_max: float | None, count: int | None
+                      ) -> tuple[list[str], list[str]]:
+    """Filary z Biblioteki → `pinned_track_ids` silnika, z jawnym losem
+    każdego konfliktu: filar spoza puli i filar poza oknem tempa są POMIJANE
+    z imienną notką (okno ustawił użytkownik — konflikt ma być widoczny, nie
+    rozstrzygany po cichu); więcej filarów niż miejsc = odmowa z liczbami."""
+    from dancelab.tui.user_store import resolve_tracks
+    ids, missing = resolve_tracks(state.get("filary", []), by_id)
+    notes = [f"FILAR nieobecny w puli (pominięty): {m}" for m in missing]
+    kept: list[str] = []
+    for tid in ids:
+        bpm = by_id[tid].track.bpm_estimate or 0.0
+        if (bpm_min is not None and bpm < bpm_min) or \
+                (bpm_max is not None and bpm > bpm_max):
+            name = pathlib.Path(by_id[tid].track.source_path).stem[:40]
+            notes.append(f"FILAR poza oknem tempa (pominięty): {name} ({bpm:.1f})")
+            continue
+        kept.append(tid)
+    if count is not None and len(kept) > count:
+        raise ValueError(f"filarów ({len(kept)}) więcej niż miejsc w secie "
+                         f"({count}) — wydłuż set albo zdejmij filary")
+    if kept:
+        notes.append(f"filary w budowie: {len(kept)} (każdy MUSI zagrać)")
+    return kept, notes
 
 
 # Poświata „influence" wokół zaznaczenia (pomysł Janka, 04.08): pełny kolor ma
@@ -161,6 +230,12 @@ class DanceLabTUI(App):
     #suggest-info { display: none; margin: 1 0; }
     #suggest-info.show { display: block; }
     .field-label { color: $text-muted; }
+    #lib-filters { height: 3; }
+    #lib-filters Input { width: 1fr; margin-right: 1; }
+    #lib-count { height: 1; color: $text-muted; padding: 0 1; }
+    #lib-table { height: 1fr; }
+    #lib-onboard { height: 3; }
+    #lib-onboard Input { width: 1fr; margin-right: 1; }
     """
     BINDINGS = [
         Binding("b", "build", "Buduj"),
@@ -175,6 +250,10 @@ class DanceLabTUI(App):
         Binding("v", "verdict", "Werdykt"),
         Binding("i", "track_info", "Info"),
         Binding("l", "toggle_notes", "Log"),
+        Binding("u", "toggle_fav", "♥", show=False),
+        Binding("f", "toggle_filar", "Filar", show=False),
+        Binding("ctrl+tab", "next_tab", "zakładka →", show=False),
+        Binding("ctrl+shift+tab", "prev_tab", "← zakładka", show=False),
         Binding("escape", "cancel", "Anuluj"),
         Binding("q", "quit", "Wyjdź"),
     ]
@@ -199,51 +278,84 @@ class DanceLabTUI(App):
         self._panel_mode: str | None = None   # "suggest" | "insert" | "plans"
         self._row_cells: list[tuple[str, str]] = []   # (nr, utwór) do poświaty
         self._n_notes = 0
+        self._lib: list = []                  # pula Biblioteki (analizy)
+        self._lib_view: list = []             # pula po filtrach (widoczna)
+        self._lib_energy: dict[str, float | None] = {}   # tid → energia 0-100
+        self._user_state: dict = {"ulubione_utwory": [],
+                                  "ulubione_playlisty": [], "filary": []}
 
     # ------------------------------------------------------------- układ
 
     def compose(self) -> ComposeResult:
         yield Header()
-        with Horizontal():
-            with VerticalScroll(id="form"):
-                yield Label("Pula", classes="field-label")
-                yield Select([("Biblioteka (cache analiz)", "library"),
-                              ("Folder…", "folder")],
-                             value="library", id="pool", allow_blank=False)
-                yield Input(placeholder="ścieżka folderu (tryb Folder)", id="folder")
-                yield Label("Długość [min]", classes="field-label")
-                yield Input(value="90", id="minutes", type="number")
-                yield Label("Okno tempa (np. 128-140)", classes="field-label")
-                yield Input(placeholder="puste = bez okna", id="bpm")
-                yield Label("Gatunki (Twoje tagi RB, po przecinku)", classes="field-label")
-                yield Input(placeholder="garage, breaks, bass", id="styles")
-                yield Label("Graj jak… (kotwica)", classes="field-label")
-                yield Select([], id="dj", prompt="— bez kotwicy —")
+        with TabbedContent(initial="tab-lib", id="tabs"):
+            with TabPane("Biblioteka", id="tab-lib"):
+                with Vertical():
+                    with Horizontal(id="lib-filters"):
+                        yield Input(placeholder="szukaj (nazwa / gatunek)…",
+                                    id="lib-search")
+                        yield Input(placeholder="tonacja np. 8A", id="lib-key")
+                        yield Input(placeholder="BPM np. 125-140", id="lib-bpm")
+                    yield Static("", id="lib-count")
+                    yield DataTable(id="lib-table")
+                    with Horizontal(id="lib-onboard"):
+                        yield Input(placeholder="folder z muzyką do przeskanowania "
+                                                "(pierwszy raz albo dogranie)",
+                                    id="lib-folder")
+                        yield Button("Analizuj", id="lib-analyze",
+                                     variant="primary")
+            with TabPane("Set", id="tab-set"):
                 with Horizontal():
-                    yield Switch(value=False, id="contour")
-                    yield Label(" kontur skoków tego DJ-a")
-                yield Label("Łuk / plan tempa / tryb", classes="field-label")
-                yield Select([("build", "build"), ("peak", "peak"), ("flat", "flat")],
-                             value="build", id="arc", allow_blank=False)
-                yield Select([("staircase", "staircase"), ("linear", "linear"),
-                              ("off", "off")], value="staircase", id="tempo",
-                             allow_blank=False)
-                yield Select([("smart", "smart"), ("harmonic", "harmonic"),
-                              ("bpm", "bpm")], value="smart", id="planner",
-                             allow_blank=False)
-                yield Button("Buduj set  [B]", id="go", variant="primary")
-            with Vertical(id="results"):
-                yield Static("Ustaw parametry i naciśnij B.", id="progress")
-                yield DataTable(id="set")
-                yield Log(id="warnings", highlight=False)
-            with Vertical(id="suggest"):
-                yield Label("", id="suggest-title")
-                yield Select([("smart — pełna ocena + kotwica", "smart"),
-                              ("BPM najpierw", "bpm"),
-                              ("tonacja najpierw", "harmonic")],
-                             value="smart", id="suggest-mode", allow_blank=False)
-                yield OptionList(id="suggest-list")
-                yield Static("", id="suggest-info")
+                    with VerticalScroll(id="form"):
+                        yield Label("Pula", classes="field-label")
+                        yield Select([("Biblioteka (cache analiz)", "library"),
+                                      ("Folder…", "folder")],
+                                     value="library", id="pool", allow_blank=False)
+                        yield Input(placeholder="ścieżka folderu (tryb Folder)",
+                                    id="folder")
+                        yield Label("Długość [min]", classes="field-label")
+                        yield Input(value="90", id="minutes", type="number")
+                        yield Label("Okno tempa (np. 128-140)", classes="field-label")
+                        yield Input(placeholder="puste = bez okna", id="bpm")
+                        yield Label("Gatunki (Twoje tagi RB, po przecinku)",
+                                    classes="field-label")
+                        yield Input(placeholder="garage, breaks, bass", id="styles")
+                        yield Label("Graj jak… (kotwica)", classes="field-label")
+                        yield Select([], id="dj", prompt="— bez kotwicy —")
+                        with Horizontal():
+                            yield Switch(value=False, id="contour")
+                            yield Label(" kontur skoków tego DJ-a")
+                        yield Label("Łuk / plan tempa / tryb", classes="field-label")
+                        yield Select([("build", "build"), ("peak", "peak"),
+                                      ("flat", "flat")],
+                                     value="build", id="arc", allow_blank=False)
+                        yield Select([("staircase", "staircase"),
+                                      ("linear", "linear"),
+                                      ("off", "off")], value="staircase",
+                                     id="tempo", allow_blank=False)
+                        yield Select([("smart", "smart"), ("harmonic", "harmonic"),
+                                      ("bpm", "bpm")], value="smart", id="planner",
+                                     allow_blank=False)
+                        yield Button("Buduj set  [B]", id="go", variant="primary")
+                    with Vertical(id="results"):
+                        yield Static("Ustaw parametry i naciśnij B.", id="progress")
+                        yield DataTable(id="set")
+                        yield Log(id="warnings", highlight=False)
+                    with Vertical(id="suggest"):
+                        yield Label("", id="suggest-title")
+                        yield Select([("smart — pełna ocena + kotwica", "smart"),
+                                      ("BPM najpierw", "bpm"),
+                                      ("tonacja najpierw", "harmonic")],
+                                     value="smart", id="suggest-mode",
+                                     allow_blank=False)
+                        yield OptionList(id="suggest-list")
+                        yield Static("", id="suggest-info")
+            with TabPane("Export / Cue", id="tab-export"):
+                yield Static(
+                    "Edytor hot cue — w budowie (TUI_WIZJA_2: dodaj / usuń / "
+                    "przesuń / scal + auto-generacja z planu przejść).\n"
+                    "Dziś auto-cue zapisuje komenda `dancelab zagraj`, "
+                    "a playlisty klawisz W w zakładce Set.", id="export-stub")
         yield Static("", id="status")
         yield Footer()
 
@@ -251,9 +363,188 @@ class DanceLabTUI(App):
         table = self.query_one("#set", DataTable)
         table.add_columns("#", "BPM", "ton", "pew.", "gatunek", "Σ min", "utwór")
         table.cursor_type = "row"
+        lib = self.query_one("#lib-table", DataTable)
+        lib.add_columns("♥", "F", "BPM", "ton", "pew.", "energia", "gatunek",
+                        "min", "utwór")
+        lib.cursor_type = "row"
+        try:
+            from dancelab.tui.user_store import load_state
+            self._user_state = load_state()
+        except Exception as exc:  # noqa: BLE001 — zepsuty plik stanu ≠ martwa apka
+            self._note(f"stan ulubionych/filarów nieodczytany: {exc}")
+            self._user_state = {"ulubione_utwory": [], "ulubione_playlisty": [],
+                                "filary": []}
         self._load_anchors()
         self._refresh_status()
         self.set_interval(5.0, self._refresh_status)
+        self._lib_loader()
+
+    # ------------------------------------------------------------ zakładki
+
+    def action_next_tab(self) -> None:
+        self._switch_tab(+1)
+
+    def action_prev_tab(self) -> None:
+        self._switch_tab(-1)
+
+    def _switch_tab(self, delta: int) -> None:
+        tc = self.query_one("#tabs", TabbedContent)
+        i = _TAB_ORDER.index(tc.active) if tc.active in _TAB_ORDER else 0
+        tc.active = _TAB_ORDER[(i + delta) % len(_TAB_ORDER)]
+
+    # ----------------------------------------------------------- Biblioteka
+
+    @work(thread=True, exclusive=True, group="lib")
+    def _lib_loader(self) -> None:
+        """Pula do zakładki Biblioteka — te same sita higieny co budowa."""
+        ui = self.call_from_thread
+        try:
+            analyses, notes = self._library_analyses()
+        except Exception as exc:  # noqa: BLE001
+            ui(self._note, f"Biblioteka nie wstała: {exc}")
+            return
+        for note in notes:
+            ui(self._note, note)
+        ui(self._set_library, analyses)
+
+    def _set_library(self, analyses: list) -> None:
+        self._lib = analyses
+        raw = {a.track.track_id: _energy_raw(a) for a in analyses}
+        known = [v for v in raw.values() if v is not None]
+        lo, hi = (min(known), max(known)) if known else (0.0, 1.0)
+        span = (hi - lo) or 1.0
+        # energia RELATYWNA w obrębie biblioteki (0-100); brak ramek = None
+        self._lib_energy = {tid: (None if v is None
+                                  else round(100 * (v - lo) / span))
+                            for tid, v in raw.items()}
+        self._render_library()
+
+    def _lib_filters(self) -> tuple[str, str, float | None, float | None, str | None]:
+        search = self.query_one("#lib-search", Input).value
+        key = self.query_one("#lib-key", Input).value
+        lo, hi, err = _parse_bpm(self.query_one("#lib-bpm", Input).value)
+        return search, key, lo, hi, err
+
+    def _render_library(self, keep_cursor: bool = False) -> None:
+        from dancelab.tui.user_store import resolve_tracks
+        table = self.query_one("#lib-table", DataTable)
+        cursor = table.cursor_row if keep_cursor else None
+        table.clear()
+        search, key, lo, hi, err = self._lib_filters()
+        rows = filter_library(self._lib, search=search, key=key,
+                              bpm_lo=lo, bpm_hi=hi)
+        rows.sort(key=lambda a: (a.track.bpm_estimate or 0,
+                                 str(a.track.key_estimate or "")))
+        by_id = {a.track.track_id: a for a in self._lib}
+        favs, _ = resolve_tracks(self._user_state["ulubione_utwory"], by_id)
+        filary, _ = resolve_tracks(self._user_state["filary"], by_id)
+        favs, filary = set(favs), set(filary)
+        for a in rows:
+            t = a.track
+            conf = t.key_confidence
+            k = str(t.key_estimate or "?")
+            key_cell = k if (conf or 0) >= 0.5 else f"[dim]{k}?[/]"
+            en = self._lib_energy.get(t.track_id)
+            dur = t.duration_sec or 0
+            table.add_row(
+                "♥" if t.track_id in favs else "",
+                "F" if t.track_id in filary else "",
+                f"{t.bpm_estimate or 0:.1f}", key_cell,
+                f"{conf:.2f}" if conf is not None else "—",
+                f"{en:3d}" if en is not None else "—",
+                (t.style_label or "")[:20],
+                f"{dur/60:4.1f}",
+                pathlib.Path(t.source_path).stem[:52],
+            )
+        self._lib_view = rows
+        info = (f"{len(rows)} z {len(self._lib)} utworów   ·   "
+                f"filary: {len(self._user_state['filary'])}/10   ·   "
+                f"♥ {len(self._user_state['ulubione_utwory'])}")
+        if err:
+            info += f"   ·   filtr BPM: {err}"
+        self.query_one("#lib-count", Static).update(info)
+        if cursor is not None and rows:
+            table.move_cursor(row=min(cursor, len(rows) - 1))
+
+    def action_toggle_fav(self) -> None:
+        self._lib_toggle("ulubione_utwory", "♥")
+
+    def action_toggle_filar(self) -> None:
+        self._lib_toggle("filary", "filar")
+
+    def _lib_toggle(self, kind: str, label: str) -> None:
+        from dancelab.tui.user_store import save_state, toggle_track
+        if self.query_one("#tabs", TabbedContent).active != "tab-lib":
+            self._note(f"{label}: zaznacz utwór w zakładce Biblioteka")
+            return
+        table = self.query_one("#lib-table", DataTable)
+        idx = table.cursor_row
+        view = getattr(self, "_lib_view", [])
+        if idx is None or not (0 <= idx < len(view)):
+            self._note(f"{label}: ustaw kursor na utworze")
+            return
+        t = view[idx].track
+        added, refuse = toggle_track(self._user_state, kind,
+                                     t.track_id, t.source_path)
+        if refuse:
+            self.notify(refuse, severity="warning", timeout=6)
+            return
+        save_state(self._user_state)
+        name = pathlib.Path(t.source_path).stem[:40]
+        self._note(f"{label}: {'＋' if added else '－'} {name}")
+        self._render_library(keep_cursor=True)
+        table.focus()
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id in ("lib-search", "lib-key", "lib-bpm"):
+            self._render_library()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "go":
+            self.action_build()          # przycisk robi to samo co B —
+        elif event.button.id == "lib-analyze":   # wcześniej był atrapą
+            self._lib_analyze_worker()
+
+    @work(thread=True, exclusive=True, group="lib")
+    def _lib_analyze_worker(self) -> None:
+        """Onboarding: folder → analiza z postępem → Biblioteka od nowa."""
+        from dancelab.core.config import load_config
+        from dancelab.workflows.smart_playlist import (
+            analyze_files, discover_audio_files)
+        ui = self.call_from_thread
+        folder = self.query_one("#lib-folder", Input).value.strip()
+        count = self.query_one("#lib-count", Static)
+        if not folder:
+            ui(self._note, "podaj ścieżkę folderu do analizy")
+            return
+        try:
+            files = discover_audio_files(folder)
+            if not files:
+                ui(self._note, f"brak plików audio w: {folder}")
+                return
+            ui(count.update, f"Analiza {len(files)} plików…")
+            self._stop.clear()
+            _, failures = analyze_files(
+                files, load_config("configs/default.yaml"),
+                processed_dir=self.processed_dir,
+                stage_progress=lambda path, stage: ui(
+                    count.update,
+                    f"{stage}: {pathlib.Path(path).name[:48]}"),
+                should_stop=self._stop.is_set,
+            )
+            for f in failures[:5]:
+                ui(self._note, f"nie przeanalizowano "
+                               f"{pathlib.Path(f.source_path).name}: {f.error}")
+            analyses, notes = self._library_analyses()
+            for note in notes:
+                ui(self._note, note)
+            ui(self._set_library, analyses)
+            self.call_from_thread(
+                self.notify, f"✅ analiza skończona — w puli {len(analyses)}")
+        except Exception as exc:  # noqa: BLE001
+            ui(self._note, f"analiza nie wyszła: {exc}")
+            self.call_from_thread(self.notify, f"analiza nie wyszła: {exc}",
+                                  severity="error", timeout=8)
 
     def _load_anchors(self) -> None:
         try:
@@ -390,13 +681,24 @@ class DanceLabTUI(App):
             anchor = resolve_anchor(p["dj"])
 
         count = estimate_track_count_for_duration(analyses, p["minutes"])
-        ui(progress.update, f"Budowa: {count} utworów z {len(analyses)}…")
+        filary, filar_notes = _filary_for_build(
+            self._user_state, {a.track.track_id: a for a in analyses},
+            p["bpm_min"], p["bpm_max"], count)
+        # filar może wskazywać duplikat bajt-w-bajt, który dedup wytnie —
+        # mapujemy na egzemplarz kanoniczny, żeby budowa nie odmawiała
+        # o utwór, który muzycznie w puli JEST (złapane E2E 05.08)
+        from dancelab.decision.dedup import canonical_ids
+        mapping = canonical_ids(analyses)
+        filary = list(dict.fromkeys(mapping.get(t, t) for t in filary))
+        ui(progress.update, f"Budowa: {count} utworów z {len(analyses)}"
+                            + (f" wokół {len(filary)} filarów…" if filary else "…"))
         plan = build_set(
             analyses, load_weights(cfg.weights_file),
             arc=p["arc"], target_track_count=count, planner_mode=p["planner"],
             tempo_shape=p["tempo"],
             preferred_styles=p["styles"] or None,
             bpm_min=p["bpm_min"], bpm_max=p["bpm_max"],
+            pinned_track_ids=filary or None,
             sound_anchor=anchor.centroid if anchor else None,
             anchor_name=anchor.name if anchor else None,
             jump_contour=(anchor.contour if (anchor and p["contour"]) else None),
@@ -409,7 +711,7 @@ class DanceLabTUI(App):
             anchor=(anchor.centroid if anchor else None),
             params=p,
         )
-        notes = [*emb.notes, *gen.notes,
+        notes = [*emb.notes, *gen.notes, *filar_notes,
                  f"dokarmione: wektory {emb.attached}, gatunki {gen.attached}"]
         self._plan_name = (f"TUI {p['dj'] or 'set'} "
                            f"{p['bpm_min']:g}-{p['bpm_max']:g}" if p["bpm_min"]

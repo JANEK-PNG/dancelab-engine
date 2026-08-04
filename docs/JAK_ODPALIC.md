@@ -20,7 +20,28 @@ kliknij prawym → **Otwórz**, potem już nie pyta.
 cd ~/Developer/dancelab-engine && .venv/bin/dancelab tui
 ```
 
-## Co robisz w środku
+## Zakładki
+
+Aplikacja ma trzy zakładki: **Biblioteka · Set · Export/Cue** — przełączasz
+je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
+
+### Biblioteka
+- **Szukajka i filtry** na górze: fragment nazwy lub gatunku, dokładna
+  tonacja (np. `8A`), okno tempa (np. `125-140`). Filtrują na żywo.
+- Tabela pokazuje wszystko, co silnik wie: BPM, tonację z pewnością,
+  względną energię (0–100 w obrębie Twojej biblioteki; „—" = silnik nie wie),
+  gatunek, długość.
+- **U** — przypina utwór do ulubionych (♥). **F** — robi z utworu **FILAR**:
+  utwór, który MUSI zagrać w następnym budowanym secie. Limit 10 filarów —
+  silnik projektuje drogę MIĘDZY filarami, reszta należy do niego.
+- Na dole wiersz **Analizuj**: wklej ścieżkę folderu z muzyką i kliknij —
+  tak dogrywasz nowe pliki do puli (i tak zaczyna pierwszy użytkownik).
+
+### Set — budowa i edycja (szczegóły niżej)
+
+### Export/Cue — w budowie (edytor hot cue wg wizji 2.0)
+
+## Co robisz w środku (zakładka Set)
 
 1. **Formularz** (góra): pula utworów, długość w minutach, okno tempa
    (np. `130-135`), gatunki (Twoje tagi z Rekordboxa), DJ z listy kotwic
