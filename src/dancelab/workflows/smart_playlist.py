@@ -522,7 +522,8 @@ def build_smart_playlist_from_folder(
     folder_path: str | Path,
     config: EngineConfig,
     *,
-    target_track_count: int,
+    target_track_count: int | None = None,
+    target_minutes: float | None = None,
     playlist_name: str = "DanceLab Smart Set",
     output_path: str | Path | None = None,
     processed_dir: str | Path | None = None,
@@ -534,10 +535,32 @@ def build_smart_playlist_from_folder(
     recompute: bool = False,
     context: ContextProfile | None = None,
     analyze_fn: Callable[..., AnalysisResult] = analyze_track,
+    preferred_styles: Sequence[str] | None = None,
+    bpm_min: float | None = None,
+    bpm_max: float | None = None,
+    play_like: str | None = None,
+    use_contour: bool = False,
+    enrich: bool = True,
 ) -> SmartPlaylistResult:
-    """Analiza folderu → set → paczka cue gotowa do wpisania w master.db."""
-    if target_track_count < MIN_PLAYLIST_TRACKS:
+    """Analiza folderu → set → paczka cue gotowa do wpisania w master.db.
+
+    `target_minutes` celuje w CZAS setu zamiast liczby utworów (liczba wychodzi
+    z realnych długości przeanalizowanej puli — `estimate_track_count_for_duration`).
+    `play_like` bierze kotwicę i (przy `use_contour`) kontur prowadzenia
+    z `data/reports/dj_anchors.json`; nieznana nazwa = odmowa z podpowiedzią,
+    zanim cokolwiek zacznie się analizować.
+    """
+    if target_track_count is None and target_minutes is None:
+        raise ValueError("podaj target_track_count albo target_minutes")
+    if target_track_count is not None and target_track_count < MIN_PLAYLIST_TRACKS:
         raise ValueError(f"target_track_count must be at least {MIN_PLAYLIST_TRACKS}")
+
+    # Kotwicę rozstrzygamy PRZED analizą folderu: literówka w nazwisku ma
+    # odmówić w sekundę, a nie po dziesięciu minutach liczenia audio.
+    anchor = None
+    if play_like:
+        from dancelab.decision.anchors import resolve_anchor
+        anchor = resolve_anchor(play_like)
 
     source_files = discover_audio_files(folder_path, recursive=recursive)
     if not source_files:
@@ -559,6 +582,26 @@ def build_smart_playlist_from_folder(
 
     if not analyses:
         raise ValueError("no tracks could be analyzed from the selected folder")
+
+    enrichment_notes: list[str] = []
+    if enrich:
+        from dancelab.ingestion.analysis_enrichment import (
+            attach_rekordbox_genres,
+            attach_sound_embeddings,
+        )
+        emb = attach_sound_embeddings(analyses)
+        gen = attach_rekordbox_genres(analyses)
+        enrichment_notes += emb.notes + gen.notes
+        enrichment_notes.append(
+            f"dokarmianie: wektory {emb.attached}, gatunki {gen.attached} "
+            f"(braki: {emb.missing}/{gen.missing})")
+
+    if target_track_count is None:
+        target_track_count = estimate_track_count_for_duration(
+            analyses, float(target_minutes))
+        enrichment_notes.append(
+            f"cel {target_minutes:.0f} min → {target_track_count} utworów "
+            f"(ze średniej realnych długości puli)")
     if len(analyses) < target_track_count:
         raise ValueError(
             f"target_track_count={target_track_count} needs at least "
@@ -574,7 +617,16 @@ def build_smart_playlist_from_folder(
         planner_mode=planner_mode,
         context=context,
         tempo_shape=tempo_shape,
+        preferred_styles=preferred_styles,
+        bpm_min=bpm_min,
+        bpm_max=bpm_max,
+        sound_anchor=anchor.centroid if anchor else None,
+        anchor_name=anchor.name if anchor else None,
+        jump_contour=(anchor.contour if (anchor and use_contour) else None),
     )
+    if enrichment_notes:
+        plan = plan.model_copy(update={
+            "warnings": [*plan.warnings, *enrichment_notes]})
     selected_ids = set(plan.track_order)
     selected_analyses = [analysis for analysis in analyses if analysis.track.track_id in selected_ids]
     windows = _transition_windows_for_playlist(selected_analyses, config=effective_config)

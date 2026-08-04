@@ -879,6 +879,8 @@ def _best_successor(
     context: ContextProfile | None,
     mixability_precomputation: MixabilityPrecomputation,
     novelty: "NoveltyContext | None" = None,
+    steering: "SoundSteering | None" = None,
+    position: int = 0,
 ) -> str:
     scored: list[tuple[float, str]] = []
     for candidate in candidates:
@@ -894,6 +896,11 @@ def _best_successor(
             context,
             mixability_precomputation,
         )
+        # Sterowanie (kotwica/kontur) to jawne wejście DJ-a — działa tylko gdy
+        # o nie poprosił; ścieżka domyślna pozostaje bajt w bajt ta sama.
+        if steering is not None and steering.active:
+            score, _why = steering.adjust(
+                score, by_id[current], by_id[candidate], position)
         if novelty is not None:
             # §14: soft penalties inside the gate-passing candidate set —
             # relevance ordering first, history discourages repeats
@@ -980,6 +987,7 @@ def _constrained_order(
     context: ContextProfile | None,
     mixability_precomputation: MixabilityPrecomputation,
     novelty: "NoveltyContext | None" = None,
+    steering: "SoundSteering | None" = None,
 ) -> list[str]:
     locked_slots = {position - 1: track_id for position, track_id in locked_positions.items()}
     locked_track_ids = set(locked_positions.values())
@@ -1064,6 +1072,8 @@ def _constrained_order(
                     context=context,
                     mixability_precomputation=mixability_precomputation,
                     novelty=novelty,
+                    steering=steering,
+                    position=index,
                 )
             remaining.remove(chosen)
 
@@ -1095,6 +1105,11 @@ def build_set(
     history: Sequence["PlaylistFingerprint"] | None = None,
     seed: int | None = None,
     tempo_shape: str = TEMPO_SHAPE_OFF,
+    sound_anchor: Sequence[float] | None = None,
+    anchor_name: str | None = None,
+    anchor_weight: float | None = None,
+    jump_contour: Sequence[float] | None = None,
+    contour_weight: float | None = None,
 ) -> SetPlan:
     """Greedy harmonic/energy set ordering with optional lock/pin constraints.
 
@@ -1244,6 +1259,31 @@ def build_set(
         [b for b in bpm_of.values() if b], tempo_shape, slots=target_track_count
     )
 
+    steering = None
+    if sound_anchor is not None or jump_contour:
+        import numpy as _np
+
+        from dancelab.decision.steering import (
+            DEFAULT_ANCHOR_WEIGHT,
+            DEFAULT_CONTOUR_WEIGHT,
+            SoundSteering,
+        )
+        steering = SoundSteering(
+            anchor=_np.asarray(sound_anchor, dtype=float) if sound_anchor is not None else None,
+            anchor_weight=DEFAULT_ANCHOR_WEIGHT if anchor_weight is None else float(anchor_weight),
+            contour=list(jump_contour) if jump_contour else None,
+            contour_weight=DEFAULT_CONTOUR_WEIGHT if contour_weight is None else float(contour_weight),
+            anchor_name=anchor_name,
+        )
+        with_vec = sum(1 for a in by_id_all.values() if a.track.sound_embedding is not None)
+        preference_warnings.append(
+            f"sterowanie brzmieniem aktywne ({anchor_name or 'kontur'}): "
+            f"wektory ma {with_vec}/{len(by_id_all)} utworów puli")
+        if with_vec == 0:
+            preference_warnings.append(
+                "ŻADEN utwór puli nie ma wektora brzmienia — sterowanie nie "
+                "zmieni doboru; uzupełnij data/reports/library_embeddings.json")
+
     novelty = NoveltyContext.build(
         mode=novelty_mode,
         history=list(history or []),
@@ -1272,6 +1312,7 @@ def build_set(
             context=context,
             mixability_precomputation=mixability_precomputation,
             novelty=active_novelty,
+            steering=steering,
         )
 
     order = _run_order(novelty)
@@ -1324,6 +1365,7 @@ def build_set(
     warnings = [
         *dedup_warnings,
         *preference_warnings,
+        *(steering.coverage_warnings() if steering is not None else []),
         *constraint_warnings,
         *energy_warnings,
         *_artist_diversity_warnings(order, artist_tokens),
