@@ -31,8 +31,12 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
   względną energię (0–100 w obrębie Twojej biblioteki; „—" = silnik nie wie),
   gatunek, długość.
 - **U** — przypina utwór do ulubionych (♥). **F** — robi z utworu **FILAR**:
-  utwór, który MUSI zagrać w następnym budowanym secie. Limit 10 filarów —
+  utwór, który MUSI zagrać w budowanym secie. Filarów jest **od 3 do 10** —
   silnik projektuje drogę MIĘDZY filarami, reszta należy do niego.
+  Legenda z tymi skrótami jest cały czas widoczna nad tabelą.
+- **G** albo przycisk **„→ Zbuduj z filarów"** — przenosi do zakładki Set
+  i buduje set wokół zaznaczonych filarów. Potem dokooptowujesz utwory
+  jak zwykle: A dopisuje, Z podmienia, X wycina.
 - Na dole wiersz **Analizuj**: wklej ścieżkę folderu z muzyką i kliknij —
   tak dogrywasz nowe pliki do puli (i tak zaczyna pierwszy użytkownik).
 

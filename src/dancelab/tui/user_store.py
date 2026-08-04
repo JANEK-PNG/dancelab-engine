@@ -1,10 +1,12 @@
 """Ulubione i filary — trwały stan użytkownika Biblioteki (TUI 2.0, krok b).
 
 Dwa piny, jak chciał Janek (wzór Apple Music): na utwory i na playlisty,
-osobno FILARY — utwory OBOWIĄZKOWE dla generatora setu. Limit 10 filarów to
-bezpiecznik z jego własnego uzasadnienia: set złożony z samych filarów nie
-zostawia silnikowi nic do zaprojektowania (silnik projektuje drogę MIĘDZY
-filarami — „Design In Between" w skali setu).
+osobno FILARY — utwory OBOWIĄZKOWE dla generatora setu. Filarów jest 3–10
+(Janek, 05.08 — minimum wróciło po dniu przerwy): górna granica to bezpiecznik
+z jego uzasadnienia (set złożony z samych filarów nie zostawia silnikowi nic
+do zaprojektowania — silnik projektuje drogę MIĘDZY filarami), dolna pilnuje,
+żeby budowa „z filarów" miała z czego wyznaczyć trasę. Minimum egzekwuje
+BUDOWA, nie przełącznik — pierwszy i drugi filar musi się dać zaznaczyć.
 
 Wpisy trzymają track_id ORAZ ścieżkę: id to sha1 ścieżki, więc po przenosinach
 pliku wpis ratuje dopasowanie po ścieżce (ten sam wzór co magazyn planów).
@@ -20,6 +22,7 @@ import json
 import pathlib
 
 STATE_PATH = pathlib.Path("data/exports/tui_stan.json")
+MIN_FILARY = 3
 MAX_FILARY = 10
 
 _EMPTY = {"ulubione_utwory": [], "ulubione_playlisty": [], "filary": []}

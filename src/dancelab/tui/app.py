@@ -126,7 +126,7 @@ def _filary_for_build(state: dict, by_id: dict, bpm_min: float | None,
     każdego konfliktu: filar spoza puli i filar poza oknem tempa są POMIJANE
     z imienną notką (okno ustawił użytkownik — konflikt ma być widoczny, nie
     rozstrzygany po cichu); więcej filarów niż miejsc = odmowa z liczbami."""
-    from dancelab.tui.user_store import resolve_tracks
+    from dancelab.tui.user_store import MIN_FILARY, resolve_tracks
     ids, missing = resolve_tracks(state.get("filary", []), by_id)
     notes = [f"FILAR nieobecny w puli (pominięty): {m}" for m in missing]
     kept: list[str] = []
@@ -138,6 +138,10 @@ def _filary_for_build(state: dict, by_id: dict, bpm_min: float | None,
             notes.append(f"FILAR poza oknem tempa (pominięty): {name} ({bpm:.1f})")
             continue
         kept.append(tid)
+    if kept and len(kept) < MIN_FILARY:
+        raise ValueError(
+            f"filary to minimum {MIN_FILARY}, a po sitach zostało {len(kept)} "
+            f"— dodaj filary w Bibliotece (F) albo zdejmij wszystkie")
     if count is not None and len(kept) > count:
         raise ValueError(f"filarów ({len(kept)}) więcej niż miejsc w secie "
                          f"({count}) — wydłuż set albo zdejmij filary")
@@ -250,8 +254,9 @@ class DanceLabTUI(App):
         Binding("v", "verdict", "Werdykt"),
         Binding("i", "track_info", "Info"),
         Binding("l", "toggle_notes", "Log"),
-        Binding("u", "toggle_fav", "♥", show=False),
-        Binding("f", "toggle_filar", "Filar", show=False),
+        Binding("u", "toggle_fav", "♥ Ulubiony"),
+        Binding("f", "toggle_filar", "Filar"),
+        Binding("g", "build_from_filary", "Z filarów", show=False),
         Binding("ctrl+tab", "next_tab", "zakładka →", show=False),
         Binding("ctrl+shift+tab", "prev_tab", "← zakładka", show=False),
         Binding("escape", "cancel", "Anuluj"),
@@ -304,6 +309,8 @@ class DanceLabTUI(App):
                                     id="lib-folder")
                         yield Button("Analizuj", id="lib-analyze",
                                      variant="primary")
+                        yield Button("→ Zbuduj z filarów  [G]", id="lib-build",
+                                     variant="success")
             with TabPane("Set", id="tab-set"):
                 with Horizontal():
                     with VerticalScroll(id="form"):
@@ -458,8 +465,9 @@ class DanceLabTUI(App):
             )
         self._lib_view = rows
         info = (f"{len(rows)} z {len(self._lib)} utworów   ·   "
-                f"filary: {len(self._user_state['filary'])}/10   ·   "
-                f"♥ {len(self._user_state['ulubione_utwory'])}")
+                f"filary: {len(self._user_state['filary'])} (min 3, max 10)"
+                f"   ·   ♥ {len(self._user_state['ulubione_utwory'])}"
+                f"   ·   U=♥  F=filar  G=zbuduj z filarów")
         if err:
             info += f"   ·   filtr BPM: {err}"
         self.query_one("#lib-count", Static).update(info)
@@ -504,6 +512,21 @@ class DanceLabTUI(App):
             self.action_build()          # przycisk robi to samo co B —
         elif event.button.id == "lib-analyze":   # wcześniej był atrapą
             self._lib_analyze_worker()
+        elif event.button.id == "lib-build":
+            self.action_build_from_filary()
+
+    def action_build_from_filary(self) -> None:
+        """G / przycisk w Bibliotece: filary → zakładka Set → budowa wokół nich.
+        Potem zwykła edycja: A dokooptowuje, Z podmienia, X wycina."""
+        from dancelab.tui.user_store import MIN_FILARY
+        n = len(self._user_state["filary"])
+        if n < MIN_FILARY:
+            self.notify(f"do budowy z filarów trzeba minimum {MIN_FILARY} "
+                        f"(masz {n}) — klawisz F w Bibliotece zaznacza",
+                        severity="warning", timeout=6)
+            return
+        self.query_one("#tabs", TabbedContent).active = "tab-set"
+        self.action_build()
 
     @work(thread=True, exclusive=True, group="lib")
     def _lib_analyze_worker(self) -> None:

@@ -10,8 +10,8 @@ Stan: 2026-08-05. Układ 2.0 wg TUI_WIZJA_2 (zatwierdzony): ZAKŁADKI
 | pula = `_library_analyses` (te same sita higieny co budowa) | DataTable #lib-table: ♥ · F · BPM · ton · pew. · energia · gatunek · min · utwór |
 | `filter_library` — podciąg nazwa/gatunek, dokładna tonacja, domknięte okno BPM | Inputy #lib-search #lib-key #lib-bpm, filtr na żywo; zły filtr = powód w liczniku |
 | energia RELATYWNA 0-100 w obrębie biblioteki; brak ramek RMS = „—", nie zmyślona | kolumna „energia" |
-| `tui/user_store` — ulubione (2 piny: utwory + playlisty) i FILARY (limit 10 z uzasadnieniem) | klawisze U i F na tabeli; znaczniki ♥/F; licznik w #lib-count; stan w `data/exports/tui_stan.json` |
-| filary → `build_set(pinned_track_ids=…)` (istniejący mechanizm silnika); `_filary_for_build` pomija imiennie filar spoza puli/okna tempa, odmawia gdy filarów > miejsc; `dedup.canonical_ids` mapuje filar-duplikat na egzemplarz kanoniczny | budowa w zakładce Set „wokół N filarów" |
+| `tui/user_store` — ulubione (2 piny: utwory + playlisty) i FILARY (3–10; minimum egzekwuje budowa, nie przełącznik) | klawisze U i F na tabeli (widoczne w stopce); legenda U/F/G na stałe w #lib-count; znaczniki ♥/F; stan w `data/exports/tui_stan.json` |
+| G / przycisk „→ Zbuduj z filarów”: przełącza na Set i buduje wokół filarów (odmowa z liczbą przy <3); filary → `build_set(pinned_track_ids=…)` (istniejący mechanizm silnika); `_filary_for_build` pomija imiennie filar spoza puli/okna tempa, odmawia gdy filarów > miejsc; `dedup.canonical_ids` mapuje filar-duplikat na egzemplarz kanoniczny | budowa w zakładce Set „wokół N filarów" |
 | onboarding: folder → `analyze_files` z postępem etapów | wiersz #lib-folder + przycisk Analizuj |
 
 ## Zakładka EXPORT/CUE — atrapa (krok f wizji: edytor hot cue)

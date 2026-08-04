@@ -39,13 +39,14 @@ LIB = [
     _A("b", "Detlef - Lil Bunny", 130.0, "2A", "Tech House"),
     _A("c", "Hodge - Wiggler", 135.0, "1A", "UK Bass"),
     _A("d", "Bez Tempa", None, None, None),
+    _A("e", "Overmono - So U Kno", 131.0, "5A", "breaks"),
 ]
 
 
 def test_filtr_szuka_w_nazwie_i_gatunku_bez_wielkosci_liter():
     assert [a.track.track_id for a in filter_library(LIB, search="mercy")] == ["a"]
     assert [a.track.track_id for a in filter_library(LIB, search="uk bass")] == ["c"]
-    assert len(filter_library(LIB, search="")) == 4
+    assert len(filter_library(LIB, search="")) == 5
 
 
 def test_filtr_tonacji_dokladny():
@@ -55,7 +56,7 @@ def test_filtr_tonacji_dokladny():
 
 def test_okno_bpm_domkniete_a_brak_tempa_odpada():
     got = [a.track.track_id for a in filter_library(LIB, bpm_lo=130, bpm_hi=132)]
-    assert got == ["a", "b"], "135 poza oknem, brak tempa też poza oknem"
+    assert got == ["a", "b", "e"], "135 poza oknem, brak tempa też poza oknem"
 
 
 def test_filtry_skladaja_sie():
@@ -72,14 +73,21 @@ def _by_id():
 
 
 def test_filary_przechodza_do_budowy_z_notka():
-    ids, notes = _filary_for_build(_state("a", "b"), _by_id(), None, None, 10)
-    assert ids == ["a", "b"]
-    assert any("filary w budowie: 2" in n for n in notes)
+    ids, notes = _filary_for_build(_state("a", "b", "e"), _by_id(), None, None, 10)
+    assert ids == ["a", "b", "e"]
+    assert any("filary w budowie: 3" in n for n in notes)
+
+
+def test_mniej_niz_trzy_filary_odmawia():
+    """Reguła Janka 05.08: filary to 3-10. Minimum egzekwuje budowa."""
+    with pytest.raises(ValueError, match="minimum 3"):
+        _filary_for_build(_state("a", "b"), _by_id(), None, None, 10)
 
 
 def test_filar_poza_oknem_tempa_pominiety_imiennie():
-    ids, notes = _filary_for_build(_state("a", "c"), _by_id(), 129, 133, 10)
-    assert ids == ["a"], "c ma 135 — poza oknem"
+    ids, notes = _filary_for_build(_state("a", "b", "e", "c"),
+                                   _by_id(), 129, 133, 10)
+    assert ids == ["a", "b", "e"], "c ma 135 — poza oknem"
     assert any("poza oknem tempa" in n and "Hodge" in n for n in notes)
 
 
@@ -91,7 +99,7 @@ def test_filar_spoza_puli_pominiety_imiennie():
 
 def test_wiecej_filarow_niz_miejsc_odmawia_z_liczbami():
     with pytest.raises(ValueError, match=r"filarów \(3\).*miejsc w secie \(2\)"):
-        _filary_for_build(_state("a", "b", "c"), _by_id(), None, None, 2)
+        _filary_for_build(_state("a", "b", "e"), _by_id(), None, None, 2)
 
 
 def test_zakladki_istnieja_i_ctrl_tab_krazy():
@@ -142,8 +150,9 @@ def test_u_i_f_pinuja_z_biblioteki(tmp_path, monkeypatch):
             from textual.coordinate import Coordinate
             assert str(table.get_cell_at(Coordinate(0, 0))) == "♥"
             assert str(table.get_cell_at(Coordinate(0, 1))) == "F"
-            assert "filary: 1/10" in str(
-                app.query_one("#lib-count", Static).render())
+            count_line = str(app.query_one("#lib-count", Static).render())
+            assert "filary: 1 (min 3, max 10)" in count_line
+            assert "F=filar" in count_line          # legenda widoczna na ekranie
             await pilot.press("f")            # drugi raz zdejmuje
             await pilot.pause()
             assert app._user_state["filary"] == []
@@ -159,15 +168,42 @@ def test_biblioteka_renderuje_i_filtruje_na_zywo():
             app._set_library(list(LIB))
             await pilot.pause()
             table = app.query_one("#lib-table", DataTable)
-            assert table.row_count == 4
-            assert "4 z 4" in str(app.query_one("#lib-count", Static).render())
+            assert table.row_count == 5
+            assert "5 z 5" in str(app.query_one("#lib-count", Static).render())
             app.query_one("#lib-search", Input).value = "mercy"
             await pilot.pause()
             assert table.row_count == 1
-            assert "1 z 4" in str(app.query_one("#lib-count", Static).render())
+            assert "1 z 5" in str(app.query_one("#lib-count", Static).render())
             # zły filtr BPM = powód w liczniku, nie traceback
             app.query_one("#lib-search", Input).value = ""
             app.query_one("#lib-bpm", Input).value = "140-130"
             await pilot.pause()
             assert "puste okno" in str(app.query_one("#lib-count", Static).render())
+    asyncio.run(go())
+
+
+def test_g_wysyla_filary_do_set_buildera(tmp_path, monkeypatch):
+    """G z <3 filarami odmawia i zostaje w Bibliotece; z 3 przenosi do Set
+    i odpala budowę."""
+    import dancelab.tui.user_store as store
+    monkeypatch.setattr(store, "STATE_PATH", tmp_path / "stan.json")
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import TabbedContent
+            tc = app.query_one("#tabs", TabbedContent)
+            app._set_library(list(LIB))
+            await pilot.pause()
+            app._user_state["filary"] = [
+                {"track_id": "a", "path": "/m/a.mp3"},
+                {"track_id": "b", "path": "/m/b.mp3"}]
+            app.action_build_from_filary()
+            await pilot.pause()
+            assert tc.active == "tab-lib", "2 filary = odmowa, zostajemy"
+            app._user_state["filary"].append(
+                {"track_id": "e", "path": "/m/e.mp3"})
+            app.action_build_from_filary()
+            await pilot.pause()
+            assert tc.active == "tab-set", "3 filary = jedziemy budować"
     asyncio.run(go())
