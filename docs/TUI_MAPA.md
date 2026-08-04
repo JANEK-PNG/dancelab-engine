@@ -1,7 +1,9 @@
 # DanceLab TUI — mapa komponentów silnika na interfejs
 
 Stan: 2026-08-05. Układ 2.0 wg TUI_WIZJA_2 (zatwierdzony): ZAKŁADKI
-**Biblioteka · Set · Export/Cue**, Ctrl+Tab krąży. Framework: Textual
+**Biblioteka · Set · Eksport/Cue**, Ctrl+Tab krąży. JĘZYK: interfejs w 100%
+po polsku — komunikaty silnika (po angielsku, konwencja kodu) tłumaczy
+`tui/po_polsku.py` na granicy UI; nieznany komunikat przechodzi bez zmian. Framework: Textual
 (czysty Python, ten sam venv, testy headless przez `run_test()`).
 
 ## Zakładka BIBLIOTEKA ✅ (krok a+b+c wizji)
@@ -13,6 +15,7 @@ Stan: 2026-08-05. Układ 2.0 wg TUI_WIZJA_2 (zatwierdzony): ZAKŁADKI
 | `tui/user_store` — ulubione (2 piny: utwory + playlisty) i FILARY (3–10; minimum egzekwuje budowa, nie przełącznik) | klawisze U i F na tabeli (widoczne w stopce); legenda U/F/G na stałe w #lib-count; znaczniki ♥/F; stan w `data/exports/tui_stan.json` |
 | G / przycisk „→ Zbuduj z filarów”: przełącza na Set i buduje wokół filarów (odmowa z liczbą przy <3); filary → `build_set(pinned_track_ids=…)` (istniejący mechanizm silnika); `_filary_for_build` pomija imiennie filar spoza puli/okna tempa, odmawia gdy filarów > miejsc; `dedup.canonical_ids` mapuje filar-duplikat na egzemplarz kanoniczny | budowa w zakładce Set „wokół N filarów" |
 | onboarding: folder → `analyze_files` z postępem etapów | wiersz #lib-folder + przycisk Analizuj |
+| sekcje po lewej (wzór Apple Music): Cała / ♥ Ulubione / ⚑ Filary (+ playlisty wkrótce) | OptionList #lib-side-list, zawsze widoczna; klik zawęża tabelę, nazwa sekcji w liczniku |
 
 ## Zakładka EXPORT/CUE — atrapa (krok f wizji: edytor hot cue)
 

@@ -110,7 +110,8 @@ def test_zakladki_istnieja_i_ctrl_tab_krazy():
             tc = app.query_one("#tabs", TabbedContent)
             assert tc.active == "tab-lib"          # wizja: Biblioteka pierwsza
             for wid in ("#lib-search", "#lib-key", "#lib-bpm", "#lib-table",
-                        "#lib-folder", "#lib-analyze", "#export-stub"):
+                        "#lib-folder", "#lib-analyze", "#lib-side-list",
+                        "#lib-build", "#export-stub"):
                 assert app.query_one(wid) is not None, wid
             app.action_next_tab()
             await pilot.pause()
@@ -207,3 +208,52 @@ def test_g_wysyla_filary_do_set_buildera(tmp_path, monkeypatch):
             await pilot.pause()
             assert tc.active == "tab-set", "3 filary = jedziemy budować"
     asyncio.run(go())
+
+
+def test_sekcje_po_lewej_filtruja_widok(tmp_path, monkeypatch):
+    """Sekcja ♥/⚑ zawęża tabelę do przypiętych; nazwa sekcji w liczniku."""
+    import dancelab.tui.user_store as store
+    monkeypatch.setattr(store, "STATE_PATH", tmp_path / "stan.json")
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import DataTable, Static
+            app._set_library(list(LIB))
+            await pilot.pause()
+            app._user_state["ulubione_utwory"] = [
+                {"track_id": "b", "path": "/m/b.mp3"}]
+            app._user_state["filary"] = [
+                {"track_id": "a", "path": "/m/a.mp3"},
+                {"track_id": "e", "path": "/m/e.mp3"}]
+            table = app.query_one("#lib-table", DataTable)
+            app._set_lib_section("fav")
+            await pilot.pause()
+            assert table.row_count == 1
+            assert "♥ Ulubione: 1 z 5" in str(
+                app.query_one("#lib-count", Static).render())
+            app._set_lib_section("filary")
+            await pilot.pause()
+            assert table.row_count == 2
+            app._set_lib_section("all")
+            await pilot.pause()
+            assert table.row_count == 5
+    asyncio.run(go())
+
+
+def test_po_polsku_tlumaczy_znane_i_przepuszcza_nieznane():
+    from dancelab.tui.po_polsku import po_polsku
+    assert po_polsku(
+        "removed 2 duplicate audio file(s) (same bytes): x→y, a→b"
+    ) == "duplikaty (te same bajty) usunięte z puli: 2 — x→y, a→b"
+    assert po_polsku(
+        "BPM range applied (125.0-145.0); 50 out-of-range track(s) left out"
+    ).startswith("okno tempa 125.0-145.0 — poza oknem zostało: 50")
+    assert po_polsku(
+        "artist diversity relaxed - repeated artist(s): bicep, bodhi"
+    ) == "różnorodność artystów poluzowana — powtórzeni: bicep, bodhi"
+    assert po_polsku("pinned_track_ids reference unknown tracks: abc123"
+                     ) == "filar wskazuje utwór spoza puli: abc123"
+    # nieznany komunikat przechodzi bez zmian — żadnego zgadywania
+    assert po_polsku("some brand new warning") == "some brand new warning"
+    assert po_polsku("higiena puli: odrzucone 17") == "higiena puli: odrzucone 17"

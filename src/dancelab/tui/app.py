@@ -234,6 +234,7 @@ class DanceLabTUI(App):
     #suggest-info { display: none; margin: 1 0; }
     #suggest-info.show { display: block; }
     .field-label { color: $text-muted; }
+    #lib-side { width: 26; border-right: solid $primary; padding: 0 1; }
     #lib-filters { height: 3; }
     #lib-filters Input { width: 1fr; margin-right: 1; }
     #lib-count { height: 1; color: $text-muted; padding: 0 1; }
@@ -295,22 +296,29 @@ class DanceLabTUI(App):
         yield Header()
         with TabbedContent(initial="tab-lib", id="tabs"):
             with TabPane("Biblioteka", id="tab-lib"):
-                with Vertical():
-                    with Horizontal(id="lib-filters"):
-                        yield Input(placeholder="szukaj (nazwa / gatunek)…",
-                                    id="lib-search")
-                        yield Input(placeholder="tonacja np. 8A", id="lib-key")
-                        yield Input(placeholder="BPM np. 125-140", id="lib-bpm")
-                    yield Static("", id="lib-count")
-                    yield DataTable(id="lib-table")
-                    with Horizontal(id="lib-onboard"):
-                        yield Input(placeholder="folder z muzyką do przeskanowania "
-                                                "(pierwszy raz albo dogranie)",
-                                    id="lib-folder")
-                        yield Button("Analizuj", id="lib-analyze",
-                                     variant="primary")
-                        yield Button("→ Zbuduj z filarów  [G]", id="lib-build",
-                                     variant="success")
+                with Horizontal():
+                    # sekcje po lewej, zawsze widoczne — wzór Apple Music
+                    with Vertical(id="lib-side"):
+                        yield Label("SEKCJE", classes="field-label")
+                        side = OptionList(id="lib-side-list")
+                        yield side
+                    with Vertical():
+                        with Horizontal(id="lib-filters"):
+                            yield Input(placeholder="szukaj (nazwa / gatunek)…",
+                                        id="lib-search")
+                            yield Input(placeholder="tonacja np. 8A", id="lib-key")
+                            yield Input(placeholder="BPM np. 125-140", id="lib-bpm")
+                        yield Static("", id="lib-count")
+                        yield DataTable(id="lib-table")
+                        with Horizontal(id="lib-onboard"):
+                            yield Input(placeholder="folder z muzyką do "
+                                                    "przeskanowania (pierwszy raz "
+                                                    "albo dogranie)",
+                                        id="lib-folder")
+                            yield Button("Analizuj", id="lib-analyze",
+                                         variant="primary")
+                            yield Button("→ Zbuduj z filarów  [G]",
+                                         id="lib-build", variant="success")
             with TabPane("Set", id="tab-set"):
                 with Horizontal():
                     with VerticalScroll(id="form"):
@@ -357,7 +365,7 @@ class DanceLabTUI(App):
                                      allow_blank=False)
                         yield OptionList(id="suggest-list")
                         yield Static("", id="suggest-info")
-            with TabPane("Export / Cue", id="tab-export"):
+            with TabPane("Eksport / Cue", id="tab-export"):
                 yield Static(
                     "Edytor hot cue — w budowie (TUI_WIZJA_2: dodaj / usuń / "
                     "przesuń / scal + auto-generacja z planu przejść).\n"
@@ -374,6 +382,13 @@ class DanceLabTUI(App):
         lib.add_columns("♥", "F", "BPM", "ton", "pew.", "energia", "gatunek",
                         "min", "utwór")
         lib.cursor_type = "row"
+        side = self.query_one("#lib-side-list", OptionList)
+        side.add_option(Option("Cała biblioteka", id="all"))
+        side.add_option(Option("♥ Ulubione utwory", id="fav"))
+        side.add_option(Option("⚑ Filary", id="filary"))
+        side.add_option(Option("♥ playlisty — wkrótce", id="pl", disabled=True))
+        side.highlighted = 0
+        self._lib_section = "all"
         try:
             from dancelab.tui.user_store import load_state
             self._user_state = load_state()
@@ -432,6 +447,18 @@ class DanceLabTUI(App):
         lo, hi, err = _parse_bpm(self.query_one("#lib-bpm", Input).value)
         return search, key, lo, hi, err
 
+    def on_option_list_option_selected(self, event) -> None:
+        """Klik w sekcję po lewej przełącza widok Biblioteki. Lista sugestii
+        w zakładce Set celowo NIE reaguje na Enter — tam obowiązuje wzorzec
+        dwóch naciśnięć (Z/A/O potwierdza)."""
+        if getattr(event.option_list, "id", None) == "lib-side-list":
+            self._set_lib_section(event.option.id)
+
+    def _set_lib_section(self, section: str) -> None:
+        self._lib_section = section
+        self._render_library()
+        self.query_one("#lib-table", DataTable).focus()
+
     def _render_library(self, keep_cursor: bool = False) -> None:
         from dancelab.tui.user_store import resolve_tracks
         table = self.query_one("#lib-table", DataTable)
@@ -446,6 +473,11 @@ class DanceLabTUI(App):
         favs, _ = resolve_tracks(self._user_state["ulubione_utwory"], by_id)
         filary, _ = resolve_tracks(self._user_state["filary"], by_id)
         favs, filary = set(favs), set(filary)
+        section = getattr(self, "_lib_section", "all")
+        if section == "fav":
+            rows = [a for a in rows if a.track.track_id in favs]
+        elif section == "filary":
+            rows = [a for a in rows if a.track.track_id in filary]
         for a in rows:
             t = a.track
             conf = t.key_confidence
@@ -464,7 +496,9 @@ class DanceLabTUI(App):
                 pathlib.Path(t.source_path).stem[:52],
             )
         self._lib_view = rows
-        info = (f"{len(rows)} z {len(self._lib)} utworów   ·   "
+        sekcja = {"fav": "♥ Ulubione", "filary": "⚑ Filary"}.get(
+            section, "Cała biblioteka")
+        info = (f"{sekcja}: {len(rows)} z {len(self._lib)} utworów   ·   "
                 f"filary: {len(self._user_state['filary'])} (min 3, max 10)"
                 f"   ·   ♥ {len(self._user_state['ulubione_utwory'])}"
                 f"   ·   U=♥  F=filar  G=zbuduj z filarów")
@@ -588,7 +622,8 @@ class DanceLabTUI(App):
             f"   ·   pula: {self.processed_dir}")
 
     def _note(self, line: str) -> None:
-        self.query_one("#warnings", Log).write_line(f"· {line}")
+        from dancelab.tui.po_polsku import po_polsku
+        self.query_one("#warnings", Log).write_line(f"· {po_polsku(line)}")
         self._n_notes += 1
         self._refresh_status()
 
@@ -611,10 +646,12 @@ class DanceLabTUI(App):
         try:
             plan, by_id, warnings = self._build_plan()
         except Exception as exc:  # noqa: BLE001 — pokazujemy powód, nie traceback
-            ui(self._note, f"ODMOWA: {exc}")
+            from dancelab.tui.po_polsku import po_polsku
+            powod = po_polsku(str(exc))
+            ui(self._note, f"ODMOWA: {powod}")
             ui(self.query_one("#progress", Static).update,
                "Nie zbudowano — powód pod L.")
-            self.call_from_thread(self.notify, f"ODMOWA: {exc}",
+            self.call_from_thread(self.notify, f"ODMOWA: {powod}",
                                   severity="error", timeout=8)
             return
         ui(self._show_plan, plan, by_id, warnings)

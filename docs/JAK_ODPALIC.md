@@ -21,10 +21,12 @@ cd ~/Developer/dancelab-engine && .venv/bin/dancelab tui
 
 ## Zakładki
 
-Aplikacja ma trzy zakładki: **Biblioteka · Set · Export/Cue** — przełączasz
+Aplikacja ma trzy zakładki: **Biblioteka · Set · Eksport/Cue** — przełączasz
 je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
 
 ### Biblioteka
+- **Sekcje po lewej** (zawsze widoczne, jak w Apple Music): Cała biblioteka,
+  ♥ Ulubione utwory, ⚑ Filary; przypięte playlisty dojdą z widokiem playlist.
 - **Szukajka i filtry** na górze: fragment nazwy lub gatunku, dokładna
   tonacja (np. `8A`), okno tempa (np. `125-140`). Filtrują na żywo.
 - Tabela pokazuje wszystko, co silnik wie: BPM, tonację z pewnością,
@@ -42,7 +44,7 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
 
 ### Set — budowa i edycja (szczegóły niżej)
 
-### Export/Cue — w budowie (edytor hot cue wg wizji 2.0)
+### Eksport/Cue — w budowie (edytor hot cue wg wizji 2.0)
 
 ## Co robisz w środku (zakładka Set)
 
