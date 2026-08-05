@@ -680,6 +680,7 @@ class DanceLabTUI(App):
         yield Footer()
 
     def on_mount(self) -> None:
+        self.theme = "monokai"        # wiodący motyw — wybór Janka 06.08
         table = self.query_one("#set", DataTable)
         for lbl, w in (("#", None), ("BPM", 10), ("ton", 8), ("pew.", None),
                        ("gatunek", None), ("Σ min", None), ("utwór", None)):
