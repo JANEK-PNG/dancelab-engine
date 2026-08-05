@@ -473,10 +473,11 @@ class DanceLabTUI(App):
     #suggest-info.show { display: block; }
     .field-label { color: $text-muted; }
     #tabs { height: 1fr; }
-    #player-bar { height: 3; background: $panel;
-                  padding: 0 1; align-horizontal: center; }
-    #player-bar Button { min-width: 6; margin-right: 1; }
-    #pb-info { padding: 1 0 0 2; color: $text; width: auto; }
+    #lib-side-list { height: auto; margin-bottom: 1; }
+    #pb-info { height: 3; color: $text-muted; margin-bottom: 1; }
+    #pb-play { width: 100%; }
+    #pb-row1, #pb-row2 { height: 3; }
+    #pb-row1 Button, #pb-row2 Button { width: 1fr; margin-right: 1; }
     #lib-side { width: 26; border-right: solid $primary; padding: 0 1; }
     #lib-filters { height: 3; }
     #lib-filters Input { width: 1fr; margin-right: 1; }
@@ -576,6 +577,15 @@ class DanceLabTUI(App):
                         yield Label("SEKCJE", classes="field-label")
                         side = OptionList(id="lib-side-list")
                         yield side
+                        yield Label("ODTWARZACZ", classes="field-label")
+                        yield Static("nic nie gra", id="pb-info")
+                        yield Button("Graj", id="pb-play", variant="primary")
+                        with Horizontal(id="pb-row1"):
+                            yield Button("Poprz.", id="pb-prev")
+                            yield Button("Nast.", id="pb-next")
+                        with Horizontal(id="pb-row2"):
+                            yield Button("-8", id="pb-back")
+                            yield Button("+8", id="pb-fwd")
                     with Vertical():
                         with Horizontal(id="lib-filters"):
                             yield Input(placeholder="szukaj (nazwa / gatunek)…",
@@ -664,13 +674,6 @@ class DanceLabTUI(App):
                     "przesuń / scal + auto-generacja z planu przejść).\n"
                     "Dziś auto-cue zapisuje komenda `dancelab zagraj`, "
                     "a playlisty klawisz W w zakładce Set.", id="export-stub")
-        with Horizontal(id="player-bar"):
-            yield Button("⏮", id="pb-prev")
-            yield Button("⏪ 8", id="pb-back")
-            yield Button("▶", id="pb-play", variant="primary")
-            yield Button("8 ⏩", id="pb-fwd")
-            yield Button("⏭", id="pb-next")
-            yield Static("nic nie gra", id="pb-info")
         yield Static("", id="status")
         yield Footer()
 
@@ -1969,12 +1972,11 @@ class DanceLabTUI(App):
 
     def _tick_player(self) -> None:
         gra = self._odtwarzacz.gra()
-        self.query_one("#pb-play", Button).label = "⏸" if gra else "▶"
+        self.query_one("#pb-play", Button).label = "Pauza" if gra else "Graj"
         opis = self._odtwarzacz.opis()
-        if gra:
-            self.query_one("#pb-info", Static).update(f"▶ {opis}")
-        elif opis:
-            self.query_one("#pb-info", Static).update(f"⏸ {opis}")
+        if opis:
+            stan = "gra" if gra else "pauza"
+            self.query_one("#pb-info", Static).update(f"[{stan}] {opis}")
         else:
             self.query_one("#pb-info", Static).update("nic nie gra")
 

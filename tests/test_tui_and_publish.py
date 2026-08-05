@@ -371,8 +371,9 @@ def test_gdy_gra_strzalka_przelacza_jak_next_song(tmp_path, monkeypatch):
 
 
 def test_pasek_odtwarzacza_jak_apple_music(tmp_path, monkeypatch):
-    """Dolny pasek: ▶ gra kursor, ⏭ przesuwa zaznaczenie i gra następny,
-    przycisk zmienia się w ⏸, info pokazuje co gra."""
+    """Odtwarzacz w bocznej kolumnie Biblioteki (styl tekstowy, bez ikon):
+    Graj gra kursor, Nast. przesuwa zaznaczenie i gra następny, przycisk
+    zmienia się w Pauza, info pokazuje co gra."""
     import subprocess
     import dancelab.tui.odtwarzacz as odt
     monkeypatch.setattr(odt, "FFPLAY", "/fake/ffplay")
@@ -416,7 +417,7 @@ def test_pasek_odtwarzacza_jak_apple_music(tmp_path, monkeypatch):
                 "B", (), {"id": "pb-play"})()})())
             await pilot.pause()
             assert started and started[0].cmd[-1] == "/m/A.mp3"
-            assert str(app.query_one("#pb-play", Button).label) == "⏸"
+            assert str(app.query_one("#pb-play", Button).label) == "Pauza"
             assert "A @" in str(app.query_one("#pb-info", Static).render())
 
             app.on_button_pressed(type("E", (), {"button": type(
