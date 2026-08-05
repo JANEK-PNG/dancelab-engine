@@ -206,14 +206,15 @@ def _filary_for_build(state: dict, by_id: dict, bpm_min: float | None,
 # Filary w tabeli setu: złota flaga ⚑ + złoty tekst.
 PILLAR_COLOR = "#d9a441"
 
-# Podkładka pod BPM i tonacją (prośba Janka 05.08: „nie odróżniają się od
-# reszty tekstu") — biały tekst zostaje, tło ciemnogranatowe, obie tabele.
-_COL_BG = "#20283c"
+# Wyróżnienie BPM i tonacji: BOLD, nie tło (Janek 05.08 rano: podkładka;
+# 06.08: weto po zobaczeniu jasnego motywu — ciemne tło wygląda tam jak
+# dziury). Ramki wokół komórki tabela terminalowa nie ma; bold działa
+# w obu motywach.
 
 
 def _bpm_cell(t):
     from rich.text import Text
-    return Text(f"{t.bpm_estimate or 0:.1f}", style=f"on {_COL_BG}")
+    return Text(f"{t.bpm_estimate or 0:.1f}", style="bold")
 
 
 def _conf_cell(t):
@@ -231,8 +232,8 @@ def _key_cell(t):
     conf = t.key_confidence
     k = str(t.key_estimate or "?")
     if (conf or 0) >= 0.5:
-        return Text(k, style=f"on {_COL_BG}")
-    return Text(f"{k}?", style=f"dim on {_COL_BG}")
+        return Text(k, style="bold")
+    return Text(f"{k}?", style="dim")
 
 
 # Tryby rozstawiania filarów (Janek, 05.08 — krok konfiguracji po G):

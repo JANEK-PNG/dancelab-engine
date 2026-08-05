@@ -40,7 +40,7 @@ warnings zawsze widoczne, tonacja o pewności <0,5 przygaszona, stan Rekordboxa 
 | karta INFO utworu: metadane silnika + ścieżka + `ingestion.rekordbox_lookup` (BPM wg RB, komentarz, playlisty z master.db — TYLKO odczyt, działa przy otwartym RB; dopasowanie jak w publikatorze: ścieżka NFC, potem jedyny bliźniak po tytule, inaczej „nie ma w kolekcji") | klawisz I — panel po prawej w trybie info; drugie I / Esc zamyka |
 | tryby oceny sugestii = `_planner_component_weights` silnika (smart / bpm 0,55 / harmonic 0,55) | Select #suggest-mode w panelu; zmiana przelicza sugestie na żywo; bpm/harmonic bez kotwicy — tryb nazywa to, co ocenia |
 | poswiata influence - USUNIETA (pomysl Janka 04.08, jego weto 05.08 po uzyciu: rozprasza, nic nie mowi); notka w kodzie pilnuje pamieci o werdykcie | - |
-| BPM i tonacja na podkladce `_COL_BG` (bialy tekst, granatowe tlo) - OBIE tabele | `_bpm_cell` / `_key_cell` |
+| BPM i tonacja BOLDEM w obu tabelach (podkladka tla wycofana 06.08 — weto Janka po jasnym motywie; ramki na komorce terminal nie ma) | `_bpm_cell` / `_key_cell` |
 | pasek skrotow KONTEKSTOWY per zakladka (`check_action` + `refresh_bindings`) | Footer pokazuje tylko klawisze aktywnej zakladki |
 | `ingestion.playlist_publish` (backup→dopasowanie→weryfikacja odczytem) | klawisz W |
 | `decision.slot_suggest` — kandydat oceniany W SZCZELINIE (wejście+wyjście, ta sama kotwica co budowa) | klawisz Z → doszyty panel po prawej (42 kolumny); klik propozycji + Z = podmiana |

@@ -161,8 +161,8 @@ def test_tui_ciecie_i_przesuniecie_loguja_werdykty(tmp_path, monkeypatch):
             from textual.coordinate import Coordinate
             from rich.text import Text
             bpm_cell = table.get_cell_at(Coordinate(0, 1))
-            assert isinstance(bpm_cell, Text)    # BPM na podkładce tła
-            assert "on #" in str(bpm_cell.style)
+            assert isinstance(bpm_cell, Text)    # BPM wyróżniony boldem
+            assert "bold" in str(bpm_cell.style)  # bold, nie tło — oba motywy
     asyncio.run(go())
 
     log = (tmp_path / "tui_edycje.jsonl").read_text().splitlines()

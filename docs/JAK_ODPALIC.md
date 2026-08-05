@@ -101,7 +101,7 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
 
 ## Jak czytać ekran (zasada uczciwości)
 
-- BPM i tonacja stoją na granatowej podkładce — łatwiej łapać je wzrokiem.
+- BPM i tonacja są pogrubione — czytelne w jasnym i ciemnym motywie.
 - Przygaszona tonacja ze znakiem „?" = silnik nie jest jej pewny (pewność
   poniżej 0,5).
 - Pasek skrótów na dole jest kontekstowy: w Bibliotece widzisz klawisze
