@@ -230,21 +230,34 @@ _RGB_SRODEK = "#ffb84d"
 _RGB_GORA = "#e8e8e8"
 
 
-def _kolor_pasma(low_ratio) -> str:
+def _progi_pasm(ratios: list[float]) -> tuple[float, float]:
+    """Progi kolorów WZGLĘDNE w obrębie utworu (tercyle) — w tanecznej
+    muzyce bas dominuje niemal wszędzie, więc progi bezwzględne malowały
+    wszystko na niebiesko (weto Janka 06.08). Kolor mówi: „ten fragment
+    jest basowszy/jaśniejszy NIŻ RESZTA TEGO utworu"."""
+    s = sorted(ratios)
+    if len(s) < 3:
+        return 0.5, 0.25
+    return s[len(s) * 2 // 3], s[len(s) // 3]
+
+
+def _kolor_pasma(low_ratio, prog_bas: float, prog_srodek: float) -> str:
     if low_ratio is None:
         return "grey50"
-    if low_ratio >= 0.5:
+    if low_ratio >= prog_bas:
         return _RGB_BAS
-    if low_ratio >= 0.25:
+    if low_ratio >= prog_srodek:
         return _RGB_SRODEK
     return _RGB_GORA
 
 
 def pasek_energii(frames, duration_sec: float, width: int,
-                  seam_start: float, seam_end: float):
+                  seam_start: float, seam_end: float,
+                  grid_times: list[float] | None = None):
     """Pasek RGB całego utworu (wzorzec: waveform Rekordboxa): wysokość =
-    RMS, kolor = zmierzony udział basu, okno szwu podkreślone. Zwraca
-    rich.Text. Brak ramek = jawny napis, nie zmyślony płaski pasek."""
+    RMS, kolor = udział basu WZGLĘDEM reszty utworu, okno szwu podkreślone,
+    kreski siatki (co 64 uderzenia — RB rysuje co 8, ale na pełnej osi czasu
+    byłoby za gęsto: decyzja Janka). Brak ramek = jawny napis."""
     from rich.text import Text
     vals = [(f.timestamp_sec, f.rms, f.low_freq_energy_ratio)
             for f in (frames or []) if f.rms is not None]
@@ -264,17 +277,49 @@ def pasek_energii(frames, duration_sec: float, width: int,
     srednie = [k / n if n else 0.0 for k, n in zip(suma, liczniki)]
     lo, hi = min(srednie), max(srednie)
     span = (hi - lo) or 1.0
+    ratios = [nis[i] / nis_n[i] for i in range(width) if nis_n[i]]
+    prog_bas, prog_srodek = _progi_pasm(ratios)
+    kreski = set()
+    for g in grid_times or []:
+        kreski.add(min(int(g / duration_sec * width), width - 1))
     text = Text()
     for i, v in enumerate(srednie):
+        t0 = i / width * duration_sec
+        w_szwie = seam_start <= t0 <= seam_end
+        if i in kreski:
+            text.append("│", style="bold white underline" if w_szwie
+                        else "bold white")
+            continue
         znak = _BLOKI[min(int((v - lo) / span * (len(_BLOKI) - 1) + 0.5),
                           len(_BLOKI) - 1)]
         low_ratio = nis[i] / nis_n[i] if nis_n[i] else None
-        kolor = _kolor_pasma(low_ratio)
-        t0 = i / width * duration_sec
-        if seam_start <= t0 <= seam_end:
-            text.append(znak, style=f"bold underline {kolor}")
-        else:
-            text.append(znak, style=kolor)
+        kolor = _kolor_pasma(low_ratio, prog_bas, prog_srodek)
+        text.append(znak, style=f"bold underline {kolor}" if w_szwie
+                    else kolor)
+    return text
+
+
+_FRAZA_KOLORY = {"INTRO": "#6ec6ff", "OUTRO": "#6ec6ff", "UP": "#ff5f5f",
+                 "DOWN": "#69d18c", "CHORUS": "#ffd166", "BRIDGE": "#c792ea"}
+
+
+def pasek_fraz(analiza_fraz, duration_sec: float, width: int):
+    """Pas fraz z analizy Rekordboxa pod waveformem (INTRO/UP/DOWN/CHORUS/
+    OUTRO/VERSE…) — litera = sekcja, kolor = rodzaj. Brak fraz = jawny powód."""
+    from rich.text import Text
+    if analiza_fraz is None or not getattr(analiza_fraz, "phrases", None)             or duration_sec <= 0:
+        return Text("(brak fraz z Rekordboxa)", style="dim")
+    text = Text()
+    for i in range(width):
+        t0 = (i + 0.5) / width * duration_sec
+        p = analiza_fraz.at(t0)
+        if p is None or not p.label:
+            text.append("·", style="grey35")
+            continue
+        litera = "V" if p.label.startswith("VERSE") else p.label[0]
+        kolor = _FRAZA_KOLORY.get(
+            "VERSE" if p.label.startswith("VERSE") else p.label, "#b0b0b0")
+        text.append(litera, style=kolor)
     return text
 
 
@@ -481,7 +526,7 @@ class DanceLabTUI(App):
     #lib-filters Input { width: 1fr; margin-right: 1; }
     #lib-count { height: 2; color: $text-muted; padding: 0 1 1 1; }
     #lib-table .datatable--header { text-style: bold; background: $boost; }
-    #compare { height: 12; border-bottom: solid $accent; padding: 0 1;
+    #compare { height: 50%; border-bottom: solid $accent; padding: 0 1;
                display: none; }
     #cmp-buttons { height: 3; }
     #cmp-buttons Button { margin-right: 2; }
@@ -955,6 +1000,11 @@ class DanceLabTUI(App):
             self._cmp_quant = not self._cmp_quant
             self._note("Quantize: ON" if self._cmp_quant else
                        "Quantize: OFF — cue bez przyciągania do siatki")
+        # napis od ręki — nie czekamy na powrót workera z nowym planem
+        self.query_one("#cmp-sync", Button).label = \
+            f"Beatsync: {'ON' if self._cmp_sync else 'OFF'}"
+        self.query_one("#cmp-quant", Button).label = \
+            f"Quantize: {'ON' if self._cmp_quant else 'OFF'}"
         self._stop_player()
         if self._compare_idx is not None \
                 and self.query_one("#compare").has_class("open"):
@@ -1812,10 +1862,29 @@ class DanceLabTUI(App):
             self.call_from_thread(self.notify, f"porównanie nie wyszło: {exc}",
                                   severity="warning", timeout=6)
             return
-        ui(self._open_compare, a, b, plan, idx)
+        frazy = {}
+        try:
+            from pyrekordbox import Rekordbox6Database
+            from dancelab.ingestion.rekordbox_phrases import phrases_for_path
+            db = Rekordbox6Database()
+            try:
+                for klucz, an in (("a", a), ("b", b)):
+                    fr, powod = phrases_for_path(an.track.source_path, db=db)
+                    frazy[klucz] = fr
+                    if fr is None:
+                        ui(self._note, f"frazy {klucz.upper()}: {powod}")
+            finally:
+                db.close()
+        except Exception as exc:  # noqa: BLE001 — frazy to dodatek, nie warunek
+            ui(self._note, f"frazy z Rekordboxa niedostępne: {exc}")
+        ui(self._open_compare, a, b, plan, idx, frazy)
 
-    def _open_compare(self, a, b, plan: dict, idx: int) -> None:
-        szer = max(self.size.width - 6, 40)
+    def _open_compare(self, a, b, plan: dict, idx: int,
+                      frazy: dict | None = None) -> None:
+        # szerokość z KOLUMNY setu (nie z całego okna — pasek liczony od
+        # szerokości aplikacji zawijał się do drugiej linii: weto Janka)
+        szer = max(self.query_one("#results").content_size.width - 2, 40)
+        frazy = frazy or {}
         sek_szwu = plan["beats"] * 60.0 / plan["bpm"]
         art_a, tyt_a = _wykonawca_tytul(a.track)
         art_b, tyt_b = _wykonawca_tytul(b.track)
@@ -1824,21 +1893,33 @@ class DanceLabTUI(App):
             m, s = divmod(int(track.duration_sec or 0), 60)
             return (f"#{nr}  {(art + ' — ') if art else ''}{tyt}"[:szer - 10]
                     + f"   {m}:{s:02d}")
+
+        def siatka(analysis):
+            bg = getattr(analysis, "beatgrid", None)
+            beaty = getattr(bg, "beat_times_sec", None) or []
+            return beaty[::64]                    # kreska co 64 uderzenia
+
         ca, cb = plan["cue_a_sec"], plan["cue_b_sec"]
-        pas_a = pasek_energii(a.features, a.track.duration_sec or 0, szer,
-                              ca, ca + sek_szwu)
-        pas_b = pasek_energii(b.features, b.track.duration_sec or 0, szer,
-                              cb, cb + sek_szwu / plan["rate_b"])
         from rich.text import Text
+
+        def deck(nr, art, tyt, analysis, cue, sek, klucz):
+            v = Text(label(nr, art, tyt, analysis.track) + "\n")
+            v.append(pasek_energii(analysis.features,
+                                   analysis.track.duration_sec or 0, szer,
+                                   cue, cue + sek, siatka(analysis)))
+            v.append("\n")
+            v.append(pasek_fraz(frazy.get(klucz),
+                                analysis.track.duration_sec or 0, szer))
+            return v
+
         self.query_one("#cmp-title", Static).update(
             f"PORÓWNANIE #{idx+1}→#{idx+2} · szew {plan['beats']} uderzeń "
-            f"@ {plan['bpm']:.1f} BPM · P = graj oba · C/Esc zamyka")
-        va = Text(label(idx + 1, art_a, tyt_a, a.track) + "\n")
-        va.append(pas_a)
-        vb = Text(label(idx + 2, art_b, tyt_b, b.track) + "\n")
-        vb.append(pas_b)
-        self.query_one("#cmp-a", Static).update(va)
-        self.query_one("#cmp-b", Static).update(vb)
+            f"@ {plan['bpm']:.1f} BPM · │ co 64 uderzenia · P = graj oba "
+            f"· C/Esc zamyka")
+        self.query_one("#cmp-a", Static).update(
+            deck(idx + 1, art_a, tyt_a, a, ca, sek_szwu, "a"))
+        self.query_one("#cmp-b", Static).update(
+            deck(idx + 2, art_b, tyt_b, b, cb, sek_szwu / plan["rate_b"], "b"))
         rozum = plan.get("rozumowanie") or [""]
         ma, sa = divmod(int(ca), 60)
         mb, sb = divmod(int(cb), 60)

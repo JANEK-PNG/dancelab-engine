@@ -563,3 +563,45 @@ def test_c_otwiera_panel_porownania_i_zamyka(tmp_path, monkeypatch):
             lines = " ".join(str(l) for l in app.query_one("#warnings").lines)
             assert "ostatni utwór nie ma następnika" in lines
     asyncio.run(go())
+
+
+def test_pasek_energii_kreski_siatki_i_wzgledne_kolory():
+    """Kreski │ co podane czasy siatki; kolory tercylami W OBRĘBIE utworu —
+    utwór z basem wszędzie i tak pokazuje trzy barwy względne."""
+    from dancelab.tui.app import _RGB_BAS, _RGB_GORA, pasek_energii
+
+    class _F:
+        def __init__(self, ts, rms, low):
+            self.timestamp_sec = ts
+            self.rms = rms
+            self.low_freq_energy_ratio = low
+    # caly utwor "basowy" (0.55-0.75) — bezwzgledne progi dalyby sam niebieski
+    frames = [_F(i, 0.4, 0.55 + (i % 3) * 0.1) for i in range(300)]
+    pas = pasek_energii(frames, 300.0, 60, 250, 290, grid_times=[0, 150, 299])
+    tekst = str(pas)
+    assert tekst.count("│") == 3, "kreski siatki w podanych miejscach"
+    style = " ".join(str(sp.style) for sp in pas.spans)
+    assert _RGB_BAS in style and _RGB_GORA in style, "kolory względne, nie sam bas"
+
+
+def test_pasek_fraz_litery_i_jawny_brak():
+    from dancelab.tui.app import pasek_fraz
+
+    class _P:
+        def __init__(self, s, e, label):
+            self.start_sec, self.end_sec, self.label = s, e, label
+
+    class _FA:
+        def __init__(self, phrases):
+            self.phrases = phrases
+
+        def at(self, sec):
+            for p in self.phrases:
+                if p.start_sec <= sec < p.end_sec:
+                    return p
+            return None
+    fa = _FA([_P(0, 100, "INTRO"), _P(100, 200, "UP"), _P(200, 300, "OUTRO")])
+    pas = pasek_fraz(fa, 300.0, 30)
+    tekst = str(pas)
+    assert tekst.startswith("I") and "U" in tekst and tekst.endswith("O")
+    assert "brak fraz" in str(pasek_fraz(None, 300.0, 30))
