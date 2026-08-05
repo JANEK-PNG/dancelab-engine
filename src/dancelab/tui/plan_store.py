@@ -42,21 +42,40 @@ def save_plan(order, by_id, *, name: str, params: dict,
 
 
 def list_plans() -> list[dict]:
-    """Zapisane plany, najnowsze pierwsze. Uszkodzony plik = widoczny, nie ukryty."""
+    """Zapisane plany, najnowsze pierwsze, z opisem wystarczającym do
+    ROZPOZNANIA planu wśród setki (pytanie Janka 06.08): nazwa, liczba
+    utworów, okno BPM i kotwica z briefu, data. Uszkodzony plik = widoczny."""
     if not PLANS_DIR.exists():
         return []
     out = []
     for p in sorted(PLANS_DIR.glob("plan_*.json"), reverse=True):
         try:
             rec = json.loads(p.read_text())
+            par = rec.get("parametry", {}) or {}
+            bpm = (f"{par['bpm_min']:g}-{par['bpm_max']:g}"
+                   if par.get("bpm_min") is not None
+                   and par.get("bpm_max") is not None else "")
             out.append({"path": str(p),
                         "zapisano": rec.get("zapisano", "?"),
                         "nazwa": rec.get("nazwa") or p.stem,
-                        "n": len(rec.get("kolejnosc", []))})
+                        "n": len(rec.get("kolejnosc", [])),
+                        "bpm": bpm, "dj": par.get("dj") or ""})
         except Exception:  # noqa: BLE001 — pokaż problem, nie zamiataj
             out.append({"path": str(p), "zapisano": "?",
-                        "nazwa": f"USZKODZONY: {p.name}", "n": 0})
+                        "nazwa": f"USZKODZONY: {p.name}", "n": 0,
+                        "bpm": "", "dj": ""})
     return out
+
+
+def delete_plan(path: str | pathlib.Path) -> pathlib.Path:
+    """Usuwa plan MIĘKKO — przenosi do kosza obok planów; nic nie znika
+    bez śladu. Zwraca nowe położenie."""
+    src = pathlib.Path(path)
+    kosz = PLANS_DIR / "kosz"
+    kosz.mkdir(parents=True, exist_ok=True)
+    cel = kosz / src.name
+    src.rename(cel)
+    return cel
 
 
 def read_plan(path: str | pathlib.Path) -> dict:

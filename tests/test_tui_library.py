@@ -490,3 +490,51 @@ def test_c_otwiera_pasek_szwu_i_zamyka(tmp_path, monkeypatch):
     asyncio.run(go())
 
 
+
+
+def test_s_pyta_o_nazwe_a_o_pokazuje_bogaty_opis_i_x_usuwa(tmp_path,
+                                                           monkeypatch):
+    """Odpowiedź na „jak znajdziemy plan wśród 100": S pyta o nazwę,
+    lista O niesie nazwę+utwory+BPM+kotwicę+datę, X usuwa MIĘKKO do kosza."""
+    import dancelab.tui.plan_store as ps
+    monkeypatch.setattr(ps, "PLANS_DIR", tmp_path)
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import Input, OptionList, TabbedContent
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
+            by_id = {a.track.track_id: a for a in LIB[:2]}
+            app._ctx = dict(by_id=by_id, weights=None, arc="build",
+                            planner="smart", bpm_min=None, bpm_max=None,
+                            anchor=None,
+                            params={"bpm_min": 128.0, "bpm_max": 136.0,
+                                    "dj": "Ben UFO"})
+            app._order = ["a", "b"]
+            app._engine_order = ["a", "b"]
+            await pilot.press("s")
+            await pilot.pause()
+            from dancelab.tui.app import NazwaPlanuScreen
+            assert isinstance(app.screen, NazwaPlanuScreen), "S pyta o nazwę"
+            pole = app.screen.query_one("#plan-name", Input)
+            pole.value = "piątek u Bartka"
+            await pilot.press("enter")
+            await pilot.pause()
+            plany = ps.list_plans()
+            assert plany[0]["nazwa"] == "piątek u Bartka"
+            assert plany[0]["bpm"] == "128-136" and plany[0]["dj"] == "Ben UFO"
+
+            await pilot.press("o")           # lista z bogatym opisem
+            await pilot.pause()
+            lst = app.query_one("#suggest-list", OptionList)
+            opis = str(lst.get_option_at_index(0).prompt)
+            assert "piątek u Bartka" in opis and "128-136" in opis \
+                and "Ben UFO" in opis
+
+            await pilot.press("x")           # miękkie usunięcie
+            await pilot.pause()
+            assert ps.list_plans() == []
+            assert (tmp_path / "kosz").exists()
+            assert len(list((tmp_path / "kosz").glob("plan_*.json"))) == 1
+    asyncio.run(go())

@@ -32,6 +32,7 @@ from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.screen import ModalScreen
 from textual.widgets import OptionList
 from textual.widgets.option_list import Option
 from textual.widgets import (
@@ -402,6 +403,45 @@ def _mode_params(mode: object, ctx: dict) -> tuple[str, object]:
     if mode == "harmonic":
         return "harmonic", None
     return ctx.get("planner", "smart"), ctx.get("anchor")
+
+
+class NazwaPlanuScreen(ModalScreen):
+    """S pyta o nazwę planu — bez nazwy lista 100 planów jest bezużyteczna
+    (pytanie Janka 06.08: „jak będziemy wiedzieli co wczytać?")."""
+
+    CSS = """
+    NazwaPlanuScreen { align: center middle; }
+    #nazwa-box { width: 64; height: 9; border: solid $accent;
+                 background: $panel; padding: 1 2; }
+    #nazwa-przyciski { height: 3; margin-top: 1; }
+    #nazwa-przyciski Button { margin-right: 2; }
+    """
+    BINDINGS = [Binding("escape", "anuluj", "Anuluj")]
+
+    def __init__(self, domyslna: str):
+        super().__init__()
+        self._domyslna = domyslna
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="nazwa-box"):
+            yield Label("Nazwa planu (po niej go potem znajdziesz):")
+            yield Input(value=self._domyslna, id="plan-name")
+            with Horizontal(id="nazwa-przyciski"):
+                yield Button("Zapisz", id="nazwa-ok", variant="primary")
+                yield Button("Anuluj", id="nazwa-cancel")
+
+    def on_input_submitted(self, event) -> None:
+        self.dismiss(event.value.strip() or None)
+
+    def on_button_pressed(self, event) -> None:
+        if event.button.id == "nazwa-ok":
+            self.dismiss(self.query_one("#plan-name", Input).value.strip()
+                         or None)
+        else:
+            self.dismiss(None)
+
+    def action_anuluj(self) -> None:
+        self.dismiss(None)
 
 
 class DanceLabTUI(App):
@@ -1322,6 +1362,9 @@ class DanceLabTUI(App):
             self._suggest_worker(idx, "insert")
 
     def action_cut(self) -> None:
+        if self._panel_mode == "plans":
+            self._usun_plan()
+            return
         self._close_panel()
         idx = self._cursor_row("cięcie")
         if idx is None:
@@ -1519,18 +1562,44 @@ class DanceLabTUI(App):
         with (WERDYKTY_DIR / "tui_edycje.jsonl").open("a") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
+    def _usun_plan(self) -> None:
+        """X na liście planów: usunięcie MIĘKKIE (do kosza obok planów),
+        lista odświeża się od razu."""
+        from dancelab.tui.plan_store import delete_plan
+        choice = self._panel_choice("plans")
+        if choice is None:
+            self._note("zaznacz plan do usunięcia")
+            return
+        try:
+            cel = delete_plan(choice)
+        except Exception as exc:  # noqa: BLE001
+            self._note(f"nie usunąłem planu: {exc}")
+            return
+        self._note(f"plan przeniesiony do kosza: {pathlib.Path(cel).name}")
+        self._close_panel()
+        self.action_load_plan()          # świeża lista
+
     # ------------------------------------------------- plan: zapis / wczytanie
 
     def action_save_plan(self) -> None:
         if not self._order or not self._ctx:
             self._note("najpierw zbuduj set (B) albo wczytaj plan (O)")
             return
-        from dancelab.tui.plan_store import save_plan
-        path = save_plan(self._order, self._ctx["by_id"],
-                         name=self._plan_name or "TUI plan",
-                         params=self._ctx.get("params", {}),
-                         engine_order=self._engine_order, edits=self._edits)
-        self._note(f"plan zapisany: {path}")
+
+        def _po_nazwie(nazwa) -> None:
+            if not nazwa:
+                self._note("zapis planu anulowany")
+                return
+            from dancelab.tui.plan_store import save_plan
+            self._plan_name = nazwa
+            path = save_plan(self._order, self._ctx["by_id"], name=nazwa,
+                             params=self._ctx.get("params", {}),
+                             engine_order=self._engine_order,
+                             edits=self._edits)
+            self._note(f"plan zapisany: {nazwa} → {path}")
+
+        self.push_screen(NazwaPlanuScreen(self._plan_name or "plan"),
+                         _po_nazwie)
 
     def action_load_plan(self) -> None:
         choice = self._panel_choice("plans")
@@ -1544,10 +1613,16 @@ class DanceLabTUI(App):
         if not plans:
             self._note("brak zapisanych planów (S zapisuje bieżący)")
             return
-        options = [(f"{p['zapisano'][5:16]} · {p['n']:2d} utw · {p['nazwa'][:22]}",
-                    p["path"]) for p in plans[:30]]
+        def etykieta(p):
+            dod = " · ".join(x for x in (p.get("bpm"), p.get("dj")) if x)
+            return (f"{p['nazwa'][:24]}\n  {p['n']:2d} utw"
+                    + (f" · {dod}" if dod else "")
+                    + f" · {p['zapisano'][5:16]}")
+        options = [(etykieta(p), p["path"]) for p in plans[:30]]
+        if len(plans) > 30:
+            self._note(f"planów jest {len(plans)} — pokazuję 30 najnowszych")
         self._open_suggest_panel(
-            None, "WCZYTAJ PLAN\nklik/strzałki = wybierz · O = wczytaj · Esc = zostaw",
+            None, "WCZYTAJ PLAN\nklik + O = wczytaj · X = usuń · Esc = zostaw",
             options, "plans")
 
     @work(thread=True, exclusive=True)
