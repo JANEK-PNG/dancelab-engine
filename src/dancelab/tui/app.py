@@ -1827,10 +1827,15 @@ class DanceLabTUI(App):
             self._player.terminate()
 
     def action_preview_seam(self) -> None:
-        """P: odsłuch SAMEGO zaznaczonego utworu (podział Janka 06.08:
-        „P otwiera tylko 1 utwór, przejście mamy od C"). Drugie P albo Esc
-        zatrzymuje. Dźwięk startuje WYŁĄCZNIE z jawnego klawisza."""
+        """P jest KONTEKSTOWE (Janek 06.08): przy zamkniętym pasku szwu gra
+        SAM zaznaczony utwór; przy otwartym (po C) gra PRZEJŚCIE porównywanej
+        pary. Drugie P zatrzymuje, C zamyka pasek. Dźwięk startuje WYŁĄCZNIE
+        z jawnego klawisza."""
         if self._stop_player():
+            return
+        if self.query_one("#compare").has_class("open") \
+                and self._compare_idx is not None:
+            self._seam_worker(self._compare_idx)
             return
         idx = self._cursor_row("odsłuch utworu")
         if idx is None:
@@ -1925,7 +1930,7 @@ class DanceLabTUI(App):
         self.query_one("#cmp-info", Static).update(
             f"{plan['beats']} uderzeń @ {plan['bpm']:.1f} BPM · "
             f"wyjście z A {ma}:{sa:02d} · wejście w B {mb}:{sb:02d} · "
-            f"sync+kwantyzacja zawsze ON · C/Esc chowa")
+            f"P/▶ gra oba · sync+kwantyzacja zawsze ON · C/Esc chowa")
         self._compare_idx = idx
         self.query_one("#compare").add_class("open")
         self.query_one("#set", DataTable).focus()

@@ -100,9 +100,10 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
    (kto z kim, ile uderzeń, czasy wyjścia i wejścia) i JEDEN przycisk
    **▶ Graj oba**. Beatsync i kwantyzacja są zawsze włączone — siedzą
    w naturze renderu. Drugie **C** albo **Esc** chowa.
-   **P** — odsłuch SAMEGO zaznaczonego utworu (drugie **P** albo **Esc**
-   zatrzymuje). Przejście pary gra przycisk **▶ Graj oba** w pasku szwu (C).
-   Dźwięk zawsze startuje tylko z Twojego klawisza.
+   **P** jest kontekstowe: przy zamkniętym pasku szwu gra **sam zaznaczony
+   utwór**; po otwarciu paska (**C**) gra **przejście pary**. Drugie **P**
+   zatrzymuje, **C** zamyka pasek. Dźwięk zawsze startuje tylko z Twojego
+   klawisza.
 7. **V** — świadomy werdykt: zrzuca obok siebie „co ułożył silnik" i „co
    zostawiłeś po swoich zmianach".
    **I** — karta informacji o zaznaczonym utworze: metadane silnika (BPM,

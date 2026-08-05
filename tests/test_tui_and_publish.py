@@ -262,12 +262,22 @@ def test_p_gra_jeden_utwor_a_szew_gra_przycisk_c(tmp_path, monkeypatch):
             await pilot.pause()
             assert started[0].killed
 
-            # przejście gra przycisk z paska szwu
+            # przy OTWARTYM pasku szwu P gra przejście pary (kontekstowe P)
             app._compare_idx = 0
-            app._graj_z_panelu()
+            app.query_one("#compare").add_class("open")
+            await pilot.press("p")
             for _ in range(50):
                 await pilot.pause(0.1)
                 if len(started) > 1:
                     break
-            assert str(wav) in started[1].cmd[1], "szew gra z panelu C"
+            assert str(wav) in started[1].cmd[1], "P przy pasku szwu = przejście"
+            await pilot.press("p")            # i P zatrzymuje przejście
+            await pilot.pause()
+            assert started[1].killed
+            app._graj_z_panelu()              # przycisk ▶ robi to samo
+            for _ in range(50):
+                await pilot.pause(0.1)
+                if len(started) > 2:
+                    break
+            assert str(wav) in started[2].cmd[1]
     asyncio.run(go())
