@@ -44,10 +44,16 @@ def _ostry_renderer():
     graficznym (Ghostty/kitty → TGP, iTerm2/WezTerm → Sixel). W terminalach
     bez grafiki (Terminal.app, testy) zostajemy przy naszej mozaice
     rich-pixels — jej kolory są sprawdzone. Wybór pada RAZ, przy imporcie
-    textual-image (on sam odpytuje terminal)."""
+    textual-image (on sam odpytuje terminal) — i dlatego import MUSI zajść
+    przed startem Textual: robi to `cli.analyze.tui`, bo pod działającym
+    Textualem odpowiedzi terminala przepadają i wykrywanie zawsze pada."""
     try:
         from textual_image.renderable import Image as Auto
-        if Auto.__name__ in ("TGPImage", "SixelImage"):
+        # UWAGA: każda z klas nazywa się dosłownie "Image" — aliasy TGPImage/
+        # SixelImage żyją tylko w imporcie __init__. Rozpoznawać można wyłącznie
+        # po MODULE klasy (nauczka: warunek po __name__ nigdy nie był prawdziwy
+        # i Ghostty dostawał mozaikę).
+        if Auto.__module__.rsplit(".", 1)[-1] in ("tgp", "sixel"):
             return Auto
     except Exception:  # noqa: BLE001
         pass

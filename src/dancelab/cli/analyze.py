@@ -156,6 +156,19 @@ def tui(
                                               help="Katalog z analizami (cache)"),
 ) -> None:
     """Interfejs terminalowy: formularz → postęp → tabela → W (Rekordbox)."""
+    # textual-image wybiera protokół graficzny RAZ, przy imporcie, odpytując
+    # terminal sekwencjami sterującymi (timeout 0,1 s). Po starcie Textual
+    # odpowiedzi terminala zjada jego czytnik stdin i wykrywanie ZAWSZE pada
+    # (docstring biblioteki mówi to wprost) — dlatego import musi zajść tu,
+    # zanim aplikacja przejmie terminal. Bez tego Ghostty dostaje mozaikę.
+    # get_cell_size dogrzewamy z tego samego powodu: pierwszy pomiar może
+    # pytać terminal, kolejne biorą cache — ma go wypełnić TERAZ.
+    try:
+        import textual_image.renderable  # noqa: F401
+        from textual_image._terminal import get_cell_size
+        get_cell_size()
+    except Exception:  # noqa: BLE001 — brak grafiki to nie powód, by nie wstać
+        pass
     from dancelab.tui.app import PROCESSED_DEFAULT, DanceLabTUI
     DanceLabTUI(processed_dir=str(processed_dir or PROCESSED_DEFAULT)).run()
 
