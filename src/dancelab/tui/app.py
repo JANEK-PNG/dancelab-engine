@@ -419,7 +419,7 @@ class DanceLabTUI(App):
     #lib-side { width: 26; border-right: solid $primary; padding: 0 1; }
     #lib-filters { height: 3; }
     #lib-filters Input { width: 1fr; margin-right: 1; }
-    #lib-count { height: 1; color: $text-muted; padding: 0 1; }
+    #lib-count { height: 2; color: $text-muted; padding: 0 1 1 1; }
     #lib-table { height: 1fr; }
     #lib-onboard { height: 3; }
     #lib-onboard Input { width: 1fr; margin-right: 1; }
