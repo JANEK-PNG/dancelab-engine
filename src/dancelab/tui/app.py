@@ -485,6 +485,7 @@ class DanceLabTUI(App):
     #lib-side { width: 26; border-right: solid $primary; padding: 0 1; }
     #lib-filters { height: 3; }
     #lib-filters Input { width: 1fr; margin-right: 1; }
+    #lib-tools { height: 3; }
     #lib-count { height: 2; color: $text-muted; padding: 0 1 1 1; }
     #lib-table .datatable--header { text-style: bold; background: $boost; }
     #compare { height: 7; border-bottom: solid $accent; padding: 0 1;
@@ -589,6 +590,10 @@ class DanceLabTUI(App):
                                         id="lib-search")
                             yield Input(placeholder="tonacja np. 8A", id="lib-key")
                             yield Input(placeholder="BPM np. 125-140", id="lib-bpm")
+                        with Horizontal(id="lib-tools"):
+                            # dodatek, nie killer feature (Janek) — dlatego mały
+                            # guzik pod szukajką, nie obok Analizuj/Zbuduj
+                            yield Button("Artwork sync", id="lib-artwork")
                         yield Static("", id="lib-count")
                         yield DataTable(id="lib-table")
                         with Horizontal(id="pb-box"):
@@ -612,7 +617,6 @@ class DanceLabTUI(App):
                                          variant="primary")
                             yield Button("→ Zbuduj z filarów  [G]",
                                          id="lib-build", variant="success")
-                            yield Button("Artwork", id="lib-artwork")
             with TabPane("Set", id="tab-set"):
                 with Vertical():
                     with Horizontal(id="set-main"):
@@ -1033,6 +1037,10 @@ class DanceLabTUI(App):
         elif event.button.id == "lib-build":
             self.action_build_from_filary()
         elif event.button.id == "lib-artwork":
+            # okładki w liście włączają się same — użytkownik ma ZOBACZYĆ,
+            # że synchronizacja działa, bez znajomości klawisza K
+            if not self._user_state.get("okladki_w_liscie"):
+                self.action_toggle_okladki()
             self._artwork_worker()
         elif event.button.id == "cmp-play":
             self._graj_z_panelu()

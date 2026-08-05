@@ -13,8 +13,9 @@ dwa razy. Otworzy się okno terminala **Ghostty** (terminal z obsługą
 grafiki: okładki są w nim OSTRE, nie mozaikowe) i wstanie aplikacja.
 Skrót zawsze uruchamia aktualną wersję.
 
-Zapasowo: plik **DanceLab.command** w `Developer/dancelab-engine` otwiera
-aplikację w zwykłym Terminalu (okładki jako mozaika).
+Zapasowo: plik **DanceLab.command** w `Developer/dancelab-engine` (kopia
+na biurku). Kliknięty w zwykłym Terminalu sam przenosi się do Ghostty,
+żeby okładki były ostre — mozaikę zobaczysz tylko, gdy Ghostty nie ma.
 
 **Sposób ręczny** (gdyby skrót zginął):
 
@@ -89,13 +90,14 @@ i kliknij przycisk — tak dogrywasz nowe pliki (i tak zaczyna pierwszy
 użytkownik). Przed analizą każdy plik sprawdza bramkarz: uszkodzone
 odpadają z imiennym powodem, zamiast psuć analizę.
 
-Obok jest przycisk **Artwork** — synchronizacja okładek: aplikacja
-znajduje pliki bez osadzonej okładki, pyta iTunes o artystę i tytuł
-i przy PEWNYM dopasowaniu wpisuje okładkę (600×600) do tagów pliku —
-niejednoznaczne trafienia są pomijane z powodem (raport w notkach
-i w pliku). Audio nietknięte. **Ważne:** żeby okładki weszły do
-Rekordboxa (i na ekrany CDJ), zaznacz potem utwory w RB i wybierz
-**Reload Tags**.
+Pod polem szukania jest mały przycisk **Artwork sync** — synchronizacja
+okładek: aplikacja znajduje pliki bez osadzonej okładki, pyta iTunes
+o artystę i tytuł i przy PEWNYM dopasowaniu wpisuje okładkę (600×600)
+do tagów pliku — niejednoznaczne trafienia są pomijane z powodem
+(raport w notkach i w pliku). Kliknięcie samo włącza okładki w liście
+(jak klawisz K), żebyś widział efekt od razu. Audio nietknięte.
+**Ważne:** żeby okładki weszły do Rekordboxa (i na ekrany CDJ),
+zaznacz potem utwory w RB i wybierz **Reload Tags**.
 
 ---
 
