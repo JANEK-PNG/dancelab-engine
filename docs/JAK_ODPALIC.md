@@ -52,9 +52,9 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
   się jak zwykłe utwory (przesuwanie, dopisywanie, podmiana);
   **wycięcie filaru (X) zdejmuje też pin** — F w Bibliotece przypina
   z powrotem.
-- **Sortowanie**: klik w nagłówek kolumny — liczby najpierw od największej,
-  drugi klik odwraca, **trzeci klik kasuje sortowanie**; teksty A-Z → Z-A →
-  kasacja. Aktywne sortowanie widać w liczniku nad tabelą; utwory bez
+- **Sortowanie**: nagłówki kolumn to klikalne kafelki. Klik = **↓** (od
+  małego do większego), drugi klik = **↑** (odwrotnie), trzeci kasuje —
+  strzałka znika. Strzałkę widać w samym nagłówku i w liczniku; utwory bez
   wartości idą zawsze na koniec.
 - Kolumny **wykonawca** i **tytuł** są osobno — tam, gdzie plik nie ma tagów,
   dane dociągają się z Twojej kolekcji Rekordboxa, a w ostateczności

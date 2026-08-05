@@ -420,6 +420,7 @@ class DanceLabTUI(App):
     #lib-filters { height: 3; }
     #lib-filters Input { width: 1fr; margin-right: 1; }
     #lib-count { height: 2; color: $text-muted; padding: 0 1 1 1; }
+    #lib-table .datatable--header { text-style: bold; background: $boost; }
     #lib-table { height: 1fr; }
     #lib-onboard { height: 3; }
     #lib-onboard Input { width: 1fr; margin-right: 1; }
@@ -563,11 +564,16 @@ class DanceLabTUI(App):
 
     def on_mount(self) -> None:
         table = self.query_one("#set", DataTable)
-        table.add_columns("#", "BPM", "ton", "pew.", "gatunek", "Σ min", "utwór")
+        for lbl, w in (("#", None), ("BPM", 10), ("ton", 8), ("pew.", None),
+                       ("gatunek", None), ("Σ min", None), ("utwór", None)):
+            table.add_column(lbl, width=w)
         table.cursor_type = "row"
         lib = self.query_one("#lib-table", DataTable)
-        lib.add_columns("♥", "F", "BPM", "ton", "pew.", "energia", "gatunek",
-                        "min", "wykonawca", "tytuł")
+        self._lib_col_keys = [
+            lib.add_column(lbl, width=w)
+            for lbl, w in (("♥", None), ("F", None), ("BPM", 10), ("ton", 8),
+                           ("pew.", None), ("energia", None), ("gatunek", None),
+                           ("min", None), ("wykonawca", None), ("tytuł", None))]
         lib.cursor_type = "row"
         side = self.query_one("#lib-side-list", OptionList)
         side.add_option(Option("Cała biblioteka", id="all"))
@@ -725,13 +731,28 @@ class DanceLabTUI(App):
                 f"   ·   ♥ {len(self._user_state['ulubione_utwory'])}"
                 f"   ·   U=♥  F=filar  G=filary do Set  ·  "
                 + (f"sort: {self._SORT_NAMES[self._lib_sort[0]]}"
-                   f"{'↓' if self._lib_sort[1] else '↑'} (3. klik kasuje)"
+                   f"{'↑' if self._lib_sort[1] else '↓'} (3. klik kasuje)"
                    if self._lib_sort is not None else "sort: klik w nagłówek"))
         if err:
             info += f"   ·   filtr BPM: {err}"
         self.query_one("#lib-count", Static).update(info)
+        self._update_lib_headers(table)
         if cursor is not None and rows:
             table.move_cursor(row=min(cursor, len(rows) - 1))
+
+    def _update_lib_headers(self, table) -> None:
+        """Strzałka sortowania w SAMYM nagłówku: ↓ rosnąco, ↑ malejąco,
+        brak = bez sortowania (definicja Janka)."""
+        from rich.text import Text
+        keys = getattr(self, "_lib_col_keys", None)
+        if not keys:
+            return
+        for i, key in enumerate(keys):
+            lbl = self._SORT_NAMES[i]
+            if self._lib_sort is not None and self._lib_sort[0] == i:
+                lbl += " ↑" if self._lib_sort[1] else " ↓"
+            table.columns[key].label = Text(lbl)
+        table.refresh()
 
     def action_toggle_fav(self) -> None:
         self._lib_toggle("ulubione_utwory", "♥")
@@ -794,18 +815,18 @@ class DanceLabTUI(App):
         if event.input.id in ("lib-search", "lib-key", "lib-bpm"):
             self._render_library()
 
-    # kolumny liczbowe zaczynają od "od największego" (prośba Janka)
-    _SORT_DESC_FIRST = {2, 4, 5, 7}     # BPM, pew., energia, min
+    # Cykl wg definicji Janka (06.08, zastępuje wcześniejsze "liczby od
+    # największej"): klik 1 = ↓ od małego do większego, klik 2 = ↑ odwrotnie,
+    # klik 3 = reset i strzałka znika.
     _SORT_NAMES = ("♥", "F", "BPM", "ton", "pew.", "energia", "gatunek",
                    "min", "wykonawca", "tytuł")
 
     def _cycle_sort(self, col: int) -> None:
-        first_rev = col in self._SORT_DESC_FIRST
         cur = self._lib_sort
         if cur is None or cur[0] != col:
-            self._lib_sort = (col, first_rev)
-        elif cur[1] == first_rev:
-            self._lib_sort = (col, not first_rev)
+            self._lib_sort = (col, False)    # ↓ rosnąco
+        elif not cur[1]:
+            self._lib_sort = (col, True)     # ↑ malejąco
         else:
             self._lib_sort = None            # trzecie kliknięcie kasuje
 

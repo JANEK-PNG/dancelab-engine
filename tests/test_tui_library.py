@@ -230,17 +230,27 @@ def test_sortowanie_klikiem_w_naglowek():
             await pilot.pause()
             table = app.query_one("#lib-table", DataTable)
 
-            app._cycle_sort(2)                  # 1. klik BPM = od największego
+            app._cycle_sort(2)                  # 1. klik BPM = ↓ rosnąco
+            assert app._lib_sort == (2, False)
+            app._render_library()
+            await pilot.pause()
+            assert "Detlef" in str(table.get_cell_at(Coordinate(0, 8)))
+            assert "Bez Tempa" in str(
+                table.get_cell_at(Coordinate(4, 9))), "brak tempa na końcu"
+            klucz_bpm = app._lib_col_keys[2]
+            assert "↓" in str(table.columns[klucz_bpm].label)
+            app._cycle_sort(2)                  # 2. klik = ↑ malejąco
             assert app._lib_sort == (2, True)
             app._render_library()
             await pilot.pause()
             assert "Hodge" in str(table.get_cell_at(Coordinate(0, 8)))
-            assert "Bez Tempa" in str(
-                table.get_cell_at(Coordinate(4, 9))), "brak tempa na końcu"
-            app._cycle_sort(2)                  # 2. klik = od najmniejszego
-            assert app._lib_sort == (2, False)
-            app._cycle_sort(2)                  # 3. klik kasuje
+            assert "↑" in str(table.columns[klucz_bpm].label)
+            app._cycle_sort(2)                  # 3. klik kasuje, strzałka znika
             assert app._lib_sort is None
+            app._render_library()
+            await pilot.pause()
+            assert "↓" not in str(table.columns[klucz_bpm].label)
+            assert "↑" not in str(table.columns[klucz_bpm].label)
 
             app._cycle_sort(9)                  # tytuł: 1. klik A-Z
             assert app._lib_sort == (9, False)
