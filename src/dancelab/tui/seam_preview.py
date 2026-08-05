@@ -20,9 +20,14 @@ CACHE_DIR = pathlib.Path("data/cache/seam_preview")
 DEFAULT_PROFILE = "contour_blend"
 
 
-def zaplanuj_szew(analysis_a, analysis_b, weights) -> dict:
+def zaplanuj_szew(analysis_a, analysis_b, weights, *,
+                  beatsync: bool = True, quantize: bool = True) -> dict:
     """Sam PLAN szwu (cue, długość, tempo) bez dotykania audio — wspólny
-    dla odsłuchu (P) i porównania pary (C). ValueError z powodem po polsku."""
+    dla odsłuchu (P) i porównania pary (C). ValueError z powodem po polsku.
+
+    Przełączniki są PRAWDZIWE (uczciwe guziki albo żadne — Janek chciał
+    klikalne): beatsync=False gra B w jego własnym tempie (słychać zderzenie),
+    quantize=False nie przyciąga cue do siatki (surowe okna silnika)."""
     from dancelab.core.models import TransitionWindowInput, WindowType
     from dancelab.decision.cue_grid import snap_cue_start
     from dancelab.decision.tempo_adjustment import nearest_octave_candidate
@@ -52,12 +57,17 @@ def zaplanuj_szew(analysis_a, analysis_b, weights) -> dict:
     if out_w is None or in_w is None:
         raise ValueError("silnik nie znalazł okna mix-out/mix-in dla tej pary")
 
-    cue_a = snap_cue_start(a.beatgrid, out_w.start_sec)
-    cue_b = snap_cue_start(b.beatgrid, in_w.start_sec)
+    if quantize:
+        cue_a = snap_cue_start(a.beatgrid, out_w.start_sec)
+        cue_b = snap_cue_start(b.beatgrid, in_w.start_sec)
+    else:
+        cue_a = float(out_w.start_sec)
+        cue_b = float(in_w.start_sec)
 
     sug = suggest_transition_beats(a, out_w.start_sec, b, in_w.start_sec)
     beats = sug.beats if sug.beats is not None else 64
-    rate_b = bpm_a / nearest_octave_candidate(bpm_a, bpm_b).bpm
+    rate_b = (bpm_a / nearest_octave_candidate(bpm_a, bpm_b).bpm
+              if beatsync else 1.0)
     plan = plan_transition_duration(
         beats,
         available_a_beats=max((a.track.duration_sec or 0) - cue_a, 0.0)
@@ -70,17 +80,20 @@ def zaplanuj_szew(analysis_a, analysis_b, weights) -> dict:
                          "na ten szew")
     return {"cue_a_sec": cue_a, "cue_b_sec": cue_b,
             "beats": plan.selected_beats, "bpm": float(bpm_a),
-            "rate_b": rate_b, "rozumowanie": list(sug.reasoning)}
+            "rate_b": rate_b, "beatsync": beatsync, "quantize": quantize,
+            "rozumowanie": list(sug.reasoning)}
 
 
-def zbuduj_szew(analysis_a, analysis_b, weights) -> dict:
-    """Wyrenderuj (albo weź z cache) WAV szwu A→B wg planu z zaplanuj_szew."""
+def zbuduj_szew(analysis_a, analysis_b, weights, *,
+                beatsync: bool = True, quantize: bool = True) -> dict:
+    """Wyrenderuj (albo weź z cache) WAV szwu A→B wg planu z zaplanuj_szew.
+    Cache rozróżnia ustawienia sam z siebie (cue i tempo wchodzą w klucz)."""
     from dancelab.preview.transition_simulation import (
         render_transition_preview,
         transition_preview_cache_path,
     )
     a, b = analysis_a, analysis_b
-    info = zaplanuj_szew(a, b, weights)
+    info = zaplanuj_szew(a, b, weights, beatsync=beatsync, quantize=quantize)
     cue_a, cue_b = info["cue_a_sec"], info["cue_b_sec"]
     rate_b, bpm_a = info["rate_b"], info["bpm"]
 

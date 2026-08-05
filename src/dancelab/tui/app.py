@@ -220,33 +220,61 @@ def _bpm_cell(t):
 
 _BLOKI = "▁▂▃▄▅▆▇█"
 
+# Paleta RGB jak w Rekordboksie: kolor mówi, CO gra w tym miejscu —
+# niebieski = bas dominuje, bursztyn = środek, biały = góra. Kolor bierzemy
+# ze ZMIERZONEGO low_freq_energy_ratio ramki, nie z dekoracji; ramka bez
+# pomiaru pasma zostaje szara. Okno szwu: podkreślenie + bold (kolory pasm
+# zostają widoczne — szew nie zamalowuje informacji).
+_RGB_BAS = "#4aa8ff"
+_RGB_SRODEK = "#ffb84d"
+_RGB_GORA = "#e8e8e8"
+
+
+def _kolor_pasma(low_ratio) -> str:
+    if low_ratio is None:
+        return "grey50"
+    if low_ratio >= 0.5:
+        return _RGB_BAS
+    if low_ratio >= 0.25:
+        return _RGB_SRODEK
+    return _RGB_GORA
+
 
 def pasek_energii(frames, duration_sec: float, width: int,
                   seam_start: float, seam_end: float):
-    """Pasek energii całego utworu (RMS z ramek analizy) ze złotym oknem
-    szwu — wzorzec: górny pasek w Rekordboksie. Zwraca rich.Text.
-    Brak ramek = jawny napis, nie zmyślony płaski pasek."""
+    """Pasek RGB całego utworu (wzorzec: waveform Rekordboxa): wysokość =
+    RMS, kolor = zmierzony udział basu, okno szwu podkreślone. Zwraca
+    rich.Text. Brak ramek = jawny napis, nie zmyślony płaski pasek."""
     from rich.text import Text
-    vals = [(f.timestamp_sec, f.rms) for f in (frames or [])
-            if f.rms is not None]
+    vals = [(f.timestamp_sec, f.rms, f.low_freq_energy_ratio)
+            for f in (frames or []) if f.rms is not None]
     if not vals or duration_sec <= 0 or width < 8:
         return Text("(brak ramek energii)", style="dim")
-    kubelki = [0.0] * width
+    suma = [0.0] * width
+    nis = [0.0] * width
+    nis_n = [0] * width
     liczniki = [0] * width
-    for ts, rms in vals:
+    for ts, rms, low in vals:
         i = min(int(ts / duration_sec * width), width - 1)
-        kubelki[i] += rms
+        suma[i] += rms
         liczniki[i] += 1
-    srednie = [k / n if n else 0.0 for k, n in zip(kubelki, liczniki)]
+        if low is not None:
+            nis[i] += low
+            nis_n[i] += 1
+    srednie = [k / n if n else 0.0 for k, n in zip(suma, liczniki)]
     lo, hi = min(srednie), max(srednie)
     span = (hi - lo) or 1.0
     text = Text()
     for i, v in enumerate(srednie):
         znak = _BLOKI[min(int((v - lo) / span * (len(_BLOKI) - 1) + 0.5),
                           len(_BLOKI) - 1)]
+        low_ratio = nis[i] / nis_n[i] if nis_n[i] else None
+        kolor = _kolor_pasma(low_ratio)
         t0 = i / width * duration_sec
-        w_szwie = seam_start <= t0 <= seam_end
-        text.append(znak, style=f"bold {PILLAR_COLOR}" if w_szwie else "dim")
+        if seam_start <= t0 <= seam_end:
+            text.append(znak, style=f"bold underline {kolor}")
+        else:
+            text.append(znak, style=kolor)
     return text
 
 
@@ -453,8 +481,10 @@ class DanceLabTUI(App):
     #lib-filters Input { width: 1fr; margin-right: 1; }
     #lib-count { height: 2; color: $text-muted; padding: 0 1 1 1; }
     #lib-table .datatable--header { text-style: bold; background: $boost; }
-    #compare { height: 8; border-bottom: solid $accent; padding: 0 1;
+    #compare { height: 12; border-bottom: solid $accent; padding: 0 1;
                display: none; }
+    #cmp-buttons { height: 3; }
+    #cmp-buttons Button { margin-right: 2; }
     #compare.open { display: block; }
     #cmp-title { color: $accent; text-style: bold; }
     #lib-table { height: 1fr; }
@@ -514,6 +544,9 @@ class DanceLabTUI(App):
         # liczby ↓ → ↑ → kasacja, teksty A-Z → Z-A → kasacja (Janek 06.08)
         self._lib_sort: tuple[int, bool] | None = None
         self._player = None                   # afplay szwu (klawisz P)
+        self._compare_idx: int | None = None  # para w panelu porównania
+        self._cmp_sync = True                 # prawdziwe przełączniki panelu:
+        self._cmp_quant = True                # wpływają na plan i render
 
     # ------------------------------------------------------------- układ
 
@@ -585,6 +618,14 @@ class DanceLabTUI(App):
                                 yield Static("", id="cmp-a")
                                 yield Static("", id="cmp-b")
                                 yield Static("", id="cmp-info")
+                                with Horizontal(id="cmp-buttons"):
+                                    yield Button("▶ Graj oba  [P]",
+                                                 id="cmp-play",
+                                                 variant="primary")
+                                    yield Button("Beatsync: ON",
+                                                 id="cmp-sync")
+                                    yield Button("Quantize: ON",
+                                                 id="cmp-quant")
                             yield DataTable(id="set")
                             yield Log(id="warnings", highlight=False)
                         with Vertical(id="suggest"):
@@ -888,6 +929,36 @@ class DanceLabTUI(App):
             self._lib_analyze_worker()
         elif event.button.id == "lib-build":
             self.action_build_from_filary()
+        elif event.button.id == "cmp-play":
+            self._graj_z_panelu()
+        elif event.button.id in ("cmp-sync", "cmp-quant"):
+            self._przelacz_cmp(event.button.id)
+
+    def _graj_z_panelu(self) -> None:
+        if self._stop_player():
+            return
+        if self._compare_idx is None or self._compare_idx + 1 >= len(self._order):
+            self._note("panel nie trzyma pary — otwórz porównanie (C)")
+            return
+        self._seam_worker(self._compare_idx)
+
+    def _przelacz_cmp(self, przycisk: str) -> None:
+        """Prawdziwy przełącznik: zmienia plan i render, nie tylko napis.
+        Beatsync OFF = B w swoim tempie (słychać zderzenie); Quantize OFF =
+        cue bez przyciągania do siatki."""
+        if przycisk == "cmp-sync":
+            self._cmp_sync = not self._cmp_sync
+            self._note("Beatsync: ON" if self._cmp_sync else
+                       "Beatsync: OFF — B zagra w swoim tempie, "
+                       "usłyszysz zderzenie")
+        else:
+            self._cmp_quant = not self._cmp_quant
+            self._note("Quantize: ON" if self._cmp_quant else
+                       "Quantize: OFF — cue bez przyciągania do siatki")
+        self._stop_player()
+        if self._compare_idx is not None \
+                and self.query_one("#compare").has_class("open"):
+            self._compare_worker(self._compare_idx)   # świeży plan i paski
 
     def action_build_from_filary(self) -> None:
         """G / przycisk w Bibliotece: filary → zakładka Set jako SZKIC.
@@ -1685,7 +1756,9 @@ class DanceLabTUI(App):
         ui(self.query_one("#progress", Static).update,
            f"Renderuję szew #{idx+1}→#{idx+2} (fraz-lock, krzywe deckowe)…")
         try:
-            info = zbuduj_szew(a, b, self._ctx["weights"])
+            info = zbuduj_szew(a, b, self._ctx["weights"],
+                               beatsync=self._cmp_sync,
+                               quantize=self._cmp_quant)
         except Exception as exc:  # noqa: BLE001 — powód, nie traceback
             ui(self._note, f"szew nie wyszedł: {exc}")
             self.call_from_thread(self.notify, f"szew nie wyszedł: {exc}",
@@ -1731,7 +1804,9 @@ class DanceLabTUI(App):
         a = by_id[self._order[idx]]
         b = by_id[self._order[idx + 1]]
         try:
-            plan = zaplanuj_szew(a, b, self._ctx["weights"])
+            plan = zaplanuj_szew(a, b, self._ctx["weights"],
+                                 beatsync=self._cmp_sync,
+                                 quantize=self._cmp_quant)
         except Exception as exc:  # noqa: BLE001 — powód, nie traceback
             ui(self._note, f"porównanie nie wyszło: {exc}")
             self.call_from_thread(self.notify, f"porównanie nie wyszło: {exc}",
@@ -1770,6 +1845,11 @@ class DanceLabTUI(App):
         self.query_one("#cmp-info", Static).update(
             f"wyjście z A {ma}:{sa:02d} · wejście w B {mb}:{sb:02d} · "
             + rozum[0][:szer - 40])
+        self._compare_idx = idx
+        self.query_one("#cmp-sync", Button).label = \
+            f"Beatsync: {'ON' if self._cmp_sync else 'OFF'}"
+        self.query_one("#cmp-quant", Button).label = \
+            f"Quantize: {'ON' if self._cmp_quant else 'OFF'}"
         self.query_one("#compare").add_class("open")
         self.query_one("#set", DataTable).focus()
 

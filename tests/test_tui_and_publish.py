@@ -235,7 +235,7 @@ def test_p_odtwarza_i_zatrzymuje_bez_prawdziwego_dzwieku(tmp_path, monkeypatch):
     import dancelab.tui.seam_preview as sp
     wav = tmp_path / "szew.wav"
     wav.write_bytes(b"RIFF")
-    monkeypatch.setattr(sp, "zbuduj_szew", lambda a, b, w: {
+    monkeypatch.setattr(sp, "zbuduj_szew", lambda a, b, w, **kw: {
         "output": wav, "beats": 64, "bpm": 130.0, "rozumowanie": []})
 
     async def go():

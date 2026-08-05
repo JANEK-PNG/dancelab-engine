@@ -444,32 +444,87 @@ def test_wyciecie_filaru_zdejmuje_pin(tmp_path, monkeypatch):
     asyncio.run(go())
 
 
-def test_pasek_energii_szew_zloty_braki_jawne():
-    """Pasek energii: okno szwu na złoto, reszta przygaszona; brak ramek
-    to jawny napis, nie zmyślony płaski wykres."""
-    from dancelab.tui.app import PILLAR_COLOR, pasek_energii
+def test_pasek_energii_rgb_i_szew_podkreslony():
+    """Pasek RGB jak w Rekordboksie: kolor ze ZMIERZONEGO udziału basu
+    (bas niebieski, środek bursztyn, góra biała, brak pomiaru szary);
+    okno szwu podkreślone BEZ zamalowania kolorów; brak ramek = jawny napis."""
+    from dancelab.tui.app import (_RGB_BAS, _RGB_GORA, _RGB_SRODEK,
+                                  pasek_energii)
 
     class _F:
-        def __init__(self, ts, rms):
+        def __init__(self, ts, rms, low):
             self.timestamp_sec = ts
             self.rms = rms
-    frames = [_F(i, 0.1 + (i % 10) / 20) for i in range(300)]
+            self.low_freq_energy_ratio = low
+    frames = ([_F(i, 0.3, 0.8) for i in range(0, 100)]        # bas
+              + [_F(i, 0.5, 0.35) for i in range(100, 200)]   # środek
+              + [_F(i, 0.4, 0.1) for i in range(200, 300)])   # góra
     pas = pasek_energii(frames, 300.0, 60, seam_start=200, seam_end=260)
-    tekst = str(pas)
-    assert len(tekst) == 60
+    assert len(str(pas)) == 60
     style = [str(sp.style) for sp in pas.spans]
-    assert any(PILLAR_COLOR in s for s in style), "okno szwu na złoto"
-    assert any("dim" in s for s in style), "reszta przygaszona"
+    assert any(_RGB_BAS in s for s in style)
+    assert any(_RGB_SRODEK in s for s in style)
+    assert any(_RGB_GORA in s for s in style)
+    # szew: podkreślenie, ale kolor pasma zostaje
+    assert any("underline" in s and _RGB_GORA in s for s in style)
 
     pusty = pasek_energii([], 300.0, 60, 0, 10)
     assert "brak ramek" in str(pusty)
+
+
+def test_przelaczniki_panelu_sa_prawdziwe(tmp_path, monkeypatch):
+    """Beatsync/Quantize zmieniają PLAN (nie tylko napis) i przeliczają
+    panel; Graj z panelu startuje odtwarzacz pary z panelu."""
+    import subprocess
+    import dancelab.tui.seam_preview as sp
+    wywolania = []
+
+    def fake_plan(a, b, w, *, beatsync=True, quantize=True):
+        wywolania.append((beatsync, quantize))
+        return {"cue_a_sec": 100.0, "cue_b_sec": 5.0, "beats": 32,
+                "bpm": 130.0, "rate_b": 1.0 if not beatsync else 1.02,
+                "beatsync": beatsync, "quantize": quantize,
+                "rozumowanie": []}
+    monkeypatch.setattr(sp, "zaplanuj_szew", fake_plan)
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import Button, DataTable, TabbedContent
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
+            by_id = {a.track.track_id: a for a in LIB[:2]}
+            app._ctx = dict(by_id=by_id, weights=None, arc="build",
+                            planner="smart", bpm_min=None, bpm_max=None,
+                            anchor=None, params={})
+            app._order = ["a", "b"]
+            app._render_order(by_id)
+            await pilot.pause()
+            table = app.query_one("#set", DataTable)
+            table.move_cursor(row=0)
+            table.focus()
+            await pilot.press("c")
+            for _ in range(50):
+                await pilot.pause(0.1)
+                if app.query_one("#compare").has_class("open"):
+                    break
+            assert wywolania[-1] == (True, True)
+            app._przelacz_cmp("cmp-sync")
+            for _ in range(50):
+                await pilot.pause(0.1)
+                if wywolania[-1] == (False, True):
+                    break
+            assert wywolania[-1] == (False, True), "plan przeliczony bez synca"
+            assert not app._cmp_sync
+            assert "OFF" in str(app.query_one("#cmp-sync", Button).label)
+    asyncio.run(go())
 
 
 def test_c_otwiera_panel_porownania_i_zamyka(tmp_path, monkeypatch):
     """C otwiera wysuwany panel z parą i planem szwu; drugie C chowa;
     ostatni utwór odmawia. Plan szwu z atrapy — bez audio."""
     import dancelab.tui.seam_preview as sp
-    monkeypatch.setattr(sp, "zaplanuj_szew", lambda a, b, w: {
+    monkeypatch.setattr(sp, "zaplanuj_szew", lambda a, b, w, **kw: {
         "cue_a_sec": 200.0, "cue_b_sec": 10.0, "beats": 64, "bpm": 130.0,
         "rate_b": 1.0, "rozumowanie": ["stabilny szew"]})
 
