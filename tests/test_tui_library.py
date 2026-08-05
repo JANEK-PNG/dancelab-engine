@@ -234,16 +234,16 @@ def test_sortowanie_klikiem_w_naglowek():
             assert app._lib_sort == (2, False)
             app._render_library()
             await pilot.pause()
-            assert "Detlef" in str(table.get_cell_at(Coordinate(0, 8)))
+            assert "Detlef" in str(table.get_cell_at(Coordinate(0, 9)))
             assert "Bez Tempa" in str(
-                table.get_cell_at(Coordinate(4, 9))), "brak tempa na końcu"
+                table.get_cell_at(Coordinate(4, 10))), "brak tempa na końcu"
             klucz_bpm = app._lib_col_keys[2]
             assert "↓" in str(table.columns[klucz_bpm].label)
             app._cycle_sort(2)                  # 2. klik = ↑ malejąco
             assert app._lib_sort == (2, True)
             app._render_library()
             await pilot.pause()
-            assert "Hodge" in str(table.get_cell_at(Coordinate(0, 8)))
+            assert "Hodge" in str(table.get_cell_at(Coordinate(0, 9)))
             assert "↑" in str(table.columns[klucz_bpm].label)
             app._cycle_sort(2)                  # 3. klik kasuje, strzałka znika
             assert app._lib_sort is None
@@ -252,14 +252,14 @@ def test_sortowanie_klikiem_w_naglowek():
             assert "↓" not in str(table.columns[klucz_bpm].label)
             assert "↑" not in str(table.columns[klucz_bpm].label)
 
-            app._cycle_sort(9)                  # tytuł: 1. klik A-Z
-            assert app._lib_sort == (9, False)
+            app._cycle_sort(10)                 # tytuł: 1. klik A-Z
+            assert app._lib_sort == (10, False)
             app._render_library()
             await pilot.pause()
-            assert "Bez Tempa" in str(table.get_cell_at(Coordinate(0, 9)))
-            app._cycle_sort(9)
-            assert app._lib_sort == (9, True)   # Z-A
-            app._cycle_sort(9)
+            assert "Bez Tempa" in str(table.get_cell_at(Coordinate(0, 10)))
+            app._cycle_sort(10)
+            assert app._lib_sort == (10, True)  # Z-A
+            app._cycle_sort(10)
             assert app._lib_sort is None
 
             # wykonawca sparsowany z nazwy pliku "Artysta - Tytuł"
@@ -581,3 +581,48 @@ def test_historia_setow_odcisk_i_odczyt(tmp_path, monkeypatch):
     assert len(wrocilo) == 1
     assert wrocilo[0].track_ids_ordered == ["a", "b", "c"]
     assert wrocilo[0].pinned_ids == ["b"] and wrocilo[0].seed == 7
+
+
+def test_lufs_parser_cache_i_bramkarz(tmp_path, monkeypatch):
+    """LUFS: parser podsumowania ebur128 + trwały cache z kluczem
+    path|size|mtime; bramkarz: zdrowy przechodzi, chory z imiennym powodem,
+    brak ffprobe NIE blokuje."""
+    import dancelab.ingestion.loudness as ld
+    from dancelab.ingestion.bramkarz import przesiej, sprawdz_plik
+
+    assert ld.wyluskaj_lufs("...\n    I:   -8.7 LUFS\n...") == -8.7
+    assert ld.wyluskaj_lufs("zadnego podsumowania") is None
+
+    monkeypatch.setattr(ld, "CACHE", tmp_path / "lufs.json")
+    plik = tmp_path / "a.wav"
+    plik.write_bytes(b"RIFFdane")
+    mapa = ld.zmierz_brakujace([str(plik)],
+                               run_fn=lambda p: "I: -9.9 LUFS")
+    assert mapa[str(plik)] == -9.9
+    # drugi przebieg NIE woła ffmpeg (cache) — run_fn wybucha, gdyby wołał
+    mapa2 = ld.zmierz_brakujace([str(plik)],
+                                run_fn=lambda p: 1 / 0)
+    assert mapa2[str(plik)] == -9.9
+    # podmiana pliku uniewaznia wpis
+    plik.write_bytes(b"RIFFinne dane dluzsze")
+    mapa3 = ld.zmierz_brakujace([str(plik)],
+                                run_fn=lambda p: "I: -5.0 LUFS")
+    assert mapa3[str(plik)] == -5.0
+
+    def fake_probe(path):
+        if "chory" in path:
+            return 1, "", "moov atom not found"
+        if "pusty" in path:
+            return 0, '{"streams": []}', ""
+        return 0, '{"streams": [{"codec_name": "pcm_s16le"}]}', ""
+    assert sprawdz_plik("/m/ok.wav", run_fn=fake_probe) is None
+    assert "uszkodzony" in sprawdz_plik("/m/chory.wav", run_fn=fake_probe)
+    assert "brak strumienia audio" in sprawdz_plik("/m/pusty.wav",
+                                                   run_fn=fake_probe)
+    zdrowe, odrzucone = przesiej(["/m/ok.wav", "/m/chory.wav"],
+                                 run_fn=fake_probe)
+    assert zdrowe == ["/m/ok.wav"] and len(odrzucone) == 1
+
+    def brak_ffprobe(path):
+        raise FileNotFoundError
+    assert sprawdz_plik("/m/ok.wav", run_fn=brak_ffprobe) is None

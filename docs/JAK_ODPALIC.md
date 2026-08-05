@@ -33,6 +33,8 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
   Rekordbox ją zna, gra jego tonacja — w kolumnie pewności widzisz „RB"
   zamiast liczby; pytajnik został tylko dla utworów bez tonacji w RB),
   względną energię (0–100 w obrębie Twojej biblioteki; „—" = silnik nie wie),
+  **LUFS** (głośność wg EBU R128 — mierzona ffmpegiem w tle przy pierwszym
+  uruchomieniu, „…" dopóki tło nie domierzy; potem z trwałego cache),
   gatunek, długość.
 - **U** — przypina utwór do ulubionych (♥). **F** — robi z utworu **FILAR**:
   utwór, który MUSI zagrać w budowanym secie. Filarów jest **od 3 do 10** —
@@ -61,6 +63,8 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
   z nazwy pliku.
 - Na dole wiersz **Analizuj**: wklej ścieżkę folderu z muzyką i kliknij —
   tak dogrywasz nowe pliki do puli (i tak zaczyna pierwszy użytkownik).
+  Przed analizą pliki sprawdza **bramkarz** (ffprobe): uszkodzone i bez
+  strumienia audio odpadają z imiennym powodem, zamiast kłaść analizę.
 
 ### Set — budowa i edycja (szczegóły niżej)
 

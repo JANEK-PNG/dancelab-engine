@@ -303,7 +303,7 @@ def _wstaw_podpory(core: list[str], filary: list[str],
     return final, notes
 
 
-def _lib_sort_missing(col: int, a, energy: dict) -> bool:
+def _lib_sort_missing(col: int, a, energy: dict, lufs: dict) -> bool:
     """Czy utwór nie ma wartości w sortowanej kolumnie — braki idą NA KONIEC
     niezależnie od kierunku sortowania (brak to brak, nie zero)."""
     t = a.track
@@ -316,11 +316,14 @@ def _lib_sort_missing(col: int, a, energy: dict) -> bool:
     if col == 5:
         return energy.get(t.track_id) is None
     if col == 6:
+        return lufs.get(t.source_path) is None
+    if col == 7:
         return not t.style_label
     return False
 
 
-def _lib_sort_key(col: int, favs: set, filary: set, energy: dict):
+def _lib_sort_key(col: int, favs: set, filary: set, energy: dict,
+                  lufs: dict):
     """Klucz sortowania Biblioteki po klikniętej kolumnie (standard branży)."""
     def name(a):
         return pathlib.Path(a.track.source_path).stem.lower()
@@ -342,10 +345,12 @@ def _lib_sort_key(col: int, favs: set, filary: set, energy: dict):
         if col == 5:
             return energy.get(t.track_id) or 0
         if col == 6:
-            return (t.style_label or "").lower()
+            return lufs.get(t.source_path) or 0.0
         if col == 7:
-            return t.duration_sec or 0.0
+            return (t.style_label or "").lower()
         if col == 8:
+            return t.duration_sec or 0.0
+        if col == 9:
             return (_wykonawca_tytul(t)[0].lower() or "~", name(a))
         return (_wykonawca_tytul(t)[1].lower() or "~", name(a))
     return key
@@ -530,6 +535,7 @@ class DanceLabTUI(App):
         self._lib: list = []                  # pula Biblioteki (analizy)
         self._lib_view: list = []             # pula po filtrach (widoczna)
         self._lib_energy: dict[str, float | None] = {}   # tid → energia 0-100
+        self._lib_lufs: dict[str, float] = {}            # ścieżka → LUFS (tło)
         self._user_state: dict = {"ulubione_utwory": [],
                                   "ulubione_playlisty": [], "filary": []}
         # None = porządek domyślny (BPM rosnąco); cykl klikania w nagłówek:
@@ -654,8 +660,9 @@ class DanceLabTUI(App):
         self._lib_col_keys = [
             lib.add_column(lbl, width=w)
             for lbl, w in (("♥", None), ("F", None), ("BPM", 10), ("ton", 8),
-                           ("pew.", None), ("energia", None), ("gatunek", None),
-                           ("min", None), ("wykonawca", None), ("tytuł", None))]
+                           ("pew.", None), ("energia", None), ("LUFS", 7),
+                           ("gatunek", None), ("min", None),
+                           ("wykonawca", None), ("tytuł", None))]
         lib.cursor_type = "row"
         side = self.query_one("#lib-side-list", OptionList)
         side.add_option(Option("Cała biblioteka", id="all"))
@@ -746,6 +753,13 @@ class DanceLabTUI(App):
 
     def _set_library(self, analyses: list) -> None:
         self._lib = analyses
+        from dancelab.ingestion.loudness import wczytaj_cache
+        try:
+            self._lib_lufs = wczytaj_cache()
+        except Exception:  # noqa: BLE001
+            self._lib_lufs = {}
+        if analyses:
+            self._lufs_worker()
         raw = {a.track.track_id: _energy_raw(a) for a in analyses}
         known = [v for v in raw.values() if v is not None]
         lo, hi = (min(known), max(known)) if known else (0.0, 1.0)
@@ -787,9 +801,12 @@ class DanceLabTUI(App):
         filary, _ = resolve_tracks(self._user_state["filary"], by_id)
         favs, filary = set(favs), set(filary)
         col, rev = self._lib_sort if self._lib_sort is not None else (2, False)
-        znane = [a for a in rows if not _lib_sort_missing(col, a, self._lib_energy)]
-        braki = [a for a in rows if _lib_sort_missing(col, a, self._lib_energy)]
-        znane.sort(key=_lib_sort_key(col, favs, filary, self._lib_energy),
+        znane = [a for a in rows if not _lib_sort_missing(
+            col, a, self._lib_energy, self._lib_lufs)]
+        braki = [a for a in rows if _lib_sort_missing(
+            col, a, self._lib_energy, self._lib_lufs)]
+        znane.sort(key=_lib_sort_key(col, favs, filary, self._lib_energy,
+                                     self._lib_lufs),
                    reverse=rev)
         rows = znane + braki                 # braki zawsze na końcu
         section = getattr(self, "_lib_section", "all")
@@ -808,6 +825,8 @@ class DanceLabTUI(App):
                 _bpm_cell(t), _key_cell(t),
                 _conf_cell(t),
                 f"{en:3d}" if en is not None else "—",
+                (f"{self._lib_lufs[t.source_path]:5.1f}"
+                 if t.source_path in self._lib_lufs else "…"),
                 (t.style_label or "")[:20],
                 f"{dur/60:4.1f}",
                 _wykonawca_tytul(t)[0][:24],
@@ -908,8 +927,8 @@ class DanceLabTUI(App):
     # Cykl wg definicji Janka (06.08, zastępuje wcześniejsze "liczby od
     # największej"): klik 1 = ↓ od małego do większego, klik 2 = ↑ odwrotnie,
     # klik 3 = reset i strzałka znika.
-    _SORT_NAMES = ("♥", "F", "BPM", "ton", "pew.", "energia", "gatunek",
-                   "min", "wykonawca", "tytuł")
+    _SORT_NAMES = ("♥", "F", "BPM", "ton", "pew.", "energia", "LUFS",
+                   "gatunek", "min", "wykonawca", "tytuł")
 
     def _cycle_sort(self, col: int) -> None:
         cur = self._lib_sort
@@ -996,6 +1015,46 @@ class DanceLabTUI(App):
         # krok konfiguracji z wizji: panel trybów otwiera się sam po G
         self._open_pillar_mode_panel()
 
+    @work(thread=True, exclusive=True, group="lufs")
+    def _lufs_worker(self) -> None:
+        """Domierz LUFS w tle (ffmpeg, jeden utwór na raz, trwały cache);
+        kolumna dopełnia się w trakcie."""
+        from dancelab.ingestion.loudness import zmierz_brakujace
+        ui = self.call_from_thread
+        sciezki = [a.track.source_path for a in self._lib]
+        brak = [p for p in sciezki if p not in self._lib_lufs]
+        if not brak:
+            return
+
+        licznik = {"n": 0}
+
+        def postep(i, n, path):
+            licznik["n"] = i
+            if i % 5 == 0 or i == n:
+                ui(self._po_lufs, i, n)
+
+        try:
+            mapa = zmierz_brakujace(sciezki, progress=postep,
+                                    should_stop=self._stop.is_set)
+        except Exception as exc:  # noqa: BLE001
+            ui(self._note, f"pomiar LUFS nie wyszedł: {exc}")
+            return
+        self._lib_lufs = mapa
+        ui(self._po_lufs, licznik["n"], licznik["n"])
+
+    def _po_lufs(self, i: int, n: int) -> None:
+        from dancelab.ingestion.loudness import wczytaj_cache
+        try:
+            self._lib_lufs = wczytaj_cache()
+        except Exception:  # noqa: BLE001
+            pass
+        self._render_library(keep_cursor=True)
+        if i < n:
+            self.query_one("#lib-count", Static).update(
+                str(self.query_one("#lib-count", Static).render())
+                .split("   ·   mierzę")[0]
+                + f"   ·   mierzę LUFS w tle: {i}/{n}")
+
     @work(thread=True, exclusive=True, group="lib")
     def _lib_analyze_worker(self) -> None:
         """Onboarding: folder → analiza z postępem → Biblioteka od nowa."""
@@ -1012,6 +1071,16 @@ class DanceLabTUI(App):
             files = discover_audio_files(folder)
             if not files:
                 ui(self._note, f"brak plików audio w: {folder}")
+                return
+            from dancelab.ingestion.bramkarz import przesiej
+            files, odrzucone = przesiej(files)
+            for sciezka, powod in odrzucone[:5]:
+                ui(self._note, f"BRAMKARZ odrzucił: "
+                               f"{pathlib.Path(sciezka).name[:40]} — {powod}")
+            if len(odrzucone) > 5:
+                ui(self._note, f"…i {len(odrzucone) - 5} kolejnych odrzutów")
+            if not files:
+                ui(self._note, "bramkarz odrzucił wszystko — nie ma co analizować")
                 return
             ui(count.update, f"Analiza {len(files)} plików…")
             self._stop.clear()
@@ -1158,6 +1227,11 @@ class DanceLabTUI(App):
             if not p["folder"]:
                 raise ValueError("tryb Folder wymaga ścieżki")
             files = discover_audio_files(p["folder"])
+            from dancelab.ingestion.bramkarz import przesiej
+            files, odrzucone = przesiej(files)
+            for sciezka, powod in odrzucone[:5]:
+                ui(self._note, f"BRAMKARZ odrzucił: "
+                               f"{pathlib.Path(sciezka).name[:40]} — {powod}")
             ui(progress.update, f"Analiza {len(files)} plików…")
             analyses, failures = analyze_files(
                 files, cfg, processed_dir=self.processed_dir,
