@@ -461,7 +461,8 @@ class DanceLabTUI(App):
     #results { padding: 0 1; }
     #warnings { height: 9; border-top: solid $warning; display: none; }
     #warnings.open { display: block; }
-    #status { height: 1; background: $panel; color: $text-muted; padding: 0 1; }
+    #status { height: 1; background: $panel;
+              color: $text-muted; padding: 0 1; }
     #suggest { width: 42; border-left: solid $accent; padding: 0 1; display: none; }
     #suggest.open { display: block; }
     #suggest-title { color: $accent; text-style: bold; }
@@ -471,9 +472,11 @@ class DanceLabTUI(App):
     #suggest-info { display: none; margin: 1 0; }
     #suggest-info.show { display: block; }
     .field-label { color: $text-muted; }
-    #player-bar { height: 3; background: $panel; padding: 0 1; }
+    #tabs { height: 1fr; }
+    #player-bar { height: 3; background: $panel;
+                  padding: 0 1; align-horizontal: center; }
     #player-bar Button { min-width: 6; margin-right: 1; }
-    #pb-info { padding: 1 0 0 1; color: $text; width: 1fr; }
+    #pb-info { padding: 1 0 0 2; color: $text; width: auto; }
     #lib-side { width: 26; border-right: solid $primary; padding: 0 1; }
     #lib-filters { height: 3; }
     #lib-filters Input { width: 1fr; margin-right: 1; }
