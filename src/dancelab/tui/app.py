@@ -473,11 +473,12 @@ class DanceLabTUI(App):
     #suggest-info.show { display: block; }
     .field-label { color: $text-muted; }
     #tabs { height: 1fr; }
-    #lib-side-list { height: auto; margin-bottom: 1; }
-    #pb-info { height: 3; color: $text-muted; margin-bottom: 1; }
-    #pb-play { width: 100%; }
-    #pb-row1, #pb-row2 { height: 3; }
-    #pb-row1 Button, #pb-row2 Button { width: 1fr; margin-right: 1; }
+    #lib-side-list { height: auto; }
+    #pb-box { align-horizontal: center; margin-top: 1; height: auto; }
+    #pb-info { height: 2; color: $text-muted; text-align: center;
+               width: 100%; }
+    #pb-row1, #pb-row2 { height: 3; align-horizontal: center; width: auto; }
+    #pb-row1 Button, #pb-row2 Button { margin-right: 1; }
     #lib-side { width: 26; border-right: solid $primary; padding: 0 1; }
     #lib-filters { height: 3; }
     #lib-filters Input { width: 1fr; margin-right: 1; }
@@ -577,15 +578,16 @@ class DanceLabTUI(App):
                         yield Label("SEKCJE", classes="field-label")
                         side = OptionList(id="lib-side-list")
                         yield side
-                        yield Label("ODTWARZACZ", classes="field-label")
-                        yield Static("nic nie gra", id="pb-info")
-                        yield Button("Graj", id="pb-play", variant="primary")
-                        with Horizontal(id="pb-row1"):
-                            yield Button("Poprz.", id="pb-prev")
-                            yield Button("Nast.", id="pb-next")
-                        with Horizontal(id="pb-row2"):
-                            yield Button("-8", id="pb-back")
-                            yield Button("+8", id="pb-fwd")
+                        with Vertical(id="pb-box"):
+                            yield Static("nic nie gra", id="pb-info")
+                            yield Button("Graj", id="pb-play",
+                                         variant="primary")
+                            with Horizontal(id="pb-row1"):
+                                yield Button("Poprz.", id="pb-prev")
+                                yield Button("Nast.", id="pb-next")
+                            with Horizontal(id="pb-row2"):
+                                yield Button("-8", id="pb-back")
+                                yield Button("+8", id="pb-fwd")
                     with Vertical():
                         with Horizontal(id="lib-filters"):
                             yield Input(placeholder="szukaj (nazwa / gatunek)…",
