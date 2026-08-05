@@ -679,3 +679,25 @@ def test_zdjecie_filtra_nie_ubija_granego_utworu(tmp_path, monkeypatch):
                 app._lib_view[wiersz].track)[0] == "Hodge", \
                 "kursor odnalazł grany utwór na pełnej liście"
     asyncio.run(go())
+
+
+def test_mozaika_okladki_renderuje_i_brak_jest_none(tmp_path, monkeypatch):
+    """Okładka z tagów → mozaika o zadanych wymiarach; plik bez okładki →
+    None (rysujemy pustkę, nie zmyślony obrazek)."""
+    import dancelab.tui.okladki as ok
+    from PIL import Image
+    import io
+    obraz = Image.new("RGB", (100, 100), (200, 40, 40))
+    buf = io.BytesIO()
+    obraz.save(buf, format="PNG")
+    monkeypatch.setattr(ok, "_bajty_okladki",
+                        lambda path: buf.getvalue() if "ma" in path else None)
+    ok.mozaika.cache_clear()
+    moz = ok.mozaika("/m/ma_okladke.mp3", 12, 6)
+    assert moz is not None
+    from rich.console import Console
+    wyjscie = Console(width=40, record=True)
+    wyjscie.print(moz)
+    linie = wyjscie.export_text().splitlines()
+    assert len(linie) == 6, "wysokość w komórkach zgodna z zamówieniem"
+    assert ok.mozaika("/m/bez.mp3", 12, 6) is None

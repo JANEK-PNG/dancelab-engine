@@ -172,10 +172,12 @@ Findera) — bez własnych wynalazków:
   zaznaczony→następny i przycisk **▶ Graj oba**. Przy otwartym pasku
   spacja/P gra przejście pary. Drugie **C** lub **Esc** chowa pasek.
 
-W Bibliotece, pod listą utworów, jest **odtwarzacz**: nazwa granego
-utworu z pozycją oraz przyciski Poprz. · -8 · Graj/Pauza · +8 · Nast.
-Przyciski robią dokładnie to samo, co klawisze. Gdy utwór skończy się
-sam, automatycznie gra następny z listy; na końcu listy zapada cisza.
+W Bibliotece, pod listą utworów, jest **odtwarzacz** w układzie
+Apple Music: po lewej przyciski Poprz. · -8 · Graj/Pauza · +8 · Nast.,
+obok **okładka** grającego utworu (mozaika z grafiki osadzonej w tagach
+pliku), dalej tytuł, wykonawca i pozycja. Przyciski robią dokładnie to
+samo, co klawisze. Gdy utwór skończy się sam, automatycznie gra następny
+z listy; na końcu listy zapada cisza.
 
 Dźwięk startuje wyłącznie z Twojego klawisza — nic nigdy nie gra samo.
 

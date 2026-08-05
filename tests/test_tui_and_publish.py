@@ -418,7 +418,8 @@ def test_pasek_odtwarzacza_jak_apple_music(tmp_path, monkeypatch):
             await pilot.pause()
             assert started and started[0].cmd[-1] == "/m/A.mp3"
             assert str(app.query_one("#pb-play", Button).label) == "Pauza"
-            assert "A @" in str(app.query_one("#pb-info", Static).render())
+            assert "A" in str(app.query_one("#pb-info", Static).render())
+            assert "0:0" in str(app.query_one("#pb-sub", Static).render())
 
             app.on_button_pressed(type("E", (), {"button": type(
                 "B", (), {"id": "pb-next"})()})())

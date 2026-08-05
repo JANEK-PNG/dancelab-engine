@@ -474,11 +474,13 @@ class DanceLabTUI(App):
     .field-label { color: $text-muted; }
     #tabs { height: 1fr; }
     #lib-side-list { height: auto; }
-    #pb-box { height: 5; }
-    #pb-info { height: 1; color: $text-muted; text-align: center;
-               width: 100%; }
-    #pb-row1 { height: 3; width: 100%; align-horizontal: center; }
+    #pb-box { height: 6; }
+    #pb-row1 { height: 3; width: auto; margin-top: 1; }
     #pb-row1 Button { margin-right: 1; min-width: 8; }
+    #pb-art { width: 12; height: 6; margin: 0 2; }
+    #pb-meta { height: 6; padding-top: 1; }
+    #pb-info { height: 1; text-style: bold; }
+    #pb-sub { height: 1; color: $text-muted; }
     #lib-side { width: 26; border-right: solid $primary; padding: 0 1; }
     #lib-filters { height: 3; }
     #lib-filters Input { width: 1fr; margin-right: 1; }
@@ -587,8 +589,7 @@ class DanceLabTUI(App):
                             yield Input(placeholder="BPM np. 125-140", id="lib-bpm")
                         yield Static("", id="lib-count")
                         yield DataTable(id="lib-table")
-                        with Vertical(id="pb-box"):
-                            yield Static("nic nie gra", id="pb-info")
+                        with Horizontal(id="pb-box"):
                             with Horizontal(id="pb-row1"):
                                 yield Button("Poprz.", id="pb-prev")
                                 yield Button("-8", id="pb-back")
@@ -596,6 +597,10 @@ class DanceLabTUI(App):
                                              variant="primary")
                                 yield Button("+8", id="pb-fwd")
                                 yield Button("Nast.", id="pb-next")
+                            yield Static("", id="pb-art")
+                            with Vertical(id="pb-meta"):
+                                yield Static("nic nie gra", id="pb-info")
+                                yield Static("", id="pb-sub")
                         with Horizontal(id="lib-onboard"):
                             yield Input(placeholder="folder z muzyką do "
                                                     "przeskanowania (pierwszy raz "
@@ -1990,9 +1995,20 @@ class DanceLabTUI(App):
             self._note("odsłuch: pauza (spacja wznawia)")
         else:
             self._note(f"GRA: {nazwa} ({akcja}) · spacja pauza · ↓/↑ następny · →/← ±8")
+            self._ustaw_meta_odtwarzacza(track)
         self._pokaz_odtwarzacz()
 
     # --------------------------------------- pasek odtwarzacza (Apple Music)
+
+    def _ustaw_meta_odtwarzacza(self, track) -> None:
+        """Okładka + tytuł/wykonawca w odtwarzaczu (układ Apple Music)."""
+        art, tyt = _wykonawca_tytul(track)
+        self._gra_meta = (art, tyt)
+        from dancelab.tui.okladki import mozaika
+        moz = mozaika(str(track.source_path), 12, 6)
+        from rich.text import Text
+        self.query_one("#pb-art", Static).update(
+            moz if moz is not None else Text(""))
 
     def _tick_player(self) -> None:
         # standard odtwarzaczy (pytanie Janka 06.08): koniec utworu = graj
@@ -2006,12 +2022,17 @@ class DanceLabTUI(App):
                 self._nastepny(+1, auto=True)
         gra = self._odtwarzacz.gra()
         self.query_one("#pb-play", Button).label = "Pauza" if gra else "Graj"
-        opis = self._odtwarzacz.opis()
-        if opis:
-            stan = "gra" if gra else "pauza"
-            self.query_one("#pb-info", Static).update(f"[{stan}] {opis}")
+        if self._odtwarzacz.sciezka:
+            art, tyt = getattr(self, "_gra_meta", ("", ""))
+            m, s = divmod(int(self._odtwarzacz.pozycja()), 60)
+            stan = "" if gra else " · pauza"
+            self.query_one("#pb-info", Static).update(
+                tyt or pathlib.Path(self._odtwarzacz.sciezka).stem[:40])
+            self.query_one("#pb-sub", Static).update(
+                f"{art + ' · ' if art else ''}{m}:{s:02d}{stan}")
         else:
             self.query_one("#pb-info", Static).update("nic nie gra")
+            self.query_one("#pb-sub", Static).update("")
 
     def _nastepny(self, delta: int, auto: bool = False) -> None:
         """Nast./Poprz.: przesuń zaznaczenie w aktywnej tabeli i graj od
@@ -2040,6 +2061,7 @@ class DanceLabTUI(App):
         if blad:
             self._note(f"odsłuch: {blad}")
             return
+        self._ustaw_meta_odtwarzacza(track)
         self._pokaz_odtwarzacz()
         self._tick_player()
 
@@ -2106,6 +2128,7 @@ class DanceLabTUI(App):
         if blad:
             self._note(f"auto-podgląd: {blad}")
             return
+        self._ustaw_meta_odtwarzacza(track)
         self._pokaz_odtwarzacz()
 
     @work(thread=True, exclusive=True, group="seam")
@@ -2131,6 +2154,9 @@ class DanceLabTUI(App):
         if blad:
             self._note(f"odsłuch szwu: {blad}")
             return
+        self._gra_meta = ("szew", f"przejście #{idx+1} → #{idx+2}")
+        from rich.text import Text
+        self.query_one("#pb-art", Static).update(Text(""))
         for line in info.get("rozumowanie", [])[:3]:
             self._note(line)
         self._note(f"GRA szew #{idx+1}→#{idx+2}: {info['beats']} uderzeń "

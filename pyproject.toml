@@ -25,6 +25,7 @@ dependencies = [
 # Feature extraction modules import these lazily and fail with a clear message.
 audio = [
     "mutagen>=1.47",
+    "rich-pixels>=3.0",
     "librosa>=0.10",
     "numba>=0.63,<0.67",
     "scipy>=1.13",
