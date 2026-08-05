@@ -41,7 +41,7 @@ def zaplanuj_szew(analysis_a, analysis_b, weights, *,
         raise ValueError("szew jest zablokowany frazowo — oba utwory muszą "
                          "mieć tempo z analizy")
 
-    def _okno(analysis, kind):
+    def _okna(analysis, kind):
         ws = detect_transition_windows(
             TransitionWindowInput(
                 track_id=analysis.track.track_id,
@@ -50,38 +50,51 @@ def zaplanuj_szew(analysis_a, analysis_b, weights, *,
                 beatgrid=analysis.beatgrid,
             ), weights.transition_window).windows
         match = [w for w in ws if w.window_type == kind] or list(ws)
-        return max(match, key=lambda w: w.score) if match else None
+        return sorted(match, key=lambda w: -w.score)
 
-    out_w = _okno(a, WindowType.mix_out)
-    in_w = _okno(b, WindowType.mix_in)
-    if out_w is None or in_w is None:
+    okna_a = _okna(a, WindowType.mix_out)[:3]
+    okna_b = _okna(b, WindowType.mix_in)[:3]
+    if not okna_a or not okna_b:
         raise ValueError("silnik nie znalazł okna mix-out/mix-in dla tej pary")
 
-    if quantize:
-        cue_a = snap_cue_start(a.beatgrid, out_w.start_sec)
-        cue_b = snap_cue_start(b.beatgrid, in_w.start_sec)
-    else:
-        cue_a = float(out_w.start_sec)
-        cue_b = float(in_w.start_sec)
-
-    sug = suggest_transition_beats(a, out_w.start_sec, b, in_w.start_sec)
-    beats = sug.beats if sug.beats is not None else 64
+    # Najlepsza para okien może nie mieć ZAPASU (wyjście tuż przy końcu A —
+    # złapane na żywo 06.08: „żadnemu z utworów nie starcza zapasu").
+    # DJ bierze wtedy odrobinę gorszy zjazd — planista też: schodzimy po
+    # parach okien wg łącznej oceny, z jawną notką o użyciu zapasowego.
     rate_b = (bpm_a / nearest_octave_candidate(bpm_a, bpm_b).bpm
               if beatsync else 1.0)
-    plan = plan_transition_duration(
-        beats,
-        available_a_beats=max((a.track.duration_sec or 0) - cue_a, 0.0)
-        * bpm_a / 60.0,
-        available_b_beats=max((b.track.duration_sec or 0) - cue_b, 0.0)
-        / rate_b * bpm_a / 60.0,
-    )
-    if plan.selected_beats is None:
-        raise ValueError("żadnemu z utworów nie starcza zapasu od cue "
-                         "na ten szew")
-    return {"cue_a_sec": cue_a, "cue_b_sec": cue_b,
-            "beats": plan.selected_beats, "bpm": float(bpm_a),
-            "rate_b": rate_b, "beatsync": beatsync, "quantize": quantize,
-            "rozumowanie": list(sug.reasoning)}
+    pary = sorted(((ow.score + iw.score, ow, iw)
+                   for ow in okna_a for iw in okna_b),
+                  key=lambda x: -x[0])
+    for ktora, (_, out_w, in_w) in enumerate(pary):
+        if quantize:
+            cue_a = snap_cue_start(a.beatgrid, out_w.start_sec)
+            cue_b = snap_cue_start(b.beatgrid, in_w.start_sec)
+        else:
+            cue_a = float(out_w.start_sec)
+            cue_b = float(in_w.start_sec)
+        sug = suggest_transition_beats(a, out_w.start_sec, b, in_w.start_sec)
+        beats = sug.beats if sug.beats is not None else 64
+        plan = plan_transition_duration(
+            beats,
+            available_a_beats=max((a.track.duration_sec or 0) - cue_a, 0.0)
+            * bpm_a / 60.0,
+            available_b_beats=max((b.track.duration_sec or 0) - cue_b, 0.0)
+            / rate_b * bpm_a / 60.0,
+        )
+        if plan.selected_beats is None:
+            continue
+        rozumowanie = list(sug.reasoning)
+        if ktora > 0:
+            rozumowanie.insert(
+                0, f"najlepszej parze okien zabrakło zapasu — użyta "
+                   f"zapasowa (nr {ktora + 1} wg oceny)")
+        return {"cue_a_sec": cue_a, "cue_b_sec": cue_b,
+                "beats": plan.selected_beats, "bpm": float(bpm_a),
+                "rate_b": rate_b, "beatsync": beatsync, "quantize": quantize,
+                "rozumowanie": rozumowanie}
+    raise ValueError("żadnej parze okien mix-out/mix-in nie starcza zapasu "
+                     "od cue na ten szew")
 
 
 def zbuduj_szew(analysis_a, analysis_b, weights, *,
