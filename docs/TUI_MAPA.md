@@ -15,7 +15,8 @@ po polsku — komunikaty silnika (po angielsku, konwencja kodu) tłumaczy
 | `tui/user_store` — ulubione (2 piny: utwory + playlisty) i FILARY (3–10; minimum egzekwuje budowa, nie przełącznik) | klawisze U i F na tabeli (widoczne w stopce); legenda U/F/G na stałe w #lib-count; znaczniki ♥/F; stan w `data/exports/tui_stan.json` |
 | G / przycisk: SZKIC w Set (zlote flagi, BEZ budowy - brief zostaje w grze; decyzja Janka 05.08); po G panel TRYBOW FILAROW (auto; drugie F w Secie zawsze; wybor trwaly w stanie): PODPORY = konstrukcja bez filarow -> pomiar przesel tym samym transition_score -> `_wstaw_podpory` w najslabsze (zgodnosc calosci uczciwie brak, konstrukcji w notce) / ROWNY ROZSTAW i RAMA = `_rozstaw_filary` -> `locked_positions` silnika; X na filarze ZDEJMUJE PIN (decyzja Janka; duplikaty przez mape kanoniczna); `_filary_for_build` pomija imiennie filar spoza puli/okna, odmawia przy <3 i przy filarach > miejsc; flagi z ctx.filary takze w gotowym secie | budowa w zakladce Set |
 | onboarding: folder → `analyze_files` z postępem etapów | wiersz #lib-folder + przycisk Analizuj |
-| sortowanie po kolumnach (`_lib_sort_key`; braki ZAWSZE na końcu — brak to brak, nie zero) | klik w nagłówek #lib-table, drugi klik odwraca |
+| sortowanie po kolumnach: cykl `_cycle_sort` (liczby ↓→↑→kasacja, teksty A-Z→Z-A→kasacja; braki ZAWSZE na końcu — brak≠zero); aktywny sort w liczniku | klik w nagłówek #lib-table |
+| wykonawca/tytuł OSOBNO: tag z analizy → `attach_rekordbox_meta` (kolekcja RB uzupełnia TYLKO braki) → parsowanie „Artysta - Tytuł" → stem | kolumny 8/9; szukajka patrzy w oba |
 | sekcje po lewej (wzór Apple Music): Cała / ♥ Ulubione / ⚑ Filary (+ playlisty wkrótce) | OptionList #lib-side-list, zawsze widoczna; klik zawęża tabelę, nazwa sekcji w liczniku |
 
 ## Zakładka EXPORT/CUE — atrapa (krok f wizji: edytor hot cue)

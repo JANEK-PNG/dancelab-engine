@@ -219,7 +219,8 @@ def test_g_wstawia_szkic_filarow_bez_budowy(tmp_path, monkeypatch):
 
 
 def test_sortowanie_klikiem_w_naglowek():
-    """Kolumna nazwa A-Z, BPM malejąco; braki ZAWSZE na końcu."""
+    """Cykl Janka: liczby ↓→↑→kasacja, teksty A-Z→Z-A→kasacja;
+    braki ZAWSZE na końcu; wykonawca i tytuł to osobne kolumny."""
     async def go():
         app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
         async with app.run_test() as pilot:
@@ -228,16 +229,35 @@ def test_sortowanie_klikiem_w_naglowek():
             app._set_library(list(LIB))
             await pilot.pause()
             table = app.query_one("#lib-table", DataTable)
-            app._lib_sort = (8, False)          # utwór A-Z
-            app._render_library()
-            await pilot.pause()
-            assert "Bez Tempa" in str(table.get_cell_at(Coordinate(0, 8)))
-            app._lib_sort = (2, True)           # BPM malejąco
+
+            app._cycle_sort(2)                  # 1. klik BPM = od największego
+            assert app._lib_sort == (2, True)
             app._render_library()
             await pilot.pause()
             assert "Hodge" in str(table.get_cell_at(Coordinate(0, 8)))
             assert "Bez Tempa" in str(
-                table.get_cell_at(Coordinate(4, 8))), "brak tempa na końcu"
+                table.get_cell_at(Coordinate(4, 9))), "brak tempa na końcu"
+            app._cycle_sort(2)                  # 2. klik = od najmniejszego
+            assert app._lib_sort == (2, False)
+            app._cycle_sort(2)                  # 3. klik kasuje
+            assert app._lib_sort is None
+
+            app._cycle_sort(9)                  # tytuł: 1. klik A-Z
+            assert app._lib_sort == (9, False)
+            app._render_library()
+            await pilot.pause()
+            assert "Bez Tempa" in str(table.get_cell_at(Coordinate(0, 9)))
+            app._cycle_sort(9)
+            assert app._lib_sort == (9, True)   # Z-A
+            app._cycle_sort(9)
+            assert app._lib_sort is None
+
+            # wykonawca sparsowany z nazwy pliku "Artysta - Tytuł"
+            app._render_library()
+            await pilot.pause()
+            from dancelab.tui.app import _wykonawca_tytul
+            assert _wykonawca_tytul(LIB[0].track) == ("Mercy System",
+                                                      "Steppers")
     asyncio.run(go())
 
 

@@ -113,9 +113,10 @@ def filter_library(analyses, *, search: str = "", key: str = "",
     for a in analyses:
         t = a.track
         if s:
-            name = pathlib.Path(t.source_path).stem.lower()
-            genre = (t.style_label or "").lower()
-            if s not in name and s not in genre:
+            art, tit = _wykonawca_tytul(t)
+            haystack = " ".join((pathlib.Path(t.source_path).stem,
+                                 art, tit, t.style_label or "")).lower()
+            if s not in haystack:
                 continue
         if k and str(t.key_estimate or "").upper() != k:
             continue
@@ -215,6 +216,20 @@ PILLAR_COLOR = "#d9a441"
 def _bpm_cell(t):
     from rich.text import Text
     return Text(f"{t.bpm_estimate or 0:.1f}", style="bold")
+
+
+def _wykonawca_tytul(t) -> tuple[str, str]:
+    """Wykonawca i tytuł do kolumn Biblioteki: tag z analizy → uzupełnienie
+    z RB (enrichment) → parsowanie nazwy pliku „Artysta - Tytuł" → sam stem."""
+    art = (getattr(t, "artist", None) or "").strip()
+    tit = (getattr(t, "title", None) or "").strip()
+    if art and tit:
+        return art, tit
+    stem = pathlib.Path(t.source_path).stem
+    if " - " in stem:
+        a, b = stem.split(" - ", 1)
+        return (art or a.strip()), (tit or b.strip())
+    return art, (tit or stem)
 
 
 def _conf_cell(t):
@@ -319,7 +334,9 @@ def _lib_sort_key(col: int, favs: set, filary: set, energy: dict):
             return (t.style_label or "").lower()
         if col == 7:
             return t.duration_sec or 0.0
-        return name(a)
+        if col == 8:
+            return (_wykonawca_tytul(t)[0].lower() or "~", name(a))
+        return (_wykonawca_tytul(t)[1].lower() or "~", name(a))
     return key
 
 
@@ -455,7 +472,9 @@ class DanceLabTUI(App):
         self._lib_energy: dict[str, float | None] = {}   # tid → energia 0-100
         self._user_state: dict = {"ulubione_utwory": [],
                                   "ulubione_playlisty": [], "filary": []}
-        self._lib_sort: tuple[int, bool] = (2, False)   # domyślnie BPM rosnąco
+        # None = porządek domyślny (BPM rosnąco); cykl klikania w nagłówek:
+        # liczby ↓ → ↑ → kasacja, teksty A-Z → Z-A → kasacja (Janek 06.08)
+        self._lib_sort: tuple[int, bool] | None = None
         self._player = None                   # afplay szwu (klawisz P)
 
     # ------------------------------------------------------------- układ
@@ -548,7 +567,7 @@ class DanceLabTUI(App):
         table.cursor_type = "row"
         lib = self.query_one("#lib-table", DataTable)
         lib.add_columns("♥", "F", "BPM", "ton", "pew.", "energia", "gatunek",
-                        "min", "utwór")
+                        "min", "wykonawca", "tytuł")
         lib.cursor_type = "row"
         side = self.query_one("#lib-side-list", OptionList)
         side.add_option(Option("Cała biblioteka", id="all"))
@@ -618,9 +637,11 @@ class DanceLabTUI(App):
         if analyses:
             try:
                 from dancelab.ingestion.analysis_enrichment import (
-                    attach_rekordbox_genres, attach_rekordbox_keys)
+                    attach_rekordbox_genres, attach_rekordbox_keys,
+                    attach_rekordbox_meta)
                 attach_rekordbox_genres(analyses)
                 attach_rekordbox_keys(analyses)
+                attach_rekordbox_meta(analyses)
             except Exception as exc:  # noqa: BLE001 — brak RB != martwa Biblioteka
                 notes.append(f"dokarmianie Biblioteki nie wyszło: {exc}")
         for note in notes:
@@ -669,7 +690,7 @@ class DanceLabTUI(App):
         favs, _ = resolve_tracks(self._user_state["ulubione_utwory"], by_id)
         filary, _ = resolve_tracks(self._user_state["filary"], by_id)
         favs, filary = set(favs), set(filary)
-        col, rev = self._lib_sort
+        col, rev = self._lib_sort if self._lib_sort is not None else (2, False)
         znane = [a for a in rows if not _lib_sort_missing(col, a, self._lib_energy)]
         braki = [a for a in rows if _lib_sort_missing(col, a, self._lib_energy)]
         znane.sort(key=_lib_sort_key(col, favs, filary, self._lib_energy),
@@ -693,7 +714,8 @@ class DanceLabTUI(App):
                 f"{en:3d}" if en is not None else "—",
                 (t.style_label or "")[:20],
                 f"{dur/60:4.1f}",
-                pathlib.Path(t.source_path).stem[:52],
+                _wykonawca_tytul(t)[0][:24],
+                _wykonawca_tytul(t)[1][:36],
             )
         self._lib_view = rows
         sekcja = {"fav": "♥ Ulubione", "filary": "⚑ Filary"}.get(
@@ -701,7 +723,10 @@ class DanceLabTUI(App):
         info = (f"{sekcja}: {len(rows)} z {len(self._lib)} utworów   ·   "
                 f"filary: {len(self._user_state['filary'])} (min 3, max 10)"
                 f"   ·   ♥ {len(self._user_state['ulubione_utwory'])}"
-                f"   ·   U=♥  F=filar  G=filary do Set  ·  sort: klik w nagłówek")
+                f"   ·   U=♥  F=filar  G=filary do Set  ·  "
+                + (f"sort: {self._SORT_NAMES[self._lib_sort[0]]}"
+                   f"{'↓' if self._lib_sort[1] else '↑'} (3. klik kasuje)"
+                   if self._lib_sort is not None else "sort: klik w nagłówek"))
         if err:
             info += f"   ·   filtr BPM: {err}"
         self.query_one("#lib-count", Static).update(info)
@@ -769,14 +794,27 @@ class DanceLabTUI(App):
         if event.input.id in ("lib-search", "lib-key", "lib-bpm"):
             self._render_library()
 
+    # kolumny liczbowe zaczynają od "od największego" (prośba Janka)
+    _SORT_DESC_FIRST = {2, 4, 5, 7}     # BPM, pew., energia, min
+    _SORT_NAMES = ("♥", "F", "BPM", "ton", "pew.", "energia", "gatunek",
+                   "min", "wykonawca", "tytuł")
+
+    def _cycle_sort(self, col: int) -> None:
+        first_rev = col in self._SORT_DESC_FIRST
+        cur = self._lib_sort
+        if cur is None or cur[0] != col:
+            self._lib_sort = (col, first_rev)
+        elif cur[1] == first_rev:
+            self._lib_sort = (col, not first_rev)
+        else:
+            self._lib_sort = None            # trzecie kliknięcie kasuje
+
     def on_data_table_header_selected(self, event) -> None:
-        """Klik w nagłówek kolumny Biblioteki sortuje; drugi klik odwraca.
-        Tabela setu celowo NIE sortuje — tam kolejność JEST treścią."""
+        """Klik w nagłówek Biblioteki: ↓ → ↑ → kasacja (teksty A-Z → Z-A →
+        kasacja). Tabela setu celowo NIE sortuje — tam kolejność JEST treścią."""
         if getattr(event.data_table, "id", None) != "lib-table":
             return
-        col = event.column_index
-        cur, rev = self._lib_sort
-        self._lib_sort = (col, not rev if col == cur else False)
+        self._cycle_sort(event.column_index)
         self._render_library(keep_cursor=True)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -974,7 +1012,7 @@ class DanceLabTUI(App):
         from dancelab.decision.set_builder import build_set
         from dancelab.ingestion.analysis_enrichment import (
             attach_rekordbox_genres, attach_rekordbox_keys,
-            attach_sound_embeddings)
+            attach_rekordbox_meta, attach_sound_embeddings)
         from dancelab.workflows.smart_playlist import (
             analyze_files, discover_audio_files, estimate_track_count_for_duration)
 
@@ -1011,6 +1049,7 @@ class DanceLabTUI(App):
         emb = attach_sound_embeddings(analyses)
         gen = attach_rekordbox_genres(analyses)
         ton = attach_rekordbox_keys(analyses)
+        attach_rekordbox_meta(analyses)
 
         anchor = None
         if p["dj"]:
@@ -1460,6 +1499,7 @@ class DanceLabTUI(App):
         attach_sound_embeddings(analyses)
         attach_rekordbox_genres(analyses)
         attach_rekordbox_keys(analyses)
+        attach_rekordbox_meta(analyses)
         anchor = None
         if params.get("dj"):
             from dancelab.decision.anchors import resolve_anchor

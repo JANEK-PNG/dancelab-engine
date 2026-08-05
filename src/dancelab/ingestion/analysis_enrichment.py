@@ -205,3 +205,65 @@ def attach_rekordbox_keys(
         notes.append(f"{missing} utworów bez tonacji w Rekordboksie — "
                      f"zostaje detektor z jego pewnością")
     return EnrichmentReport(attached=attached, missing=missing, notes=notes)
+
+
+# ---------------------------------------------------------- wykonawca / tytuł
+
+def load_rekordbox_meta_map() -> tuple[dict[str, tuple[str, str]], str]:
+    """(wykonawca, tytuł) z kolekcji Rekordboxa — tylko odczyt."""
+    try:
+        from pyrekordbox import Rekordbox6Database
+        from pyrekordbox.db6 import tables
+    except Exception as exc:  # noqa: BLE001
+        return {}, f"pyrekordbox niedostępny ({type(exc).__name__})"
+    try:
+        db = Rekordbox6Database()
+    except Exception as exc:  # noqa: BLE001
+        return {}, f"nie mogę otworzyć bazy Rekordboxa ({type(exc).__name__})"
+    try:
+        artists = {a.ID: str(a.Name or "").strip()
+                   for a in db.session.query(tables.DjmdArtist).all()}
+        out: dict[str, tuple[str, str]] = {}
+        for row in db.session.query(tables.DjmdContent).all():
+            fp = row.FolderPath or ""
+            if not fp.startswith("/"):
+                continue
+            art = artists.get(row.ArtistID, "")
+            tit = str(row.Title or "").strip()
+            if art or tit:
+                out[_nfc(fp)] = (art, tit)
+    finally:
+        db.close()
+    return out, f"wykonawca/tytuł z Rekordboxa: {len(out)} utworów"
+
+
+def attach_rekordbox_meta(
+    analyses: Iterable[AnalysisResult],
+    meta_map: dict[str, tuple[str, str]] | None = None,
+) -> EnrichmentReport:
+    """Wykonawca i tytuł z kolekcji RB — TYLKO uzupełnia braki: tag pliku
+    odczytany przy analizie wygrywa, nazwa pliku zostaje ostatnią deską
+    ratunku w UI (prośba Janka 06.08: kolumna „utwór" rozbita na dwie,
+    a nazwy plików bywają gołe — „01 Lockup" bez wykonawcy)."""
+    notes: list[str] = []
+    if meta_map is None:
+        meta_map, note = load_rekordbox_meta_map()
+        notes.append(note)
+    attached = missing = 0
+    for analysis in analyses:
+        track = analysis.track
+        meta = meta_map.get(_nfc(track.source_path))
+        if meta is None:
+            missing += 1
+            continue
+        art, tit = meta
+        zmiana = False
+        if art and not (track.artist or "").strip():
+            track.artist = art
+            zmiana = True
+        if tit and not (track.title or "").strip():
+            track.title = tit
+            zmiana = True
+        if zmiana:
+            attached += 1
+    return EnrichmentReport(attached=attached, missing=missing, notes=notes)
