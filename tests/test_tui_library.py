@@ -444,10 +444,10 @@ def test_wyciecie_filaru_zdejmuje_pin(tmp_path, monkeypatch):
     asyncio.run(go())
 
 
-def test_pasek_energii_rgb_i_szew_podkreslony():
-    """Pasek RGB jak w Rekordboksie: kolor ze ZMIERZONEGO udziału basu
-    (bas niebieski, środek bursztyn, góra biała, brak pomiaru szary);
-    okno szwu podkreślone BEZ zamalowania kolorów; brak ramek = jawny napis."""
+def test_pasek_energii_wysoki_warstwowy():
+    """Wysoki waveform: `height` wierszy, bas niebieską WARSTWĄ od dołu
+    (w dolnym wierszu), reszta nad nim; szew podkreślony; brak ramek =
+    jawny napis."""
     from dancelab.tui.app import (_RGB_BAS, _RGB_GORA, _RGB_SRODEK,
                                   pasek_energii)
 
@@ -456,17 +456,19 @@ def test_pasek_energii_rgb_i_szew_podkreslony():
             self.timestamp_sec = ts
             self.rms = rms
             self.low_freq_energy_ratio = low
-    frames = ([_F(i, 0.3, 0.8) for i in range(0, 100)]        # bas
-              + [_F(i, 0.5, 0.35) for i in range(100, 200)]   # środek
-              + [_F(i, 0.4, 0.1) for i in range(200, 300)])   # góra
-    pas = pasek_energii(frames, 300.0, 60, seam_start=200, seam_end=260)
-    assert len(str(pas)) == 60
-    style = [str(sp.style) for sp in pas.spans]
-    assert any(_RGB_BAS in s for s in style)
-    assert any(_RGB_SRODEK in s for s in style)
-    assert any(_RGB_GORA in s for s in style)
-    # szew: podkreślenie, ale kolor pasma zostaje
-    assert any("underline" in s and _RGB_GORA in s for s in style)
+    frames = ([_F(i, 0.9, 0.8) for i in range(0, 100)]        # głośno+bas
+              + [_F(i, 0.9, 0.35) for i in range(100, 200)]   # głośno+środek
+              + [_F(i, 0.9, 0.05) for i in range(200, 300)])  # głośno+góra
+    pas = pasek_energii(frames, 300.0, 60, seam_start=200, seam_end=260,
+                        height=5)
+    linie = str(pas).split("\n")
+    assert len(linie) == 5 and all(len(l) == 60 for l in linie)
+    style = " ".join(str(sp.style) for sp in pas.spans)
+    assert _RGB_BAS in style and _RGB_SRODEK in style and _RGB_GORA in style
+    assert "underline" in style                     # szew widoczny
+    # dolny wiersz w części basowej jest niebieski
+    dolne = [str(sp.style) for sp in pas.spans][-60:]
+    assert any(_RGB_BAS in s for s in dolne)
 
     pusty = pasek_energii([], 300.0, 60, 0, 10)
     assert "brak ramek" in str(pusty)
@@ -566,8 +568,8 @@ def test_c_otwiera_panel_porownania_i_zamyka(tmp_path, monkeypatch):
 
 
 def test_pasek_energii_kreski_siatki_i_wzgledne_kolory():
-    """Kreski │ co podane czasy siatki; kolory tercylami W OBRĘBIE utworu —
-    utwór z basem wszędzie i tak pokazuje trzy barwy względne."""
+    """Kreski │ przez CAŁĄ wysokość w podanych czasach; kolory tercylami
+    W OBRĘBIE utworu — utwór z basem wszędzie i tak pokazuje różne barwy."""
     from dancelab.tui.app import _RGB_BAS, _RGB_GORA, pasek_energii
 
     class _F:
@@ -576,10 +578,11 @@ def test_pasek_energii_kreski_siatki_i_wzgledne_kolory():
             self.rms = rms
             self.low_freq_energy_ratio = low
     # caly utwor "basowy" (0.55-0.75) — bezwzgledne progi dalyby sam niebieski
-    frames = [_F(i, 0.4, 0.55 + (i % 3) * 0.1) for i in range(300)]
-    pas = pasek_energii(frames, 300.0, 60, 250, 290, grid_times=[0, 150, 299])
+    frames = [_F(i, 0.9, 0.55 + (i % 3) * 0.1) for i in range(300)]
+    pas = pasek_energii(frames, 300.0, 60, 250, 290,
+                        grid_times=[0, 150, 299], height=4)
     tekst = str(pas)
-    assert tekst.count("│") == 3, "kreski siatki w podanych miejscach"
+    assert tekst.count("│") == 3 * 4, "kreska przez całą wysokość"
     style = " ".join(str(sp.style) for sp in pas.spans)
     assert _RGB_BAS in style and _RGB_GORA in style, "kolory względne, nie sam bas"
 

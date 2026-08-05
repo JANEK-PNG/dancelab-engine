@@ -253,11 +253,16 @@ def _kolor_pasma(low_ratio, prog_bas: float, prog_srodek: float) -> str:
 
 def pasek_energii(frames, duration_sec: float, width: int,
                   seam_start: float, seam_end: float,
-                  grid_times: list[float] | None = None):
-    """Pasek RGB całego utworu (wzorzec: waveform Rekordboxa): wysokość =
-    RMS, kolor = udział basu WZGLĘDEM reszty utworu, okno szwu podkreślone,
-    kreski siatki (co 64 uderzenia — RB rysuje co 8, ale na pełnej osi czasu
-    byłoby za gęsto: decyzja Janka). Brak ramek = jawny napis."""
+                  grid_times: list[float] | None = None,
+                  height: int = 5):
+    """WYSOKI waveform RGB (weto Janka 06.08: jedna linia + pusta przestrzeń
+    pod spodem to nie waveform). Warstwy Z POMIARU: łączna wysokość kolumny =
+    RMS, dolna niebieska warstwa = zmierzony udział basu, nad nią reszta
+    w bursztynie/bieli wg względnej jasności kolumny (tercyle w obrębie
+    utworu). Analiza NIE rozdziela środka od góry — dopóki ekstrakcja cech
+    nie zmierzy mid/hi osobno, trzeciej PRAWDZIWEJ warstwy nie rysujemy.
+    Kreski │ = siatka (co 64 uderzenia), szew podkreślony. Zwraca wielo-
+    liniowy rich.Text (height wierszy). Brak ramek = jawny napis."""
     from rich.text import Text
     vals = [(f.timestamp_sec, f.rms, f.low_freq_energy_ratio)
             for f in (frames or []) if f.rms is not None]
@@ -277,26 +282,54 @@ def pasek_energii(frames, duration_sec: float, width: int,
     srednie = [k / n if n else 0.0 for k, n in zip(suma, liczniki)]
     lo, hi = min(srednie), max(srednie)
     span = (hi - lo) or 1.0
-    ratios = [nis[i] / nis_n[i] for i in range(width) if nis_n[i]]
-    prog_bas, prog_srodek = _progi_pasm(ratios)
+    ratio = [nis[i] / nis_n[i] if nis_n[i] else None for i in range(width)]
+    prog_bas, prog_srodek = _progi_pasm([r for r in ratio if r is not None])
     kreski = set()
     for g in grid_times or []:
         kreski.add(min(int(g / duration_sec * width), width - 1))
-    text = Text()
+
+    # na kolumnę: ile ósemek bloku zapala łącznie i ile z tego to bas
+    osemek = []
     for i, v in enumerate(srednie):
-        t0 = i / width * duration_sec
-        w_szwie = seam_start <= t0 <= seam_end
-        if i in kreski:
-            text.append("│", style="bold white underline" if w_szwie
-                        else "bold white")
-            continue
-        znak = _BLOKI[min(int((v - lo) / span * (len(_BLOKI) - 1) + 0.5),
-                          len(_BLOKI) - 1)]
-        low_ratio = nis[i] / nis_n[i] if nis_n[i] else None
-        kolor = _kolor_pasma(low_ratio, prog_bas, prog_srodek)
-        text.append(znak, style=f"bold underline {kolor}" if w_szwie
-                    else kolor)
-    return text
+        # płaski utwór (lo==hi) to pełne słupki, nie pusty pasek
+        norm = (v - lo) / span if hi > lo else 0.75
+        total = norm * height * 8
+        bas = total * (ratio[i] if ratio[i] is not None else 0.0)
+        osemek.append((total, bas))
+
+    wiersze = []
+    for rzad in range(height - 1, -1, -1):        # od góry do dołu
+        linia = Text()
+        for i in range(width):
+            t0 = i / width * duration_sec
+            w_szwie = seam_start <= t0 <= seam_end
+            pod = "underline " if w_szwie else ""
+            if i in kreski:
+                linia.append("│", style=f"{pod}bold white")
+                continue
+            total, bas = osemek[i]
+            dol, gora = rzad * 8, (rzad + 1) * 8
+            if total <= dol:
+                linia.append(" ", style=pod.strip() or "")
+                continue
+            czesc = min(int(total - dol), 8)
+            znak = "█" if total >= gora else _BLOKI[max(czesc - 1, 0)]
+            if bas >= gora - 4:                    # komórka w większości basowa
+                kolor = _RGB_BAS
+            elif ratio[i] is None:
+                kolor = "grey50"
+            elif ratio[i] <= prog_srodek:
+                kolor = _RGB_GORA
+            else:
+                kolor = _RGB_SRODEK
+            linia.append(znak, style=f"{pod}{kolor}")
+        wiersze.append(linia)
+    out = Text()
+    for j, w in enumerate(wiersze):
+        if j:
+            out.append("\n")
+        out.append(w)
+    return out
 
 
 _FRAZA_KOLORY = {"INTRO": "#6ec6ff", "OUTRO": "#6ec6ff", "UP": "#ff5f5f",
