@@ -84,9 +84,11 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
    - **A** — dopisuje NOWY utwór ZA zaznaczonym: panel 10 propozycji jak przy Z,
      klik + drugie **A** dopisuje (nikt nie wypada).
    Każda taka edycja zapisuje się jako Twój werdykt — silnik się z nich uczy.
-5. **S** — zapisuje plan na dysk; **O** — wczytuje zapisany plan (także po
-   ponownym uruchomieniu aplikacji; utwory, których nie ma już w puli, są
-   pomijane z wyraźną notką).
+5. **S** — zapisuje plan: najpierw pyta o **nazwę** (po niej go potem
+   znajdziesz). **O** — lista zapisanych planów z pełnym opisem: nazwa,
+   liczba utworów, okno BPM, kotwica, data; klik + drugie **O** wczytuje
+   (także po ponownym uruchomieniu; braki w puli pomijane z notką),
+   **X** usuwa zaznaczony plan (miękko, do kosza obok planów).
 6. **C** — PASEK SZWU (wzorzec z CURVE: „+" między dwoma utworami):
    nad tabelą pojawia się jedna linia faktów o parze zaznaczony→następny
    (kto z kim, ile uderzeń, czasy wyjścia i wejścia) i JEDEN przycisk

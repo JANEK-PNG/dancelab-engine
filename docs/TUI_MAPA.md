@@ -48,7 +48,7 @@ warnings zawsze widoczne, tonacja o pewności <0,5 przygaszona, stan Rekordboxa 
 | `decision.slot_suggest` — kandydat oceniany W SZCZELINIE (wejście+wyjście, ta sama kotwica co budowa) | klawisz Z → doszyty panel po prawej (42 kolumny); klik propozycji + Z = podmiana |
 | `decision.slot_suggest.suggest_for_insertion` — szczelina MIĘDZY utworami, nikt nie wypada | klawisz A (dopisz ZA zaznaczonym) — ten sam panel i wzorzec dwóch naciśnięć co Z |
 | edycja setu = werdykty DJ-a (cięcie, przesunięcie, dopisanie, podmiana → `tui_edycje.jsonl`) | X wycina · Shift+↑/↓ przesuwa · każda edycja logowana |
-| `tui.plan_store` — plan przeżywa zamknięcie okna; braki w puli pomijane Z NOTKĄ | S zapisuje · O wczytuje (panel listy planów, wzorzec dwóch naciśnięć); O bez wcześniejszej budowy sam wczytuje pulę i kontekst oceniania z parametrów planu |
+| `tui.plan_store` — plan przeżywa zamknięcie okna; braki pomijane Z NOTKĄ; odpowiedź na pytanie o 100 planów: S pyta o NAZWĘ (NazwaPlanuScreen), lista O z pełnym opisem (nazwa·utwory·BPM·kotwica·data, ponad 30 z notką o przycięciu), X = miękkie usunięcie do tui_plany/kosz/ | S zapisuje · O wczytuje (wzorzec dwóch naciśnięć; bez budowy sam wczytuje pulę i kontekst z parametrów planu) · X w panelu usuwa |
 | werdykt „plan silnika vs stan DJ-a" (`tui_werdykt_*.json`) | klawisz V — zrzut obu kolejności + dziennika edycji |
 | stan Rekordboxa + liczba backupów | Static #status, odświeżany co 5 s |
 | anulowanie | Esc → `threading.Event` → `should_stop` (Esc najpierw zamyka panel) |
