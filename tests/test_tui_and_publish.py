@@ -427,3 +427,63 @@ def test_pasek_odtwarzacza_jak_apple_music(tmp_path, monkeypatch):
             assert started[1].cmd[-1] == "/m/B.mp3"
             assert table.cursor_row == 1, "⏭ przesunął zaznaczenie"
     asyncio.run(go())
+
+
+def test_koniec_utworu_gra_nastepny_a_koniec_listy_cisza(tmp_path,
+                                                         monkeypatch):
+    """Standard odtwarzaczy: naturalny koniec utworu = następny z listy;
+    na końcu listy cisza (bez pętli); pauza użytkownika NIE wyzwala next."""
+    import subprocess
+    import dancelab.tui.odtwarzacz as odt
+    monkeypatch.setattr(odt, "FFPLAY", "/fake/ffplay")
+    monkeypatch.setattr(odt, "AFPLAY", "/fake/afplay")
+
+    class _FakeProc:
+        def __init__(self, cmd):
+            self.cmd = cmd
+            self.zakonczony = False
+
+        def poll(self):
+            return 0 if self.zakonczony else None
+
+        def terminate(self):
+            self.zakonczony = True
+
+    started = []
+    monkeypatch.setattr(subprocess, "Popen",
+                        lambda cmd: started.append(_FakeProc(cmd)) or started[-1])
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import DataTable, TabbedContent
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
+            by_id = _fake_pool("A", "B")
+            app._ctx = dict(by_id=by_id, weights=None, arc="build",
+                            planner="smart", bpm_min=None, bpm_max=None,
+                            anchor=None, params={})
+            app._order = ["A", "B"]
+            app._render_order(by_id)
+            await pilot.pause()
+            table = app.query_one("#set", DataTable)
+            table.move_cursor(row=0)
+            table.focus()
+            await pilot.press("space")
+            await pilot.pause()
+            assert started[0].cmd[-1] == "/m/A.mp3"
+
+            started[0].zakonczony = True      # utwór skończył się SAM
+            app._tick_player()
+            await pilot.pause()
+            assert len(started) == 2 and started[1].cmd[-1] == "/m/B.mp3", \
+                "koniec A → gra B"
+            assert table.cursor_row == 1
+
+            started[1].zakonczony = True      # koniec OSTATNIEGO
+            app._tick_player()
+            await pilot.pause()
+            assert len(started) == 2, "koniec listy = cisza, nie pętla"
+            lines = " ".join(str(l) for l in app.query_one("#warnings").lines)
+            assert "koniec listy" in lines
+    asyncio.run(go())

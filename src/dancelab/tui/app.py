@@ -1973,6 +1973,15 @@ class DanceLabTUI(App):
     # --------------------------------------- pasek odtwarzacza (Apple Music)
 
     def _tick_player(self) -> None:
+        # standard odtwarzaczy (pytanie Janka 06.08): koniec utworu = graj
+        # następny z listy; bezpieczniki: auto-przejście tylko gdy skończył
+        # się utwór SPOD KURSORA (szew/odsłuch spoza listy nie skacze po
+        # liście), koniec listy = cisza
+        skonczony = self._odtwarzacz.skonczyl_sie()
+        if skonczony is not None:
+            track = self._biezacy_track()
+            if track is not None and str(track.source_path) == skonczony:
+                self._nastepny(+1, auto=True)
         gra = self._odtwarzacz.gra()
         self.query_one("#pb-play", Button).label = "Pauza" if gra else "Graj"
         opis = self._odtwarzacz.opis()
@@ -1982,9 +1991,10 @@ class DanceLabTUI(App):
         else:
             self.query_one("#pb-info", Static).update("nic nie gra")
 
-    def _nastepny(self, delta: int) -> None:
-        """⏭/⏮: przesuń zaznaczenie w aktywnej tabeli i graj od zera —
-        jak next/previous w każdym odtwarzaczu."""
+    def _nastepny(self, delta: int, auto: bool = False) -> None:
+        """Nast./Poprz.: przesuń zaznaczenie w aktywnej tabeli i graj od
+        zera — jak next/previous w każdym odtwarzaczu. `auto` = wywołane
+        końcem utworu; na końcu listy zapada cisza zamiast pętli."""
         aktywna = self.query_one("#tabs", TabbedContent).active
         if aktywna == "tab-lib":
             table = self.query_one("#lib-table", DataTable)
@@ -1994,8 +2004,12 @@ class DanceLabTUI(App):
             return
         if table.row_count == 0 or table.cursor_row is None:
             return
-        table.move_cursor(row=min(max(table.cursor_row + delta, 0),
-                                  table.row_count - 1))
+        cel = table.cursor_row + delta
+        if not (0 <= cel < table.row_count):
+            if auto:
+                self._note("koniec listy — odsłuch zakończony")
+            return
+        table.move_cursor(row=cel)
         track = self._biezacy_track()
         if track is None:
             return

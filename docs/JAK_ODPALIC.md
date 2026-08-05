@@ -174,7 +174,8 @@ Findera) — bez własnych wynalazków:
 
 W Bibliotece, pod listą utworów, jest **odtwarzacz**: nazwa granego
 utworu z pozycją oraz przyciski Poprz. · -8 · Graj/Pauza · +8 · Nast.
-Przyciski robią dokładnie to samo, co klawisze.
+Przyciski robią dokładnie to samo, co klawisze. Gdy utwór skończy się
+sam, automatycznie gra następny z listy; na końcu listy zapada cisza.
 
 Dźwięk startuje wyłącznie z Twojego klawisza — nic nigdy nie gra samo.
 

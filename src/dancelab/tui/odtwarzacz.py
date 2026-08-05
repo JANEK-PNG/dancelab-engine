@@ -100,6 +100,15 @@ class Odtwarzacz:
         self._zabij()
         return cel, self._uruchom(cel)
 
+    def skonczyl_sie(self) -> str | None:
+        """Ścieżka utworu, który skończył się SAM (proces wyszedł bez stop());
+        None, gdy nic się nie skończyło. Zeruje pozycję — koniec to koniec."""
+        if self._proc is not None and self._proc.poll() is not None:
+            self._zabij()
+            self._offset = 0.0
+            return self._path
+        return None
+
     def stop(self) -> bool:
         """Pauza z zapamiętaniem pozycji. True, jeśli coś grało."""
         gralo = self.gra()
