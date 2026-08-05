@@ -219,6 +219,7 @@ def test_p_kontekstowe_pauza_skoki_i_szew(tmp_path, monkeypatch):
     import subprocess
     import dancelab.tui.odtwarzacz as odt
     monkeypatch.setattr(odt, "FFPLAY", "/fake/ffplay")
+    monkeypatch.setattr(odt, "AFPLAY", None)   # wymuś ścieżkę z seekiem
 
     class _FakeProc:
         def __init__(self, cmd):
@@ -303,6 +304,7 @@ def test_gdy_gra_strzalka_przelacza_jak_next_song(tmp_path, monkeypatch):
     import subprocess
     import dancelab.tui.odtwarzacz as odt
     monkeypatch.setattr(odt, "FFPLAY", "/fake/ffplay")
+    monkeypatch.setattr(odt, "AFPLAY", "/fake/afplay")  # hybryda: start=afplay
 
     class _FakeProc:
         def __init__(self, cmd):
@@ -339,6 +341,7 @@ def test_gdy_gra_strzalka_przelacza_jak_next_song(tmp_path, monkeypatch):
             await pilot.press("space")        # spacja = graj (standard)
             await pilot.pause()
             assert started and started[0].cmd[-1] == "/m/A.mp3"
+            assert started[0].cmd[0] == "/fake/afplay", "start od zera = szybki afplay"
 
             await pilot.press("down")         # gra → ↓ = next song
             for _ in range(30):

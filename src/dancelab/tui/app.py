@@ -1952,14 +1952,15 @@ class DanceLabTUI(App):
         z wynajdywaniem koła): GDY COŚ GRA, ↓/↑ działa jak next/previous —
         przełącza odtwarzanie na nowo zaznaczony utwór. Przy pauzy/ciszy
         strzałki tylko chodzą po liście. Małe opóźnienie, żeby przytrzymana
-        strzałka nie restartowała co wiersz."""
+        strzałka nie restartowała co wiersz (0,12 s — skrócone
+        na skargę Janka o sekundową przerwę)."""
         if not self._odtwarzacz.gra():
             return
         if getattr(event.data_table, "id", None) not in ("set", "lib-table"):
             return
         if self._auto_timer is not None:
             self._auto_timer.stop()
-        self._auto_timer = self.set_timer(0.25, self._auto_graj)
+        self._auto_timer = self.set_timer(0.12, self._auto_graj)
 
     def _auto_graj(self) -> None:
         track = self._biezacy_track()

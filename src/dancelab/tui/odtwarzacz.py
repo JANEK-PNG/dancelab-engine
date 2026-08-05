@@ -21,6 +21,13 @@ import subprocess
 import time
 
 FFPLAY = shutil.which("ffplay")
+AFPLAY = shutil.which("afplay")
+
+# HYBRYDA (skarga Janka 06.08: sekunda przerwy przy przełączaniu utworów):
+# ffplay wolno startuje (inicjalizacja audio ~0,5 s), afplay startuje niemal
+# natychmiast, ale nie umie seeka. Więc: start OD ZERA (przełączanie
+# utworów strzałkami) gra afplayem, a ffplay wchodzi tylko tam, gdzie
+# trzeba wystartować od środka (skok, wznowienie z pauzy).
 
 
 class Odtwarzacz:
@@ -50,13 +57,18 @@ class Odtwarzacz:
     # ------------------------------------------------------------ sterowanie
 
     def _uruchom(self, offset: float) -> str | None:
-        if FFPLAY:
+        od_zera = offset <= 0.05
+        if od_zera and AFPLAY:
+            cmd = [AFPLAY, str(self._path)]
+            offset = 0.0
+        elif FFPLAY:
             cmd = [FFPLAY, "-nodisp", "-autoexit", "-loglevel", "quiet",
                    "-ss", f"{max(offset, 0.0):.3f}", str(self._path)]
-        else:
-            if offset > 0:
-                return "skoki i wznowienie wymagają ffplay (brew install ffmpeg)"
+        elif od_zera:
             cmd = ["afplay", str(self._path)]
+            offset = 0.0
+        else:
+            return "skoki i wznowienie wymagają ffplay (brew install ffmpeg)"
         self._proc = subprocess.Popen(cmd)
         self._offset = max(offset, 0.0)
         self._od_kiedy = time.monotonic()
