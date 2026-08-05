@@ -26,6 +26,7 @@ dependencies = [
 audio = [
     "mutagen>=1.47",
     "rich-pixels>=3.0",
+    "textual-image>=0.6",
     "librosa>=0.10",
     "numba>=0.63,<0.67",
     "scipy>=1.13",

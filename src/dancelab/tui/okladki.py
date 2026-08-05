@@ -39,20 +39,36 @@ def _bajty_okladki(path: str) -> bytes | None:
     return None
 
 
+def _ostry_renderer():
+    """Klasa renderera z textual-image, jeśli terminal mówi protokołem
+    graficznym (Ghostty/kitty → TGP, iTerm2/WezTerm → Sixel). W terminalach
+    bez grafiki (Terminal.app, testy) zostajemy przy naszej mozaice
+    rich-pixels — jej kolory są sprawdzone. Wybór pada RAZ, przy imporcie
+    textual-image (on sam odpytuje terminal)."""
+    try:
+        from textual_image.renderable import Image as Auto
+        if Auto.__name__ in ("TGPImage", "SixelImage"):
+            return Auto
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
 @lru_cache(maxsize=128)
 def mozaika(path: str, szer: int, wys: int):
-    """Renderowalna mozaika okładki (rich_pixels.Pixels) albo None.
-
-    `szer`×`wys` w KOMÓRKACH terminala; pikseli jest szer × wys*2
-    (górna/dolna połówka znaku ▀)."""
+    """Renderowalna okładka albo None: OSTRA (protokół graficzny terminala,
+    poziom 2 — wybór Janka: Ghostty) albo mozaika półbloków (poziom 1,
+    każdy terminal). `szer`×`wys` w komórkach terminala."""
     dane = _bajty_okladki(path)
     if not dane:
         return None
     try:
         from PIL import Image
-        from rich_pixels import Pixels
         obraz = Image.open(io.BytesIO(dane)).convert("RGB")
-        obraz = obraz.resize((szer, wys * 2))
-        return Pixels.from_image(obraz)
+        Ostry = _ostry_renderer()
+        if Ostry is not None:
+            return Ostry(obraz, width=szer, height=wys)
+        from rich_pixels import Pixels
+        return Pixels.from_image(obraz.resize((szer, wys * 2)))
     except Exception:  # noqa: BLE001
         return None

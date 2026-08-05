@@ -8,10 +8,13 @@ kolejność wokół Twoich decyzji i oddaje gotową playlistę do Rekordboxa.
 
 ## 1. Uruchamianie
 
-**Sposób podstawowy:** na biurku leży plik **DanceLab.command** — kliknij
-go dwa razy. Otworzy się okno Terminala i wstanie aplikacja. Skrót zawsze
-uruchamia aktualną wersję — po każdej aktualizacji po prostu klikasz ten
-sam plik.
+**Sposób podstawowy:** na biurku leży aplikacja **DanceLab** — kliknij ją
+dwa razy. Otworzy się okno terminala **Ghostty** (terminal z obsługą
+grafiki: okładki są w nim OSTRE, nie mozaikowe) i wstanie aplikacja.
+Skrót zawsze uruchamia aktualną wersję.
+
+Zapasowo: plik **DanceLab.command** w `Developer/dancelab-engine` otwiera
+aplikację w zwykłym Terminalu (okładki jako mozaika).
 
 **Sposób ręczny** (gdyby skrót zginął):
 
