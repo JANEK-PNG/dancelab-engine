@@ -70,7 +70,13 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
 
 1. **Formularz** (góra): pula utworów, długość w minutach, okno tempa
    (np. `130-135`), gatunki (Twoje tagi z Rekordboxa), DJ z listy kotwic
-   („graj jak X"), kontur skoków.
+   („graj jak X"), kontur skoków, **Świeżość** i **seed**.
+   - Świeżość `deterministyczny` (domyślna): ten sam brief = zawsze ten sam
+     set. Tryby `zachowawczy → odkrywczy` coraz mocniej omijają utwory
+     i przejścia z setów, które ZAPISAŁEŚ (S) albo WYSŁAŁEŚ (W) — sam klik
+     B historii nie karmi.
+   - Seed: puste pole = losowy (pokazany w notkach i nad tabelą); wpisanie
+     tego samego seeda powtarza budowę co do utworu.
 2. **B** — buduje set. Postęp leci na żywo, wynik ląduje w tabeli.
 3. Klikasz utwór w tabeli i **Z** — po prawej otwiera się panel z 10 propozycjami
    podmiany, ocenianymi w TYM miejscu setu (jak wchodzi po poprzednim i jak

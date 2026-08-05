@@ -538,3 +538,46 @@ def test_s_pyta_o_nazwe_a_o_pokazuje_bogaty_opis_i_x_usuwa(tmp_path,
             assert (tmp_path / "kosz").exists()
             assert len(list((tmp_path / "kosz").glob("plan_*.json"))) == 1
     asyncio.run(go())
+
+
+def test_brief_swiezosc_i_seed(tmp_path, monkeypatch):
+    """Domyślnie deterministycznie (seed None); tryb świeży losuje seed,
+    gdy pola nie wypełniono; ręczny seed przechodzi; śmieciowy odmawia."""
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import Input, Select, TabbedContent
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
+            p = app._params()
+            assert p["novelty"] == "deterministic" and p["seed"] is None
+
+            app.query_one("#novelty", Select).value = "fresh"
+            p = app._params()
+            assert p["novelty"] == "fresh"
+            assert isinstance(p["seed"], int), "losowy seed przy pustym polu"
+
+            app.query_one("#seed", Input).value = "4821"
+            assert app._params()["seed"] == 4821
+
+            app.query_one("#seed", Input).value = "abc"
+            import pytest as _pytest
+            with _pytest.raises(ValueError, match="seed to liczba"):
+                app._params()
+    asyncio.run(go())
+
+
+def test_historia_setow_odcisk_i_odczyt(tmp_path, monkeypatch):
+    """Odcisk zbudowanego setu ląduje w historii i wraca przez recent()."""
+    import dancelab.tui.app as app_mod
+    monkeypatch.setattr(app_mod, "HISTORIA_SETOW", tmp_path / "historia.jsonl")
+    from dancelab.decision.history import (HistoryStore, context_hash,
+                                           fingerprint_plan)
+    odcisk = fingerprint_plan(["a", "b", "c"],
+                              ctx_hash=context_hash(bpm_min=128.0),
+                              seed=7, novelty_mode="fresh", pinned_ids=["b"])
+    HistoryStore(app_mod.HISTORIA_SETOW).append(odcisk)
+    wrocilo = HistoryStore(app_mod.HISTORIA_SETOW).recent()
+    assert len(wrocilo) == 1
+    assert wrocilo[0].track_ids_ordered == ["a", "b", "c"]
+    assert wrocilo[0].pinned_ids == ["b"] and wrocilo[0].seed == 7

@@ -62,6 +62,10 @@ MAX_TRACK_SEC = 15 * 60
 # przesunięcie, dopisanie) to darmowa prawda o guście — dopisujemy, nie gubimy.
 WERDYKTY_DIR = pathlib.Path("experiments_priv/2026-08-04_werdykty")
 
+# Historia zbudowanych setów (odciski) — karmi tryby świeżości silnika:
+# „fresh" umie omijać utwory i przejścia grane w poprzednich budowach.
+HISTORIA_SETOW = pathlib.Path("data/cache/tui_historia_setow.jsonl")
+
 
 def _parse_bpm(text: str) -> tuple[float | None, float | None, str | None]:
     """'128-140' → (128.0, 140.0). Pusty = brak okna. Błąd = komunikat."""
@@ -593,6 +597,17 @@ class DanceLabTUI(App):
                             yield Select([("smart", "smart"), ("harmonic", "harmonic"),
                                           ("bpm", "bpm")], value="smart", id="planner",
                                          allow_blank=False)
+                            yield Label("Świeżość", classes="field-label")
+                            yield Select(
+                                [("deterministyczny — zawsze ten sam", "deterministic"),
+                                 ("zachowawczy", "conservative"),
+                                 ("zrównoważony", "balanced"),
+                                 ("świeży", "fresh"),
+                                 ("odkrywczy", "exploratory")],
+                                value="deterministic", id="novelty",
+                                allow_blank=False)
+                            yield Input(placeholder="seed (puste = losowy)",
+                                        id="seed")
                             yield Button("Buduj set  [B]", id="go", variant="primary")
                         with Vertical(id="results"):
                             yield Static("Ustaw parametry i naciśnij B.", id="progress")
@@ -1101,9 +1116,20 @@ class DanceLabTUI(App):
         # puste „Graj jak…" to NoSelection, NIE zawsze identyczne z Select.BLANK
         # (złapane 05.08: budowa bez kotwicy padała na ODMOWIE) — bierzemy tylko str
         dj = get("#dj", Select).value
+        seed_txt = get("#seed", Input).value.strip()
+        if seed_txt and not seed_txt.lstrip("-").isdigit():
+            raise ValueError(f"seed to liczba całkowita, dostałem {seed_txt!r}")
+        novelty = get("#novelty", Select).value
+        if not isinstance(novelty, str) or not novelty:
+            novelty = "deterministic"
+        seed = int(seed_txt) if seed_txt else None
+        if novelty != "deterministic" and seed is None:
+            import random
+            seed = random.randint(1, 999_999)   # pokazywany w notce — do powtórki
         return dict(
             pool=get("#pool", Select).value,
             folder=get("#folder", Input).value.strip(),
+            novelty=novelty, seed=seed,
             minutes=minutes, bpm_min=lo, bpm_max=hi,
             styles=[s.strip() for s in get("#styles", Input).value.split(",") if s.strip()],
             dj=dj if isinstance(dj, str) and dj else None,
@@ -1192,7 +1218,11 @@ class DanceLabTUI(App):
         by_id_all = {a.track.track_id: a for a in analyses}
         tryb = self._user_state.get("tryb_filarow", "rozstaw")
 
+        from dancelab.decision.history import (HistoryStore, context_hash,
+                                               fingerprint_plan)
+        historia = HistoryStore(HISTORIA_SETOW).recent(limit=20)
         wspolne = dict(
+            novelty_mode=p["novelty"], seed=p["seed"], history=historia,
             arc=p["arc"], planner_mode=p["planner"], tempo_shape=p["tempo"],
             preferred_styles=p["styles"] or None,
             bpm_min=p["bpm_min"], bpm_max=p["bpm_max"],
@@ -1242,6 +1272,22 @@ class DanceLabTUI(App):
                + (f" na {len(filary)} filarach…" if filary else "…"))
             plan = build_set(analyses, weights, target_track_count=count,
                              locked_positions=rozstaw or None, **wspolne)
+        # Odcisk czeka w kontekście — do historii trafia dopiero przy S/W.
+        # Powód (zmierzony 06.08): dopisywanie przy każdym B zmieniało historię
+        # między budowami i TEN SAM seed dawał inny set — obietnica powtórki
+        # złamana. Świeżość ma omijać sety UŻYTE, nie każdy eksperymentalny B.
+        odcisk = fingerprint_plan(
+            list(plan.track_order),
+            ctx_hash=context_hash(bpm_min=p["bpm_min"], bpm_max=p["bpm_max"],
+                                  styles=tuple(p["styles"]), dj=p["dj"],
+                                  arc=p["arc"], tempo=p["tempo"],
+                                  planner=p["planner"]),
+            seed=p["seed"], novelty_mode=p["novelty"], pinned_ids=filary)
+        if p["novelty"] != "deterministic":
+            filar_notes.append(
+                f"świeżość: {p['novelty']} · seed {p['seed']} — ten sam seed "
+                f"powtarza ten set; historię świeżości karmią dopiero "
+                f"zapis (S) i wysyłka (W)")
         by_id = {a.track.track_id: a for a in analyses}
         self._ctx = dict(
             by_id=by_id, weights=weights,
@@ -1250,7 +1296,8 @@ class DanceLabTUI(App):
             anchor=(anchor.centroid if anchor else None),
             params=p,
             filary=filary,   # już po mapowaniu na egzemplarze kanoniczne —
-        )                    # flagi ⚑ w tabeli muszą trafiać w to, co GRA
+            odcisk=odcisk,   # flagi ⚑ muszą trafiać w to, co GRA; odcisk
+        )                    # do historii dopiero przy S/W
         notes = [*emb.notes, *gen.notes, *ton.notes, *filar_notes,
                  f"dokarmione: wektory {emb.attached}, gatunki {gen.attached}, "
                  f"tonacje RB {ton.attached}"]
@@ -1260,6 +1307,7 @@ class DanceLabTUI(App):
         return plan, by_id, notes
 
     def _show_plan(self, plan, by_id, extra_notes) -> None:
+        self._odcisk_zapisany = False
         self._order = list(plan.track_order)
         self._engine_order = list(plan.track_order)   # pierwotny plan — do werdyktu V
         self._edits = []
@@ -1300,10 +1348,13 @@ class DanceLabTUI(App):
             self._row_cells.append((nr, name, base))
         n = len(self._order)
         score = self._mean_score if self._mean_score is not None else "—"
+        par = self._ctx.get("params", {}) if self._ctx else {}
+        seed_txt = (f" · {par.get('novelty')} seed {par.get('seed')}"
+                    if par.get("novelty") not in (None, "deterministic") else "")
         self.query_one("#progress", Static).update(
             f"SET: {n} utworów · {total/60:.0f} min pełnych "
             f"(~{max(0,(total-75*(n-1)))/60:.0f} min przy blendach 75 s) "
-            f"· zgodność {score}")
+            f"· zgodność {score}{seed_txt}")
 
     # ------------------------------------------------------------- zapis
 
@@ -1579,6 +1630,21 @@ class DanceLabTUI(App):
         self._close_panel()
         self.action_load_plan()          # świeża lista
 
+    def _utrwal_odcisk(self, powod: str) -> None:
+        """Dopisz odcisk zbudowanego setu do historii świeżości — raz na
+        budowę, przy pierwszym użyciu (S albo W)."""
+        odcisk = (self._ctx or {}).get("odcisk")
+        if odcisk is None or getattr(self, "_odcisk_zapisany", False):
+            return
+        from dancelab.decision.history import HistoryStore
+        try:
+            HistoryStore(HISTORIA_SETOW).append(odcisk)
+        except Exception as exc:  # noqa: BLE001 — historia to dodatek
+            self._note(f"historii setu nie zapisałem: {exc}")
+            return
+        self._odcisk_zapisany = True
+        self._note(f"historia świeżości: odcisk dopisany ({powod})")
+
     # ------------------------------------------------- plan: zapis / wczytanie
 
     def action_save_plan(self) -> None:
@@ -1597,6 +1663,7 @@ class DanceLabTUI(App):
                              engine_order=self._engine_order,
                              edits=self._edits)
             self._note(f"plan zapisany: {nazwa} → {path}")
+            self._utrwal_odcisk("zapisany plan")
 
         self.push_screen(NazwaPlanuScreen(self._plan_name or "plan"),
                          _po_nazwie)
@@ -1709,6 +1776,10 @@ class DanceLabTUI(App):
             if p.get("dj"):
                 self.query_one("#dj", Select).value = p["dj"]
             self.query_one("#contour", Switch).value = bool(p.get("contour"))
+            if p.get("novelty"):
+                self.query_one("#novelty", Select).value = p["novelty"]
+            self.query_one("#seed", Input).value = \
+                str(p["seed"]) if p.get("seed") is not None else ""
         except Exception as exc:  # noqa: BLE001
             self._note(f"formularza nie dało się w pełni przywrócić: {exc}")
 
@@ -1912,6 +1983,7 @@ class DanceLabTUI(App):
             ui(self._note,
                f"✅ zapisane: {report.playlist_name} ({report.written} utworów) "
                f"· backup {report.backup_path}")
+            ui(self._utrwal_odcisk, "wysłany do Rekordboxa")
             self.call_from_thread(
                 self.notify,
                 f"✅ {report.playlist_name}: {report.written} utworów w Rekordboksie")

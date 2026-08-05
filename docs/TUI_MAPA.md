@@ -34,6 +34,7 @@ warnings zawsze widoczne, tonacja o pewności <0,5 przygaszona, stan Rekordboxa 
 | kotwice 284 DJ-ów (`dj_anchors.json`) | Select #dj (nazwa · wektory · mediana skoku) |
 | kontur skoków | Switch #contour |
 | łuk / plan tempa / tryb | Selecty #arc #tempo #planner |
+| świeżość §14 silnika (novelty_mode + seed + historia odcisków) — TUI wreszcie podpina istniejącą maszynerię; seed losowany i POKAZANY (powtórka = wpisz ten sam); historia `HISTORIA_SETOW` karmiona TYLKO przy S/W (zmierzone: dopisywanie przy każdym B łamało powtarzalność seeda — odcisk czeka w ctx, `_utrwal_odcisk` raz na budowę) | Select #novelty + Input #seed; seed w linii SET; notka o dopisaniu odcisku |
 | `SetPlan.track_order` | DataTable: # · BPM · ton · pewność · gatunek · Σ min · utwór |
 | `SetPlan.warnings` + notki dokarmiania | Log #warnings — SCHOWANY domyślnie (decyzja Janka 04.08), klawisz L (log) przełącza; licznik notek ZAWSZE w pasku statusu, ODMOWA i wynik zapisu dodatkowo dymkiem (kanał uczciwości przeniesiony, nie usunięty) |
 | tonacja z analizy Rekordboxa (`attach_rekordbox_keys`; pomiar 05.08: detektor 47% vs sędzia na 191 utworach) — źródło jawne `key_detection_source=rekordbox`, pewność 1,0 wg konwencji zaufanego źródła; manual DJ-a NIGDY nie nadpisany; cache na dysku zostaje silnikowy (sędzia mierzalny) | kolumna pew. pokazuje „RB”/„ręka” zamiast liczby; karta INFO nazywa źródło |
