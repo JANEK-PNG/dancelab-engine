@@ -626,3 +626,56 @@ def test_lufs_parser_cache_i_bramkarz(tmp_path, monkeypatch):
     def brak_ffprobe(path):
         raise FileNotFoundError
     assert sprawdz_plik("/m/ok.wav", run_fn=brak_ffprobe) is None
+
+
+def test_zdjecie_filtra_nie_ubija_granego_utworu(tmp_path, monkeypatch):
+    """Regres z życia 06.08: szukajka → play → wyczyszczenie filtra grało
+    pierwszy utwór z listy. Teraz: render NIE jest nawigacją, a kursor
+    odnajduje grany utwór na pełnej liście."""
+    import subprocess
+    import dancelab.tui.odtwarzacz as odt
+    monkeypatch.setattr(odt, "FFPLAY", "/fake/ffplay")
+    monkeypatch.setattr(odt, "AFPLAY", "/fake/afplay")
+
+    class _FakeProc:
+        def __init__(self, cmd):
+            self.cmd = cmd
+            self.killed = False
+
+        def poll(self):
+            return 1 if self.killed else None
+
+        def terminate(self):
+            self.killed = True
+
+    started = []
+    monkeypatch.setattr(subprocess, "Popen",
+                        lambda cmd: started.append(_FakeProc(cmd)) or started[-1])
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import DataTable, Input
+            app._set_library(list(LIB))
+            await pilot.pause()
+            app.query_one("#lib-search", Input).value = "hodge"
+            await pilot.pause(0.3)
+            table = app.query_one("#lib-table", DataTable)
+            assert table.row_count == 1
+            table.move_cursor(row=0)
+            table.focus()
+            await pilot.press("space")        # gra Hodge z przefiltrowanej
+            await pilot.pause()
+            assert started[-1].cmd[-1].endswith("Hodge - Wiggler.mp3")
+
+            app.query_one("#lib-search", Input).value = ""   # zdejmij filtr
+            await pilot.pause(0.5)
+            assert table.row_count == 5
+            assert not started[0].killed, "grany utwór przeżył zdjęcie filtra"
+            assert len(started) == 1, "nic nowego nie wystartowało"
+            wiersz = table.cursor_row
+            from dancelab.tui.app import _wykonawca_tytul
+            assert _wykonawca_tytul(
+                app._lib_view[wiersz].track)[0] == "Hodge", \
+                "kursor odnalazł grany utwór na pełnej liście"
+    asyncio.run(go())

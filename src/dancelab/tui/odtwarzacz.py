@@ -40,6 +40,10 @@ class Odtwarzacz:
 
     # ------------------------------------------------------------- stan
 
+    @property
+    def sciezka(self) -> str | None:
+        return self._path
+
     def gra(self) -> bool:
         return self._proc is not None and self._proc.poll() is None
 

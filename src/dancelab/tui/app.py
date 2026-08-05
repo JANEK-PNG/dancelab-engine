@@ -782,6 +782,8 @@ class DanceLabTUI(App):
                 notes.append(f"dokarmianie Biblioteki nie wyszło: {exc}")
         for note in notes:
             ui(self._note, note)
+        if not analyses and self._lib:
+            return   # pusty załadunek nie kasuje niepustej biblioteki
         ui(self._set_library, analyses)
 
     def _set_library(self, analyses: list) -> None:
@@ -825,6 +827,10 @@ class DanceLabTUI(App):
         from dancelab.tui.user_store import resolve_tracks
         table = self.query_one("#lib-table", DataTable)
         cursor = table.cursor_row if keep_cursor else None
+        self._render_w_toku = True
+        if self._auto_timer is not None:
+            self._auto_timer.stop()
+            self._auto_timer = None
         table.clear()
         search, key, lo, hi, err = self._lib_filters()
         rows = filter_library(self._lib, search=search, key=key,
@@ -879,8 +885,18 @@ class DanceLabTUI(App):
             info += f"   ·   filtr BPM: {err}"
         self.query_one("#lib-count", Static).update(info)
         self._update_lib_headers(table)
-        if cursor is not None and rows:
+        # kursor odnajduje GRANY utwór na nowej liście (żeby zdjęcie filtra
+        # nie gubiło kontekstu odsłuchu); w drugiej kolejności keep_cursor
+        grany = self._odtwarzacz.sciezka
+        wiersz_granego = next((i for i, a in enumerate(rows)
+                               if a.track.source_path == grany), None)             if grany else None
+        if wiersz_granego is not None:
+            table.move_cursor(row=wiersz_granego)
+        elif cursor is not None and rows:
             table.move_cursor(row=min(cursor, len(rows) - 1))
+        # zdarzenia podświetlenia przychodzą PO tym kodzie — flaga schodzi
+        # dopiero po przetworzeniu odświeżenia
+        self.call_after_refresh(setattr, self, "_render_w_toku", False)
 
     def _update_lib_headers(self, table) -> None:
         """Strzałka sortowania w SAMYM nagłówku: ↓ rosnąco, ↑ malejąco,
@@ -1421,6 +1437,10 @@ class DanceLabTUI(App):
         from rich.text import Text
         from dancelab.tui.user_store import resolve_tracks
         table = self.query_one("#set", DataTable)
+        self._render_w_toku = True
+        if self._auto_timer is not None:
+            self._auto_timer.stop()
+            self._auto_timer = None
         table.clear()
         total = 0.0
         self._plan_paths = []
@@ -1447,6 +1467,7 @@ class DanceLabTUI(App):
             )
             self._plan_paths.append(t.source_path)
             self._row_cells.append((nr, name, base))
+        self.call_after_refresh(setattr, self, "_render_w_toku", False)
         n = len(self._order)
         score = self._mean_score if self._mean_score is not None else "—"
         par = self._ctx.get("params", {}) if self._ctx else {}
@@ -2058,7 +2079,12 @@ class DanceLabTUI(App):
         przełącza odtwarzanie na nowo zaznaczony utwór. Przy pauzy/ciszy
         strzałki tylko chodzą po liście. Małe opóźnienie, żeby przytrzymana
         strzałka nie restartowała co wiersz (0,12 s — skrócone
-        na skargę Janka o sekundową przerwę)."""
+        na skargę Janka o sekundową przerwę).
+        PRZEBUDOWA tabeli (np. zdjęcie filtra) NIE jest nawigacją — złapane
+        na żywo 06.08: czyszczenie szukajki ubijało grany utwór i grało
+        pierwszy z listy."""
+        if getattr(self, "_render_w_toku", False):
+            return
         if not self._odtwarzacz.gra():
             return
         if getattr(event.data_table, "id", None) not in ("set", "lib-table"):
@@ -2071,6 +2097,9 @@ class DanceLabTUI(App):
         track = self._biezacy_track()
         if track is None:
             return
+        if str(track.source_path) == self._odtwarzacz.sciezka \
+                and self._odtwarzacz.gra():
+            return   # ten utwór JUŻ gra (np. kursor odnalazł go po renderze)
         blad = self._odtwarzacz.graj_od_zera(str(track.source_path),
                                              track.bpm_estimate)
         if blad:
