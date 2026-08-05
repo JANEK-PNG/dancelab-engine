@@ -262,7 +262,7 @@ def test_p_kontekstowe_pauza_skoki_i_szew(tmp_path, monkeypatch):
             await pilot.pause()
             assert started == []
 
-            await pilot.press("p")            # gra utwór (ffplay -ss 0)
+            await pilot.press("p")            # P = alias spacji
             await pilot.pause()
             assert started[0].cmd[0] == "/fake/ffplay"
             assert started[0].cmd[-1] == "/m/B.mp3"
@@ -296,9 +296,10 @@ def test_p_kontekstowe_pauza_skoki_i_szew(tmp_path, monkeypatch):
     asyncio.run(go())
 
 
-def test_auto_podglad_gra_za_strzalka_bez_nakladki(tmp_path, monkeypatch):
-    """Shift+P włącza auto-podgląd: ruch ↓ gra nowo zaznaczony utwór,
-    poprzedni proces bezwzględnie ubity (zero nakładki)."""
+def test_gdy_gra_strzalka_przelacza_jak_next_song(tmp_path, monkeypatch):
+    """Wzorzec Quick Look / next-song: gdy coś GRA, ↓ przełącza odtwarzanie
+    na nowo zaznaczony utwór (stary proces ubity — zero nakładki);
+    przy pauzie strzałki tylko chodzą po liście."""
     import subprocess
     import dancelab.tui.odtwarzacz as odt
     monkeypatch.setattr(odt, "FFPLAY", "/fake/ffplay")
@@ -334,20 +335,23 @@ def test_auto_podglad_gra_za_strzalka_bez_nakladki(tmp_path, monkeypatch):
             table = app.query_one("#set", DataTable)
             table.move_cursor(row=0)
             table.focus()
-            await pilot.press("P")            # Shift+P: tryb auto
+
+            await pilot.press("space")        # spacja = graj (standard)
             await pilot.pause()
-            assert app._auto_podglad
-            await pilot.press("down")         # ↓ → auto gra B
-            for _ in range(30):
-                await pilot.pause(0.1)
-                if started:
-                    break
-            assert started and started[0].cmd[-1] == "/m/B.mp3"
-            await pilot.press("down")         # ↓ → C, a B ubity
+            assert started and started[0].cmd[-1] == "/m/A.mp3"
+
+            await pilot.press("down")         # gra → ↓ = next song
             for _ in range(30):
                 await pilot.pause(0.1)
                 if len(started) > 1:
                     break
             assert started[0].killed, "zero nakładki"
-            assert started[1].cmd[-1] == "/m/C.mp3"
+            assert started[1].cmd[-1] == "/m/B.mp3"
+
+            await pilot.press("space")        # pauza
+            await pilot.pause()
+            assert started[1].killed
+            await pilot.press("down")         # pauza → ↓ tylko zaznacza
+            await pilot.pause(0.5)
+            assert len(started) == 2, "przy pauzie strzałka NIE gra"
     asyncio.run(go())

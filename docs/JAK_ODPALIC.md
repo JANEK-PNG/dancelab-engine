@@ -154,19 +154,21 @@ sprawdza odczytem, czy w bazie jest dokładnie to, co miało być.
 
 ## 6. Odsłuch
 
-Jeden klawisz odtwarzania — **P** — działa w Bibliotece i w Secie:
+Sterowanie jak w każdym odtwarzaczu (Spotify, Apple Music, Quick Look
+Findera) — bez własnych wynalazków:
 
-- **P** na zaznaczonym utworze: gra ten utwór. Drugie **P** pauzuje,
-  **P** na tym samym utworze wznawia od miejsca pauzy.
-- **C** w Secie otwiera **pasek szwu** nad tabelą — fakty o parze
-  zaznaczony→następny (kto z kim, ile uderzeń, czasy wyjścia i wejścia)
-  i przycisk **▶ Graj oba**. Przy otwartym pasku **P** gra przejście
-  pary. Drugie **C** lub **Esc** chowa pasek.
-- **→ / ←** w trakcie grania skaczą o **8 uderzeń** (równe 2 takty,
+- **Spacja** — graj / pauza zaznaczonego utworu (działa w Bibliotece
+  i w Secie; **P** robi to samo). Spacja na tym samym utworze wznawia
+  od miejsca pauzy.
+- **↓ / ↑ w trakcie grania** — działa jak „następny / poprzedni utwór":
+  odtwarzanie przełącza się na nowo zaznaczony utwór (poprzedni zawsze
+  zatrzymany). Przy pauzie lub ciszy strzałki tylko poruszają się
+  po liście.
+- **→ / ← w trakcie grania** — skok o **8 uderzeń** (równe 2 takty,
   liczone z tempa utworu). Gdy nic nie gra, strzałki działają normalnie.
-- **Shift+P** włącza **auto-podgląd**: strzałki ↓/↑ same grają
-  zaznaczany utwór (poprzedni zawsze zatrzymany). Stan widać w pasku
-  statusu; drugie **Shift+P** wyłącza.
+- **C** w Secie otwiera **pasek szwu** nad tabelą — fakty o parze
+  zaznaczony→następny i przycisk **▶ Graj oba**. Przy otwartym pasku
+  spacja/P gra przejście pary. Drugie **C** lub **Esc** chowa pasek.
 
 Dźwięk startuje wyłącznie z Twojego klawisza — nic nigdy nie gra samo.
 

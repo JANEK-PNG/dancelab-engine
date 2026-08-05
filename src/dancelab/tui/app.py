@@ -496,8 +496,8 @@ class DanceLabTUI(App):
         Binding("s", "save_plan", "Zapisz plan"),
         Binding("o", "load_plan", "Wczytaj"),
         Binding("v", "verdict", "Werdykt"),
-        Binding("p", "preview_seam", "Posłuchaj"),
-        Binding("P", "toggle_auto", "auto-podgląd", show=False),
+        Binding("space", "preview_seam", "Graj/Pauza", priority=True),
+        Binding("p", "preview_seam", "Posłuchaj", show=False),
         Binding("right", "skok_przod", "skok +8", show=False, priority=True),
         Binding("left", "skok_tyl", "skok -8", show=False, priority=True),
         Binding("c", "compare_pair", "Porównaj"),
@@ -543,8 +543,7 @@ class DanceLabTUI(App):
         self._lib_sort: tuple[int, bool] | None = None
         from dancelab.tui.odtwarzacz import Odtwarzacz
         self._odtwarzacz = Odtwarzacz()       # P: utwór / szew, pauza, skoki
-        self._auto_podglad = False            # Shift+P: strzałki grają same
-        self._auto_timer = None
+        self._auto_timer = None               # debounce podążania za kursorem
         self._compare_idx: int | None = None  # para w pasku szwu (C)
 
     # ------------------------------------------------------------- układ
@@ -703,8 +702,11 @@ class DanceLabTUI(App):
             # dalej ruszają kursorem tekstu
             return (self._odtwarzacz.gra()
                     and isinstance(self.focused, DataTable))
-        if action in ("preview_seam", "toggle_auto"):
-            return active in ("tab-lib", "tab-set")
+        if action == "preview_seam":
+            # spacja ma priorytet, więc bramka musi puszczać ją do pól
+            # tekstowych i przycisków, gdy to one mają fokus
+            return (active in ("tab-lib", "tab-set")
+                    and isinstance(self.focused, DataTable))
         if action in self._LIB_ONLY:
             return active == "tab-lib"
         if action in self._SET_ONLY:
@@ -1122,7 +1124,6 @@ class DanceLabTUI(App):
         n_bak = len(list(BACKUP_DIR.glob("*.db"))) if BACKUP_DIR.exists() else 0
         self.query_one("#status", Static).update(
             f"{rb}   ·   backupy: {n_bak}   ·   notki: {self._n_notes} (L)"
-            + ("   ·   ▶ AUTO-podgląd" if self._auto_podglad else "")
             + f"   ·   pula: {self.processed_dir}")
 
     def _note(self, line: str) -> None:
@@ -1872,7 +1873,7 @@ class DanceLabTUI(App):
 
     def _stop_player(self) -> bool:
         if self._odtwarzacz.stop():
-            self._note("odsłuch: pauza (P na tym samym utworze wznawia)")
+            self._note("odsłuch: pauza (spacja na tym samym utworze wznawia)")
             return True
         return False
 
@@ -1922,19 +1923,10 @@ class DanceLabTUI(App):
             return
         nazwa = pathlib.Path(track.source_path).stem[:40]
         if akcja == "pauza":
-            self._note("odsłuch: pauza (P wznawia)")
+            self._note("odsłuch: pauza (spacja wznawia)")
         else:
-            self._note(f"GRA: {nazwa} ({akcja}) · P pauza · →/← ±8 uderzeń")
+            self._note(f"GRA: {nazwa} ({akcja}) · spacja pauza · ↓/↑ następny · →/← ±8")
         self._pokaz_odtwarzacz()
-
-    def action_toggle_auto(self) -> None:
-        """Shift+P: auto-podgląd — ↓/↑ same grają zaznaczany utwór
-        (poprzedni bezwzględnie zatrzymany — zero nakładki)."""
-        self._auto_podglad = not self._auto_podglad
-        self._note("auto-podgląd: "
-                   + ("ON — strzałki grają same" if self._auto_podglad
-                      else "OFF"))
-        self._refresh_status()
 
     def action_skok_przod(self) -> None:
         self._skok(+8)
@@ -1953,13 +1945,15 @@ class DanceLabTUI(App):
         opis = self._odtwarzacz.opis()
         if opis:
             self.query_one("#progress", Static).update(
-                f"▶ {opis} · P pauza · →/← ±8 uderzeń"
-                + (" · AUTO" if self._auto_podglad else ""))
+                f"▶ {opis} · spacja pauza · →/← ±8 uderzeń · ↓/↑ następny")
 
     def on_data_table_row_highlighted(self, event) -> None:
-        """Auto-podgląd: zmiana zaznaczenia gra nowy utwór (małe opóźnienie,
-        żeby przytrzymana strzałka nie restartowała co wiersz)."""
-        if not self._auto_podglad:
+        """Wzorzec Finder Quick Look (decyzja Janka 06.08 — koniec
+        z wynajdywaniem koła): GDY COŚ GRA, ↓/↑ działa jak next/previous —
+        przełącza odtwarzanie na nowo zaznaczony utwór. Przy pauzy/ciszy
+        strzałki tylko chodzą po liście. Małe opóźnienie, żeby przytrzymana
+        strzałka nie restartowała co wiersz."""
+        if not self._odtwarzacz.gra():
             return
         if getattr(event.data_table, "id", None) not in ("set", "lib-table"):
             return
