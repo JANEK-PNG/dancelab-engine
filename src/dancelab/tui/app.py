@@ -595,7 +595,11 @@ class DanceLabTUI(App):
                             # guzik pod szukajką, nie obok Analizuj/Zbuduj
                             yield Button("Artwork sync", id="lib-artwork")
                         yield Static("", id="lib-count")
-                        yield DataTable(id="lib-table")
+                        # priorytet fg "renderable": obrazki TGP kodują SIEBIE
+                        # w kolorze pisma (kolor = id obrazka u terminala) —
+                        # kursor nadpisujący kolor wiersza kasował okładkę
+                        yield DataTable(id="lib-table",
+                                        cursor_foreground_priority="renderable")
                         with Horizontal(id="pb-box"):
                             with Horizontal(id="pb-row1"):
                                 yield Button("Poprz.", id="pb-prev")

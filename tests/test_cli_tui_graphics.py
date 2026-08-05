@@ -55,3 +55,23 @@ def test_ostry_renderer_rozpoznaje_po_module_nie_po_nazwie(monkeypatch):
     assert _ostry_renderer() is Sixel, "Sixel (iTerm2/WezTerm) też jest ostry"
     monkeypatch.setattr(tir, "Image", Polbloki)
     assert _ostry_renderer() is None, "półbloki = zostajemy przy naszej mozaice"
+
+
+def test_kursor_nie_kasuje_okladek_w_liscie():
+    """Obrazek TGP koduje SIEBIE w kolorze pisma (kolor znaku = id obrazka
+    dla terminala). Domyślny kursor DataTable nadpisuje kolor wiersza →
+    okładka pod kursorem znikała (zrzut Janka, 08.08). Priorytet
+    'renderable' oddaje kolor treści."""
+    import asyncio
+
+    from textual.widgets import DataTable
+
+    from dancelab.tui.app import DanceLabTUI
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test():
+            tabela = app.query_one("#lib-table", DataTable)
+            assert tabela.cursor_foreground_priority == "renderable"
+
+    asyncio.run(go())
