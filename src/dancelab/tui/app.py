@@ -474,10 +474,10 @@ class DanceLabTUI(App):
     .field-label { color: $text-muted; }
     #tabs { height: 1fr; }
     #lib-side-list { height: auto; }
-    #pb-box { align-horizontal: center; height: 5; }
+    #pb-box { height: 5; }
     #pb-info { height: 1; color: $text-muted; text-align: center;
                width: 100%; }
-    #pb-row1 { height: 3; align-horizontal: center; width: auto; }
+    #pb-row1 { height: 3; width: 100%; align-horizontal: center; }
     #pb-row1 Button { margin-right: 1; min-width: 8; }
     #lib-side { width: 26; border-right: solid $primary; padding: 0 1; }
     #lib-filters { height: 3; }
