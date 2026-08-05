@@ -87,8 +87,8 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
 5. **S** — zapisuje plan na dysk; **O** — wczytuje zapisany plan (także po
    ponownym uruchomieniu aplikacji; utwory, których nie ma już w puli, są
    pomijane z wyraźną notką).
-6. **C** — PORÓWNAJ parę: od dołu wysuwa się panel jak zakładka Export
-   w Rekordboksie — dwa paski energii całych utworów nad sobą, ze złotym
+6. **C** — PORÓWNAJ parę: NAD tabelą setu (playlista zjeżdża w dół — układ
+   jak w Rekordboksie: waveformy na górze, lista pod spodem) otwiera się panel — dwa paski energii całych utworów nad sobą, ze złotym
    oknem tam, gdzie silnik planuje wyjście z A i wejście w B, plus czasy cue
    i rozumowanie długości szwu. Drugie **C** albo **Esc** chowa.
    **P** — POSŁUCHAJ szwu: renderuje przejście zaznaczony→następny dokładnie

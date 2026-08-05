@@ -453,7 +453,7 @@ class DanceLabTUI(App):
     #lib-filters Input { width: 1fr; margin-right: 1; }
     #lib-count { height: 2; color: $text-muted; padding: 0 1 1 1; }
     #lib-table .datatable--header { text-style: bold; background: $boost; }
-    #compare { height: 7; border-top: solid $accent; padding: 0 1;
+    #compare { height: 8; border-bottom: solid $accent; padding: 0 1;
                display: none; }
     #compare.open { display: block; }
     #cmp-title { color: $accent; text-style: bold; }
@@ -580,6 +580,11 @@ class DanceLabTUI(App):
                             yield Button("Buduj set  [B]", id="go", variant="primary")
                         with Vertical(id="results"):
                             yield Static("Ustaw parametry i naciśnij B.", id="progress")
+                            with Vertical(id="compare"):
+                                yield Static("", id="cmp-title")
+                                yield Static("", id="cmp-a")
+                                yield Static("", id="cmp-b")
+                                yield Static("", id="cmp-info")
                             yield DataTable(id="set")
                             yield Log(id="warnings", highlight=False)
                         with Vertical(id="suggest"):
@@ -591,11 +596,6 @@ class DanceLabTUI(App):
                                          allow_blank=False)
                             yield OptionList(id="suggest-list")
                             yield Static("", id="suggest-info")
-                    with Vertical(id="compare"):
-                        yield Static("", id="cmp-title")
-                        yield Static("", id="cmp-a")
-                        yield Static("", id="cmp-b")
-                        yield Static("", id="cmp-info")
             with TabPane("Eksport / Cue", id="tab-export"):
                 yield Static(
                     "Edytor hot cue — w budowie (TUI_WIZJA_2: dodaj / usuń / "
