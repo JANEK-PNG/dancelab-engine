@@ -1,148 +1,201 @@
-# DanceLab — jak samemu odpalić aplikację (TUI)
+# DanceLab — instrukcja użytkownika
 
-Stan: 2026-08-04. Ta instrukcja jest dla Ciebie (i dla Barta) — zero wiedzy
-technicznej nie przeszkadza.
+Wersja z 2026-08-06. Dla DJ-a, bez wiedzy technicznej.
+DanceLab buduje sety z Twojej biblioteki: analizuje utwory, układa
+kolejność wokół Twoich decyzji i oddaje gotową playlistę do Rekordboxa.
 
-## Sposób 1 — podwójne kliknięcie (polecany)
+---
 
-Na biurku leży **`DanceLab.command`** — kliknij dwa razy i aplikacja wstaje.
-Skrót zawsze odpala AKTUALNY kod z repo, więc po każdej aktualizacji
-dostajesz nową wersję bez robienia czegokolwiek.
+## 1. Uruchamianie
 
-(Drugi egzemplarz tego pliku leży w `Developer/dancelab-engine` — gdyby ten
-z biurka kiedyś zginął. Przy pierwszym uruchomieniu macOS może zapytać, czy
-na pewno otworzyć — kliknij prawym → **Otwórz**, potem już nie pyta.)
+**Sposób podstawowy:** na biurku leży plik **DanceLab.command** — kliknij
+go dwa razy. Otworzy się okno Terminala i wstanie aplikacja. Skrót zawsze
+uruchamia aktualną wersję — po każdej aktualizacji po prostu klikasz ten
+sam plik.
 
-## Sposób 2 — ręcznie w Terminalu
+**Sposób ręczny** (gdyby skrót zginął):
 
 ```bash
 cd ~/Developer/dancelab-engine && .venv/bin/dancelab tui
 ```
 
-## Zakładki
+Przy pierwszym uruchomieniu macOS może dopytać — kliknij plik prawym
+przyciskiem i wybierz **Otwórz**; więcej nie zapyta.
 
-Aplikacja ma trzy zakładki: **Biblioteka · Set · Eksport/Cue** — przełączasz
-je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
+---
 
-### Biblioteka
-- **Sekcje po lewej** (zawsze widoczne, jak w Apple Music): Cała biblioteka,
-  ♥ Ulubione utwory, ⚑ Filary; przypięte playlisty dojdą z widokiem playlist.
-- **Szukajka i filtry** na górze: fragment nazwy lub gatunku, dokładna
-  tonacja (np. `8A`), okno tempa (np. `125-140`). Filtrują na żywo.
-- Tabela pokazuje wszystko, co silnik wie: BPM, tonację (tam, gdzie
-  Rekordbox ją zna, gra jego tonacja — w kolumnie pewności widzisz „RB"
-  zamiast liczby; pytajnik został tylko dla utworów bez tonacji w RB),
-  względną energię (0–100 w obrębie Twojej biblioteki; „—" = silnik nie wie),
-  **LUFS** (głośność wg EBU R128 — mierzona ffmpegiem w tle przy pierwszym
-  uruchomieniu, „…" dopóki tło nie domierzy; potem z trwałego cache),
-  gatunek, długość.
-- **U** — przypina utwór do ulubionych (♥). **F** — robi z utworu **FILAR**:
-  utwór, który MUSI zagrać w budowanym secie. Filarów jest **od 3 do 10** —
-  silnik projektuje drogę MIĘDZY filarami, reszta należy do niego.
-  Legenda z tymi skrótami jest cały czas widoczna nad tabelą.
-- **G** albo przycisk **„→ Zbuduj z filarów"** — przenosi filary do zakładki
-  Set jako **szkic** (złote wiersze z flagą ⚑), CELOWO bez budowania. Po G
-  otwiera się **panel trybów filarów** (drugie **F** w zakładce Set otwiera go
-  w każdej chwili; klik + F wybiera):
-  - **Podpory** — silnik najpierw buduje konstrukcję bez filarów, mierzy
-    każde przęsło i wstawia filary w zmierzone najsłabsze miejsca;
-  - **Równy rozstaw** — filary równomiernie po całym secie;
-  - **Rama** — najwolniejszy filar otwiera set, najszybszy zamyka, środek
-    równomiernie.
-  Potem uzupełniasz brief po lewej (minuty, okno tempa, gatunki, kotwica)
-  i **B** buduje. Filary w gotowym secie są oznaczone ⚑ i złotem, a zachowują
-  się jak zwykłe utwory (przesuwanie, dopisywanie, podmiana);
-  **wycięcie filaru (X) zdejmuje też pin** — F w Bibliotece przypina
-  z powrotem.
-- **Sortowanie**: nagłówki kolumn to klikalne kafelki. Klik = **↓** (od
-  małego do większego), drugi klik = **↑** (odwrotnie), trzeci kasuje —
-  strzałka znika. Strzałkę widać w samym nagłówku i w liczniku; utwory bez
-  wartości idą zawsze na koniec.
-- Kolumny **wykonawca** i **tytuł** są osobno — tam, gdzie plik nie ma tagów,
-  dane dociągają się z Twojej kolekcji Rekordboxa, a w ostateczności
-  z nazwy pliku.
-- Na dole wiersz **Analizuj**: wklej ścieżkę folderu z muzyką i kliknij —
-  tak dogrywasz nowe pliki do puli (i tak zaczyna pierwszy użytkownik).
-  Przed analizą pliki sprawdza **bramkarz** (ffprobe): uszkodzone i bez
-  strumienia audio odpadają z imiennym powodem, zamiast kłaść analizę.
+## 2. Pojęcia
 
-### Set — budowa i edycja (szczegóły niżej)
+| pojęcie | znaczenie |
+|---|---|
+| **brief** | formularz po lewej w zakładce Set: długość, okno tempa, gatunki, kotwica, świeżość — Twoje zamówienie na set |
+| **set** | ułożona przez silnik kolejność utworów w tabeli |
+| **filar** | utwór oznaczony w Bibliotece jako obowiązkowy: MUSI zagrać w budowanym secie; filarów jest od 3 do 10 |
+| **kotwica** | brzmienie „graj jak…" — wybrany DJ, do którego silnik zbliża dobór utworów |
+| **szew** | przejście między dwoma sąsiednimi utworami setu |
+| **pasek szwu** | panel nad tabelą (klawisz C) z faktami o szwie i odtwarzaniem pary |
+| **plan** | zapisany na dysku stan setu, z nazwą — można do niego wrócić po zamknięciu aplikacji |
+| **werdykt** | zapis Twojej decyzji (cięcie, podmiana, przesunięcie) — z tych zapisów silnik będzie uczył się Twojego gustu |
+| **notki** | dziennik silnika: czego nie wie, co odrzucił i dlaczego (klawisz L) |
+| **LUFS** | zmierzona głośność utworu; im bliżej zera, tym głośniej |
+| **seed** | liczba sterująca losowością świeżości: ten sam seed powtarza identyczny set |
 
-### Eksport/Cue — w budowie (edytor hot cue wg wizji 2.0)
+---
 
-## Co robisz w środku (zakładka Set)
+## 3. Zakładki
 
-1. **Formularz** (góra): pula utworów, długość w minutach, okno tempa
-   (np. `130-135`), gatunki (Twoje tagi z Rekordboxa), DJ z listy kotwic
-   („graj jak X"), kontur skoków, **Świeżość** i **seed**.
-   - Świeżość `deterministyczny` (domyślna): ten sam brief = zawsze ten sam
-     set. Tryby `zachowawczy → odkrywczy` coraz mocniej omijają utwory
-     i przejścia z setów, które ZAPISAŁEŚ (S) albo WYSŁAŁEŚ (W) — sam klik
-     B historii nie karmi.
-   - Seed: puste pole = losowy (pokazany w notkach i nad tabelą); wpisanie
-     tego samego seeda powtarza budowę co do utworu.
-2. **B** — buduje set. Postęp leci na żywo, wynik ląduje w tabeli.
-3. Klikasz utwór w tabeli i **Z** — po prawej otwiera się panel z 10 propozycjami
-   podmiany, ocenianymi w TYM miejscu setu (jak wchodzi po poprzednim i jak
-   wychodzi w następny). Klikasz propozycję i znów **Z** — podmiana zrobiona.
-   - W panelu jest **wybór trybu oceny**: `smart` (pełna ocena, którą powstał
-     set, plus kotwica), `BPM najpierw` albo `tonacja najpierw` — zmiana trybu
-     od razu przelicza propozycje.
-4. **Edycja setu** (te same ruchy, które robiłeś ręcznie w Rekordboksie):
-   - **X** — wycina zaznaczony utwór;
-   - **Shift+↑ / Shift+↓** — przesuwa zaznaczony utwór w górę/dół;
-   - **A** — dopisuje NOWY utwór ZA zaznaczonym: panel 10 propozycji jak przy Z,
-     klik + drugie **A** dopisuje (nikt nie wypada).
-   Każda taka edycja zapisuje się jako Twój werdykt — silnik się z nich uczy.
-5. **S** — zapisuje plan: najpierw pyta o **nazwę** (po niej go potem
-   znajdziesz). **O** — lista zapisanych planów z pełnym opisem: nazwa,
-   liczba utworów, okno BPM, kotwica, data; klik + drugie **O** wczytuje
-   (także po ponownym uruchomieniu; braki w puli pomijane z notką),
-   **X** usuwa zaznaczony plan (miękko, do kosza obok planów).
-6. **C** — PASEK SZWU (wzorzec z CURVE: „+" między dwoma utworami):
-   nad tabelą pojawia się jedna linia faktów o parze zaznaczony→następny
-   (kto z kim, ile uderzeń, czasy wyjścia i wejścia) i JEDEN przycisk
-   **▶ Graj oba**. Beatsync i kwantyzacja są zawsze włączone — siedzą
-   w naturze renderu. Drugie **C** albo **Esc** chowa.
-   **P** jest kontekstowe i działa w Secie ORAZ w Bibliotece: przy
-   zamkniętym pasku szwu gra **sam zaznaczony utwór**; po otwarciu paska
-   (**C**) gra **przejście pary**. Drugie **P** = pauza, **P** na tym samym
-   utworze = wznowienie od miejsca.
-   - **→ / ←** podczas grania skaczą o **±8 uderzeń** (liczone z tempa
-     utworu — dokładnie 2 takty); gdy nic nie gra, strzałki działają
-     normalnie w tabeli.
-   - **Shift+P** włącza **auto-podgląd**: ↓/↑ same grają zaznaczany utwór
-     (poprzedni zawsze zatrzymany — zero nakładki); stan widać w pasku
-     statusu. Dźwięk zawsze startuje tylko z Twojego klawisza.
-7. **V** — świadomy werdykt: zrzuca obok siebie „co ułożył silnik" i „co
-   zostawiłeś po swoich zmianach".
-   **I** — karta informacji o zaznaczonym utworze: metadane silnika (BPM,
-   tonacja z pewnością, gatunek, długość), lokalizacja pliku na dysku oraz
-   to, co wie Rekordbox (jego BPM, komentarz i playlisty, w których utwór
-   aktualnie leży — prosto z master.db). Drugie **I** albo **Esc** zamyka.
-8. **W** — wgrywa playlistę do Rekordboxa. **Rekordbox musi być ZAMKNIĘTY** —
-   inaczej aplikacja odmówi i nic nie dotknie. Przed każdym zapisem sama robi
-   kopię bazy (`DanceLab_backups/`), a po zapisie sprawdza odczytem, czy w bazie
-   jest dokładnie to, co miało być.
-9. **Esc** — zamyka panel po prawej / zatrzymuje odsłuch / przerywa budowę.
-   **Q** — wyjście.
+Aplikacja ma trzy zakładki — przełączasz je klawiszami **Ctrl+Tab** albo
+kliknięciem w nazwę:
 
-## Jak czytać ekran (zasada uczciwości)
+1. **Biblioteka** — wszystkie przeanalizowane utwory: przeglądanie,
+   szukanie, odsłuch, ulubione i filary.
+2. **Set** — brief, budowa setu, edycja i wysyłka do Rekordboxa.
+3. **Eksport / Cue** — w budowie (edytor hot cue).
 
-- BPM i tonacja są pogrubione — czytelne w jasnym i ciemnym motywie.
-- Przygaszona tonacja ze znakiem „?" = silnik nie jest jej pewny (pewność
-  poniżej 0,5).
-- Pasek skrótów na dole jest kontekstowy: w Bibliotece widzisz klawisze
-  Biblioteki, w Secie — Setu.
-- Notki silnika („czego nie wiem, co odrzuciłem") są schowane — **L** (log)
-  je pokazuje i chowa; licznik notek widać zawsze w pasku statusu. Odmowy
-  i wynik zapisu do Rekordboxa wyskakują same jako dymek.
-- Pasek statusu pokazuje, czy Rekordbox chodzi i ile jest kopii zapasowych.
+---
 
-## Gdy coś nie działa
+## 4. Biblioteka
 
-- **Krzywo wygląda / ucięte kolumny** → powiększ okno Terminala, aplikacja
-  sama się przerysuje.
-- **„command not found"** → uruchamiasz spoza folderu silnika; użyj Sposobu 1.
-- **W odmawia** → to nie błąd: Rekordbox jest otwarty. Zamknij go i spróbuj
-  jeszcze raz.
+### Co widzisz
+Po lewej stałe **sekcje**: Cała biblioteka, ♥ Ulubione utwory, ⚑ Filary.
+Na górze **szukajka** (fragment nazwy, wykonawcy, tytułu lub gatunku)
+oraz **filtry**: tonacja (np. `8A`) i okno tempa (np. `125-140`) —
+działają w trakcie pisania.
+
+Tabela pokazuje wszystko, co silnik wie o utworze: tempo, tonację,
+pewność tonacji, energię względną (0–100 w obrębie Twojej biblioteki),
+głośność LUFS, gatunek, długość oraz wykonawcę i tytuł w osobnych
+kolumnach.
+
+### Sortowanie
+Nagłówki kolumn to klikalne kafelki. Pierwsze kliknięcie sortuje rosnąco
+(strzałka ↓ w nagłówku), drugie malejąco (↑), trzecie wyłącza sortowanie.
+Utwory bez wartości w sortowanej kolumnie zawsze lądują na końcu.
+
+### Co możesz zrobić
+| klawisz | działanie |
+|---|---|
+| **U** | przypnij / odepnij ulubiony (♥) |
+| **F** | oznacz / odznacz utwór jako filar |
+| **G** | wyślij filary do zakładki Set jako szkic setu |
+| **P** | odsłuch zaznaczonego utworu (rozdział 6) |
+
+Na dole jest wiersz **Analizuj**: wklej ścieżkę folderu z muzyką
+i kliknij przycisk — tak dogrywasz nowe pliki (i tak zaczyna pierwszy
+użytkownik). Przed analizą każdy plik sprawdza bramkarz: uszkodzone
+odpadają z imiennym powodem, zamiast psuć analizę.
+
+---
+
+## 5. Set — od briefu do playlisty
+
+### Krok po kroku: zwykły set
+1. Wypełnij **brief** po lewej: długość w minutach, okno tempa
+   (np. `130-135`), ewentualnie gatunki i kotwicę.
+2. Naciśnij **B** — silnik buduje set; postęp widzisz na żywo.
+3. Przejrzyj tabelę, posłuchaj wątpliwych miejsc (rozdział 6), popraw
+   set edycją (niżej).
+4. Zapisz plan (**S**) i/lub wyślij do Rekordboxa (**W**).
+
+### Krok po kroku: set na filarach
+1. W Bibliotece oznacz **F** od 3 do 10 utworów, które muszą zagrać.
+2. Naciśnij **G** — filary trafiają do zakładki Set jako złote wiersze
+   z flagą ⚑, a aplikacja pyta o **tryb rozstawienia**:
+   - **Podpory** — silnik najpierw buduje set bez filarów, mierzy każde
+     przejście i wstawia filary w najsłabsze miejsca;
+   - **Równy rozstaw** — filary równomiernie po całym secie;
+   - **Rama** — najwolniejszy filar otwiera set, najszybszy zamyka.
+   Tryb zmienisz w każdej chwili drugim naciśnięciem **F** w Secie.
+3. Uzupełnij brief i naciśnij **B**. Filary pozostają oznaczone złotem
+   także w gotowym secie i zachowują się jak zwykłe utwory.
+
+### Świeżość i seed
+Pole **Świeżość** w briefie decyduje, czy ten sam brief daje zawsze ten
+sam set (`deterministyczny` — ustawienie domyślne), czy silnik ma omijać
+utwory i przejścia z setów już użytych (`zachowawczy` → `odkrywczy`,
+coraz mocniej). „Użyty" znaczy: zapisany (**S**) albo wysłany (**W**) —
+samo klikanie **B** nie liczy się jako granie. Przy trybach świeżości
+aplikacja losuje **seed** i pokazuje go nad tabelą; wpisanie tego samego
+seeda w brief powtarza set co do utworu.
+
+### Edycja setu
+| klawisz | działanie |
+|---|---|
+| **Z** | podmień zaznaczony utwór: panel po prawej pokazuje 10 propozycji ocenionych w tym miejscu setu; klik na propozycję i drugie **Z** wykonuje podmianę. W panelu wybierzesz tryb oceny: smart / BPM najpierw / tonacja najpierw |
+| **A** | dopisz nowy utwór ZA zaznaczonym — ten sam panel propozycji, klik i drugie **A** |
+| **X** | wytnij zaznaczony utwór; wycięcie filaru zdejmuje też jego pin |
+| **Shift+↑ / Shift+↓** | przesuń zaznaczony utwór w górę / w dół |
+
+Każda edycja zapisuje się jako werdykt.
+
+### Plany: zapis i powrót
+- **S** — pyta o **nazwę** i zapisuje plan (kolejność, brief, historię
+  edycji).
+- **O** — pokazuje listę planów z pełnym opisem (nazwa · liczba utworów ·
+  okno tempa · kotwica · data). Klik i drugie **O** wczytuje — także po
+  ponownym uruchomieniu aplikacji. **X** na liście usuwa plan (miękko,
+  do kosza obok planów). Utwory, których nie ma już w puli, są przy
+  wczytaniu pomijane z wyraźną notką.
+
+### Werdykt i informacje
+- **V** — zapisuje obok siebie „co ułożył silnik" i „co zostawiłeś po
+  swoich zmianach".
+- **I** — karta zaznaczonego utworu: metadane silnika, położenie pliku
+  na dysku oraz to, co wie Rekordbox (jego tonacja i tempo, komentarz,
+  playlisty, w których utwór leży). Drugie **I** lub **Esc** zamyka.
+
+### Wysyłka do Rekordboxa
+**W** tworzy playlistę z bieżącego setu w bazie Rekordboxa.
+**Rekordbox musi być zamknięty** — przy otwartym aplikacja odmówi i nic
+nie dotknie. Przed każdym zapisem sama robi kopię bazy, a po zapisie
+sprawdza odczytem, czy w bazie jest dokładnie to, co miało być.
+
+---
+
+## 6. Odsłuch
+
+Jeden klawisz odtwarzania — **P** — działa w Bibliotece i w Secie:
+
+- **P** na zaznaczonym utworze: gra ten utwór. Drugie **P** pauzuje,
+  **P** na tym samym utworze wznawia od miejsca pauzy.
+- **C** w Secie otwiera **pasek szwu** nad tabelą — fakty o parze
+  zaznaczony→następny (kto z kim, ile uderzeń, czasy wyjścia i wejścia)
+  i przycisk **▶ Graj oba**. Przy otwartym pasku **P** gra przejście
+  pary. Drugie **C** lub **Esc** chowa pasek.
+- **→ / ←** w trakcie grania skaczą o **8 uderzeń** (równe 2 takty,
+  liczone z tempa utworu). Gdy nic nie gra, strzałki działają normalnie.
+- **Shift+P** włącza **auto-podgląd**: strzałki ↓/↑ same grają
+  zaznaczany utwór (poprzedni zawsze zatrzymany). Stan widać w pasku
+  statusu; drugie **Shift+P** wyłącza.
+
+Dźwięk startuje wyłącznie z Twojego klawisza — nic nigdy nie gra samo.
+
+---
+
+## 7. Jak czytać ekran
+
+- **Pogrubione tempo i tonacja** — dla czytelności, w obu tabelach.
+- **„RB" w kolumnie pewności** — tonacja pochodzi z analizy Rekordboxa
+  (źródło, nie liczba). Przygaszona tonacja z „?" — silnik nie jest jej
+  pewny.
+- **„…" w kolumnie LUFS** — głośność jeszcze nie zmierzona (tło mierzy
+  po jednym utworze; wynik trafia do trwałej pamięci).
+- **Notki (L)** — silnik zapisuje tam, czego nie wie i co odrzucił;
+  licznik notek zawsze widać w pasku statusu, a odmowy i wynik wysyłki
+  wyskakują same jako dymek.
+- **Pasek skrótów na dole** pokazuje tylko klawisze aktywnej zakładki.
+
+Zasada całej aplikacji: **żadna liczba nie jest zmyślona** — gdy silnik
+czegoś nie wie, widzisz to wprost.
+
+---
+
+## 8. Gdy coś nie działa
+
+| objaw | co zrobić |
+|---|---|
+| krzywy układ, ucięte kolumny | powiększ okno Terminala — aplikacja sama się przerysuje |
+| „command not found" | uruchamiasz spoza folderu silnika — użyj skrótu z biurka |
+| **W** odmawia | to nie błąd: Rekordbox jest otwarty; zamknij go i ponów |
+| budowa odmawia | powód jest zawsze w notkach (**L**) i w dymku |
+| skoki →/← nie działają | wymagają zainstalowanego ffplay (`brew install ffmpeg`) |

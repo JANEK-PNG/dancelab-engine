@@ -1,5 +1,10 @@
 # DanceLab TUI — mapa komponentów silnika na interfejs
 
+> **Dokument WEWNĘTRZNY** (inżynierski): które organy silnika zasilają które
+> widżety, z historią decyzji i wet. Instrukcja dla użytkownika to osobny
+> dokument: `docs/JAK_ODPALIC.md` (+ PDF na biurku Janka) — pisany wg zasad
+> dokumentacji zadaniowej (ISO 26514): pojęcia, scenariusze, spójne nazwy.
+
 Stan: 2026-08-05. Układ 2.0 wg TUI_WIZJA_2 (zatwierdzony): ZAKŁADKI
 **Biblioteka · Set · Eksport/Cue**, Ctrl+Tab krąży. JĘZYK: interfejs w 100%
 po polsku — komunikaty silnika (po angielsku, konwencja kodu) tłumaczy
