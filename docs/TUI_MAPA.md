@@ -23,6 +23,7 @@ po polsku — komunikaty silnika (po angielsku, konwencja kodu) tłumaczy
 | LUFS `ingestion/loudness` (ffmpeg ebur128; pełne dekodowanie ~2-5 s/utwór → pomiar W TLE po utworze, trwały cache klucz path+size+mtime, postęp w liczniku; brak pomiaru = „…", nigdy zmyślony) | kolumna LUFS (sortowalna), worker group=lufs |
 | sortowanie: cykl `_cycle_sort` wg definicji Janka 06.08 (↓ rosnąco → ↑ malejąco → kasacja; braki ZAWSZE na końcu); strzałka w SAMYM nagłówku (`_update_lib_headers`) i w liczniku; nagłówki-kafelki (bold+$boost = affordance klikalności; Set bez tła — tam się nie klika); BPM/ton szersze (width 10/8, obie tabele) | klik w nagłówek #lib-table |
 | wykonawca/tytuł OSOBNO: tag z analizy → `attach_rekordbox_meta` (kolekcja RB uzupełnia TYLKO braki) → parsowanie „Artysta - Tytuł" → stem | kolumny 8/9; szukajka patrzy w oba |
+| K = okładki w liście on/off (kompromis nazwany: wiersze ×3 → ~3× mniej utworów w kadrze; stan trwały w user_store; kolumna art z przodu, mozaika 7×3 z cache LRU, kolumna niesortowalna) | klawisz K, legenda w liczniku |
 | sekcje po lewej (wzór Apple Music): Cała / ♥ Ulubione / ⚑ Filary (+ playlisty wkrótce) | OptionList #lib-side-list, zawsze widoczna; klik zawęża tabelę, nazwa sekcji w liczniku |
 
 ## Zakładka EXPORT/CUE — atrapa (krok f wizji: edytor hot cue)

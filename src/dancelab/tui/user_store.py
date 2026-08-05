@@ -26,7 +26,7 @@ MIN_FILARY = 3
 MAX_FILARY = 10
 
 _EMPTY = {"ulubione_utwory": [], "ulubione_playlisty": [], "filary": [],
-          "tryb_filarow": "rozstaw"}
+          "tryb_filarow": "rozstaw", "okladki_w_liscie": False}
 
 
 def _kopia(v):

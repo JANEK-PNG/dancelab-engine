@@ -76,6 +76,7 @@ Utwory bez wartości w sortowanej kolumnie zawsze lądują na końcu.
 | klawisz | działanie |
 |---|---|
 | **U** | przypnij / odepnij ulubiony (♥) |
+| **K** | okładki w liście: włącz / wyłącz (galeria z miniaturami — wiersze rosną, widać mniej utworów naraz; wybór zapamiętany) |
 | **F** | oznacz / odznacz utwór jako filar |
 | **G** | wyślij filary do zakładki Set jako szkic setu |
 | **P** | odsłuch zaznaczonego utworu (rozdział 6) |

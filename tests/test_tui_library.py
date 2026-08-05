@@ -149,8 +149,8 @@ def test_u_i_f_pinuja_z_biblioteki(tmp_path, monkeypatch):
             assert len(app._user_state["ulubione_utwory"]) == 1
             assert len(app._user_state["filary"]) == 1
             from textual.coordinate import Coordinate
-            assert str(table.get_cell_at(Coordinate(0, 0))) == "♥"
-            assert str(table.get_cell_at(Coordinate(0, 1))) == "F"
+            assert str(table.get_cell_at(Coordinate(0, 1))) == "♥"
+            assert str(table.get_cell_at(Coordinate(0, 2))) == "F"
             count_line = str(app.query_one("#lib-count", Static).render())
             assert "filary: 1 (min 3, max 10)" in count_line
             assert "F=filar" in count_line          # legenda widoczna na ekranie
@@ -230,36 +230,36 @@ def test_sortowanie_klikiem_w_naglowek():
             await pilot.pause()
             table = app.query_one("#lib-table", DataTable)
 
-            app._cycle_sort(2)                  # 1. klik BPM = ↓ rosnąco
-            assert app._lib_sort == (2, False)
+            app._cycle_sort(3)                  # 1. klik BPM = ↓ rosnąco
+            assert app._lib_sort == (3, False)
             app._render_library()
             await pilot.pause()
-            assert "Detlef" in str(table.get_cell_at(Coordinate(0, 9)))
+            assert "Detlef" in str(table.get_cell_at(Coordinate(0, 10)))
             assert "Bez Tempa" in str(
-                table.get_cell_at(Coordinate(4, 10))), "brak tempa na końcu"
-            klucz_bpm = app._lib_col_keys[2]
+                table.get_cell_at(Coordinate(4, 11))), "brak tempa na końcu"
+            klucz_bpm = app._lib_col_keys[3]
             assert "↓" in str(table.columns[klucz_bpm].label)
-            app._cycle_sort(2)                  # 2. klik = ↑ malejąco
-            assert app._lib_sort == (2, True)
+            app._cycle_sort(3)                  # 2. klik = ↑ malejąco
+            assert app._lib_sort == (3, True)
             app._render_library()
             await pilot.pause()
-            assert "Hodge" in str(table.get_cell_at(Coordinate(0, 9)))
+            assert "Hodge" in str(table.get_cell_at(Coordinate(0, 10)))
             assert "↑" in str(table.columns[klucz_bpm].label)
-            app._cycle_sort(2)                  # 3. klik kasuje, strzałka znika
+            app._cycle_sort(3)                  # 3. klik kasuje, strzałka znika
             assert app._lib_sort is None
             app._render_library()
             await pilot.pause()
             assert "↓" not in str(table.columns[klucz_bpm].label)
             assert "↑" not in str(table.columns[klucz_bpm].label)
 
-            app._cycle_sort(10)                 # tytuł: 1. klik A-Z
-            assert app._lib_sort == (10, False)
+            app._cycle_sort(11)                 # tytuł: 1. klik A-Z
+            assert app._lib_sort == (11, False)
             app._render_library()
             await pilot.pause()
-            assert "Bez Tempa" in str(table.get_cell_at(Coordinate(0, 10)))
-            app._cycle_sort(10)
-            assert app._lib_sort == (10, True)  # Z-A
-            app._cycle_sort(10)
+            assert "Bez Tempa" in str(table.get_cell_at(Coordinate(0, 11)))
+            app._cycle_sort(11)
+            assert app._lib_sort == (11, True)  # Z-A
+            app._cycle_sort(11)
             assert app._lib_sort is None
 
             # wykonawca sparsowany z nazwy pliku "Artysta - Tytuł"
@@ -701,3 +701,44 @@ def test_mozaika_okladki_renderuje_i_brak_jest_none(tmp_path, monkeypatch):
     linie = wyjscie.export_text().splitlines()
     assert len(linie) == 6, "wysokość w komórkach zgodna z zamówieniem"
     assert ok.mozaika("/m/bez.mp3", 12, 6) is None
+
+
+def test_k_przelacza_okladki_w_liscie(tmp_path, monkeypatch):
+    """K: galeria z okładkami (wiersze ×3, mozaika w 1. kolumnie) ↔ widok
+    kompaktowy; stan trwały."""
+    import dancelab.tui.okladki as ok
+    import dancelab.tui.user_store as store
+    monkeypatch.setattr(store, "STATE_PATH", tmp_path / "stan.json")
+    from PIL import Image
+    import io
+    buf = io.BytesIO()
+    Image.new("RGB", (50, 50), (10, 200, 90)).save(buf, format="PNG")
+    monkeypatch.setattr(ok, "_bajty_okladki",
+                        lambda path: buf.getvalue() if "Hodge" in path else None)
+    ok.mozaika.cache_clear()
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.coordinate import Coordinate
+            from textual.widgets import DataTable
+            from rich_pixels import Pixels
+            app._set_library(list(LIB))
+            await pilot.pause()
+            table = app.query_one("#lib-table", DataTable)
+            assert str(table.get_cell_at(Coordinate(0, 0))) == "", \
+                "kompaktowo: kolumna okładek pusta"
+            table.focus()
+            await pilot.press("k")
+            await pilot.pause()
+            assert app._user_state["okladki_w_liscie"] is True
+            wiersz_hodge = next(
+                i for i, a in enumerate(app._lib_view)
+                if "Hodge" in a.track.source_path)
+            assert isinstance(
+                table.get_cell_at(Coordinate(wiersz_hodge, 0)), Pixels), \
+                "galeria: mozaika w kolumnie okładek"
+            await pilot.press("k")
+            await pilot.pause()
+            assert app._user_state["okladki_w_liscie"] is False
+    asyncio.run(go())

@@ -307,17 +307,17 @@ def _lib_sort_missing(col: int, a, energy: dict, lufs: dict) -> bool:
     """Czy utwór nie ma wartości w sortowanej kolumnie — braki idą NA KONIEC
     niezależnie od kierunku sortowania (brak to brak, nie zero)."""
     t = a.track
-    if col == 2:
-        return t.bpm_estimate is None
     if col == 3:
-        return t.key_estimate is None
+        return t.bpm_estimate is None
     if col == 4:
-        return t.key_confidence is None
+        return t.key_estimate is None
     if col == 5:
-        return energy.get(t.track_id) is None
+        return t.key_confidence is None
     if col == 6:
-        return lufs.get(t.source_path) is None
+        return energy.get(t.track_id) is None
     if col == 7:
+        return lufs.get(t.source_path) is None
+    if col == 8:
         return not t.style_label
     return False
 
@@ -330,27 +330,27 @@ def _lib_sort_key(col: int, favs: set, filary: set, energy: dict,
 
     def key(a):
         t = a.track
-        if col == 0:
-            return (t.track_id not in favs, name(a))
         if col == 1:
-            return (t.track_id not in filary, name(a))
+            return (t.track_id not in favs, name(a))
         if col == 2:
-            return t.bpm_estimate or 0.0
+            return (t.track_id not in filary, name(a))
         if col == 3:
+            return t.bpm_estimate or 0.0
+        if col == 4:
             k = str(t.key_estimate or "")
             num = int(k[:-1]) if len(k) > 1 and k[:-1].isdigit() else 99
             return (num, k[-1:])
-        if col == 4:
-            return t.key_confidence or 0.0
         if col == 5:
-            return energy.get(t.track_id) or 0
+            return t.key_confidence or 0.0
         if col == 6:
-            return lufs.get(t.source_path) or 0.0
+            return energy.get(t.track_id) or 0
         if col == 7:
-            return (t.style_label or "").lower()
+            return lufs.get(t.source_path) or 0.0
         if col == 8:
-            return t.duration_sec or 0.0
+            return (t.style_label or "").lower()
         if col == 9:
+            return t.duration_sec or 0.0
+        if col == 10:
             return (_wykonawca_tytul(t)[0].lower() or "~", name(a))
         return (_wykonawca_tytul(t)[1].lower() or "~", name(a))
     return key
@@ -528,6 +528,7 @@ class DanceLabTUI(App):
         Binding("u", "toggle_fav", "♥ Ulubiony"),
         Binding("f", "toggle_filar", "Filar"),
         Binding("g", "build_from_filary", "Z filarów", show=False),
+        Binding("k", "toggle_okladki", "Okładki", show=False),
         Binding("ctrl+tab", "next_tab", "zakładka →", show=False),
         Binding("ctrl+shift+tab", "prev_tab", "← zakładka", show=False),
         Binding("escape", "cancel", "Anuluj"),
@@ -694,9 +695,9 @@ class DanceLabTUI(App):
         lib = self.query_one("#lib-table", DataTable)
         self._lib_col_keys = [
             lib.add_column(lbl, width=w)
-            for lbl, w in (("♥", None), ("F", None), ("BPM", 10), ("ton", 8),
-                           ("pew.", None), ("energia", None), ("LUFS", 7),
-                           ("gatunek", None), ("min", None),
+            for lbl, w in ((" ", 8), ("♥", None), ("F", None), ("BPM", 10),
+                           ("ton", 8), ("pew.", None), ("energia", None),
+                           ("LUFS", 7), ("gatunek", None), ("min", None),
                            ("wykonawca", None), ("tytuł", None))]
         lib.cursor_type = "row"
         side = self.query_one("#lib-side-list", OptionList)
@@ -723,7 +724,7 @@ class DanceLabTUI(App):
 
     # Pasek skrótów jest KONTEKSTOWY (prośba Janka: „lista skrótów rośnie") —
     # w Bibliotece widać klawisze Biblioteki, w Secie klawisze Setu.
-    _LIB_ONLY = {"toggle_fav", "build_from_filary"}
+    _LIB_ONLY = {"toggle_fav", "build_from_filary", "toggle_okladki"}
     _SET_ONLY = {"build", "write", "replace", "cut", "add", "move_up",
                  "move_down", "save_plan", "load_plan", "verdict",
                  "track_info", "compare_pair"}
@@ -845,7 +846,7 @@ class DanceLabTUI(App):
         favs, _ = resolve_tracks(self._user_state["ulubione_utwory"], by_id)
         filary, _ = resolve_tracks(self._user_state["filary"], by_id)
         favs, filary = set(favs), set(filary)
-        col, rev = self._lib_sort if self._lib_sort is not None else (2, False)
+        col, rev = self._lib_sort if self._lib_sort is not None else (3, False)
         znane = [a for a in rows if not _lib_sort_missing(
             col, a, self._lib_energy, self._lib_lufs)]
         braki = [a for a in rows if _lib_sort_missing(
@@ -859,12 +860,18 @@ class DanceLabTUI(App):
             rows = [a for a in rows if a.track.track_id in favs]
         elif section == "filary":
             rows = [a for a in rows if a.track.track_id in filary]
+        galeria = bool(self._user_state.get("okladki_w_liscie"))
+        if galeria:
+            from dancelab.tui.okladki import mozaika
         for a in rows:
             t = a.track
             conf = t.key_confidence
             en = self._lib_energy.get(t.track_id)
             dur = t.duration_sec or 0
+            art_cell = (mozaika(str(t.source_path), 7, 3) or ""
+                        ) if galeria else ""
             table.add_row(
+                art_cell,
                 "♥" if t.track_id in favs else "",
                 "F" if t.track_id in filary else "",
                 _bpm_cell(t), _key_cell(t),
@@ -876,6 +883,7 @@ class DanceLabTUI(App):
                 f"{dur/60:4.1f}",
                 _wykonawca_tytul(t)[0][:24],
                 _wykonawca_tytul(t)[1][:36],
+                height=3 if galeria else 1,
             )
         self._lib_view = rows
         sekcja = {"fav": "♥ Ulubione", "filary": "⚑ Filary"}.get(
@@ -883,7 +891,7 @@ class DanceLabTUI(App):
         info = (f"{sekcja}: {len(rows)} z {len(self._lib)} utworów   ·   "
                 f"filary: {len(self._user_state['filary'])} (min 3, max 10)"
                 f"   ·   ♥ {len(self._user_state['ulubione_utwory'])}"
-                f"   ·   U=♥  F=filar  G=filary do Set  ·  "
+                f"   ·   U=♥  F=filar  G=filary do Set  K=okładki  ·  "
                 + (f"sort: {self._SORT_NAMES[self._lib_sort[0]]}"
                    f"{'↑' if self._lib_sort[1] else '↓'} (3. klik kasuje)"
                    if self._lib_sort is not None else "sort: klik w nagłówek"))
@@ -917,6 +925,17 @@ class DanceLabTUI(App):
                 lbl += " ↑" if self._lib_sort[1] else " ↓"
             table.columns[key].label = Text(lbl)
         table.refresh()
+
+    def action_toggle_okladki(self) -> None:
+        """K: okładki w liście on/off (kompromis Janka: miniatury kosztem
+        3× mniej utworów w kadrze — więc przełącznik, nie dogmat)."""
+        from dancelab.tui.user_store import save_state
+        self._user_state["okladki_w_liscie"] = \
+            not self._user_state.get("okladki_w_liscie")
+        save_state(self._user_state)
+        stan = "włączone" if self._user_state["okladki_w_liscie"] else "wyłączone"
+        self._note(f"okładki w liście: {stan}")
+        self._render_library(keep_cursor=True)
 
     def action_toggle_fav(self) -> None:
         self._lib_toggle("ulubione_utwory", "♥")
@@ -982,10 +1001,12 @@ class DanceLabTUI(App):
     # Cykl wg definicji Janka (06.08, zastępuje wcześniejsze "liczby od
     # największej"): klik 1 = ↓ od małego do większego, klik 2 = ↑ odwrotnie,
     # klik 3 = reset i strzałka znika.
-    _SORT_NAMES = ("♥", "F", "BPM", "ton", "pew.", "energia", "LUFS",
+    _SORT_NAMES = (" ", "♥", "F", "BPM", "ton", "pew.", "energia", "LUFS",
                    "gatunek", "min", "wykonawca", "tytuł")
 
     def _cycle_sort(self, col: int) -> None:
+        if col == 0:
+            return                      # kolumna okładek nie sortuje
         cur = self._lib_sort
         if cur is None or cur[0] != col:
             self._lib_sort = (col, False)    # ↓ rosnąco
