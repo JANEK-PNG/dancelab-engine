@@ -20,19 +20,15 @@ CACHE_DIR = pathlib.Path("data/cache/seam_preview")
 DEFAULT_PROFILE = "contour_blend"
 
 
-def zbuduj_szew(analysis_a, analysis_b, weights) -> dict:
-    """Wyrenderuj (albo weź z cache) WAV szwu A→B. ValueError z powodem
-    po polsku, gdy silnik nie ma z czego zbudować szwu."""
+def zaplanuj_szew(analysis_a, analysis_b, weights) -> dict:
+    """Sam PLAN szwu (cue, długość, tempo) bez dotykania audio — wspólny
+    dla odsłuchu (P) i porównania pary (C). ValueError z powodem po polsku."""
     from dancelab.core.models import TransitionWindowInput, WindowType
     from dancelab.decision.cue_grid import snap_cue_start
     from dancelab.decision.tempo_adjustment import nearest_octave_candidate
     from dancelab.decision.transition_length import suggest_transition_beats
     from dancelab.decision.transition_windows import detect_transition_windows
-    from dancelab.preview.transition_simulation import (
-        plan_transition_duration,
-        render_transition_preview,
-        transition_preview_cache_path,
-    )
+    from dancelab.preview.transition_simulation import plan_transition_duration
 
     a, b = analysis_a, analysis_b
     bpm_a, bpm_b = a.track.bpm_estimate, b.track.bpm_estimate
@@ -72,13 +68,28 @@ def zbuduj_szew(analysis_a, analysis_b, weights) -> dict:
     if plan.selected_beats is None:
         raise ValueError("żadnemu z utworów nie starcza zapasu od cue "
                          "na ten szew")
+    return {"cue_a_sec": cue_a, "cue_b_sec": cue_b,
+            "beats": plan.selected_beats, "bpm": float(bpm_a),
+            "rate_b": rate_b, "rozumowanie": list(sug.reasoning)}
+
+
+def zbuduj_szew(analysis_a, analysis_b, weights) -> dict:
+    """Wyrenderuj (albo weź z cache) WAV szwu A→B wg planu z zaplanuj_szew."""
+    from dancelab.preview.transition_simulation import (
+        render_transition_preview,
+        transition_preview_cache_path,
+    )
+    a, b = analysis_a, analysis_b
+    info = zaplanuj_szew(a, b, weights)
+    cue_a, cue_b = info["cue_a_sec"], info["cue_b_sec"]
+    rate_b, bpm_a = info["rate_b"], info["bpm"]
 
     out = transition_preview_cache_path(
         CACHE_DIR,
         source_a=a.track.source_path, source_b=b.track.source_path,
         track_id_a=a.track.track_id, track_id_b=b.track.track_id,
         cue_a_sec=cue_a, cue_b_sec=cue_b, playback_rate_b=rate_b,
-        profile_id=DEFAULT_PROFILE, duration_beats=plan.selected_beats,
+        profile_id=DEFAULT_PROFILE, duration_beats=info["beats"],
     )
     if not out.exists():
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -86,8 +97,6 @@ def zbuduj_szew(analysis_a, analysis_b, weights) -> dict:
             source_a=a.track.source_path, source_b=b.track.source_path,
             cue_a_sec=cue_a, cue_b_sec=cue_b, bpm_master=bpm_a,
             playback_rate_b=rate_b, profile_id=DEFAULT_PROFILE,
-            output_path=out, duration_beats=plan.selected_beats,
+            output_path=out, duration_beats=info["beats"],
         )
-    return {"output": out, "cue_a_sec": cue_a, "cue_b_sec": cue_b,
-            "beats": plan.selected_beats, "bpm": float(bpm_a),
-            "rozumowanie": list(sug.reasoning)}
+    return {"output": out, **info}

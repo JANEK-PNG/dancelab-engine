@@ -87,7 +87,11 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
 5. **S** — zapisuje plan na dysk; **O** — wczytuje zapisany plan (także po
    ponownym uruchomieniu aplikacji; utwory, których nie ma już w puli, są
    pomijane z wyraźną notką).
-6. **P** — POSŁUCHAJ szwu: renderuje przejście zaznaczony→następny dokładnie
+6. **C** — PORÓWNAJ parę: od dołu wysuwa się panel jak zakładka Export
+   w Rekordboksie — dwa paski energii całych utworów nad sobą, ze złotym
+   oknem tam, gdzie silnik planuje wyjście z A i wejście w B, plus czasy cue
+   i rozumowanie długości szwu. Drugie **C** albo **Esc** chowa.
+   **P** — POSŁUCHAJ szwu: renderuje przejście zaznaczony→następny dokładnie
    tak, jak ułożył je silnik (okna mix-out/mix-in, długość ze stabilności
    szwu, krzywe jak w mikserze) i gra je od razu. Drugie **P** albo **Esc**
    zatrzymuje. Dźwięk startuje TYLKO z tego klawisza.

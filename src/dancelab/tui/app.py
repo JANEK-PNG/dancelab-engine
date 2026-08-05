@@ -218,6 +218,38 @@ def _bpm_cell(t):
     return Text(f"{t.bpm_estimate or 0:.1f}", style="bold")
 
 
+_BLOKI = "▁▂▃▄▅▆▇█"
+
+
+def pasek_energii(frames, duration_sec: float, width: int,
+                  seam_start: float, seam_end: float):
+    """Pasek energii całego utworu (RMS z ramek analizy) ze złotym oknem
+    szwu — wzorzec: górny pasek w Rekordboksie. Zwraca rich.Text.
+    Brak ramek = jawny napis, nie zmyślony płaski pasek."""
+    from rich.text import Text
+    vals = [(f.timestamp_sec, f.rms) for f in (frames or [])
+            if f.rms is not None]
+    if not vals or duration_sec <= 0 or width < 8:
+        return Text("(brak ramek energii)", style="dim")
+    kubelki = [0.0] * width
+    liczniki = [0] * width
+    for ts, rms in vals:
+        i = min(int(ts / duration_sec * width), width - 1)
+        kubelki[i] += rms
+        liczniki[i] += 1
+    srednie = [k / n if n else 0.0 for k, n in zip(kubelki, liczniki)]
+    lo, hi = min(srednie), max(srednie)
+    span = (hi - lo) or 1.0
+    text = Text()
+    for i, v in enumerate(srednie):
+        znak = _BLOKI[min(int((v - lo) / span * (len(_BLOKI) - 1) + 0.5),
+                          len(_BLOKI) - 1)]
+        t0 = i / width * duration_sec
+        w_szwie = seam_start <= t0 <= seam_end
+        text.append(znak, style=f"bold {PILLAR_COLOR}" if w_szwie else "dim")
+    return text
+
+
 def _wykonawca_tytul(t) -> tuple[str, str]:
     """Wykonawca i tytuł do kolumn Biblioteki: tag z analizy → uzupełnienie
     z RB (enrichment) → parsowanie nazwy pliku „Artysta - Tytuł" → sam stem."""
@@ -421,6 +453,10 @@ class DanceLabTUI(App):
     #lib-filters Input { width: 1fr; margin-right: 1; }
     #lib-count { height: 2; color: $text-muted; padding: 0 1 1 1; }
     #lib-table .datatable--header { text-style: bold; background: $boost; }
+    #compare { height: 7; border-top: solid $accent; padding: 0 1;
+               display: none; }
+    #compare.open { display: block; }
+    #cmp-title { color: $accent; text-style: bold; }
     #lib-table { height: 1fr; }
     #lib-onboard { height: 3; }
     #lib-onboard Input { width: 1fr; margin-right: 1; }
@@ -437,6 +473,7 @@ class DanceLabTUI(App):
         Binding("o", "load_plan", "Wczytaj"),
         Binding("v", "verdict", "Werdykt"),
         Binding("p", "preview_seam", "Posłuchaj"),
+        Binding("c", "compare_pair", "Porównaj"),
         Binding("i", "track_info", "Info"),
         Binding("l", "toggle_notes", "Log"),
         Binding("u", "toggle_fav", "♥ Ulubiony"),
@@ -508,51 +545,57 @@ class DanceLabTUI(App):
                             yield Button("→ Zbuduj z filarów  [G]",
                                          id="lib-build", variant="success")
             with TabPane("Set", id="tab-set"):
-                with Horizontal():
-                    with VerticalScroll(id="form"):
-                        yield Label("Pula", classes="field-label")
-                        yield Select([("Biblioteka (cache analiz)", "library"),
-                                      ("Folder…", "folder")],
-                                     value="library", id="pool", allow_blank=False)
-                        yield Input(placeholder="ścieżka folderu (tryb Folder)",
-                                    id="folder")
-                        yield Label("Długość [min]", classes="field-label")
-                        yield Input(value="90", id="minutes", type="number")
-                        yield Label("Okno tempa (np. 128-140)", classes="field-label")
-                        yield Input(placeholder="puste = bez okna", id="bpm")
-                        yield Label("Gatunki (Twoje tagi RB, po przecinku)",
-                                    classes="field-label")
-                        yield Input(placeholder="garage, breaks, bass", id="styles")
-                        yield Label("Graj jak… (kotwica)", classes="field-label")
-                        yield Select([], id="dj", prompt="— bez kotwicy —")
-                        with Horizontal():
-                            yield Switch(value=False, id="contour")
-                            yield Label(" kontur skoków tego DJ-a")
-                        yield Label("Łuk / plan tempa / tryb", classes="field-label")
-                        yield Select([("build", "build"), ("peak", "peak"),
-                                      ("flat", "flat")],
-                                     value="build", id="arc", allow_blank=False)
-                        yield Select([("staircase", "staircase"),
-                                      ("linear", "linear"),
-                                      ("off", "off")], value="staircase",
-                                     id="tempo", allow_blank=False)
-                        yield Select([("smart", "smart"), ("harmonic", "harmonic"),
-                                      ("bpm", "bpm")], value="smart", id="planner",
-                                     allow_blank=False)
-                        yield Button("Buduj set  [B]", id="go", variant="primary")
-                    with Vertical(id="results"):
-                        yield Static("Ustaw parametry i naciśnij B.", id="progress")
-                        yield DataTable(id="set")
-                        yield Log(id="warnings", highlight=False)
-                    with Vertical(id="suggest"):
-                        yield Label("", id="suggest-title")
-                        yield Select([("smart — pełna ocena + kotwica", "smart"),
-                                      ("BPM najpierw", "bpm"),
-                                      ("tonacja najpierw", "harmonic")],
-                                     value="smart", id="suggest-mode",
-                                     allow_blank=False)
-                        yield OptionList(id="suggest-list")
-                        yield Static("", id="suggest-info")
+                with Vertical():
+                    with Horizontal(id="set-main"):
+                        with VerticalScroll(id="form"):
+                            yield Label("Pula", classes="field-label")
+                            yield Select([("Biblioteka (cache analiz)", "library"),
+                                          ("Folder…", "folder")],
+                                         value="library", id="pool", allow_blank=False)
+                            yield Input(placeholder="ścieżka folderu (tryb Folder)",
+                                        id="folder")
+                            yield Label("Długość [min]", classes="field-label")
+                            yield Input(value="90", id="minutes", type="number")
+                            yield Label("Okno tempa (np. 128-140)", classes="field-label")
+                            yield Input(placeholder="puste = bez okna", id="bpm")
+                            yield Label("Gatunki (Twoje tagi RB, po przecinku)",
+                                        classes="field-label")
+                            yield Input(placeholder="garage, breaks, bass", id="styles")
+                            yield Label("Graj jak… (kotwica)", classes="field-label")
+                            yield Select([], id="dj", prompt="— bez kotwicy —")
+                            with Horizontal():
+                                yield Switch(value=False, id="contour")
+                                yield Label(" kontur skoków tego DJ-a")
+                            yield Label("Łuk / plan tempa / tryb", classes="field-label")
+                            yield Select([("build", "build"), ("peak", "peak"),
+                                          ("flat", "flat")],
+                                         value="build", id="arc", allow_blank=False)
+                            yield Select([("staircase", "staircase"),
+                                          ("linear", "linear"),
+                                          ("off", "off")], value="staircase",
+                                         id="tempo", allow_blank=False)
+                            yield Select([("smart", "smart"), ("harmonic", "harmonic"),
+                                          ("bpm", "bpm")], value="smart", id="planner",
+                                         allow_blank=False)
+                            yield Button("Buduj set  [B]", id="go", variant="primary")
+                        with Vertical(id="results"):
+                            yield Static("Ustaw parametry i naciśnij B.", id="progress")
+                            yield DataTable(id="set")
+                            yield Log(id="warnings", highlight=False)
+                        with Vertical(id="suggest"):
+                            yield Label("", id="suggest-title")
+                            yield Select([("smart — pełna ocena + kotwica", "smart"),
+                                          ("BPM najpierw", "bpm"),
+                                          ("tonacja najpierw", "harmonic")],
+                                         value="smart", id="suggest-mode",
+                                         allow_blank=False)
+                            yield OptionList(id="suggest-list")
+                            yield Static("", id="suggest-info")
+                    with Vertical(id="compare"):
+                        yield Static("", id="cmp-title")
+                        yield Static("", id="cmp-a")
+                        yield Static("", id="cmp-b")
+                        yield Static("", id="cmp-info")
             with TabPane("Eksport / Cue", id="tab-export"):
                 yield Static(
                     "Edytor hot cue — w budowie (TUI_WIZJA_2: dodaj / usuń / "
@@ -601,7 +644,7 @@ class DanceLabTUI(App):
     _LIB_ONLY = {"toggle_fav", "build_from_filary"}
     _SET_ONLY = {"build", "write", "replace", "cut", "add", "move_up",
                  "move_down", "save_plan", "load_plan", "verdict",
-                 "track_info", "preview_seam"}
+                 "track_info", "preview_seam", "compare_pair"}
 
     def check_action(self, action: str, parameters) -> bool:
         try:
@@ -1341,6 +1384,10 @@ class DanceLabTUI(App):
             self._close_panel()
             self.query_one("#set", DataTable).focus()
             return
+        if self.query_one("#compare").has_class("open"):
+            self.query_one("#compare").remove_class("open")
+            self.query_one("#set", DataTable).focus()
+            return
         if self._stop_player():
             return
         self._stop.set()
@@ -1656,6 +1703,75 @@ class DanceLabTUI(App):
         self.query_one("#progress", Static).update(
             f"▶ szew #{idx+1}→#{idx+2} · {info['beats']} uderzeń "
             f"@ {info['bpm']:.1f} BPM · P/Esc zatrzymuje")
+
+    # ------------------------------------------- porównanie pary od dołu (C)
+
+    def action_compare_pair(self) -> None:
+        """C: panel porównania pary zaznaczony→następny wysuwa się od dołu —
+        dwa paski energii ze złotym oknem szwu z planu silnika (wzorzec:
+        zakładka Export w Rekordboksie). Drugie C / Esc chowa. Graj oba = P
+        (sync i kwantyzacja siedzą w renderze z natury — nic do włączania)."""
+        panel = self.query_one("#compare")
+        if panel.has_class("open"):
+            panel.remove_class("open")
+            return
+        idx = self._cursor_row("porównanie pary")
+        if idx is None:
+            return
+        if idx + 1 >= len(self._order):
+            self._note("ostatni utwór nie ma następnika — C porównuje parę")
+            return
+        self._compare_worker(idx)
+
+    @work(thread=True, exclusive=True, group="seam")
+    def _compare_worker(self, idx: int) -> None:
+        from dancelab.tui.seam_preview import zaplanuj_szew
+        ui = self.call_from_thread
+        by_id = self._ctx["by_id"]
+        a = by_id[self._order[idx]]
+        b = by_id[self._order[idx + 1]]
+        try:
+            plan = zaplanuj_szew(a, b, self._ctx["weights"])
+        except Exception as exc:  # noqa: BLE001 — powód, nie traceback
+            ui(self._note, f"porównanie nie wyszło: {exc}")
+            self.call_from_thread(self.notify, f"porównanie nie wyszło: {exc}",
+                                  severity="warning", timeout=6)
+            return
+        ui(self._open_compare, a, b, plan, idx)
+
+    def _open_compare(self, a, b, plan: dict, idx: int) -> None:
+        szer = max(self.size.width - 6, 40)
+        sek_szwu = plan["beats"] * 60.0 / plan["bpm"]
+        art_a, tyt_a = _wykonawca_tytul(a.track)
+        art_b, tyt_b = _wykonawca_tytul(b.track)
+
+        def label(nr, art, tyt, track):
+            m, s = divmod(int(track.duration_sec or 0), 60)
+            return (f"#{nr}  {(art + ' — ') if art else ''}{tyt}"[:szer - 10]
+                    + f"   {m}:{s:02d}")
+        ca, cb = plan["cue_a_sec"], plan["cue_b_sec"]
+        pas_a = pasek_energii(a.features, a.track.duration_sec or 0, szer,
+                              ca, ca + sek_szwu)
+        pas_b = pasek_energii(b.features, b.track.duration_sec or 0, szer,
+                              cb, cb + sek_szwu / plan["rate_b"])
+        from rich.text import Text
+        self.query_one("#cmp-title", Static).update(
+            f"PORÓWNANIE #{idx+1}→#{idx+2} · szew {plan['beats']} uderzeń "
+            f"@ {plan['bpm']:.1f} BPM · P = graj oba · C/Esc zamyka")
+        va = Text(label(idx + 1, art_a, tyt_a, a.track) + "\n")
+        va.append(pas_a)
+        vb = Text(label(idx + 2, art_b, tyt_b, b.track) + "\n")
+        vb.append(pas_b)
+        self.query_one("#cmp-a", Static).update(va)
+        self.query_one("#cmp-b", Static).update(vb)
+        rozum = plan.get("rozumowanie") or [""]
+        ma, sa = divmod(int(ca), 60)
+        mb, sb = divmod(int(cb), 60)
+        self.query_one("#cmp-info", Static).update(
+            f"wyjście z A {ma}:{sa:02d} · wejście w B {mb}:{sb:02d} · "
+            + rozum[0][:szer - 40])
+        self.query_one("#compare").add_class("open")
+        self.query_one("#set", DataTable).focus()
 
     # ------------------------------------------------------------- karta INFO
 

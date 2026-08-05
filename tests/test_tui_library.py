@@ -442,3 +442,69 @@ def test_wyciecie_filaru_zdejmuje_pin(tmp_path, monkeypatch):
             assert app._user_state["filary"] == [], "pin zdjęty razem z cięciem"
             assert app._edits[-1]["filar"] is True
     asyncio.run(go())
+
+
+def test_pasek_energii_szew_zloty_braki_jawne():
+    """Pasek energii: okno szwu na złoto, reszta przygaszona; brak ramek
+    to jawny napis, nie zmyślony płaski wykres."""
+    from dancelab.tui.app import PILLAR_COLOR, pasek_energii
+
+    class _F:
+        def __init__(self, ts, rms):
+            self.timestamp_sec = ts
+            self.rms = rms
+    frames = [_F(i, 0.1 + (i % 10) / 20) for i in range(300)]
+    pas = pasek_energii(frames, 300.0, 60, seam_start=200, seam_end=260)
+    tekst = str(pas)
+    assert len(tekst) == 60
+    style = [str(sp.style) for sp in pas.spans]
+    assert any(PILLAR_COLOR in s for s in style), "okno szwu na złoto"
+    assert any("dim" in s for s in style), "reszta przygaszona"
+
+    pusty = pasek_energii([], 300.0, 60, 0, 10)
+    assert "brak ramek" in str(pusty)
+
+
+def test_c_otwiera_panel_porownania_i_zamyka(tmp_path, monkeypatch):
+    """C otwiera wysuwany panel z parą i planem szwu; drugie C chowa;
+    ostatni utwór odmawia. Plan szwu z atrapy — bez audio."""
+    import dancelab.tui.seam_preview as sp
+    monkeypatch.setattr(sp, "zaplanuj_szew", lambda a, b, w: {
+        "cue_a_sec": 200.0, "cue_b_sec": 10.0, "beats": 64, "bpm": 130.0,
+        "rate_b": 1.0, "rozumowanie": ["stabilny szew"]})
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import DataTable, Static, TabbedContent
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
+            by_id = {a.track.track_id: a for a in LIB[:2]}
+            app._ctx = dict(by_id=by_id, weights=None, arc="build",
+                            planner="smart", bpm_min=None, bpm_max=None,
+                            anchor=None, params={})
+            app._order = ["a", "b"]
+            app._render_order(by_id)
+            await pilot.pause()
+            table = app.query_one("#set", DataTable)
+            table.move_cursor(row=0)
+            table.focus()
+            await pilot.press("c")
+            for _ in range(50):
+                await pilot.pause(0.1)
+                if app.query_one("#compare").has_class("open"):
+                    break
+            assert app.query_one("#compare").has_class("open")
+            tytul = str(app.query_one("#cmp-title", Static).render())
+            assert "PORÓWNANIE #1→#2" in tytul and "64 uderzeń" in tytul
+            assert "Mercy System" in str(app.query_one("#cmp-a", Static).render())
+            await pilot.press("c")            # drugie C chowa
+            await pilot.pause()
+            assert not app.query_one("#compare").has_class("open")
+            table.move_cursor(row=1)          # ostatni — odmowa
+            await pilot.pause()
+            await pilot.press("c")
+            await pilot.pause()
+            lines = " ".join(str(l) for l in app.query_one("#warnings").lines)
+            assert "ostatni utwór nie ma następnika" in lines
+    asyncio.run(go())
