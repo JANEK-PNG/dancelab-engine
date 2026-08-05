@@ -87,10 +87,11 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
 5. **S** — zapisuje plan na dysk; **O** — wczytuje zapisany plan (także po
    ponownym uruchomieniu aplikacji; utwory, których nie ma już w puli, są
    pomijane z wyraźną notką).
-6. **C** — PORÓWNAJ parę: NAD tabelą setu (playlista zjeżdża w dół — układ
-   jak w Rekordboksie: waveformy na górze, lista pod spodem) otwiera się panel — dwa paski energii całych utworów nad sobą, ze złotym
-   oknem tam, gdzie silnik planuje wyjście z A i wejście w B, plus czasy cue
-   i rozumowanie długości szwu. Drugie **C** albo **Esc** chowa.
+6. **C** — PASEK SZWU (wzorzec z CURVE: „+" między dwoma utworami):
+   nad tabelą pojawia się jedna linia faktów o parze zaznaczony→następny
+   (kto z kim, ile uderzeń, czasy wyjścia i wejścia) i JEDEN przycisk
+   **▶ Graj oba**. Beatsync i kwantyzacja są zawsze włączone — siedzą
+   w naturze renderu. Drugie **C** albo **Esc** chowa.
    **P** — POSŁUCHAJ szwu: renderuje przejście zaznaczony→następny dokładnie
    tak, jak ułożył je silnik (okna mix-out/mix-in, długość ze stabilności
    szwu, krzywe jak w mikserze) i gra je od razu. Drugie **P** albo **Esc**

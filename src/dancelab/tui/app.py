@@ -218,143 +218,11 @@ def _bpm_cell(t):
     return Text(f"{t.bpm_estimate or 0:.1f}", style="bold")
 
 
-_BLOKI = "▁▂▃▄▅▆▇█"
-
-# Paleta RGB jak w Rekordboksie: kolor mówi, CO gra w tym miejscu —
-# niebieski = bas dominuje, bursztyn = środek, biały = góra. Kolor bierzemy
-# ze ZMIERZONEGO low_freq_energy_ratio ramki, nie z dekoracji; ramka bez
-# pomiaru pasma zostaje szara. Okno szwu: podkreślenie + bold (kolory pasm
-# zostają widoczne — szew nie zamalowuje informacji).
-_RGB_BAS = "#4aa8ff"
-_RGB_SRODEK = "#ffb84d"
-_RGB_GORA = "#e8e8e8"
-
-
-def _progi_pasm(ratios: list[float]) -> tuple[float, float]:
-    """Progi kolorów WZGLĘDNE w obrębie utworu (tercyle) — w tanecznej
-    muzyce bas dominuje niemal wszędzie, więc progi bezwzględne malowały
-    wszystko na niebiesko (weto Janka 06.08). Kolor mówi: „ten fragment
-    jest basowszy/jaśniejszy NIŻ RESZTA TEGO utworu"."""
-    s = sorted(ratios)
-    if len(s) < 3:
-        return 0.5, 0.25
-    return s[len(s) * 2 // 3], s[len(s) // 3]
-
-
-def _kolor_pasma(low_ratio, prog_bas: float, prog_srodek: float) -> str:
-    if low_ratio is None:
-        return "grey50"
-    if low_ratio >= prog_bas:
-        return _RGB_BAS
-    if low_ratio >= prog_srodek:
-        return _RGB_SRODEK
-    return _RGB_GORA
-
-
-def pasek_energii(frames, duration_sec: float, width: int,
-                  seam_start: float, seam_end: float,
-                  grid_times: list[float] | None = None,
-                  height: int = 5):
-    """WYSOKI waveform RGB (weto Janka 06.08: jedna linia + pusta przestrzeń
-    pod spodem to nie waveform). Warstwy Z POMIARU: łączna wysokość kolumny =
-    RMS, dolna niebieska warstwa = zmierzony udział basu, nad nią reszta
-    w bursztynie/bieli wg względnej jasności kolumny (tercyle w obrębie
-    utworu). Analiza NIE rozdziela środka od góry — dopóki ekstrakcja cech
-    nie zmierzy mid/hi osobno, trzeciej PRAWDZIWEJ warstwy nie rysujemy.
-    Kreski │ = siatka (co 64 uderzenia), szew podkreślony. Zwraca wielo-
-    liniowy rich.Text (height wierszy). Brak ramek = jawny napis."""
-    from rich.text import Text
-    vals = [(f.timestamp_sec, f.rms, f.low_freq_energy_ratio)
-            for f in (frames or []) if f.rms is not None]
-    if not vals or duration_sec <= 0 or width < 8:
-        return Text("(brak ramek energii)", style="dim")
-    suma = [0.0] * width
-    nis = [0.0] * width
-    nis_n = [0] * width
-    liczniki = [0] * width
-    for ts, rms, low in vals:
-        i = min(int(ts / duration_sec * width), width - 1)
-        suma[i] += rms
-        liczniki[i] += 1
-        if low is not None:
-            nis[i] += low
-            nis_n[i] += 1
-    srednie = [k / n if n else 0.0 for k, n in zip(suma, liczniki)]
-    lo, hi = min(srednie), max(srednie)
-    span = (hi - lo) or 1.0
-    ratio = [nis[i] / nis_n[i] if nis_n[i] else None for i in range(width)]
-    prog_bas, prog_srodek = _progi_pasm([r for r in ratio if r is not None])
-    kreski = set()
-    for g in grid_times or []:
-        kreski.add(min(int(g / duration_sec * width), width - 1))
-
-    # na kolumnę: ile ósemek bloku zapala łącznie i ile z tego to bas
-    osemek = []
-    for i, v in enumerate(srednie):
-        # płaski utwór (lo==hi) to pełne słupki, nie pusty pasek
-        norm = (v - lo) / span if hi > lo else 0.75
-        total = norm * height * 8
-        bas = total * (ratio[i] if ratio[i] is not None else 0.0)
-        osemek.append((total, bas))
-
-    wiersze = []
-    for rzad in range(height - 1, -1, -1):        # od góry do dołu
-        linia = Text()
-        for i in range(width):
-            t0 = i / width * duration_sec
-            w_szwie = seam_start <= t0 <= seam_end
-            pod = "underline " if w_szwie else ""
-            if i in kreski:
-                linia.append("│", style=f"{pod}bold white")
-                continue
-            total, bas = osemek[i]
-            dol, gora = rzad * 8, (rzad + 1) * 8
-            if total <= dol:
-                linia.append(" ", style=pod.strip() or "")
-                continue
-            czesc = min(int(total - dol), 8)
-            znak = "█" if total >= gora else _BLOKI[max(czesc - 1, 0)]
-            if bas >= gora - 4:                    # komórka w większości basowa
-                kolor = _RGB_BAS
-            elif ratio[i] is None:
-                kolor = "grey50"
-            elif ratio[i] <= prog_srodek:
-                kolor = _RGB_GORA
-            else:
-                kolor = _RGB_SRODEK
-            linia.append(znak, style=f"{pod}{kolor}")
-        wiersze.append(linia)
-    out = Text()
-    for j, w in enumerate(wiersze):
-        if j:
-            out.append("\n")
-        out.append(w)
-    return out
-
-
-_FRAZA_KOLORY = {"INTRO": "#6ec6ff", "OUTRO": "#6ec6ff", "UP": "#ff5f5f",
-                 "DOWN": "#69d18c", "CHORUS": "#ffd166", "BRIDGE": "#c792ea"}
-
-
-def pasek_fraz(analiza_fraz, duration_sec: float, width: int):
-    """Pas fraz z analizy Rekordboxa pod waveformem (INTRO/UP/DOWN/CHORUS/
-    OUTRO/VERSE…) — litera = sekcja, kolor = rodzaj. Brak fraz = jawny powód."""
-    from rich.text import Text
-    if analiza_fraz is None or not getattr(analiza_fraz, "phrases", None)             or duration_sec <= 0:
-        return Text("(brak fraz z Rekordboxa)", style="dim")
-    text = Text()
-    for i in range(width):
-        t0 = (i + 0.5) / width * duration_sec
-        p = analiza_fraz.at(t0)
-        if p is None or not p.label:
-            text.append("·", style="grey35")
-            continue
-        litera = "V" if p.label.startswith("VERSE") else p.label[0]
-        kolor = _FRAZA_KOLORY.get(
-            "VERSE" if p.label.startswith("VERSE") else p.label, "#b0b0b0")
-        text.append(litera, style=kolor)
-    return text
-
+# Waveformy w panelu porównania ŻYŁY DWA DNI: zbudowane 06.08 (RGB, warstwy
+# basu, siatka, frazy), skasowane 06.08 wieczorem wetem Janka: „they are not
+# even functional, just for the look purposes". Wróciliśmy do wzorca z CURVE
+# (poprzedni projekt): między parą utworów tylko JEDEN przycisk odsłuchu.
+# Ta notka zostaje, żeby waveformy nie wróciły bez pamięci o werdykcie.
 
 def _wykonawca_tytul(t) -> tuple[str, str]:
     """Wykonawca i tytuł do kolumn Biblioteki: tag z analizy → uzupełnienie
@@ -559,10 +427,9 @@ class DanceLabTUI(App):
     #lib-filters Input { width: 1fr; margin-right: 1; }
     #lib-count { height: 2; color: $text-muted; padding: 0 1 1 1; }
     #lib-table .datatable--header { text-style: bold; background: $boost; }
-    #compare { height: 50%; border-bottom: solid $accent; padding: 0 1;
+    #compare { height: 7; border-bottom: solid $accent; padding: 0 1;
                display: none; }
     #cmp-buttons { height: 3; }
-    #cmp-buttons Button { margin-right: 2; }
     #compare.open { display: block; }
     #cmp-title { color: $accent; text-style: bold; }
     #lib-table { height: 1fr; }
@@ -622,9 +489,7 @@ class DanceLabTUI(App):
         # liczby ↓ → ↑ → kasacja, teksty A-Z → Z-A → kasacja (Janek 06.08)
         self._lib_sort: tuple[int, bool] | None = None
         self._player = None                   # afplay szwu (klawisz P)
-        self._compare_idx: int | None = None  # para w panelu porównania
-        self._cmp_sync = True                 # prawdziwe przełączniki panelu:
-        self._cmp_quant = True                # wpływają na plan i render
+        self._compare_idx: int | None = None  # para w pasku szwu (C)
 
     # ------------------------------------------------------------- układ
 
@@ -693,17 +558,11 @@ class DanceLabTUI(App):
                             yield Static("Ustaw parametry i naciśnij B.", id="progress")
                             with Vertical(id="compare"):
                                 yield Static("", id="cmp-title")
-                                yield Static("", id="cmp-a")
-                                yield Static("", id="cmp-b")
                                 yield Static("", id="cmp-info")
                                 with Horizontal(id="cmp-buttons"):
                                     yield Button("▶ Graj oba  [P]",
                                                  id="cmp-play",
                                                  variant="primary")
-                                    yield Button("Beatsync: ON",
-                                                 id="cmp-sync")
-                                    yield Button("Quantize: ON",
-                                                 id="cmp-quant")
                             yield DataTable(id="set")
                             yield Log(id="warnings", highlight=False)
                         with Vertical(id="suggest"):
@@ -1009,8 +868,14 @@ class DanceLabTUI(App):
             self.action_build_from_filary()
         elif event.button.id == "cmp-play":
             self._graj_z_panelu()
-        elif event.button.id in ("cmp-sync", "cmp-quant"):
-            self._przelacz_cmp(event.button.id)
+
+    def _graj_z_panelu(self) -> None:
+        if self._stop_player():
+            return
+        if self._compare_idx is None or self._compare_idx + 1 >= len(self._order):
+            self._note("panel nie trzyma pary — otwórz porównanie (C)")
+            return
+        self._seam_worker(self._compare_idx)
 
     def _graj_z_panelu(self) -> None:
         if self._stop_player():
@@ -1839,9 +1704,7 @@ class DanceLabTUI(App):
         ui(self.query_one("#progress", Static).update,
            f"Renderuję szew #{idx+1}→#{idx+2} (fraz-lock, krzywe deckowe)…")
         try:
-            info = zbuduj_szew(a, b, self._ctx["weights"],
-                               beatsync=self._cmp_sync,
-                               quantize=self._cmp_quant)
+            info = zbuduj_szew(a, b, self._ctx["weights"])
         except Exception as exc:  # noqa: BLE001 — powód, nie traceback
             ui(self._note, f"szew nie wyszedł: {exc}")
             self.call_from_thread(self.notify, f"szew nie wyszedł: {exc}",
@@ -1887,83 +1750,34 @@ class DanceLabTUI(App):
         a = by_id[self._order[idx]]
         b = by_id[self._order[idx + 1]]
         try:
-            plan = zaplanuj_szew(a, b, self._ctx["weights"],
-                                 beatsync=self._cmp_sync,
-                                 quantize=self._cmp_quant)
+            plan = zaplanuj_szew(a, b, self._ctx["weights"])
         except Exception as exc:  # noqa: BLE001 — powód, nie traceback
             ui(self._note, f"porównanie nie wyszło: {exc}")
             self.call_from_thread(self.notify, f"porównanie nie wyszło: {exc}",
                                   severity="warning", timeout=6)
             return
-        frazy = {}
-        try:
-            from pyrekordbox import Rekordbox6Database
-            from dancelab.ingestion.rekordbox_phrases import phrases_for_path
-            db = Rekordbox6Database()
-            try:
-                for klucz, an in (("a", a), ("b", b)):
-                    fr, powod = phrases_for_path(an.track.source_path, db=db)
-                    frazy[klucz] = fr
-                    if fr is None:
-                        ui(self._note, f"frazy {klucz.upper()}: {powod}")
-            finally:
-                db.close()
-        except Exception as exc:  # noqa: BLE001 — frazy to dodatek, nie warunek
-            ui(self._note, f"frazy z Rekordboxa niedostępne: {exc}")
-        ui(self._open_compare, a, b, plan, idx, frazy)
+        ui(self._open_compare, a, b, plan, idx)
 
-    def _open_compare(self, a, b, plan: dict, idx: int,
-                      frazy: dict | None = None) -> None:
-        # szerokość z KOLUMNY setu (nie z całego okna — pasek liczony od
-        # szerokości aplikacji zawijał się do drugiej linii: weto Janka)
-        szer = max(self.query_one("#results").content_size.width - 2, 40)
-        frazy = frazy or {}
-        sek_szwu = plan["beats"] * 60.0 / plan["bpm"]
+    def _open_compare(self, a, b, plan: dict, idx: int) -> None:
+        """Pasek szwu w duchu CURVE („+" między dwoma utworami): jedna linia
+        faktów o szwie i JEDEN przycisk odsłuchu. Beatsync i kwantyzacja są
+        zawsze włączone — siedzą w naturze fraz-lockowanego renderu."""
         art_a, tyt_a = _wykonawca_tytul(a.track)
         art_b, tyt_b = _wykonawca_tytul(b.track)
 
-        def label(nr, art, tyt, track):
-            m, s = divmod(int(track.duration_sec or 0), 60)
-            return (f"#{nr}  {(art + ' — ') if art else ''}{tyt}"[:szer - 10]
-                    + f"   {m}:{s:02d}")
-
-        def siatka(analysis):
-            bg = getattr(analysis, "beatgrid", None)
-            beaty = getattr(bg, "beat_times_sec", None) or []
-            return beaty[::64]                    # kreska co 64 uderzenia
-
+        def kto(art, tyt):
+            return f"{art} — {tyt}" if art else tyt
         ca, cb = plan["cue_a_sec"], plan["cue_b_sec"]
-        from rich.text import Text
-
-        def deck(nr, art, tyt, analysis, cue, sek, klucz):
-            v = Text(label(nr, art, tyt, analysis.track) + "\n")
-            v.append(pasek_energii(analysis.features,
-                                   analysis.track.duration_sec or 0, szer,
-                                   cue, cue + sek, siatka(analysis)))
-            v.append("\n")
-            v.append(pasek_fraz(frazy.get(klucz),
-                                analysis.track.duration_sec or 0, szer))
-            return v
-
-        self.query_one("#cmp-title", Static).update(
-            f"PORÓWNANIE #{idx+1}→#{idx+2} · szew {plan['beats']} uderzeń "
-            f"@ {plan['bpm']:.1f} BPM · │ co 64 uderzenia · P = graj oba "
-            f"· C/Esc zamyka")
-        self.query_one("#cmp-a", Static).update(
-            deck(idx + 1, art_a, tyt_a, a, ca, sek_szwu, "a"))
-        self.query_one("#cmp-b", Static).update(
-            deck(idx + 2, art_b, tyt_b, b, cb, sek_szwu / plan["rate_b"], "b"))
-        rozum = plan.get("rozumowanie") or [""]
         ma, sa = divmod(int(ca), 60)
         mb, sb = divmod(int(cb), 60)
+        self.query_one("#cmp-title", Static).update(
+            f"SZEW #{idx+1} ⇄ #{idx+2} · {kto(art_a, tyt_a)[:40]}  →  "
+            f"{kto(art_b, tyt_b)[:40]}")
         self.query_one("#cmp-info", Static).update(
+            f"{plan['beats']} uderzeń @ {plan['bpm']:.1f} BPM · "
             f"wyjście z A {ma}:{sa:02d} · wejście w B {mb}:{sb:02d} · "
-            + rozum[0][:szer - 40])
+            f"sync+kwantyzacja zawsze ON · C/Esc chowa")
         self._compare_idx = idx
-        self.query_one("#cmp-sync", Button).label = \
-            f"Beatsync: {'ON' if self._cmp_sync else 'OFF'}"
-        self.query_one("#cmp-quant", Button).label = \
-            f"Quantize: {'ON' if self._cmp_quant else 'OFF'}"
         self.query_one("#compare").add_class("open")
         self.query_one("#set", DataTable).focus()
 

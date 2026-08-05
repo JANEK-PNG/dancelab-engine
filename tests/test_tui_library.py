@@ -444,87 +444,9 @@ def test_wyciecie_filaru_zdejmuje_pin(tmp_path, monkeypatch):
     asyncio.run(go())
 
 
-def test_pasek_energii_wysoki_warstwowy():
-    """Wysoki waveform: `height` wierszy, bas niebieską WARSTWĄ od dołu
-    (w dolnym wierszu), reszta nad nim; szew podkreślony; brak ramek =
-    jawny napis."""
-    from dancelab.tui.app import (_RGB_BAS, _RGB_GORA, _RGB_SRODEK,
-                                  pasek_energii)
-
-    class _F:
-        def __init__(self, ts, rms, low):
-            self.timestamp_sec = ts
-            self.rms = rms
-            self.low_freq_energy_ratio = low
-    frames = ([_F(i, 0.9, 0.8) for i in range(0, 100)]        # głośno+bas
-              + [_F(i, 0.9, 0.35) for i in range(100, 200)]   # głośno+środek
-              + [_F(i, 0.9, 0.05) for i in range(200, 300)])  # głośno+góra
-    pas = pasek_energii(frames, 300.0, 60, seam_start=200, seam_end=260,
-                        height=5)
-    linie = str(pas).split("\n")
-    assert len(linie) == 5 and all(len(l) == 60 for l in linie)
-    style = " ".join(str(sp.style) for sp in pas.spans)
-    assert _RGB_BAS in style and _RGB_SRODEK in style and _RGB_GORA in style
-    assert "underline" in style                     # szew widoczny
-    # dolny wiersz w części basowej jest niebieski
-    dolne = [str(sp.style) for sp in pas.spans][-60:]
-    assert any(_RGB_BAS in s for s in dolne)
-
-    pusty = pasek_energii([], 300.0, 60, 0, 10)
-    assert "brak ramek" in str(pusty)
-
-
-def test_przelaczniki_panelu_sa_prawdziwe(tmp_path, monkeypatch):
-    """Beatsync/Quantize zmieniają PLAN (nie tylko napis) i przeliczają
-    panel; Graj z panelu startuje odtwarzacz pary z panelu."""
-    import subprocess
-    import dancelab.tui.seam_preview as sp
-    wywolania = []
-
-    def fake_plan(a, b, w, *, beatsync=True, quantize=True):
-        wywolania.append((beatsync, quantize))
-        return {"cue_a_sec": 100.0, "cue_b_sec": 5.0, "beats": 32,
-                "bpm": 130.0, "rate_b": 1.0 if not beatsync else 1.02,
-                "beatsync": beatsync, "quantize": quantize,
-                "rozumowanie": []}
-    monkeypatch.setattr(sp, "zaplanuj_szew", fake_plan)
-
-    async def go():
-        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
-        async with app.run_test() as pilot:
-            from textual.widgets import Button, DataTable, TabbedContent
-            app.query_one("#tabs", TabbedContent).active = "tab-set"
-            await pilot.pause()
-            by_id = {a.track.track_id: a for a in LIB[:2]}
-            app._ctx = dict(by_id=by_id, weights=None, arc="build",
-                            planner="smart", bpm_min=None, bpm_max=None,
-                            anchor=None, params={})
-            app._order = ["a", "b"]
-            app._render_order(by_id)
-            await pilot.pause()
-            table = app.query_one("#set", DataTable)
-            table.move_cursor(row=0)
-            table.focus()
-            await pilot.press("c")
-            for _ in range(50):
-                await pilot.pause(0.1)
-                if app.query_one("#compare").has_class("open"):
-                    break
-            assert wywolania[-1] == (True, True)
-            app._przelacz_cmp("cmp-sync")
-            for _ in range(50):
-                await pilot.pause(0.1)
-                if wywolania[-1] == (False, True):
-                    break
-            assert wywolania[-1] == (False, True), "plan przeliczony bez synca"
-            assert not app._cmp_sync
-            assert "OFF" in str(app.query_one("#cmp-sync", Button).label)
-    asyncio.run(go())
-
-
-def test_c_otwiera_panel_porownania_i_zamyka(tmp_path, monkeypatch):
-    """C otwiera wysuwany panel z parą i planem szwu; drugie C chowa;
-    ostatni utwór odmawia. Plan szwu z atrapy — bez audio."""
+def test_c_otwiera_pasek_szwu_i_zamyka(tmp_path, monkeypatch):
+    """C otwiera pasek szwu w duchu CURVE (fakty + jeden przycisk ▶);
+    drugie C chowa; ostatni utwór odmawia. Plan z atrapy — bez audio."""
     import dancelab.tui.seam_preview as sp
     monkeypatch.setattr(sp, "zaplanuj_szew", lambda a, b, w, **kw: {
         "cue_a_sec": 200.0, "cue_b_sec": 10.0, "beats": 64, "bpm": 130.0,
@@ -553,8 +475,9 @@ def test_c_otwiera_panel_porownania_i_zamyka(tmp_path, monkeypatch):
                     break
             assert app.query_one("#compare").has_class("open")
             tytul = str(app.query_one("#cmp-title", Static).render())
-            assert "PORÓWNANIE #1→#2" in tytul and "64 uderzeń" in tytul
-            assert "Mercy System" in str(app.query_one("#cmp-a", Static).render())
+            assert "SZEW #1 ⇄ #2" in tytul and "Mercy System" in tytul
+            info = str(app.query_one("#cmp-info", Static).render())
+            assert "64 uderzeń" in info and "zawsze ON" in info
             await pilot.press("c")            # drugie C chowa
             await pilot.pause()
             assert not app.query_one("#compare").has_class("open")
@@ -567,44 +490,3 @@ def test_c_otwiera_panel_porownania_i_zamyka(tmp_path, monkeypatch):
     asyncio.run(go())
 
 
-def test_pasek_energii_kreski_siatki_i_wzgledne_kolory():
-    """Kreski │ przez CAŁĄ wysokość w podanych czasach; kolory tercylami
-    W OBRĘBIE utworu — utwór z basem wszędzie i tak pokazuje różne barwy."""
-    from dancelab.tui.app import _RGB_BAS, _RGB_GORA, pasek_energii
-
-    class _F:
-        def __init__(self, ts, rms, low):
-            self.timestamp_sec = ts
-            self.rms = rms
-            self.low_freq_energy_ratio = low
-    # caly utwor "basowy" (0.55-0.75) — bezwzgledne progi dalyby sam niebieski
-    frames = [_F(i, 0.9, 0.55 + (i % 3) * 0.1) for i in range(300)]
-    pas = pasek_energii(frames, 300.0, 60, 250, 290,
-                        grid_times=[0, 150, 299], height=4)
-    tekst = str(pas)
-    assert tekst.count("│") == 3 * 4, "kreska przez całą wysokość"
-    style = " ".join(str(sp.style) for sp in pas.spans)
-    assert _RGB_BAS in style and _RGB_GORA in style, "kolory względne, nie sam bas"
-
-
-def test_pasek_fraz_litery_i_jawny_brak():
-    from dancelab.tui.app import pasek_fraz
-
-    class _P:
-        def __init__(self, s, e, label):
-            self.start_sec, self.end_sec, self.label = s, e, label
-
-    class _FA:
-        def __init__(self, phrases):
-            self.phrases = phrases
-
-        def at(self, sec):
-            for p in self.phrases:
-                if p.start_sec <= sec < p.end_sec:
-                    return p
-            return None
-    fa = _FA([_P(0, 100, "INTRO"), _P(100, 200, "UP"), _P(200, 300, "OUTRO")])
-    pas = pasek_fraz(fa, 300.0, 30)
-    tekst = str(pas)
-    assert tekst.startswith("I") and "U" in tekst and tekst.endswith("O")
-    assert "brak fraz" in str(pasek_fraz(None, 300.0, 30))
