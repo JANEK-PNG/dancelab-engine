@@ -92,10 +92,9 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
    (kto z kim, ile uderzeń, czasy wyjścia i wejścia) i JEDEN przycisk
    **▶ Graj oba**. Beatsync i kwantyzacja są zawsze włączone — siedzą
    w naturze renderu. Drugie **C** albo **Esc** chowa.
-   **P** — POSŁUCHAJ szwu: renderuje przejście zaznaczony→następny dokładnie
-   tak, jak ułożył je silnik (okna mix-out/mix-in, długość ze stabilności
-   szwu, krzywe jak w mikserze) i gra je od razu. Drugie **P** albo **Esc**
-   zatrzymuje. Dźwięk startuje TYLKO z tego klawisza.
+   **P** — odsłuch SAMEGO zaznaczonego utworu (drugie **P** albo **Esc**
+   zatrzymuje). Przejście pary gra przycisk **▶ Graj oba** w pasku szwu (C).
+   Dźwięk zawsze startuje tylko z Twojego klawisza.
 7. **V** — świadomy werdykt: zrzuca obok siebie „co ułożył silnik" i „co
    zostawiłeś po swoich zmianach".
    **I** — karta informacji o zaznaczonym utworze: metadane silnika (BPM,

@@ -212,10 +212,10 @@ def test_tui_odmowa_budowy_pokazuje_powod():
     asyncio.run(go())
 
 
-def test_p_odtwarza_i_zatrzymuje_bez_prawdziwego_dzwieku(tmp_path, monkeypatch):
-    """P renderuje szew i startuje odtwarzacz; drugie P zatrzymuje; ostatni
-    utwór odmawia. Dźwięk i render podmienione atrapami — weryfikacja NIGDY
-    nie gra audio (twarda zasada projektu)."""
+def test_p_gra_jeden_utwor_a_szew_gra_przycisk_c(tmp_path, monkeypatch):
+    """Podział Janka: P = SAM zaznaczony utwór (działa też na ostatnim);
+    przejście gra przycisk w pasku szwu (C). Dźwięk = atrapy; weryfikacja
+    NIGDY nie gra audio."""
     import subprocess
 
     class _FakeProc:
@@ -252,23 +252,22 @@ def test_p_odtwarza_i_zatrzymuje_bez_prawdziwego_dzwieku(tmp_path, monkeypatch):
             app._render_order(by_id)
             await pilot.pause()
             table = app.query_one("#set", DataTable)
-            table.move_cursor(row=0)
+            table.move_cursor(row=1)          # OSTATNI utwór — P i tak gra
             table.focus()
             await pilot.press("p")
-            for _ in range(50):
-                await pilot.pause(0.1)
-                if app._player is not None:
-                    break
-            assert started and "afplay" in started[0].cmd[0]
-            assert str(wav) in started[0].cmd[1]
+            await pilot.pause()
+            assert started and started[0].cmd == ["afplay", "/m/B.mp3"], \
+                "P gra sam zaznaczony utwór, od ostatniego nie ucieka"
             await pilot.press("p")            # drugie P zatrzymuje
             await pilot.pause()
             assert started[0].killed
-            table.move_cursor(row=1)          # ostatni utwór — odmowa
-            await pilot.pause()
-            await pilot.press("p")
-            await pilot.pause()
-            assert len(started) == 1, "nie wystartował drugi odtwarzacz"
-            lines = " ".join(str(l) for l in app.query_one("#warnings").lines)
-            assert "ostatni utwór nie ma następnika" in lines
+
+            # przejście gra przycisk z paska szwu
+            app._compare_idx = 0
+            app._graj_z_panelu()
+            for _ in range(50):
+                await pilot.pause(0.1)
+                if len(started) > 1:
+                    break
+            assert str(wav) in started[1].cmd[1], "szew gra z panelu C"
     asyncio.run(go())

@@ -1681,18 +1681,21 @@ class DanceLabTUI(App):
             self._player.terminate()
 
     def action_preview_seam(self) -> None:
-        """P: usłysz szew zaznaczonej pary. Drugie P (albo Esc) zatrzymuje.
-        Dźwięk startuje WYŁĄCZNIE z tego klawisza — twarda zasada projektu."""
+        """P: odsłuch SAMEGO zaznaczonego utworu (podział Janka 06.08:
+        „P otwiera tylko 1 utwór, przejście mamy od C"). Drugie P albo Esc
+        zatrzymuje. Dźwięk startuje WYŁĄCZNIE z jawnego klawisza."""
         if self._stop_player():
             return
-        idx = self._cursor_row("odsłuch szwu")
+        idx = self._cursor_row("odsłuch utworu")
         if idx is None:
             return
-        if idx + 1 >= len(self._order):
-            self._note("ostatni utwór nie ma następnika — P gra parę "
-                       "zaznaczony→następny")
-            return
-        self._seam_worker(idx)
+        import subprocess
+        t = self._ctx["by_id"][self._order[idx]].track
+        self._player = subprocess.Popen(["afplay", str(t.source_path)])
+        nazwa = pathlib.Path(t.source_path).stem[:44]
+        self._note(f"GRA #{idx+1}: {nazwa} · P/Esc zatrzymuje")
+        self.query_one("#progress", Static).update(
+            f"▶ #{idx+1} {nazwa} · P/Esc zatrzymuje")
 
     @work(thread=True, exclusive=True, group="seam")
     def _seam_worker(self, idx: int) -> None:
