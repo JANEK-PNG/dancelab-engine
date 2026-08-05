@@ -492,6 +492,9 @@ class DanceLabTUI(App):
         Binding("o", "load_plan", "Wczytaj"),
         Binding("v", "verdict", "Werdykt"),
         Binding("p", "preview_seam", "Posłuchaj"),
+        Binding("P", "toggle_auto", "auto-podgląd", show=False),
+        Binding("right", "skok_przod", "skok +8", show=False, priority=True),
+        Binding("left", "skok_tyl", "skok -8", show=False, priority=True),
         Binding("c", "compare_pair", "Porównaj"),
         Binding("i", "track_info", "Info"),
         Binding("l", "toggle_notes", "Log"),
@@ -532,7 +535,10 @@ class DanceLabTUI(App):
         # None = porządek domyślny (BPM rosnąco); cykl klikania w nagłówek:
         # liczby ↓ → ↑ → kasacja, teksty A-Z → Z-A → kasacja (Janek 06.08)
         self._lib_sort: tuple[int, bool] | None = None
-        self._player = None                   # afplay szwu (klawisz P)
+        from dancelab.tui.odtwarzacz import Odtwarzacz
+        self._odtwarzacz = Odtwarzacz()       # P: utwór / szew, pauza, skoki
+        self._auto_podglad = False            # Shift+P: strzałki grają same
+        self._auto_timer = None
         self._compare_idx: int | None = None  # para w pasku szwu (C)
 
     # ------------------------------------------------------------- układ
@@ -677,13 +683,21 @@ class DanceLabTUI(App):
     _LIB_ONLY = {"toggle_fav", "build_from_filary"}
     _SET_ONLY = {"build", "write", "replace", "cut", "add", "move_up",
                  "move_down", "save_plan", "load_plan", "verdict",
-                 "track_info", "preview_seam", "compare_pair"}
+                 "track_info", "compare_pair"}
 
     def check_action(self, action: str, parameters) -> bool:
         try:
             active = self.query_one("#tabs", TabbedContent).active
         except Exception:  # noqa: BLE001 — przed zmontowaniem zakładek
             return True
+        if action in ("skok_przod", "skok_tyl"):
+            # strzałki poziome przejmuje odtwarzacz TYLKO podczas grania
+            # (decyzja Janka) i tylko z fokusem na tabeli — w polu tekstowym
+            # dalej ruszają kursorem tekstu
+            return (self._odtwarzacz.gra()
+                    and isinstance(self.focused, DataTable))
+        if action in ("preview_seam", "toggle_auto"):
+            return active in ("tab-lib", "tab-set")
         if action in self._LIB_ONLY:
             return active == "tab-lib"
         if action in self._SET_ONLY:
@@ -932,37 +946,6 @@ class DanceLabTUI(App):
             return
         self._seam_worker(self._compare_idx)
 
-    def _graj_z_panelu(self) -> None:
-        if self._stop_player():
-            return
-        if self._compare_idx is None or self._compare_idx + 1 >= len(self._order):
-            self._note("panel nie trzyma pary — otwórz porównanie (C)")
-            return
-        self._seam_worker(self._compare_idx)
-
-    def _przelacz_cmp(self, przycisk: str) -> None:
-        """Prawdziwy przełącznik: zmienia plan i render, nie tylko napis.
-        Beatsync OFF = B w swoim tempie (słychać zderzenie); Quantize OFF =
-        cue bez przyciągania do siatki."""
-        if przycisk == "cmp-sync":
-            self._cmp_sync = not self._cmp_sync
-            self._note("Beatsync: ON" if self._cmp_sync else
-                       "Beatsync: OFF — B zagra w swoim tempie, "
-                       "usłyszysz zderzenie")
-        else:
-            self._cmp_quant = not self._cmp_quant
-            self._note("Quantize: ON" if self._cmp_quant else
-                       "Quantize: OFF — cue bez przyciągania do siatki")
-        # napis od ręki — nie czekamy na powrót workera z nowym planem
-        self.query_one("#cmp-sync", Button).label = \
-            f"Beatsync: {'ON' if self._cmp_sync else 'OFF'}"
-        self.query_one("#cmp-quant", Button).label = \
-            f"Quantize: {'ON' if self._cmp_quant else 'OFF'}"
-        self._stop_player()
-        if self._compare_idx is not None \
-                and self.query_one("#compare").has_class("open"):
-            self._compare_worker(self._compare_idx)   # świeży plan i paski
-
     def action_build_from_filary(self) -> None:
         """G / przycisk w Bibliotece: filary → zakładka Set jako SZKIC.
 
@@ -1070,7 +1053,8 @@ class DanceLabTUI(App):
         n_bak = len(list(BACKUP_DIR.glob("*.db"))) if BACKUP_DIR.exists() else 0
         self.query_one("#status", Static).update(
             f"{rb}   ·   backupy: {n_bak}   ·   notki: {self._n_notes} (L)"
-            f"   ·   pula: {self.processed_dir}")
+            + ("   ·   ▶ AUTO-podgląd" if self._auto_podglad else "")
+            + f"   ·   pula: {self.processed_dir}")
 
     def _note(self, line: str) -> None:
         from dancelab.tui.po_polsku import po_polsku
@@ -1813,40 +1797,112 @@ class DanceLabTUI(App):
     # ---------------------------------------------------- odsłuch szwu (P)
 
     def _stop_player(self) -> bool:
-        if self._player is not None and self._player.poll() is None:
-            self._player.terminate()
-            self._player = None
-            self._note("odsłuch zatrzymany")
+        if self._odtwarzacz.stop():
+            self._note("odsłuch: pauza (P na tym samym utworze wznawia)")
             return True
-        self._player = None
         return False
 
     def on_unmount(self) -> None:
         # dźwięk nie może przeżyć aplikacji
-        if self._player is not None and self._player.poll() is None:
-            self._player.terminate()
+        self._odtwarzacz.stop()
+
+    def _biezacy_track(self):
+        """Utwór pod kursorem AKTYWNEJ tabeli (Set albo Biblioteka)."""
+        if self.query_one("#tabs", TabbedContent).active == "tab-lib":
+            table = self.query_one("#lib-table", DataTable)
+            idx = table.cursor_row
+            view = getattr(self, "_lib_view", [])
+            if idx is None or not (0 <= idx < len(view)):
+                return None
+            return view[idx].track
+        if not self._order or not self._ctx:
+            return None
+        table = self.query_one("#set", DataTable)
+        idx = table.cursor_row
+        if idx is None or not (0 <= idx < len(self._order)):
+            return None
+        return self._ctx["by_id"][self._order[idx]].track
 
     def action_preview_seam(self) -> None:
-        """P jest KONTEKSTOWE (Janek 06.08): przy zamkniętym pasku szwu gra
-        SAM zaznaczony utwór; przy otwartym (po C) gra PRZEJŚCIE porównywanej
-        pary. Drugie P zatrzymuje, C zamyka pasek. Dźwięk startuje WYŁĄCZNIE
-        z jawnego klawisza."""
-        if self._stop_player():
-            return
-        if self.query_one("#compare").has_class("open") \
+        """P jest KONTEKSTOWE: w Secie przy otwartym pasku szwu gra
+        PRZEJŚCIE pary; poza tym gra SAM zaznaczony utwór (Set i Biblioteka).
+        P drugi raz = pauza; P na tym samym utworze = wznowienie od miejsca.
+        Dźwięk startuje WYŁĄCZNIE z jawnego klawisza."""
+        aktywna = self.query_one("#tabs", TabbedContent).active
+        if aktywna == "tab-set" \
+                and self.query_one("#compare").has_class("open") \
                 and self._compare_idx is not None:
+            if self._stop_player():
+                return
             self._seam_worker(self._compare_idx)
             return
-        idx = self._cursor_row("odsłuch utworu")
-        if idx is None:
+        track = self._biezacy_track()
+        if track is None:
+            if not self._stop_player():
+                self._note("ustaw kursor na utworze do odsłuchu")
             return
-        import subprocess
-        t = self._ctx["by_id"][self._order[idx]].track
-        self._player = subprocess.Popen(["afplay", str(t.source_path)])
-        nazwa = pathlib.Path(t.source_path).stem[:44]
-        self._note(f"GRA #{idx+1}: {nazwa} · P/Esc zatrzymuje")
-        self.query_one("#progress", Static).update(
-            f"▶ #{idx+1} {nazwa} · P/Esc zatrzymuje")
+        akcja, blad = self._odtwarzacz.przelacz(
+            str(track.source_path), track.bpm_estimate)
+        if blad:
+            self._note(f"odsłuch: {blad}")
+            return
+        nazwa = pathlib.Path(track.source_path).stem[:40]
+        if akcja == "pauza":
+            self._note("odsłuch: pauza (P wznawia)")
+        else:
+            self._note(f"GRA: {nazwa} ({akcja}) · P pauza · →/← ±8 uderzeń")
+        self._pokaz_odtwarzacz()
+
+    def action_toggle_auto(self) -> None:
+        """Shift+P: auto-podgląd — ↓/↑ same grają zaznaczany utwór
+        (poprzedni bezwzględnie zatrzymany — zero nakładki)."""
+        self._auto_podglad = not self._auto_podglad
+        self._note("auto-podgląd: "
+                   + ("ON — strzałki grają same" if self._auto_podglad
+                      else "OFF"))
+        self._refresh_status()
+
+    def action_skok_przod(self) -> None:
+        self._skok(+8)
+
+    def action_skok_tyl(self) -> None:
+        self._skok(-8)
+
+    def _skok(self, uderzenia: int) -> None:
+        _, blad = self._odtwarzacz.skocz(uderzenia)
+        if blad:
+            self._note(f"skok: {blad}")
+            return
+        self._pokaz_odtwarzacz()
+
+    def _pokaz_odtwarzacz(self) -> None:
+        opis = self._odtwarzacz.opis()
+        if opis:
+            self.query_one("#progress", Static).update(
+                f"▶ {opis} · P pauza · →/← ±8 uderzeń"
+                + (" · AUTO" if self._auto_podglad else ""))
+
+    def on_data_table_row_highlighted(self, event) -> None:
+        """Auto-podgląd: zmiana zaznaczenia gra nowy utwór (małe opóźnienie,
+        żeby przytrzymana strzałka nie restartowała co wiersz)."""
+        if not self._auto_podglad:
+            return
+        if getattr(event.data_table, "id", None) not in ("set", "lib-table"):
+            return
+        if self._auto_timer is not None:
+            self._auto_timer.stop()
+        self._auto_timer = self.set_timer(0.25, self._auto_graj)
+
+    def _auto_graj(self) -> None:
+        track = self._biezacy_track()
+        if track is None:
+            return
+        blad = self._odtwarzacz.graj_od_zera(str(track.source_path),
+                                             track.bpm_estimate)
+        if blad:
+            self._note(f"auto-podgląd: {blad}")
+            return
+        self._pokaz_odtwarzacz()
 
     @work(thread=True, exclusive=True, group="seam")
     def _seam_worker(self, idx: int) -> None:
@@ -1867,15 +1923,17 @@ class DanceLabTUI(App):
         ui(self._start_player, info, idx)
 
     def _start_player(self, info: dict, idx: int) -> None:
-        import subprocess
-        self._player = subprocess.Popen(["afplay", str(info["output"])])
+        blad = self._odtwarzacz.graj_od_zera(str(info["output"]), info["bpm"])
+        if blad:
+            self._note(f"odsłuch szwu: {blad}")
+            return
         for line in info.get("rozumowanie", [])[:3]:
             self._note(line)
         self._note(f"GRA szew #{idx+1}→#{idx+2}: {info['beats']} uderzeń "
-                   f"@ {info['bpm']:.1f} BPM · P/Esc zatrzymuje")
+                   f"@ {info['bpm']:.1f} BPM · P pauza · →/← ±8")
         self.query_one("#progress", Static).update(
             f"▶ szew #{idx+1}→#{idx+2} · {info['beats']} uderzeń "
-            f"@ {info['bpm']:.1f} BPM · P/Esc zatrzymuje")
+            f"@ {info['bpm']:.1f} BPM · P pauza · →/← ±8 uderzeń")
 
     # ------------------------------------------- porównanie pary od dołu (C)
 

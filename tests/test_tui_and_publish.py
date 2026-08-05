@@ -212,11 +212,13 @@ def test_tui_odmowa_budowy_pokazuje_powod():
     asyncio.run(go())
 
 
-def test_p_gra_jeden_utwor_a_szew_gra_przycisk_c(tmp_path, monkeypatch):
-    """Podział Janka: P = SAM zaznaczony utwór (działa też na ostatnim);
-    przejście gra przycisk w pasku szwu (C). Dźwięk = atrapy; weryfikacja
-    NIGDY nie gra audio."""
+def test_p_kontekstowe_pauza_skoki_i_szew(tmp_path, monkeypatch):
+    """Nowy odtwarzacz (ffplay): P gra utwór / pauzuje / wznawia; →/← skacze
+    ±8 uderzeń wg tempa TYLKO gdy gra; przy otwartym pasku szwu P gra
+    przejście. Dźwięk = atrapy — weryfikacja NIGDY nie gra audio."""
     import subprocess
+    import dancelab.tui.odtwarzacz as odt
+    monkeypatch.setattr(odt, "FFPLAY", "/fake/ffplay")
 
     class _FakeProc:
         def __init__(self, cmd):
@@ -252,32 +254,100 @@ def test_p_gra_jeden_utwor_a_szew_gra_przycisk_c(tmp_path, monkeypatch):
             app._render_order(by_id)
             await pilot.pause()
             table = app.query_one("#set", DataTable)
-            table.move_cursor(row=1)          # OSTATNI utwór — P i tak gra
+            table.move_cursor(row=1)
             table.focus()
-            await pilot.press("p")
+
+            # → bez grania NIE startuje odtwarzacza (strzałka zostaje tabeli)
+            await pilot.press("right")
             await pilot.pause()
-            assert started and started[0].cmd == ["afplay", "/m/B.mp3"], \
-                "P gra sam zaznaczony utwór, od ostatniego nie ucieka"
-            await pilot.press("p")            # drugie P zatrzymuje
+            assert started == []
+
+            await pilot.press("p")            # gra utwór (ffplay -ss 0)
+            await pilot.pause()
+            assert started[0].cmd[0] == "/fake/ffplay"
+            assert started[0].cmd[-1] == "/m/B.mp3"
+            assert float(started[0].cmd[started[0].cmd.index("-ss") + 1]) == 0.0
+
+            await pilot.press("right")        # skok +8 uderzeń @130 ≈ 3,69 s
             await pilot.pause()
             assert started[0].killed
+            ss = float(started[1].cmd[started[1].cmd.index("-ss") + 1])
+            assert 3.3 < ss < 4.3, f"skok o 8 uderzen, dostalem {ss}"
 
-            # przy OTWARTYM pasku szwu P gra przejście pary (kontekstowe P)
+            await pilot.press("p")            # pauza
+            await pilot.pause()
+            assert started[1].killed
+            await pilot.press("p")            # wznowienie od miejsca
+            await pilot.pause()
+            ss2 = float(started[2].cmd[started[2].cmd.index("-ss") + 1])
+            assert ss2 >= ss and started[2].cmd[-1] == "/m/B.mp3"
+
+            # pasek szwu otwarty → P gra PRZEJŚCIE
+            await pilot.press("p")            # pauza utworu
+            await pilot.pause()
             app._compare_idx = 0
             app.query_one("#compare").add_class("open")
             await pilot.press("p")
             for _ in range(50):
                 await pilot.pause(0.1)
+                if len(started) > 3:
+                    break
+            assert started[3].cmd[-1] == str(wav), "P przy pasku szwu = szew"
+    asyncio.run(go())
+
+
+def test_auto_podglad_gra_za_strzalka_bez_nakladki(tmp_path, monkeypatch):
+    """Shift+P włącza auto-podgląd: ruch ↓ gra nowo zaznaczony utwór,
+    poprzedni proces bezwzględnie ubity (zero nakładki)."""
+    import subprocess
+    import dancelab.tui.odtwarzacz as odt
+    monkeypatch.setattr(odt, "FFPLAY", "/fake/ffplay")
+
+    class _FakeProc:
+        def __init__(self, cmd):
+            self.cmd = cmd
+            self.killed = False
+
+        def poll(self):
+            return 1 if self.killed else None
+
+        def terminate(self):
+            self.killed = True
+
+    started = []
+    monkeypatch.setattr(subprocess, "Popen",
+                        lambda cmd: started.append(_FakeProc(cmd)) or started[-1])
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import DataTable, TabbedContent
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
+            by_id = _fake_pool("A", "B", "C")
+            app._ctx = dict(by_id=by_id, weights=None, arc="build",
+                            planner="smart", bpm_min=None, bpm_max=None,
+                            anchor=None, params={})
+            app._order = ["A", "B", "C"]
+            app._render_order(by_id)
+            await pilot.pause()
+            table = app.query_one("#set", DataTable)
+            table.move_cursor(row=0)
+            table.focus()
+            await pilot.press("P")            # Shift+P: tryb auto
+            await pilot.pause()
+            assert app._auto_podglad
+            await pilot.press("down")         # ↓ → auto gra B
+            for _ in range(30):
+                await pilot.pause(0.1)
+                if started:
+                    break
+            assert started and started[0].cmd[-1] == "/m/B.mp3"
+            await pilot.press("down")         # ↓ → C, a B ubity
+            for _ in range(30):
+                await pilot.pause(0.1)
                 if len(started) > 1:
                     break
-            assert str(wav) in started[1].cmd[1], "P przy pasku szwu = przejście"
-            await pilot.press("p")            # i P zatrzymuje przejście
-            await pilot.pause()
-            assert started[1].killed
-            app._graj_z_panelu()              # przycisk ▶ robi to samo
-            for _ in range(50):
-                await pilot.pause(0.1)
-                if len(started) > 2:
-                    break
-            assert str(wav) in started[2].cmd[1]
+            assert started[0].killed, "zero nakładki"
+            assert started[1].cmd[-1] == "/m/C.mp3"
     asyncio.run(go())

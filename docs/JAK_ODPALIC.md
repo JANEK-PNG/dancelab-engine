@@ -100,10 +100,16 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
    (kto z kim, ile uderzeń, czasy wyjścia i wejścia) i JEDEN przycisk
    **▶ Graj oba**. Beatsync i kwantyzacja są zawsze włączone — siedzą
    w naturze renderu. Drugie **C** albo **Esc** chowa.
-   **P** jest kontekstowe: przy zamkniętym pasku szwu gra **sam zaznaczony
-   utwór**; po otwarciu paska (**C**) gra **przejście pary**. Drugie **P**
-   zatrzymuje, **C** zamyka pasek. Dźwięk zawsze startuje tylko z Twojego
-   klawisza.
+   **P** jest kontekstowe i działa w Secie ORAZ w Bibliotece: przy
+   zamkniętym pasku szwu gra **sam zaznaczony utwór**; po otwarciu paska
+   (**C**) gra **przejście pary**. Drugie **P** = pauza, **P** na tym samym
+   utworze = wznowienie od miejsca.
+   - **→ / ←** podczas grania skaczą o **±8 uderzeń** (liczone z tempa
+     utworu — dokładnie 2 takty); gdy nic nie gra, strzałki działają
+     normalnie w tabeli.
+   - **Shift+P** włącza **auto-podgląd**: ↓/↑ same grają zaznaczany utwór
+     (poprzedni zawsze zatrzymany — zero nakładki); stan widać w pasku
+     statusu. Dźwięk zawsze startuje tylko z Twojego klawisza.
 7. **V** — świadomy werdykt: zrzuca obok siebie „co ułożył silnik" i „co
    zostawiłeś po swoich zmianach".
    **I** — karta informacji o zaznaczonym utworze: metadane silnika (BPM,
