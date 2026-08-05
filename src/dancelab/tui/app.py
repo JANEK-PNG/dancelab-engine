@@ -65,6 +65,7 @@ WERDYKTY_DIR = pathlib.Path("experiments_priv/2026-08-04_werdykty")
 # Historia zbudowanych setów (odciski) — karmi tryby świeżości silnika:
 # „fresh" umie omijać utwory i przejścia grane w poprzednich budowach.
 HISTORIA_SETOW = pathlib.Path("data/cache/tui_historia_setow.jsonl")
+RAPORT_ART = pathlib.Path("data/exports/artwork_raport.json")
 
 
 def _parse_bpm(text: str) -> tuple[float | None, float | None, str | None]:
@@ -611,6 +612,7 @@ class DanceLabTUI(App):
                                          variant="primary")
                             yield Button("→ Zbuduj z filarów  [G]",
                                          id="lib-build", variant="success")
+                            yield Button("Artwork", id="lib-artwork")
             with TabPane("Set", id="tab-set"):
                 with Vertical():
                     with Horizontal(id="set-main"):
@@ -1030,6 +1032,8 @@ class DanceLabTUI(App):
             self._lib_analyze_worker()
         elif event.button.id == "lib-build":
             self.action_build_from_filary()
+        elif event.button.id == "lib-artwork":
+            self._artwork_worker()
         elif event.button.id == "cmp-play":
             self._graj_z_panelu()
         elif event.button.id == "pb-play":
@@ -1101,6 +1105,44 @@ class DanceLabTUI(App):
         self._note(f"filary wstawione jako szkic: {len(ids)} — budowa po B")
         # krok konfiguracji z wizji: panel trybów otwiera się sam po G
         self._open_pillar_mode_panel()
+
+    @work(thread=True, exclusive=True, group="artwork")
+    def _artwork_worker(self) -> None:
+        """Synchronizacja okładek: iTunes → tagi plików (z weryfikacją) →
+        po Twoim „Reload Tags" w Rekordboksie → ekrany CDJ. W tle, z
+        postępem; raport w notkach i w data/exports/artwork_raport.json."""
+        from dancelab.ingestion.artwork_sync import synchronizuj
+        ui = self.call_from_thread
+        if not self._lib:
+            ui(self._note, "Artwork: Biblioteka jeszcze się ładuje")
+            return
+        count = self.query_one("#lib-count", Static)
+
+        def postep(i, n, path):
+            ui(count.update, f"Artwork: {i}/{n} · "
+                             f"{pathlib.Path(path).stem[:40]}")
+        ui(self._note, "Artwork: szukam braków i pytam iTunes…")
+        try:
+            raport = synchronizuj(self._lib, progress=postep,
+                                  should_stop=self._stop.is_set)
+        except Exception as exc:  # noqa: BLE001
+            ui(self._note, f"Artwork: synchronizacja nie wyszła: {exc}")
+            return
+        from dancelab.tui.okladki import mozaika
+        mozaika.cache_clear()
+        ui(self._note,
+           f"Artwork: osadzone {len(raport['osadzone'])} · "
+           f"niejednoznaczne {len(raport['niejednoznaczne'])} · "
+           f"nieznalezione {len(raport['nieznalezione'])} · "
+           f"błędy {len(raport['bledy'])} · "
+           f"miały już: {raport['z_okladka_juz']} — raport: {RAPORT_ART}")
+        ui(self._note, "Artwork: w Rekordboksie zaznacz utwory i daj "
+                       "Reload Tags — wtedy okładki wejdą na CDJ-e")
+        self.call_from_thread(
+            self.notify,
+            f"Artwork: osadzone {len(raport['osadzone'])}, "
+            f"do przejrzenia {len(raport['niejednoznaczne'])}")
+        ui(self._render_library, True)
 
     @work(thread=True, exclusive=True, group="lufs")
     def _lufs_worker(self) -> None:

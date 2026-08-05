@@ -89,6 +89,14 @@ i kliknij przycisk — tak dogrywasz nowe pliki (i tak zaczyna pierwszy
 użytkownik). Przed analizą każdy plik sprawdza bramkarz: uszkodzone
 odpadają z imiennym powodem, zamiast psuć analizę.
 
+Obok jest przycisk **Artwork** — synchronizacja okładek: aplikacja
+znajduje pliki bez osadzonej okładki, pyta iTunes o artystę i tytuł
+i przy PEWNYM dopasowaniu wpisuje okładkę (600×600) do tagów pliku —
+niejednoznaczne trafienia są pomijane z powodem (raport w notkach
+i w pliku). Audio nietknięte. **Ważne:** żeby okładki weszły do
+Rekordboxa (i na ekrany CDJ), zaznacz potem utwory w RB i wybierz
+**Reload Tags**.
+
 ---
 
 ## 5. Set — od briefu do playlisty
