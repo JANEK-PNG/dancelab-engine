@@ -500,6 +500,18 @@ class DanceLabTUI(App):
         Binding("p", "preview_seam", "Posłuchaj", show=False),
         Binding("right", "skok_przod", "skok +8", show=False, priority=True),
         Binding("left", "skok_tyl", "skok -8", show=False, priority=True),
+        Binding("shift+right", "skok_przod_32", "skok +32", show=False,
+                priority=True),
+        Binding("shift+left", "skok_tyl_32", "skok -32", show=False,
+                priority=True),
+        Binding("cmd+shift+right", "skok_przod_128", "skok +128", show=False,
+                priority=True),
+        Binding("cmd+shift+left", "skok_tyl_128", "skok -128", show=False,
+                priority=True),
+        Binding("pagedown", "skok_przod_128", "skok +128", show=False,
+                priority=True),
+        Binding("pageup", "skok_tyl_128", "skok -128", show=False,
+                priority=True),
         Binding("c", "compare_pair", "Porównaj"),
         Binding("i", "track_info", "Info"),
         Binding("l", "toggle_notes", "Log"),
@@ -696,7 +708,7 @@ class DanceLabTUI(App):
             active = self.query_one("#tabs", TabbedContent).active
         except Exception:  # noqa: BLE001 — przed zmontowaniem zakładek
             return True
-        if action in ("skok_przod", "skok_tyl"):
+        if action.startswith("skok_"):
             # strzałki poziome przejmuje odtwarzacz TYLKO podczas grania
             # (decyzja Janka) i tylko z fokusem na tabeli — w polu tekstowym
             # dalej ruszają kursorem tekstu
@@ -1934,6 +1946,18 @@ class DanceLabTUI(App):
     def action_skok_tyl(self) -> None:
         self._skok(-8)
 
+    def action_skok_przod_32(self) -> None:
+        self._skok(+32)
+
+    def action_skok_tyl_32(self) -> None:
+        self._skok(-32)
+
+    def action_skok_przod_128(self) -> None:
+        self._skok(+128)
+
+    def action_skok_tyl_128(self) -> None:
+        self._skok(-128)
+
     def _skok(self, uderzenia: int) -> None:
         _, blad = self._odtwarzacz.skocz(uderzenia)
         if blad:
@@ -1945,7 +1969,7 @@ class DanceLabTUI(App):
         opis = self._odtwarzacz.opis()
         if opis:
             self.query_one("#progress", Static).update(
-                f"▶ {opis} · spacja pauza · →/← ±8 uderzeń · ↓/↑ następny")
+                f"▶ {opis} · spacja pauza · →/← 8 · ⇧ 32 · PgUp/Dn 128 · ↓/↑ następny")
 
     def on_data_table_row_highlighted(self, event) -> None:
         """Wzorzec Finder Quick Look (decyzja Janka 06.08 — koniec

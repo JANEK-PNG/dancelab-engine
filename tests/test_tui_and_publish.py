@@ -275,6 +275,16 @@ def test_p_kontekstowe_pauza_skoki_i_szew(tmp_path, monkeypatch):
             ss = float(started[1].cmd[started[1].cmd.index("-ss") + 1])
             assert 3.3 < ss < 4.3, f"skok o 8 uderzen, dostalem {ss}"
 
+            await pilot.press("shift+right")  # +32 uderzenia ≈ +14,8 s
+            await pilot.pause()
+            ss32 = float(started[2].cmd[started[2].cmd.index("-ss") + 1])
+            assert 17.0 < ss32 < 19.5, f"skok o 32, dostalem {ss32}"
+
+            await pilot.press("pageup")       # -128 → przed zero → 0
+            await pilot.pause()
+            ss128 = float(started[3].cmd[started[3].cmd.index("-ss") + 1])
+            assert ss128 == 0.0, "cofka za daleko przycina do zera"
+
             await pilot.press("p")            # pauza
             await pilot.pause()
             assert started[1].killed
@@ -291,9 +301,9 @@ def test_p_kontekstowe_pauza_skoki_i_szew(tmp_path, monkeypatch):
             await pilot.press("p")
             for _ in range(50):
                 await pilot.pause(0.1)
-                if len(started) > 3:
+                if len(started) > 5:
                     break
-            assert started[3].cmd[-1] == str(wav), "P przy pasku szwu = szew"
+            assert started[5].cmd[-1] == str(wav), "P przy pasku szwu = szew"
     asyncio.run(go())
 
 

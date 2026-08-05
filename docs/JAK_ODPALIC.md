@@ -165,7 +165,9 @@ Findera) — bez własnych wynalazków:
   zatrzymany). Przy pauzie lub ciszy strzałki tylko poruszają się
   po liście.
 - **→ / ← w trakcie grania** — skok o **8 uderzeń** (równe 2 takty,
-  liczone z tempa utworu). Gdy nic nie gra, strzałki działają normalnie.
+  liczone z tempa utworu); z **Shift** skok o **32**, a **PgUp/PgDn**
+  (albo ⌘⇧ ze strzałką, jeśli Twój terminal go przepuszcza) o **128**.
+  Gdy nic nie gra, klawisze działają normalnie.
 - **C** w Secie otwiera **pasek szwu** nad tabelą — fakty o parze
   zaznaczony→następny i przycisk **▶ Graj oba**. Przy otwartym pasku
   spacja/P gra przejście pary. Drugie **C** lub **Esc** chowa pasek.
