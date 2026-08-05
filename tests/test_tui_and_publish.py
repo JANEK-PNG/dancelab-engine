@@ -368,3 +368,61 @@ def test_gdy_gra_strzalka_przelacza_jak_next_song(tmp_path, monkeypatch):
             await pilot.pause(0.5)
             assert len(started) == 2, "przy pauzie strzałka NIE gra"
     asyncio.run(go())
+
+
+def test_pasek_odtwarzacza_jak_apple_music(tmp_path, monkeypatch):
+    """Dolny pasek: ▶ gra kursor, ⏭ przesuwa zaznaczenie i gra następny,
+    przycisk zmienia się w ⏸, info pokazuje co gra."""
+    import subprocess
+    import dancelab.tui.odtwarzacz as odt
+    monkeypatch.setattr(odt, "FFPLAY", "/fake/ffplay")
+    monkeypatch.setattr(odt, "AFPLAY", "/fake/afplay")
+
+    class _FakeProc:
+        def __init__(self, cmd):
+            self.cmd = cmd
+            self.killed = False
+
+        def poll(self):
+            return 1 if self.killed else None
+
+        def terminate(self):
+            self.killed = True
+
+    started = []
+    monkeypatch.setattr(subprocess, "Popen",
+                        lambda cmd: started.append(_FakeProc(cmd)) or started[-1])
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import Button, DataTable, Static, TabbedContent
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
+            by_id = _fake_pool("A", "B")
+            app._ctx = dict(by_id=by_id, weights=None, arc="build",
+                            planner="smart", bpm_min=None, bpm_max=None,
+                            anchor=None, params={})
+            app._order = ["A", "B"]
+            app._render_order(by_id)
+            await pilot.pause()
+            table = app.query_one("#set", DataTable)
+            table.move_cursor(row=0)
+            table.focus()
+            assert "nic nie gra" in str(
+                app.query_one("#pb-info", Static).render())
+
+            app.on_button_pressed(type("E", (), {"button": type(
+                "B", (), {"id": "pb-play"})()})())
+            await pilot.pause()
+            assert started and started[0].cmd[-1] == "/m/A.mp3"
+            assert str(app.query_one("#pb-play", Button).label) == "⏸"
+            assert "A @" in str(app.query_one("#pb-info", Static).render())
+
+            app.on_button_pressed(type("E", (), {"button": type(
+                "B", (), {"id": "pb-next"})()})())
+            await pilot.pause()
+            assert started[0].killed
+            assert started[1].cmd[-1] == "/m/B.mp3"
+            assert table.cursor_row == 1, "⏭ przesunął zaznaczenie"
+    asyncio.run(go())

@@ -172,6 +172,11 @@ Findera) — bez własnych wynalazków:
   zaznaczony→następny i przycisk **▶ Graj oba**. Przy otwartym pasku
   spacja/P gra przejście pary. Drugie **C** lub **Esc** chowa pasek.
 
+Na dole aplikacji jest **pasek odtwarzacza** (jak w Apple Music):
+⏮ poprzedni · ⏪ 8 uderzeń wstecz · ▶/⏸ graj-pauza · 8 ⏩ do przodu ·
+⏭ następny, obok nazwa granego utworu z pozycją. Przyciski robią dokładnie
+to samo, co klawisze.
+
 Dźwięk startuje wyłącznie z Twojego klawisza — nic nigdy nie gra samo.
 
 ---

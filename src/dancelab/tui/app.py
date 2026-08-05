@@ -471,6 +471,9 @@ class DanceLabTUI(App):
     #suggest-info { display: none; margin: 1 0; }
     #suggest-info.show { display: block; }
     .field-label { color: $text-muted; }
+    #player-bar { height: 3; background: $panel; padding: 0 1; }
+    #player-bar Button { min-width: 6; margin-right: 1; }
+    #pb-info { padding: 1 0 0 1; color: $text; width: 1fr; }
     #lib-side { width: 26; border-right: solid $primary; padding: 0 1; }
     #lib-filters { height: 3; }
     #lib-filters Input { width: 1fr; margin-right: 1; }
@@ -658,6 +661,13 @@ class DanceLabTUI(App):
                     "przesuń / scal + auto-generacja z planu przejść).\n"
                     "Dziś auto-cue zapisuje komenda `dancelab zagraj`, "
                     "a playlisty klawisz W w zakładce Set.", id="export-stub")
+        with Horizontal(id="player-bar"):
+            yield Button("⏮", id="pb-prev")
+            yield Button("⏪ 8", id="pb-back")
+            yield Button("▶", id="pb-play", variant="primary")
+            yield Button("8 ⏩", id="pb-fwd")
+            yield Button("⏭", id="pb-next")
+            yield Static("nic nie gra", id="pb-info")
         yield Static("", id="status")
         yield Footer()
 
@@ -692,6 +702,7 @@ class DanceLabTUI(App):
         self._load_anchors()
         self._refresh_status()
         self.set_interval(5.0, self._refresh_status)
+        self.set_interval(1.0, self._tick_player)
         self._lib_loader()
 
     # ------------------------------------------------------------ zakładki
@@ -970,6 +981,17 @@ class DanceLabTUI(App):
             self.action_build_from_filary()
         elif event.button.id == "cmp-play":
             self._graj_z_panelu()
+        elif event.button.id == "pb-play":
+            self.action_preview_seam()
+            self._tick_player()
+        elif event.button.id == "pb-next":
+            self._nastepny(+1)
+        elif event.button.id == "pb-prev":
+            self._nastepny(-1)
+        elif event.button.id == "pb-fwd":
+            self._skok(+8)
+        elif event.button.id == "pb-back":
+            self._skok(-8)
 
     def _graj_z_panelu(self) -> None:
         if self._stop_player():
@@ -1939,6 +1961,44 @@ class DanceLabTUI(App):
         else:
             self._note(f"GRA: {nazwa} ({akcja}) · spacja pauza · ↓/↑ następny · →/← ±8")
         self._pokaz_odtwarzacz()
+
+    # --------------------------------------- pasek odtwarzacza (Apple Music)
+
+    def _tick_player(self) -> None:
+        gra = self._odtwarzacz.gra()
+        self.query_one("#pb-play", Button).label = "⏸" if gra else "▶"
+        opis = self._odtwarzacz.opis()
+        if gra:
+            self.query_one("#pb-info", Static).update(f"▶ {opis}")
+        elif opis:
+            self.query_one("#pb-info", Static).update(f"⏸ {opis}")
+        else:
+            self.query_one("#pb-info", Static).update("nic nie gra")
+
+    def _nastepny(self, delta: int) -> None:
+        """⏭/⏮: przesuń zaznaczenie w aktywnej tabeli i graj od zera —
+        jak next/previous w każdym odtwarzaczu."""
+        aktywna = self.query_one("#tabs", TabbedContent).active
+        if aktywna == "tab-lib":
+            table = self.query_one("#lib-table", DataTable)
+        elif aktywna == "tab-set":
+            table = self.query_one("#set", DataTable)
+        else:
+            return
+        if table.row_count == 0 or table.cursor_row is None:
+            return
+        table.move_cursor(row=min(max(table.cursor_row + delta, 0),
+                                  table.row_count - 1))
+        track = self._biezacy_track()
+        if track is None:
+            return
+        blad = self._odtwarzacz.graj_od_zera(str(track.source_path),
+                                             track.bpm_estimate)
+        if blad:
+            self._note(f"odsłuch: {blad}")
+            return
+        self._pokaz_odtwarzacz()
+        self._tick_player()
 
     def action_skok_przod(self) -> None:
         self._skok(+8)
