@@ -29,7 +29,9 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
   ♥ Ulubione utwory, ⚑ Filary; przypięte playlisty dojdą z widokiem playlist.
 - **Szukajka i filtry** na górze: fragment nazwy lub gatunku, dokładna
   tonacja (np. `8A`), okno tempa (np. `125-140`). Filtrują na żywo.
-- Tabela pokazuje wszystko, co silnik wie: BPM, tonację z pewnością,
+- Tabela pokazuje wszystko, co silnik wie: BPM, tonację (tam, gdzie
+  Rekordbox ją zna, gra jego tonacja — w kolumnie pewności widzisz „RB"
+  zamiast liczby; pytajnik został tylko dla utworów bez tonacji w RB),
   względną energię (0–100 w obrębie Twojej biblioteki; „—" = silnik nie wie),
   gatunek, długość.
 - **U** — przypina utwór do ulubionych (♥). **F** — robi z utworu **FILAR**:
@@ -80,17 +82,22 @@ je **Ctrl+Tab** (albo kliknięciem; część terminali połyka Ctrl+Tab).
 5. **S** — zapisuje plan na dysk; **O** — wczytuje zapisany plan (także po
    ponownym uruchomieniu aplikacji; utwory, których nie ma już w puli, są
    pomijane z wyraźną notką).
-6. **V** — świadomy werdykt: zrzuca obok siebie „co ułożył silnik" i „co
+6. **P** — POSŁUCHAJ szwu: renderuje przejście zaznaczony→następny dokładnie
+   tak, jak ułożył je silnik (okna mix-out/mix-in, długość ze stabilności
+   szwu, krzywe jak w mikserze) i gra je od razu. Drugie **P** albo **Esc**
+   zatrzymuje. Dźwięk startuje TYLKO z tego klawisza.
+7. **V** — świadomy werdykt: zrzuca obok siebie „co ułożył silnik" i „co
    zostawiłeś po swoich zmianach".
    **I** — karta informacji o zaznaczonym utworze: metadane silnika (BPM,
    tonacja z pewnością, gatunek, długość), lokalizacja pliku na dysku oraz
    to, co wie Rekordbox (jego BPM, komentarz i playlisty, w których utwór
    aktualnie leży — prosto z master.db). Drugie **I** albo **Esc** zamyka.
-7. **W** — wgrywa playlistę do Rekordboxa. **Rekordbox musi być ZAMKNIĘTY** —
+8. **W** — wgrywa playlistę do Rekordboxa. **Rekordbox musi być ZAMKNIĘTY** —
    inaczej aplikacja odmówi i nic nie dotknie. Przed każdym zapisem sama robi
    kopię bazy (`DanceLab_backups/`), a po zapisie sprawdza odczytem, czy w bazie
    jest dokładnie to, co miało być.
-8. **Esc** — zamyka panel po prawej albo przerywa budowę. **Q** — wyjście.
+9. **Esc** — zamyka panel po prawej / zatrzymuje odsłuch / przerywa budowę.
+   **Q** — wyjście.
 
 ## Jak czytać ekran (zasada uczciwości)
 

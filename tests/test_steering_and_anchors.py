@@ -153,3 +153,43 @@ def test_brak_rekordboxa_nie_wywala_tylko_raportuje():
     report = attach_rekordbox_genres([a], genre_map={})
     assert report.attached == 0 and report.missing == 1
     assert a.track.style_label == "Breaks"
+
+
+# ---------------------------------------------------------------- tonacje RB
+
+def _key_track(cam=None, conf=None, source=None, path="/m/x.mp3"):
+    from dancelab.core.models import AnalysisResult, Track
+    class A:
+        track = Track(track_id="t1", source_path=path, key_estimate=cam,
+                      key_confidence=conf, key_detection_source=source)
+    return A()
+
+
+def test_tonacja_rekordboxa_zastepuje_slaby_detektor():
+    """Decyzja Janka 05.08 (pomiar: detektor 47% vs sędzia RB): apka gra
+    tonacją z Rekordboxa; źródło jawne, pewność wg konwencji zaufanego źródła."""
+    from dancelab.ingestion.analysis_enrichment import attach_rekordbox_keys
+    a = _key_track(cam="3B", conf=0.12, source="detector")
+    report = attach_rekordbox_keys([a], key_map={"/m/x.mp3": "8A"})
+    t = a.track
+    assert (t.key_estimate, t.key_confidence) == ("8A", 1.0)
+    assert t.key_detection_source == "rekordbox"
+    assert (t.camelot_number, t.camelot_mode) == (8, "A")
+    assert report.attached == 1
+
+
+def test_reczna_tonacja_dja_nie_jest_nadpisywana():
+    from dancelab.ingestion.analysis_enrichment import attach_rekordbox_keys
+    a = _key_track(cam="5A", conf=1.0, source="manual")
+    attach_rekordbox_keys([a], key_map={"/m/x.mp3": "8A"})
+    assert a.track.key_estimate == "5A"
+    assert a.track.key_detection_source == "manual"
+
+
+def test_brak_tonacji_w_rb_zostawia_detektor_z_jego_pewnoscia():
+    from dancelab.ingestion.analysis_enrichment import attach_rekordbox_keys
+    a = _key_track(cam="3B", conf=0.12, source="detector")
+    report = attach_rekordbox_keys([a], key_map={})
+    assert a.track.key_estimate == "3B" and a.track.key_confidence == 0.12
+    assert report.missing == 1
+    assert any("zostaje detektor" in n for n in report.notes)

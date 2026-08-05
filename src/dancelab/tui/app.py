@@ -216,6 +216,16 @@ def _bpm_cell(t):
     return Text(f"{t.bpm_estimate or 0:.1f}", style=f"on {_COL_BG}")
 
 
+def _conf_cell(t):
+    zrodlo = getattr(t, "key_detection_source", None)
+    if zrodlo == "rekordbox":
+        return "RB"          # tonacja sędziego, nie liczba z naszego detektora
+    if zrodlo == "manual":
+        return "ręka"
+    conf = t.key_confidence
+    return f"{conf:.2f}" if conf is not None else "—"
+
+
 def _key_cell(t):
     from rich.text import Text
     conf = t.key_confidence
@@ -321,7 +331,9 @@ def _format_track_info(track, rb: dict | None, rb_note: str | None) -> str:
     lines = [
         "SILNIK:",
         f"  BPM {track.bpm_estimate or '—'} · ton {track.key_estimate or '?'}"
-        + (f" (pew. {conf:.2f})" if conf is not None else ""),
+        + (" (źródło: Rekordbox)"
+           if getattr(track, "key_detection_source", None) == "rekordbox"
+           else (f" (pew. {conf:.2f})" if conf is not None else "")),
         f"  gatunek: {track.style_label or '—'}",
         f"  długość: {int(dur // 60)}:{int(dur % 60):02d}",
         "  wektor brzmienia: "
@@ -405,6 +417,7 @@ class DanceLabTUI(App):
         Binding("s", "save_plan", "Zapisz plan"),
         Binding("o", "load_plan", "Wczytaj"),
         Binding("v", "verdict", "Werdykt"),
+        Binding("p", "preview_seam", "Posłuchaj"),
         Binding("i", "track_info", "Info"),
         Binding("l", "toggle_notes", "Log"),
         Binding("u", "toggle_fav", "♥ Ulubiony"),
@@ -442,6 +455,7 @@ class DanceLabTUI(App):
         self._user_state: dict = {"ulubione_utwory": [],
                                   "ulubione_playlisty": [], "filary": []}
         self._lib_sort: tuple[int, bool] = (2, False)   # domyślnie BPM rosnąco
+        self._player = None                   # afplay szwu (klawisz P)
 
     # ------------------------------------------------------------- układ
 
@@ -561,7 +575,7 @@ class DanceLabTUI(App):
     _LIB_ONLY = {"toggle_fav", "build_from_filary"}
     _SET_ONLY = {"build", "write", "replace", "cut", "add", "move_up",
                  "move_down", "save_plan", "load_plan", "verdict",
-                 "track_info"}
+                 "track_info", "preview_seam"}
 
     def check_action(self, action: str, parameters) -> bool:
         try:
@@ -600,6 +614,14 @@ class DanceLabTUI(App):
         except Exception as exc:  # noqa: BLE001
             ui(self._note, f"Biblioteka nie wstała: {exc}")
             return
+        if analyses:
+            try:
+                from dancelab.ingestion.analysis_enrichment import (
+                    attach_rekordbox_genres, attach_rekordbox_keys)
+                attach_rekordbox_genres(analyses)
+                attach_rekordbox_keys(analyses)
+            except Exception as exc:  # noqa: BLE001 — brak RB != martwa Biblioteka
+                notes.append(f"dokarmianie Biblioteki nie wyszło: {exc}")
         for note in notes:
             ui(self._note, note)
         ui(self._set_library, analyses)
@@ -666,7 +688,7 @@ class DanceLabTUI(App):
                 "♥" if t.track_id in favs else "",
                 "F" if t.track_id in filary else "",
                 _bpm_cell(t), _key_cell(t),
-                f"{conf:.2f}" if conf is not None else "—",
+                _conf_cell(t),
                 f"{en:3d}" if en is not None else "—",
                 (t.style_label or "")[:20],
                 f"{dur/60:4.1f}",
@@ -950,7 +972,8 @@ class DanceLabTUI(App):
         from dancelab.core.config import load_config, load_weights
         from dancelab.decision.set_builder import build_set
         from dancelab.ingestion.analysis_enrichment import (
-            attach_rekordbox_genres, attach_sound_embeddings)
+            attach_rekordbox_genres, attach_rekordbox_keys,
+            attach_sound_embeddings)
         from dancelab.workflows.smart_playlist import (
             analyze_files, discover_audio_files, estimate_track_count_for_duration)
 
@@ -986,6 +1009,7 @@ class DanceLabTUI(App):
         ui(progress.update, "Dokarmianie (wektory, gatunki)…")
         emb = attach_sound_embeddings(analyses)
         gen = attach_rekordbox_genres(analyses)
+        ton = attach_rekordbox_keys(analyses)
 
         anchor = None
         if p["dj"]:
@@ -1064,8 +1088,9 @@ class DanceLabTUI(App):
             params=p,
             filary=filary,   # już po mapowaniu na egzemplarze kanoniczne —
         )                    # flagi ⚑ w tabeli muszą trafiać w to, co GRA
-        notes = [*emb.notes, *gen.notes, *filar_notes,
-                 f"dokarmione: wektory {emb.attached}, gatunki {gen.attached}"]
+        notes = [*emb.notes, *gen.notes, *ton.notes, *filar_notes,
+                 f"dokarmione: wektory {emb.attached}, gatunki {gen.attached}, "
+                 f"tonacje RB {ton.attached}"]
         self._plan_name = (f"TUI {p['dj'] or 'set'} "
                            f"{p['bpm_min']:g}-{p['bpm_max']:g}" if p["bpm_min"]
                            else f"TUI {p['dj'] or 'set'}")
@@ -1104,7 +1129,7 @@ class DanceLabTUI(App):
             table.add_row(
                 Text(nr, style=f"bold {base}") if base else nr,
                 _bpm_cell(t), _key_cell(t),
-                f"{conf:.2f}" if conf is not None else "—",
+                _conf_cell(t),
                 (t.style_label or "")[:22], f"{total/60:5.1f}",
                 Text(name, style=base) if base else name,
             )
@@ -1254,6 +1279,8 @@ class DanceLabTUI(App):
         if self.query_one("#suggest").has_class("open"):
             self._close_panel()
             self.query_one("#set", DataTable).focus()
+            return
+        if self._stop_player():
             return
         self._stop.set()
         self._note("anulowanie — dokończę bieżący utwór i stanę (cache zostaje)")
@@ -1419,7 +1446,8 @@ class DanceLabTUI(App):
         dzięki temu Z/A po samym O oceniają tak, jak oceniała budowa."""
         from dancelab.core.config import load_config, load_weights
         from dancelab.ingestion.analysis_enrichment import (
-            attach_rekordbox_genres, attach_sound_embeddings)
+            attach_rekordbox_genres, attach_rekordbox_keys,
+            attach_sound_embeddings)
         ui = self.call_from_thread
         ui(self.query_one("#progress", Static).update,
            "Wczytuję pulę z biblioteki pod plan…")
@@ -1430,6 +1458,7 @@ class DanceLabTUI(App):
             raise ValueError("pusta pula — nie mam do czego dopasować planu")
         attach_sound_embeddings(analyses)
         attach_rekordbox_genres(analyses)
+        attach_rekordbox_keys(analyses)
         anchor = None
         if params.get("dj"):
             from dancelab.decision.anchors import resolve_anchor
@@ -1506,6 +1535,65 @@ class DanceLabTUI(App):
         self._note(f"WERDYKT: plan {len(self._engine_order)} utworów vs "
                    f"Twoje {len(self._order)}, edycji {len(self._edits)} "
                    f"→ {path.name}")
+
+    # ---------------------------------------------------- odsłuch szwu (P)
+
+    def _stop_player(self) -> bool:
+        if self._player is not None and self._player.poll() is None:
+            self._player.terminate()
+            self._player = None
+            self._note("odsłuch zatrzymany")
+            return True
+        self._player = None
+        return False
+
+    def on_unmount(self) -> None:
+        # dźwięk nie może przeżyć aplikacji
+        if self._player is not None and self._player.poll() is None:
+            self._player.terminate()
+
+    def action_preview_seam(self) -> None:
+        """P: usłysz szew zaznaczonej pary. Drugie P (albo Esc) zatrzymuje.
+        Dźwięk startuje WYŁĄCZNIE z tego klawisza — twarda zasada projektu."""
+        if self._stop_player():
+            return
+        idx = self._cursor_row("odsłuch szwu")
+        if idx is None:
+            return
+        if idx + 1 >= len(self._order):
+            self._note("ostatni utwór nie ma następnika — P gra parę "
+                       "zaznaczony→następny")
+            return
+        self._seam_worker(idx)
+
+    @work(thread=True, exclusive=True, group="seam")
+    def _seam_worker(self, idx: int) -> None:
+        from dancelab.tui.seam_preview import zbuduj_szew
+        ui = self.call_from_thread
+        by_id = self._ctx["by_id"]
+        a = by_id[self._order[idx]]
+        b = by_id[self._order[idx + 1]]
+        ui(self.query_one("#progress", Static).update,
+           f"Renderuję szew #{idx+1}→#{idx+2} (fraz-lock, krzywe deckowe)…")
+        try:
+            info = zbuduj_szew(a, b, self._ctx["weights"])
+        except Exception as exc:  # noqa: BLE001 — powód, nie traceback
+            ui(self._note, f"szew nie wyszedł: {exc}")
+            self.call_from_thread(self.notify, f"szew nie wyszedł: {exc}",
+                                  severity="warning", timeout=6)
+            return
+        ui(self._start_player, info, idx)
+
+    def _start_player(self, info: dict, idx: int) -> None:
+        import subprocess
+        self._player = subprocess.Popen(["afplay", str(info["output"])])
+        for line in info.get("rozumowanie", [])[:3]:
+            self._note(line)
+        self._note(f"GRA szew #{idx+1}→#{idx+2}: {info['beats']} uderzeń "
+                   f"@ {info['bpm']:.1f} BPM · P/Esc zatrzymuje")
+        self.query_one("#progress", Static).update(
+            f"▶ szew #{idx+1}→#{idx+2} · {info['beats']} uderzeń "
+            f"@ {info['bpm']:.1f} BPM · P/Esc zatrzymuje")
 
     # ------------------------------------------------------------- karta INFO
 

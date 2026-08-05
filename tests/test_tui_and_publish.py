@@ -210,3 +210,65 @@ def test_tui_odmowa_budowy_pokazuje_powod():
                     break
             assert "ODMOWA" in lines
     asyncio.run(go())
+
+
+def test_p_odtwarza_i_zatrzymuje_bez_prawdziwego_dzwieku(tmp_path, monkeypatch):
+    """P renderuje szew i startuje odtwarzacz; drugie P zatrzymuje; ostatni
+    utwór odmawia. Dźwięk i render podmienione atrapami — weryfikacja NIGDY
+    nie gra audio (twarda zasada projektu)."""
+    import subprocess
+
+    class _FakeProc:
+        def __init__(self, cmd):
+            self.cmd = cmd
+            self.killed = False
+
+        def poll(self):
+            return 1 if self.killed else None
+
+        def terminate(self):
+            self.killed = True
+
+    started = []
+    monkeypatch.setattr(subprocess, "Popen",
+                        lambda cmd: started.append(_FakeProc(cmd)) or started[-1])
+    import dancelab.tui.seam_preview as sp
+    wav = tmp_path / "szew.wav"
+    wav.write_bytes(b"RIFF")
+    monkeypatch.setattr(sp, "zbuduj_szew", lambda a, b, w: {
+        "output": wav, "beats": 64, "bpm": 130.0, "rozumowanie": []})
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import DataTable, TabbedContent
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
+            by_id = _fake_pool("A", "B")
+            app._ctx = dict(by_id=by_id, weights=None, arc="build",
+                            planner="smart", bpm_min=None, bpm_max=None,
+                            anchor=None, params={})
+            app._order = ["A", "B"]
+            app._render_order(by_id)
+            await pilot.pause()
+            table = app.query_one("#set", DataTable)
+            table.move_cursor(row=0)
+            table.focus()
+            await pilot.press("p")
+            for _ in range(50):
+                await pilot.pause(0.1)
+                if app._player is not None:
+                    break
+            assert started and "afplay" in started[0].cmd[0]
+            assert str(wav) in started[0].cmd[1]
+            await pilot.press("p")            # drugie P zatrzymuje
+            await pilot.pause()
+            assert started[0].killed
+            table.move_cursor(row=1)          # ostatni utwór — odmowa
+            await pilot.pause()
+            await pilot.press("p")
+            await pilot.pause()
+            assert len(started) == 1, "nie wystartował drugi odtwarzacz"
+            lines = " ".join(str(l) for l in app.query_one("#warnings").lines)
+            assert "ostatni utwór nie ma następnika" in lines
+    asyncio.run(go())

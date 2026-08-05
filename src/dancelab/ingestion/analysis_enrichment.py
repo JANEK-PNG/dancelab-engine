@@ -133,3 +133,75 @@ def attach_rekordbox_genres(
             track.style_label = genre
             attached += 1
     return EnrichmentReport(attached=attached, missing=missing, notes=notes)
+
+
+# ---------------------------------------------------------------- tonacje
+
+def load_rekordbox_key_map() -> tuple[dict[str, str], str]:
+    """Tonacje (Camelot) z analizy Rekordboxa — tylko odczyt, działa przy
+    otwartym programie (ta sama droga co gatunki)."""
+    try:
+        from pyrekordbox import Rekordbox6Database
+        from pyrekordbox.db6 import tables
+    except Exception as exc:  # noqa: BLE001
+        return {}, f"pyrekordbox niedostępny ({type(exc).__name__}) — tonacje tylko z detektora"
+    try:
+        db = Rekordbox6Database()
+    except Exception as exc:  # noqa: BLE001
+        return {}, f"nie mogę otworzyć bazy Rekordboxa ({type(exc).__name__}) — tonacje tylko z detektora"
+    try:
+        keys = {k.ID: str(k.ScaleName or "").strip()
+                for k in db.session.query(tables.DjmdKey).all()}
+        out: dict[str, str] = {}
+        for row in db.session.query(tables.DjmdContent).all():
+            fp = row.FolderPath or ""
+            cam = keys.get(row.KeyID, "")
+            if fp.startswith("/") and cam and cam[-1] in "AB" and cam[:-1].isdigit():
+                out[_nfc(fp)] = cam
+    finally:
+        db.close()
+    return out, f"tonacje z Rekordboxa: {len(out)} utworów"
+
+
+def attach_rekordbox_keys(
+    analyses: Iterable[AnalysisResult],
+    key_map: dict[str, str] | None = None,
+) -> EnrichmentReport:
+    """Tonacja z analizy Rekordboxa → pola tonacji utworu.
+
+    Decyzja Janka (05.08): „apka gra tym, co widzę w Rekordboksie". Powód
+    ZMIERZONY tego samego dnia na 191 wspólnych utworach: nasz detektor
+    (Krumhansl-Schmuckler na uśrednionej chromie) trafia w sędziego RB w 47%
+    dokładnie — na elektronice bez wyraźnego centrum tonalnego to za mało do
+    grania. Źródło jest jawne (`key_detection_source="rekordbox"`), pewność
+    1,0 wg ustalonej konwencji zaufanego źródła (precedens: manual override).
+    Ręczna tonacja DJ-a NIGDY nie jest nadpisywana. Cache analiz na dysku
+    zostaje silnikowy — sędzia pozostaje mierzalny dla przyszłego detektora."""
+    from dancelab.decision.harmonic import parse_camelot
+    notes: list[str] = []
+    if key_map is None:
+        key_map, note = load_rekordbox_key_map()
+        notes.append(note)
+    attached = missing = 0
+    for analysis in analyses:
+        track = analysis.track
+        cam = key_map.get(_nfc(track.source_path))
+        if cam is None:
+            missing += 1
+            continue
+        if track.key_detection_source == "manual":
+            continue                              # ręka DJ-a > analiza RB
+        if track.key_estimate == cam and track.key_detection_source == "rekordbox":
+            continue
+        parsed = parse_camelot(cam)
+        num, mode = parsed if parsed else (None, None)
+        track.key_estimate = cam
+        track.camelot_number = num
+        track.camelot_mode = mode
+        track.key_confidence = 1.0
+        track.key_detection_source = "rekordbox"
+        attached += 1
+    if missing:
+        notes.append(f"{missing} utworów bez tonacji w Rekordboksie — "
+                     f"zostaje detektor z jego pewnością")
+    return EnrichmentReport(attached=attached, missing=missing, notes=notes)
