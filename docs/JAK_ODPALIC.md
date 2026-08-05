@@ -172,9 +172,9 @@ Findera) — bez własnych wynalazków:
   zaznaczony→następny i przycisk **▶ Graj oba**. Przy otwartym pasku
   spacja/P gra przejście pary. Drugie **C** lub **Esc** chowa pasek.
 
-W Bibliotece, w lewej kolumnie pod listą sekcji, jest **odtwarzacz**:
-nazwa granego utworu z pozycją oraz przyciski Graj/Pauza, Poprz./Nast.
-i -8/+8. Przyciski robią dokładnie to samo, co klawisze.
+W Bibliotece, pod listą utworów, jest **odtwarzacz**: nazwa granego
+utworu z pozycją oraz przyciski Poprz. · -8 · Graj/Pauza · +8 · Nast.
+Przyciski robią dokładnie to samo, co klawisze.
 
 Dźwięk startuje wyłącznie z Twojego klawisza — nic nigdy nie gra samo.
 

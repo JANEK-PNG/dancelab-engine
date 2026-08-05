@@ -474,11 +474,11 @@ class DanceLabTUI(App):
     .field-label { color: $text-muted; }
     #tabs { height: 1fr; }
     #lib-side-list { height: auto; }
-    #pb-box { align-horizontal: center; margin-top: 1; height: auto; }
-    #pb-info { height: 2; color: $text-muted; text-align: center;
+    #pb-box { align-horizontal: center; height: 5; }
+    #pb-info { height: 1; color: $text-muted; text-align: center;
                width: 100%; }
-    #pb-row1, #pb-row2 { height: 3; align-horizontal: center; width: auto; }
-    #pb-row1 Button, #pb-row2 Button { margin-right: 1; }
+    #pb-row1 { height: 3; align-horizontal: center; width: auto; }
+    #pb-row1 Button { margin-right: 1; min-width: 8; }
     #lib-side { width: 26; border-right: solid $primary; padding: 0 1; }
     #lib-filters { height: 3; }
     #lib-filters Input { width: 1fr; margin-right: 1; }
@@ -578,16 +578,7 @@ class DanceLabTUI(App):
                         yield Label("SEKCJE", classes="field-label")
                         side = OptionList(id="lib-side-list")
                         yield side
-                        with Vertical(id="pb-box"):
-                            yield Static("nic nie gra", id="pb-info")
-                            yield Button("Graj", id="pb-play",
-                                         variant="primary")
-                            with Horizontal(id="pb-row1"):
-                                yield Button("Poprz.", id="pb-prev")
-                                yield Button("Nast.", id="pb-next")
-                            with Horizontal(id="pb-row2"):
-                                yield Button("-8", id="pb-back")
-                                yield Button("+8", id="pb-fwd")
+
                     with Vertical():
                         with Horizontal(id="lib-filters"):
                             yield Input(placeholder="szukaj (nazwa / gatunek)…",
@@ -596,6 +587,15 @@ class DanceLabTUI(App):
                             yield Input(placeholder="BPM np. 125-140", id="lib-bpm")
                         yield Static("", id="lib-count")
                         yield DataTable(id="lib-table")
+                        with Vertical(id="pb-box"):
+                            yield Static("nic nie gra", id="pb-info")
+                            with Horizontal(id="pb-row1"):
+                                yield Button("Poprz.", id="pb-prev")
+                                yield Button("-8", id="pb-back")
+                                yield Button("Graj", id="pb-play",
+                                             variant="primary")
+                                yield Button("+8", id="pb-fwd")
+                                yield Button("Nast.", id="pb-next")
                         with Horizontal(id="lib-onboard"):
                             yield Input(placeholder="folder z muzyką do "
                                                     "przeskanowania (pierwszy raz "
