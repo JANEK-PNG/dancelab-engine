@@ -485,7 +485,9 @@ class DanceLabTUI(App):
     #lib-side { width: 26; border-right: solid $primary; padding: 0 1; }
     #lib-filters { height: 3; }
     #lib-filters Input { width: 1fr; margin-right: 1; }
-    #lib-tools { height: 3; }
+    #lib-tools { height: 1; }
+    #lib-artwork { border: none; height: 1; padding: 0 1; }
+    #lib-artwork-label { color: $text-muted; padding: 0 1; }
     #lib-count { height: 2; color: $text-muted; padding: 0 1 1 1; }
     #lib-table .datatable--header { text-style: bold; background: $boost; }
     #compare { height: 7; border-bottom: solid $accent; padding: 0 1;
@@ -546,6 +548,8 @@ class DanceLabTUI(App):
         super().__init__()
         self.processed_dir = processed_dir
         self._stop = threading.Event()
+        self._artwork_przerwij = threading.Event()
+        self._artwork_programowo = False   # lustrzane ustawianie przełącznika
         self._plan_paths: list[str] = []
         self._plan_name = ""
         self._order: list[str] = []
@@ -591,9 +595,12 @@ class DanceLabTUI(App):
                             yield Input(placeholder="tonacja np. 8A", id="lib-key")
                             yield Input(placeholder="BPM np. 125-140", id="lib-bpm")
                         with Horizontal(id="lib-tools"):
-                            # dodatek, nie killer feature (Janek) — dlatego mały
-                            # guzik pod szukajką, nie obok Analizuj/Zbuduj
-                            yield Button("Artwork sync", id="lib-artwork")
+                            # dodatek, nie killer feature (Janek): mały
+                            # przełącznik zamiast przycisku — ON pokazuje
+                            # okładki w liście I dociąga brakujące (iTunes →
+                            # tagi); OFF tylko chowa, niczego nie kasuje
+                            yield Switch(value=False, id="lib-artwork")
+                            yield Label("artwork", id="lib-artwork-label")
                         yield Static("", id="lib-count")
                         # priorytet fg "renderable": obrazki TGP kodują SIEBIE
                         # w kolorze pisma (kolor = id obrazka u terminala) —
@@ -724,6 +731,11 @@ class DanceLabTUI(App):
             self._note(f"stan ulubionych/filarów nieodczytany: {exc}")
             self._user_state = {"ulubione_utwory": [], "ulubione_playlisty": [],
                                 "filary": []}
+        # lustro zapisanego stanu okładek na przełączniku — bez uruchamiania
+        # synchronizacji (ta rusza wyłącznie z ręki użytkownika)
+        if bool(self._user_state.get("okladki_w_liscie")):
+            self._artwork_programowo = True
+            self.query_one("#lib-artwork", Switch).value = True
         self._load_anchors()
         self._refresh_status()
         self.set_interval(5.0, self._refresh_status)
@@ -937,8 +949,13 @@ class DanceLabTUI(App):
         table.refresh()
 
     def action_toggle_okladki(self) -> None:
-        """K: okładki w liście on/off (kompromis Janka: miniatury kosztem
-        3× mniej utworów w kadrze — więc przełącznik, nie dogmat)."""
+        """K: to samo co przełącznik „artwork" — jedna dźwignia, dwa wejścia
+        (decyzja Janka 08.08: toggle scala pokazywanie okładek z dociąganiem
+        braków; OFF tylko chowa, niczego nie kasuje)."""
+        przelacznik = self.query_one("#lib-artwork", Switch)
+        przelacznik.value = not przelacznik.value   # resztę robi on_switch_changed
+
+    def _przelacz_okladki_w_liscie(self) -> None:
         from dancelab.tui.user_store import save_state
         self._user_state["okladki_w_liscie"] = \
             not self._user_state.get("okladki_w_liscie")
@@ -946,6 +963,22 @@ class DanceLabTUI(App):
         stan = "włączone" if self._user_state["okladki_w_liscie"] else "wyłączone"
         self._note(f"okładki w liście: {stan}")
         self._render_library(keep_cursor=True)
+
+    def on_switch_changed(self, event: Switch.Changed) -> None:
+        if event.switch.id != "lib-artwork":
+            return
+        if self._artwork_programowo:      # lustro stanu, nie decyzja użytkownika
+            self._artwork_programowo = False
+            return
+        wlaczone = bool(event.value)
+        if wlaczone != bool(self._user_state.get("okladki_w_liscie")):
+            self._przelacz_okladki_w_liscie()
+        if wlaczone:
+            self._artwork_przerwij.clear()
+            self._artwork_worker()
+        else:
+            # zatrzymaj dociąganie po bieżącym pliku; osadzone okładki ZOSTAJĄ
+            self._artwork_przerwij.set()
 
     def action_toggle_fav(self) -> None:
         self._lib_toggle("ulubione_utwory", "♥")
@@ -1040,12 +1073,6 @@ class DanceLabTUI(App):
             self._lib_analyze_worker()
         elif event.button.id == "lib-build":
             self.action_build_from_filary()
-        elif event.button.id == "lib-artwork":
-            # okładki w liście włączają się same — użytkownik ma ZOBACZYĆ,
-            # że synchronizacja działa, bez znajomości klawisza K
-            if not self._user_state.get("okladki_w_liscie"):
-                self.action_toggle_okladki()
-            self._artwork_worker()
         elif event.button.id == "cmp-play":
             self._graj_z_panelu()
         elif event.button.id == "pb-play":
@@ -1123,12 +1150,19 @@ class DanceLabTUI(App):
         """Synchronizacja okładek: iTunes → tagi plików (z weryfikacją) →
         po Twoim „Reload Tags" w Rekordboksie → ekrany CDJ. W tle, z
         postępem; raport w notkach i w data/exports/artwork_raport.json."""
+        from textual.worker import get_current_worker
+
         from dancelab.ingestion.artwork_sync import synchronizuj
         ui = self.call_from_thread
         if not self._lib:
             ui(self._note, "Artwork: Biblioteka jeszcze się ładuje")
             return
         count = self.query_one("#lib-count", Static)
+        worker = get_current_worker()
+
+        def przerwac() -> bool:
+            return (self._stop.is_set() or self._artwork_przerwij.is_set()
+                    or worker.is_cancelled)
 
         def postep(i, n, path):
             ui(count.update, f"Artwork: {i}/{n} · "
@@ -1136,7 +1170,7 @@ class DanceLabTUI(App):
         ui(self._note, "Artwork: szukam braków i pytam iTunes…")
         try:
             raport = synchronizuj(self._lib, progress=postep,
-                                  should_stop=self._stop.is_set)
+                                  should_stop=przerwac)
         except Exception as exc:  # noqa: BLE001
             ui(self._note, f"Artwork: synchronizacja nie wyszła: {exc}")
             return

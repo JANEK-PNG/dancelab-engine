@@ -57,6 +57,39 @@ def test_ostry_renderer_rozpoznaje_po_module_nie_po_nazwie(monkeypatch):
     assert _ostry_renderer() is None, "półbloki = zostajemy przy naszej mozaice"
 
 
+def test_przelacznik_artwork_scala_galerie_i_synchronizacje(tmp_path, monkeypatch):
+    """Decyzja Janka (08.08): zamiast przycisku mały toggle — ON pokazuje
+    okładki w liście I dociąga brakujące; OFF tylko chowa (zero kasowania,
+    zero dociągania). K jest klawiszowym wejściem tej samej dźwigni."""
+    import asyncio
+
+    import dancelab.tui.user_store as store
+    from textual.widgets import Switch
+
+    from dancelab.tui.app import DanceLabTUI
+
+    monkeypatch.setattr(store, "STATE_PATH", tmp_path / "stan.json")
+    wywolania = []
+    monkeypatch.setattr(DanceLabTUI, "_artwork_worker",
+                        lambda self: wywolania.append("sync"))
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            przelacznik = app.query_one("#lib-artwork", Switch)
+            przelacznik.value = True
+            await pilot.pause()
+            assert app._user_state["okladki_w_liscie"] is True
+            assert wywolania == ["sync"], "ON = galeria + dociąganie braków"
+            przelacznik.value = False
+            await pilot.pause()
+            assert app._user_state["okladki_w_liscie"] is False
+            assert app._artwork_przerwij.is_set(), "OFF przerywa dociąganie"
+            assert wywolania == ["sync"], "OFF niczego nie dociąga i nie kasuje"
+
+    asyncio.run(go())
+
+
 def test_kursor_nie_kasuje_okladek_w_liscie():
     """Obrazek TGP koduje SIEBIE w kolorze pisma (kolor znaku = id obrazka
     dla terminala). Domyślny kursor DataTable nadpisuje kolor wiersza →

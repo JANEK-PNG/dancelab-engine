@@ -80,7 +80,7 @@ Utwory bez wartości w sortowanej kolumnie zawsze lądują na końcu.
 | klawisz | działanie |
 |---|---|
 | **U** | przypnij / odepnij ulubiony (♥) |
-| **K** | okładki w liście: włącz / wyłącz (galeria z miniaturami — wiersze rosną, widać mniej utworów naraz; wybór zapamiętany) |
+| **K** | okładki: włącz / wyłącz — to samo co przełącznik **artwork** (opis niżej) |
 | **F** | oznacz / odznacz utwór jako filar |
 | **G** | wyślij filary do zakładki Set jako szkic setu |
 | **P** | odsłuch zaznaczonego utworu (rozdział 6) |
@@ -90,14 +90,16 @@ i kliknij przycisk — tak dogrywasz nowe pliki (i tak zaczyna pierwszy
 użytkownik). Przed analizą każdy plik sprawdza bramkarz: uszkodzone
 odpadają z imiennym powodem, zamiast psuć analizę.
 
-Pod polem szukania jest mały przycisk **Artwork sync** — synchronizacja
-okładek: aplikacja znajduje pliki bez osadzonej okładki, pyta iTunes
-o artystę i tytuł i przy PEWNYM dopasowaniu wpisuje okładkę (600×600)
-do tagów pliku — niejednoznaczne trafienia są pomijane z powodem
-(raport w notkach i w pliku). Kliknięcie samo włącza okładki w liście
-(jak klawisz K), żebyś widział efekt od razu. Audio nietknięte.
-**Ważne:** żeby okładki weszły do Rekordboxa (i na ekrany CDJ),
-zaznacz potem utwory w RB i wybierz **Reload Tags**.
+Pod polem szukania jest mały przełącznik **artwork** (klawisz K robi
+to samo). Włączony: lista pokazuje miniatury okładek (wiersze rosną,
+widać mniej utworów naraz) i w tle rusza dociąganie braków — aplikacja
+znajduje pliki bez osadzonej okładki, pyta iTunes o artystę i tytuł
+i przy PEWNYM dopasowaniu wpisuje okładkę (600×600) do tagów pliku;
+niejednoznaczne trafienia są pomijane z powodem (raport w notkach
+i w pliku). Wyłączony: okładki tylko się chowają — nic nie jest
+kasowane, a osadzone okładki zostają w plikach na zawsze. Audio
+nietknięte. **Ważne:** żeby okładki weszły do Rekordboxa (i na ekrany
+CDJ), zaznacz potem utwory w RB i wybierz **Reload Tags**.
 
 ---
 

@@ -716,6 +716,8 @@ def test_k_przelacza_okladki_w_liscie(tmp_path, monkeypatch):
     monkeypatch.setattr(ok, "_bajty_okladki",
                         lambda path: buf.getvalue() if "Hodge" in path else None)
     ok.mozaika.cache_clear()
+    # K odpala też dociąganie okładek (jedna dźwignia) — w teście bez sieci
+    monkeypatch.setattr(DanceLabTUI, "_artwork_worker", lambda self: None)
 
     async def go():
         app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
