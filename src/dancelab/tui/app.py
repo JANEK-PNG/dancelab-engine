@@ -500,6 +500,7 @@ class DanceLabTUI(App):
     #lib-onboard Input { width: 1fr; margin-right: 1; }
     #cue-head { height: 2; padding: 0 1; }
     #cue-table { height: 1fr; }
+    #cue-card { height: auto; padding: 0 1; border-top: solid $accent; }
     #cue-info { height: auto; padding: 0 1; color: $text-muted; }
     """
     BINDINGS = [
@@ -561,6 +562,11 @@ class DanceLabTUI(App):
         self._mean_score = None
         self._ctx: dict = {}
         self._cue_plan = None            # CuePlan z podglądu (etap 1)
+        from dancelab.tui import cue_edycje
+        self._cue_edycje = cue_edycje.nowe()   # warstwa edycji DJ-a (etap 2)
+        self._cue_widok: list[str] = []        # kolejność wierszy listy cue
+        self._cue_track: str | None = None     # utwór w karcie
+        self._cue_wybor: str | None = None     # wybrany pad (litera)
         self._suggest_slot: int | None = None
         self._panel_mode: str | None = None   # "suggest" | "insert" | "plans"
         self._row_cells: list[tuple[str, str]] = []   # (nr, utwór) do poświaty
@@ -700,7 +706,9 @@ class DanceLabTUI(App):
             with TabPane("Eksport / Cue", id="tab-export"):
                 with Vertical():
                     yield Static("", id="cue-head")
-                    yield DataTable(id="cue-table")
+                    yield DataTable(id="cue-table",
+                                    cursor_foreground_priority="renderable")
+                    yield Static("", id="cue-card")
                     yield Static("", id="cue-info")
         yield Static("", id="status")
         yield Footer()
@@ -721,9 +729,8 @@ class DanceLabTUI(App):
                            ("wykonawca", None), ("tytuł", None))]
         lib.cursor_type = "row"
         cue = self.query_one("#cue-table", DataTable)
-        for lbl, w in (("#", None), ("utwór", None), ("pad", None),
-                       ("pozycja", 9), ("typ", 9), ("pewność", 10),
-                       ("uwagi", None)):
+        for lbl, w in (("#", 3), ("utwór", 30), ("oś utworu", 38),
+                       ("pady", 6), ("pewność", None)):
             cue.add_column(lbl, width=w)
         cue.cursor_type = "row"
         side = self.query_one("#lib-side-list", OptionList)
@@ -768,7 +775,10 @@ class DanceLabTUI(App):
         if action.startswith("skok_"):
             # strzałki poziome przejmuje odtwarzacz TYLKO podczas grania
             # (decyzja Janka) i tylko z fokusem na tabeli — w polu tekstowym
-            # dalej ruszają kursorem tekstu
+            # dalej ruszają kursorem tekstu; a przy WYBRANYM padzie w cue
+            # strzałki należą do edycji pada, nie do odtwarzacza
+            if active == "tab-export" and self._cue_wybor:
+                return False
             return (self._odtwarzacz.gra()
                     and isinstance(self.focused, DataTable))
         if action == "preview_seam":
@@ -781,6 +791,111 @@ class DanceLabTUI(App):
         if action in self._SET_ONLY:
             return active == "tab-set"
         return True
+
+    def on_key(self, event) -> None:
+        """Klawisze edytora cue (etap 2): litera = pad (jak na CDJ),
+        strzałki przesuwają wybrany pad po siatce bitów, X zdejmuje,
+        Z cofa. Tylko zakładka Eksport/Cue z fokusem na liście."""
+        try:
+            active = self.query_one("#tabs", TabbedContent).active
+        except Exception:  # noqa: BLE001
+            return
+        if active != "tab-export" or self._cue_plan is None:
+            return
+        if getattr(self.focused, "id", None) != "cue-table":
+            return
+        klawisz = event.key
+        if klawisz in tuple("abcdefgh"):
+            event.stop()
+            event.prevent_default()
+            self._cue_litera(klawisz.upper())
+        elif self._cue_wybor and klawisz in ("left", "right", "shift+left",
+                                             "shift+right", "pageup",
+                                             "pagedown"):
+            event.stop()
+            event.prevent_default()
+            kroki = {"left": -1, "right": +1, "shift+left": -8,
+                     "shift+right": +8, "pageup": -32, "pagedown": +32}
+            self._cue_przesun(kroki[klawisz])
+        elif self._cue_wybor and klawisz == "x":
+            event.stop()
+            event.prevent_default()
+            self._cue_zdejmij()
+        elif klawisz == "z":
+            event.stop()
+            event.prevent_default()
+            self._cue_cofnij()
+        elif self._cue_wybor and klawisz == "escape":
+            event.stop()
+            event.prevent_default()
+            self._cue_wybor = None
+            self._render_cue_karta()
+
+    def _cue_pady_teraz(self) -> dict:
+        from dancelab.tui import cue_edycje
+        return cue_edycje.efektywne_pady(
+            self._cue_plan, self._cue_edycje, self._cue_track)
+
+    def _cue_litera(self, pad: str) -> None:
+        """Litera A–H: istniejący pad → wybór; brak pada → nowy pad ręczny
+        (pozycja odtwarzacza, gdy gra ten utwór; inaczej środek utworu)."""
+        from dancelab.tui import cue_edycje
+        from dancelab.tui.cue_podglad import czas_utworu
+        if not self._cue_track:
+            return
+        pady = self._cue_pady_teraz()
+        if pad in pady:
+            self._cue_wybor = pad
+            self._render_cue_karta()
+            return
+        analiza = self._ctx["by_id"][self._cue_track]
+        sciezka = analiza.track.source_path
+        if (self._odtwarzacz.gra()
+                and self._odtwarzacz.sciezka == sciezka):
+            pozycja_ms = int(self._odtwarzacz.pozycja() * 1000)
+        else:
+            pozycja_ms = int(czas_utworu(analiza) * 500)  # środek utworu
+        bpm = analiza.beatgrid.bpm if analiza.beatgrid else 0
+        if bpm:  # na najbliższy bit naszej siatki
+            beat = 60000.0 / bpm
+            pozycja_ms = int(round(pozycja_ms / beat) * beat)
+        cue_edycje.postaw(self._cue_edycje, self._cue_track, pad, pozycja_ms)
+        self._cue_wybor = pad
+        self._log_verdict("cue_postaw", track_id=self._cue_track, pad=pad,
+                          position_ms=pozycja_ms)
+        self._render_cue_lista()
+
+    def _cue_przesun(self, uderzenia: int) -> None:
+        from dancelab.tui import cue_edycje
+        pady = self._cue_pady_teraz()
+        p = pady.get(self._cue_wybor)
+        if p is None:
+            return
+        analiza = self._ctx["by_id"][self._cue_track]
+        bpm = (analiza.beatgrid.bpm if analiza.beatgrid else 0) or 120.0
+        nowa = cue_edycje.przesun(
+            self._cue_edycje, self._cue_track, self._cue_wybor,
+            uderzenia, bpm, p.get("silnik_ms"), p["position_ms"])
+        self._log_verdict("cue_przesuniecie", track_id=self._cue_track,
+                          pad=self._cue_wybor, uderzenia=uderzenia,
+                          position_ms=nowa, silnik_ms=p.get("silnik_ms"))
+        self._render_cue_lista()
+
+    def _cue_zdejmij(self) -> None:
+        from dancelab.tui import cue_edycje
+        cue_edycje.zdejmij(self._cue_edycje, self._cue_track, self._cue_wybor)
+        self._log_verdict("cue_zdjecie", track_id=self._cue_track,
+                          pad=self._cue_wybor)
+        self._cue_wybor = None
+        self._render_cue_lista()
+
+    def _cue_cofnij(self) -> None:
+        from dancelab.tui import cue_edycje
+        if cue_edycje.cofnij(self._cue_edycje):
+            self._note("cofnięte")
+            self._render_cue_lista()
+        else:
+            self._note("nie ma czego cofać")
 
     def action_next_tab(self) -> None:
         self._switch_tab(+1)
@@ -798,8 +913,10 @@ class DanceLabTUI(App):
         self.refresh_bindings()              # klik w zakładkę też odświeża pasek
         pane = getattr(event, "pane", None)
         if pane is not None and pane.id == "tab-export":
-            # podgląd liczy się przy każdym wejściu — po edycjach setu też
+            # podgląd liczy się przy każdym wejściu — po edycjach setu też;
+            # fokus na listę, żeby litery/strzałki edytora działały od razu
             self._cue_podglad_worker()
+            self.query_one("#cue-table", DataTable).focus()
 
     # --------------------------------------------------------- Eksport / Cue
 
@@ -807,7 +924,7 @@ class DanceLabTUI(App):
     def _cue_podglad_worker(self) -> None:
         """Etap 1 edytora cue: propozycje padów dla BIEŻĄCEGO setu (po
         edycjach). Tylko podgląd — zapis do Rekordboksa to etap 4."""
-        from dancelab.tui.cue_podglad import wiersze_podgladu, zbuduj_plan_cue
+        from dancelab.tui.cue_podglad import zbuduj_plan_cue
         ui = self.call_from_thread
         head = self.query_one("#cue-head", Static)
         info = self.query_one("#cue-info", Static)
@@ -816,6 +933,7 @@ class DanceLabTUI(App):
             ui(head.update, "Brak setu — zbuduj go w zakładce Set (B); "
                             "wtedy zobaczysz tu propozycje padów.")
             ui(tabela.clear)
+            ui(self.query_one("#cue-card", Static).update, "")
             ui(info.update, "")
             return
         ui(head.update, "Liczę okna przejść dla bieżącego setu…")
@@ -827,31 +945,153 @@ class DanceLabTUI(App):
             ui(head.update, f"Podgląd cue nie wyszedł: {exc}")
             return
         self._cue_plan = plan
-        nazwy = {}
-        for tid in order:
-            if tid in by_id:
-                art, tit = _wykonawca_tytul(by_id[tid].track)
-                nazwy[tid] = f"{art} – {tit}" if art else tit
-        wiersze = wiersze_podgladu(plan, order, nazwy)
+        ui(self._render_cue_lista)
 
-        def pokaz() -> None:
-            tabela.clear()
-            for w in wiersze:
-                tabela.add_row(*w)
-            pewne = sum(1 for w in wiersze if w[5] == "✓")
-            utwory = len({w[0] for w in wiersze})
-            head.update(
-                f"Propozycje padów z bieżącego setu: {len(wiersze)} cue "
-                f"na {utwory} utworów · ✓ pewne: {pewne} · "
-                f"reszta wymaga odsłuchu — TYLKO PODGLĄD, nic nie zapisuję")
-            linie = [f"⚠ {w}" for w in plan.warnings[:4]]
-            if len(plan.warnings) > 4:
-                linie.append(f"…i {len(plan.warnings) - 4} dalszych ostrzeżeń")
-            linie.append("Edycja padów, odsłuch od pada i zapis do Rekordboksa "
-                         "— kolejne etapy; kolizje z Twoimi cue sprawdzimy "
-                         "przy zapisie.")
-            info.update("\n".join(linie))
-        ui(pokaz)
+    _CUE_OS_SZER = 36        # oś w liście (komórki)
+    _CUE_KARTA_SZER = 64     # oś w karcie
+
+    def _cue_nazwa(self, tid: str) -> str:
+        a = self._ctx["by_id"].get(tid)
+        if a is None:
+            return tid
+        art, tit = _wykonawca_tytul(a.track)
+        return f"{art} – {tit}" if art else tit
+
+    def _render_cue_lista(self) -> None:
+        """Lista: jeden wiersz = jeden utwór, z osią energii i literami padów
+        (sparkline Tufte'a — decyzja Janka 08.08 po wecie na wiersz-na-cue)."""
+        from rich.text import Text
+        from dancelab.tui import cue_edycje
+        from dancelab.tui.cue_podglad import (czas_utworu, komorka_pada,
+                                              os_energii)
+        tabela = self.query_one("#cue-table", DataTable)
+        head = self.query_one("#cue-head", Static)
+        info = self.query_one("#cue-info", Static)
+        plan = self._cue_plan
+        by_id = self._ctx["by_id"]
+        tabela.clear()
+        self._cue_widok = [t for t in self._order if t in by_id]
+        razem, pewne = 0, 0
+        for poz, tid in enumerate(self._cue_widok, start=1):
+            pady = cue_edycje.efektywne_pady(plan, self._cue_edycje, tid)
+            razem += len(pady)
+            ok = sum(1 for p in pady.values() if p["confident"])
+            pewne += ok
+            dur = czas_utworu(by_id[tid])
+            os = list(os_energii(by_id[tid], self._CUE_OS_SZER))
+            tekst = Text()
+            zajete = {}
+            for litera, p in pady.items():
+                zajete[komorka_pada(p["position_ms"], dur,
+                                    self._CUE_OS_SZER)] = litera
+            for i, znak in enumerate(os):
+                if i in zajete:
+                    tekst.append(zajete[i], style=f"bold {PILLAR_COLOR}")
+                else:
+                    tekst.append(znak, style="dim")
+            watpliwe = len(pady) - ok
+            tabela.add_row(str(poz), self._cue_nazwa(tid)[:30], tekst,
+                           str(len(pady)),
+                           f"{ok}✓ {watpliwe}?" if pady else "—")
+        head.update(
+            f"Pady bieżącego setu: {razem} cue na {len(self._cue_widok)} "
+            f"utworów · ✓ pewne: {pewne} — TYLKO PODGLĄD, nic nie zapisuję")
+        linie = [f"⚠ {w}" for w in plan.warnings[:3]]
+        if len(plan.warnings) > 3:
+            linie.append(f"…i {len(plan.warnings) - 3} dalszych ostrzeżeń")
+        linie.append("litera A–H = wybierz/postaw pad · ←/→ ±1 uderzenie "
+                     "(Shift ±8, PgUp/PgDn ±32) · X zdejmij · Z cofnij · "
+                     "zapis do Rekordboksa — etap 4")
+        info.update("\n".join(linie))
+        if self._cue_widok:
+            if self._cue_track not in self._cue_widok:
+                self._cue_track = self._cue_widok[0]
+            tabela.move_cursor(row=self._cue_widok.index(self._cue_track))
+        self._render_cue_karta()
+
+    def _render_cue_karta(self) -> None:
+        """Karta utworu pod listą — terminalowy deck: energia, sekcje, pady
+        na osi, podziałka i lista padów. Propozycja silnika zostaje widoczna
+        (kropka) po każdym ręcznym przesunięciu."""
+        from rich.text import Text
+        from dancelab.tui import cue_edycje
+        from dancelab.tui.cue_podglad import (TYPY_PO_POLSKU, _mmss,
+                                              czas_utworu, komorka_pada,
+                                              linijka_czasu, os_energii,
+                                              pas_sekcji)
+        karta = self.query_one("#cue-card", Static)
+        tid = self._cue_track
+        if not tid or self._cue_plan is None or tid not in self._ctx["by_id"]:
+            karta.update("")
+            return
+        analiza = self._ctx["by_id"][tid]
+        dur = czas_utworu(analiza)
+        szer = self._CUE_KARTA_SZER
+        pady = cue_edycje.efektywne_pady(
+            self._cue_plan, self._cue_edycje, tid)
+        bg = analiza.beatgrid
+        naglowek = Text()
+        naglowek.append(f"{self._cue_nazwa(tid)[:44]} ", style="bold")
+        if bg and bg.bpm:
+            naglowek.append(f"· {bg.bpm:g} BPM ", style="dim")
+        if analiza.track.key_estimate:
+            naglowek.append(f"· {analiza.track.key_estimate} ", style="dim")
+        if self._cue_wybor:
+            naglowek.append(f"· pad {self._cue_wybor} wybrany "
+                            f"(←/→ ±1 · Shift ±8 · X zdejmij · Esc)",
+                            style=f"bold {PILLAR_COLOR}")
+        linia_padow = [" "] * szer
+        kropki = {}
+        for litera, p in pady.items():
+            linia_padow[komorka_pada(p["position_ms"], dur, szer)] = litera
+            if p["zrodlo"] == "reka" and p.get("silnik_ms") is not None:
+                kropki[komorka_pada(p["silnik_ms"], dur, szer)] = True
+        pady_t = Text("pady     ")
+        for i, znak in enumerate(linia_padow):
+            if znak != " ":
+                styl = (f"bold reverse {PILLAR_COLOR}"
+                        if znak == self._cue_wybor else f"bold {PILLAR_COLOR}")
+                pady_t.append(znak, style=styl)
+            elif i in kropki:
+                pady_t.append("·", style="dim")
+            else:
+                pady_t.append(" ")
+        tekst = Text()
+        tekst.append_text(naglowek)
+        tekst.append("\n")
+        tekst.append("energia  ", style="dim")
+        tekst.append(os_energii(analiza, szer))
+        tekst.append("\n")
+        sekcje = pas_sekcji(analiza, szer)
+        if sekcje:
+            tekst.append("sekcje   ", style="dim")
+            tekst.append(sekcje, style="dim")
+            tekst.append("\n")
+        tekst.append_text(pady_t)
+        tekst.append("\n")
+        tekst.append("czas     ", style="dim")
+        tekst.append(linijka_czasu(dur, szer), style="dim")
+        for litera in sorted(pady):
+            p = pady[litera]
+            tekst.append("\n")
+            wybrany = litera == self._cue_wybor
+            styl = f"bold {PILLAR_COLOR}" if wybrany else ""
+            tekst.append(" ▶" if wybrany else "  ", style=styl)
+            tekst.append(f"{litera}  {_mmss(p['position_ms']):>7}  ",
+                         style=styl)
+            tekst.append(f"{TYPY_PO_POLSKU.get(p['typ'], p['typ']):<9} ",
+                         style=styl)
+            if p["zrodlo"] == "reka":
+                tekst.append("ręka       ", style=styl or "yellow")
+                if p.get("silnik_ms") is not None:
+                    tekst.append(f"(silnik proponował "
+                                 f"{_mmss(p['silnik_ms'])})", style="dim")
+            else:
+                tekst.append("✓          " if p["confident"]
+                             else "POSŁUCHAJ  ",
+                             style="green" if p["confident"] else "yellow")
+                tekst.append(p.get("comment", "")[:34], style="dim")
+        karta.update(tekst)
 
     # ----------------------------------------------------------- Biblioteka
 
@@ -2280,6 +2520,16 @@ class DanceLabTUI(App):
         PRZEBUDOWA tabeli (np. zdjęcie filtra) NIE jest nawigacją — złapane
         na żywo 06.08: czyszczenie szukajki ubijało grany utwór i grało
         pierwszy z listy."""
+        if getattr(event.data_table, "id", None) == "cue-table":
+            # karta cue podąża za kursorem listy; zmiana utworu gasi wybór pada
+            idx = event.cursor_row
+            if 0 <= idx < len(self._cue_widok):
+                nowy = self._cue_widok[idx]
+                if nowy != self._cue_track:
+                    self._cue_track = nowy
+                    self._cue_wybor = None
+                    self._render_cue_karta()
+            return
         if getattr(self, "_render_w_toku", False):
             return
         if not self._odtwarzacz.gra():

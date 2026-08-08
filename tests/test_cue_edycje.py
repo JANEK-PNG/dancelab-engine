@@ -1,0 +1,126 @@
+"""Edytor cue etap 2 — warstwa edycji padów + klawisze w zakładce.
+
+Model: propozycje silnika niezmienne, edycje DJ-a jako nakładka; ślad
+silnika (silnik_ms) nie znika po przesunięciu — uczciwość „o ile się
+różnimy". Z cofa po kroku. Klawisze: litera=pad, strzałki=uderzenia,
+X=zdejmij (wszystko tylko w zakładce Eksport/Cue, zero zapisu).
+"""
+
+import asyncio
+
+from dancelab.core.models import (
+    AnalysisResult,
+    BeatGrid,
+    Track,
+    TransitionWindow,
+    WindowType,
+)
+from dancelab.tui import cue_edycje, cue_podglad
+from dancelab.tui.cue_podglad import zbuduj_plan_cue
+
+
+def _analysis(track_id, *, title=""):
+    return AnalysisResult(
+        engine_version="test",
+        track=Track(track_id=track_id, title=title,
+                    source_path=f"/m/{track_id}.wav", duration_sec=360.0),
+        beatgrid=BeatGrid(bpm=120.0, reliable=True),
+        segments=[],
+    )
+
+
+def _okna_atrapa(analysis, weights):
+    if analysis.track.track_id == "A":
+        return [TransitionWindow(start_sec=300.0, end_sec=316.0, score=0.9,
+                                 window_type=WindowType.mix_out)]
+    return [TransitionWindow(start_sec=30.0, end_sec=46.0, score=0.9,
+                             window_type=WindowType.mix_in)]
+
+
+def _plan(monkeypatch):
+    monkeypatch.setattr(cue_podglad, "_okna", _okna_atrapa)
+    by_id = {"A": _analysis("A", title="Alfa"),
+             "B": _analysis("B", title="Beta")}
+    return zbuduj_plan_cue(["A", "B"], by_id, weights=None), by_id
+
+
+def test_przesun_liczy_uderzenia_i_pamieta_silnik(monkeypatch):
+    plan, _ = _plan(monkeypatch)
+    ed = cue_edycje.nowe()
+    przed = cue_edycje.efektywne_pady(plan, ed, "A")["B"]
+    assert przed["zrodlo"] == "silnik" and przed["position_ms"] == 300000
+    nowa = cue_edycje.przesun(ed, "A", "B", -8, 120.0,
+                              przed["silnik_ms"], przed["position_ms"])
+    assert nowa == 300000 - 8 * 500, "8 uderzeń przy 120 BPM = 4 s"
+    po = cue_edycje.efektywne_pady(plan, ed, "A")["B"]
+    assert po["zrodlo"] == "reka"
+    assert po["silnik_ms"] == 300000, "ślad silnika nie znika"
+
+
+def test_cofnij_wraca_po_kroku(monkeypatch):
+    plan, _ = _plan(monkeypatch)
+    ed = cue_edycje.nowe()
+    p = cue_edycje.efektywne_pady(plan, ed, "A")["B"]
+    cue_edycje.przesun(ed, "A", "B", +1, 120.0, p["silnik_ms"],
+                       p["position_ms"])
+    cue_edycje.zdejmij(ed, "A", "B")
+    assert "B" not in cue_edycje.efektywne_pady(plan, ed, "A")
+    assert cue_edycje.cofnij(ed)
+    assert cue_edycje.efektywne_pady(plan, ed, "A")["B"]["zrodlo"] == "reka"
+    assert cue_edycje.cofnij(ed)
+    assert cue_edycje.efektywne_pady(plan, ed, "A")["B"]["zrodlo"] == "silnik"
+    assert not cue_edycje.cofnij(ed), "pusta historia mówi False"
+
+
+def test_postaw_reczny_pad_i_zdejmij(monkeypatch):
+    plan, _ = _plan(monkeypatch)
+    ed = cue_edycje.nowe()
+    cue_edycje.postaw(ed, "A", "C", 123500)
+    p = cue_edycje.efektywne_pady(plan, ed, "A")["C"]
+    assert p["zrodlo"] == "reka" and p["silnik_ms"] is None
+    cue_edycje.zdejmij(ed, "A", "C")
+    assert "C" not in cue_edycje.efektywne_pady(plan, ed, "A")
+
+
+def test_klawisze_w_zakladce_edytuja_pady(tmp_path, monkeypatch):
+    from textual.widgets import DataTable, TabbedContent
+
+    from dancelab.tui.app import DanceLabTUI
+
+    monkeypatch.setattr("dancelab.tui.app.WERDYKTY_DIR",
+                        tmp_path / "werdykty")
+    plan, by_id = _plan(monkeypatch)
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            app._ctx = {"by_id": by_id, "weights": None}
+            app._order = ["A", "B"]
+            app._cue_plan = plan
+            self_tabs = app.query_one("#tabs", TabbedContent)
+            self_tabs.active = "tab-export"
+            await pilot.pause()
+            app._render_cue_lista()
+            app.query_one("#cue-table", DataTable).focus()
+            await pilot.pause()
+            assert app._cue_track == "A"
+
+            await pilot.press("b")          # litera = wybór istniejącego pada
+            assert app._cue_wybor == "B"
+
+            await pilot.press("left")       # ±1 uderzenie po siatce
+            p = cue_edycje.efektywne_pady(plan, app._cue_edycje, "A")["B"]
+            assert p["position_ms"] == 300000 - 500 and p["zrodlo"] == "reka"
+
+            await pilot.press("d")          # brak pada D → nowy ręczny
+            assert app._cue_wybor == "D"
+            assert "D" in cue_edycje.efektywne_pady(plan, app._cue_edycje, "A")
+
+            await pilot.press("x")          # zdejmij wybrany
+            assert "D" not in cue_edycje.efektywne_pady(
+                plan, app._cue_edycje, "A")
+
+            await pilot.press("z")          # cofnij zdjęcie
+            assert "D" in cue_edycje.efektywne_pady(plan, app._cue_edycje, "A")
+
+    asyncio.run(go())

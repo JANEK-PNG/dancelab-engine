@@ -82,6 +82,96 @@ def _mmss(ms: int) -> str:
     return f"{int(m)}:{s:04.1f}"
 
 
+# ---------------------------------------------------------------- oś utworu
+# Sparkline Tufte'a: grafika wielkości słowa w wierszu tabeli. Energia z
+# NASZYCH klatek cech (rms) — zero zmyślania: brak klatek = płaska kreska,
+# nie wymyślony kształt.
+
+BLOKI = "▁▂▃▄▅▆▇█"
+NAZWY_SEKCJI = {"intro": "INTRO", "build": "UP", "drop": "DROP",
+                "breakdown": "BREAK", "groove": "GROOVE", "outro": "OUTRO",
+                "unknown": "?"}
+
+
+def czas_utworu(analysis) -> float:
+    """Długość w sekundach: metadana → ostatnia klatka → ostatni segment."""
+    dur = getattr(analysis.track, "duration_sec", None)
+    if dur:
+        return float(dur)
+    if analysis.features:
+        return float(analysis.features[-1].timestamp_sec)
+    if analysis.segments:
+        return float(max(s.end_sec for s in analysis.segments))
+    return 0.0
+
+
+def os_energii(analysis, szer: int) -> str:
+    """Pasek energii ▁▂▅█ o szerokości `szer` komórek; bez danych = kreski."""
+    frames = [f for f in analysis.features if f.rms is not None]
+    dur = czas_utworu(analysis)
+    if not frames or dur <= 0 or szer <= 0:
+        return "─" * max(szer, 0)
+    kosze = [0.0] * szer
+    ile = [0] * szer
+    for f in frames:
+        i = min(int(f.timestamp_sec / dur * szer), szer - 1)
+        kosze[i] += f.rms
+        ile[i] += 1
+    srednie = [k / n if n else None for k, n in zip(kosze, ile)]
+    znane = [s for s in srednie if s is not None]
+    lo, hi = min(znane), max(znane)
+    zakres = (hi - lo) or 1.0
+    return "".join(
+        "─" if s is None else BLOKI[int((s - lo) / zakres * (len(BLOKI) - 1))]
+        for s in srednie)
+
+
+def pas_sekcji(analysis, szer: int) -> str:
+    """Pasek sekcji INTRO─┤UP─┤… z naszej segmentacji (odpowiednik
+    kolorowych fraz Rekordboksa). Bez segmentów = pusto."""
+    dur = czas_utworu(analysis)
+    if not analysis.segments or dur <= 0 or szer <= 0:
+        return ""
+    pas = [" "] * szer
+    for seg in sorted(analysis.segments, key=lambda s: s.start_sec):
+        a = min(int(seg.start_sec / dur * szer), szer - 1)
+        b = min(int(seg.end_sec / dur * szer), szer)
+        if b <= a:
+            b = a + 1
+        nazwa = NAZWY_SEKCJI.get(str(seg.segment_type.value
+                                     if hasattr(seg.segment_type, "value")
+                                     else seg.segment_type), "?")
+        pole = b - a
+        wpis = (nazwa[:pole - 1] + "┤") if pole > 1 else "┤"
+        wpis = wpis.ljust(pole, "─")[:pole]
+        pas[a:b] = list(wpis)
+    return "".join(pas)
+
+
+def linijka_czasu(dur_sec: float, szer: int) -> str:
+    """Podziałka „0:00   1:00   …" dopasowana do szerokości osi."""
+    if dur_sec <= 0 or szer <= 0:
+        return ""
+    linia = [" "] * szer
+    krok = 60.0 if dur_sec / 60.0 <= szer / 8 else 120.0
+    t = 0.0
+    while t <= dur_sec:
+        i = min(int(t / dur_sec * (szer - 1)), szer - 1)
+        et = f"{int(t // 60)}:{int(t % 60):02d}"
+        for j, ch in enumerate(et):
+            if i + j < szer and linia[i + j] == " ":
+                linia[i + j] = ch
+        t += krok
+    return "".join(linia)
+
+
+def komorka_pada(position_ms: int, dur_sec: float, szer: int) -> int:
+    """Indeks komórki osi dla pozycji cue."""
+    if dur_sec <= 0 or szer <= 0:
+        return 0
+    return min(int(position_ms / 1000.0 / dur_sec * szer), szer - 1)
+
+
 def wiersze_podgladu(plan: CuePlan, order: list[str],
                      nazwy: dict[str, str]) -> list[tuple[str, ...]]:
     """Wiersze tabeli podglądu: (poz, utwór, pad, pozycja, typ, pewność, uwagi).

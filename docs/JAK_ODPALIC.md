@@ -54,14 +54,20 @@ kliknięciem w nazwę:
 1. **Biblioteka** — wszystkie przeanalizowane utwory: przeglądanie,
    szukanie, odsłuch, ulubione i filary.
 2. **Set** — brief, budowa setu, edycja i wysyłka do Rekordboxa.
-3. **Eksport / Cue** — podgląd propozycji hot cue dla zbudowanego setu:
-   dla każdego przejścia silnik proponuje pad z wyjściem z utworu
-   i pad z wejściem w następny, z pozycją przyciągniętą do siatki bitów.
-   Kolumna „pewność" mówi wprost: ✓ (wiarygodne siatki po obu stronach)
-   albo POSŁUCHAJ. Wejdź w zakładkę po zbudowaniu setu — podgląd liczy
-   się na bieżącej kolejności, także po Twoich edycjach. Na razie TYLKO
-   podgląd: edycja padów, odsłuch od pada i zapis do Rekordboksa to
-   kolejne etapy.
+3. **Eksport / Cue** — edytor hot cue dla zbudowanego setu. Lista:
+   jeden wiersz = jeden utwór, z osią energii i literami padów na niej.
+   Pod listą karta wybranego utworu: energia, sekcje (intro/UP/chorus…),
+   pady na osi, podziałka czasu i lista padów z pozycjami. Dla każdego
+   przejścia silnik proponuje pad z wyjściem z utworu i pad z wejściem
+   w następny, przyciągnięte do siatki bitów; „pewność" mówi wprost:
+   ✓ albo POSŁUCHAJ. **Edycja jak na CDJ:** litera A–H wybiera pad
+   (a gdy pada nie ma — stawia nowy: przy pozycji odtwarzacza, jeśli
+   ten utwór właśnie gra, inaczej na środku utworu); ←/→ przesuwa
+   wybrany pad o 1 uderzenie (Shift ±8, PgUp/PgDn ±32), X zdejmuje,
+   Z cofa, Esc odznacza. Po przesunięciu propozycja silnika zostaje
+   widoczna jako kropka, a wiersz mówi „ręka" — zawsze widzisz, o ile
+   różnisz się od silnika. Wszystko to podgląd i szkic: zapis do
+   Rekordboksa (i sprawdzenie kolizji z Twoimi cue) to następny etap.
 
 ---
 
