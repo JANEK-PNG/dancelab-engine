@@ -2258,7 +2258,7 @@ class DanceLabTUI(App):
         from dancelab.core.config import load_config, load_weights
         from dancelab.ingestion.analysis_enrichment import (
             attach_rekordbox_genres, attach_rekordbox_keys,
-            attach_sound_embeddings)
+            attach_rekordbox_meta, attach_sound_embeddings)
         ui = self.call_from_thread
         ui(self.query_one("#progress", Static).update,
            "Wczytuję pulę z biblioteki pod plan…")

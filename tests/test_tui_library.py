@@ -744,3 +744,20 @@ def test_k_przelacza_okladki_w_liscie(tmp_path, monkeypatch):
             await pilot.pause()
             assert app._user_state["okladki_w_liscie"] is False
     asyncio.run(go())
+
+
+def test_pool_ctx_for_dziala_bez_wczesniejszej_budowy(monkeypatch):
+    """Regresja 08.08: O (wczytaj plan) bez wcześniejszej budowy wołało
+    _pool_ctx_for, a tam brakowało importu attach_rekordbox_meta —
+    worker połykał NameError jako notkę i plan nigdy nie wchodził."""
+    import asyncio as aio
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test():
+            monkeypatch.setattr(app, "_library_analyses",
+                                lambda: (list(LIB), []))
+            ctx = await aio.to_thread(app._pool_ctx_for, {})
+            assert ctx["by_id"], "pula z biblioteki dopięta pod plan"
+            assert "weights" in ctx
+    asyncio.run(go())
