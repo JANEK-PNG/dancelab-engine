@@ -111,7 +111,7 @@ def test_zakladki_istnieja_i_ctrl_tab_krazy():
             assert tc.active == "tab-lib"          # wizja: Biblioteka pierwsza
             for wid in ("#lib-search", "#lib-key", "#lib-bpm", "#lib-table",
                         "#lib-folder", "#lib-analyze", "#lib-side-list",
-                        "#lib-build", "#export-stub"):
+                        "#lib-build", "#cue-table"):
                 assert app.query_one(wid) is not None, wid
             app.action_next_tab()
             await pilot.pause()

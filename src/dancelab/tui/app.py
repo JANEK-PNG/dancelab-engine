@@ -498,6 +498,9 @@ class DanceLabTUI(App):
     #lib-table { height: 1fr; }
     #lib-onboard { height: 3; }
     #lib-onboard Input { width: 1fr; margin-right: 1; }
+    #cue-head { height: 2; padding: 0 1; }
+    #cue-table { height: 1fr; }
+    #cue-info { height: auto; padding: 0 1; color: $text-muted; }
     """
     BINDINGS = [
         Binding("b", "build", "Buduj"),
@@ -557,6 +560,7 @@ class DanceLabTUI(App):
         self._edits: list[dict] = []
         self._mean_score = None
         self._ctx: dict = {}
+        self._cue_plan = None            # CuePlan z podglądu (etap 1)
         self._suggest_slot: int | None = None
         self._panel_mode: str | None = None   # "suggest" | "insert" | "plans"
         self._row_cells: list[tuple[str, str]] = []   # (nr, utwór) do poświaty
@@ -694,11 +698,10 @@ class DanceLabTUI(App):
                             yield OptionList(id="suggest-list")
                             yield Static("", id="suggest-info")
             with TabPane("Eksport / Cue", id="tab-export"):
-                yield Static(
-                    "Edytor hot cue — w budowie (TUI_WIZJA_2: dodaj / usuń / "
-                    "przesuń / scal + auto-generacja z planu przejść).\n"
-                    "Dziś auto-cue zapisuje komenda `dancelab zagraj`, "
-                    "a playlisty klawisz W w zakładce Set.", id="export-stub")
+                with Vertical():
+                    yield Static("", id="cue-head")
+                    yield DataTable(id="cue-table")
+                    yield Static("", id="cue-info")
         yield Static("", id="status")
         yield Footer()
 
@@ -717,6 +720,12 @@ class DanceLabTUI(App):
                            ("LUFS", 7), ("gatunek", None), ("min", None),
                            ("wykonawca", None), ("tytuł", None))]
         lib.cursor_type = "row"
+        cue = self.query_one("#cue-table", DataTable)
+        for lbl, w in (("#", None), ("utwór", None), ("pad", None),
+                       ("pozycja", 9), ("typ", 9), ("pewność", 10),
+                       ("uwagi", None)):
+            cue.add_column(lbl, width=w)
+        cue.cursor_type = "row"
         side = self.query_one("#lib-side-list", OptionList)
         side.add_option(Option("Cała biblioteka", id="all"))
         side.add_option(Option("♥ Ulubione utwory", id="fav"))
@@ -787,6 +796,62 @@ class DanceLabTUI(App):
 
     def on_tabbed_content_tab_activated(self, event) -> None:
         self.refresh_bindings()              # klik w zakładkę też odświeża pasek
+        pane = getattr(event, "pane", None)
+        if pane is not None and pane.id == "tab-export":
+            # podgląd liczy się przy każdym wejściu — po edycjach setu też
+            self._cue_podglad_worker()
+
+    # --------------------------------------------------------- Eksport / Cue
+
+    @work(thread=True, exclusive=True, group="cue")
+    def _cue_podglad_worker(self) -> None:
+        """Etap 1 edytora cue: propozycje padów dla BIEŻĄCEGO setu (po
+        edycjach). Tylko podgląd — zapis do Rekordboksa to etap 4."""
+        from dancelab.tui.cue_podglad import wiersze_podgladu, zbuduj_plan_cue
+        ui = self.call_from_thread
+        head = self.query_one("#cue-head", Static)
+        info = self.query_one("#cue-info", Static)
+        tabela = self.query_one("#cue-table", DataTable)
+        if not self._order or not self._ctx:
+            ui(head.update, "Brak setu — zbuduj go w zakładce Set (B); "
+                            "wtedy zobaczysz tu propozycje padów.")
+            ui(tabela.clear)
+            ui(info.update, "")
+            return
+        ui(head.update, "Liczę okna przejść dla bieżącego setu…")
+        order = list(self._order)
+        by_id = self._ctx["by_id"]
+        try:
+            plan = zbuduj_plan_cue(order, by_id, self._ctx["weights"])
+        except Exception as exc:  # noqa: BLE001
+            ui(head.update, f"Podgląd cue nie wyszedł: {exc}")
+            return
+        self._cue_plan = plan
+        nazwy = {}
+        for tid in order:
+            if tid in by_id:
+                art, tit = _wykonawca_tytul(by_id[tid].track)
+                nazwy[tid] = f"{art} – {tit}" if art else tit
+        wiersze = wiersze_podgladu(plan, order, nazwy)
+
+        def pokaz() -> None:
+            tabela.clear()
+            for w in wiersze:
+                tabela.add_row(*w)
+            pewne = sum(1 for w in wiersze if w[5] == "✓")
+            utwory = len({w[0] for w in wiersze})
+            head.update(
+                f"Propozycje padów z bieżącego setu: {len(wiersze)} cue "
+                f"na {utwory} utworów · ✓ pewne: {pewne} · "
+                f"reszta wymaga odsłuchu — TYLKO PODGLĄD, nic nie zapisuję")
+            linie = [f"⚠ {w}" for w in plan.warnings[:4]]
+            if len(plan.warnings) > 4:
+                linie.append(f"…i {len(plan.warnings) - 4} dalszych ostrzeżeń")
+            linie.append("Edycja padów, odsłuch od pada i zapis do Rekordboksa "
+                         "— kolejne etapy; kolizje z Twoimi cue sprawdzimy "
+                         "przy zapisie.")
+            info.update("\n".join(linie))
+        ui(pokaz)
 
     # ----------------------------------------------------------- Biblioteka
 

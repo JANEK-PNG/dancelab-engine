@@ -54,7 +54,14 @@ kliknięciem w nazwę:
 1. **Biblioteka** — wszystkie przeanalizowane utwory: przeglądanie,
    szukanie, odsłuch, ulubione i filary.
 2. **Set** — brief, budowa setu, edycja i wysyłka do Rekordboxa.
-3. **Eksport / Cue** — w budowie (edytor hot cue).
+3. **Eksport / Cue** — podgląd propozycji hot cue dla zbudowanego setu:
+   dla każdego przejścia silnik proponuje pad z wyjściem z utworu
+   i pad z wejściem w następny, z pozycją przyciągniętą do siatki bitów.
+   Kolumna „pewność" mówi wprost: ✓ (wiarygodne siatki po obu stronach)
+   albo POSŁUCHAJ. Wejdź w zakładkę po zbudowaniu setu — podgląd liczy
+   się na bieżącej kolejności, także po Twoich edycjach. Na razie TYLKO
+   podgląd: edycja padów, odsłuch od pada i zapis do Rekordboksa to
+   kolejne etapy.
 
 ---
 
