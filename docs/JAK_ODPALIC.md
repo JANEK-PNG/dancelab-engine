@@ -70,7 +70,14 @@ kliknięciem w nazwę:
    widoczna jako kropka, a wiersz mówi „ręka" — zawsze widzisz, o ile
    różnisz się od silnika.
 
-   **Wysyłka do Rekordboksa** — przycisk *Wyślij cue do RB* albo **W**
+   Segment edycji (karta utworu, przyciski wysyłki i odtwarzacz) jest
+   **przypięty do dołu ekranu** — jak panel eksportu w Rekordboksie;
+   lista utworów zajmuje resztę miejsca. Odtwarzacz stoi przy dolnej
+   krawędzi w każdej zakładce.
+
+   **Wysyłka do Rekordboksa** — dwa przyciski: *Wyślij cue do RB*
+   (pady, opis niżej) i *Wyślij playlistę do RB* (ta sama publikacja
+   co **W** w zakładce Set). Cue wysyłasz przyciskiem albo **W**
    w tej zakładce, w dwóch krokach: pierwsze naciśnięcie liczy i pokazuje,
    ile padów wejdzie, ile naszych ustąpiło Twoim własnym cue i czy któryś
    utwór jest spoza kolekcji; drugie naciśnięcie zapisuje. Przed zapisem

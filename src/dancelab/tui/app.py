@@ -473,6 +473,8 @@ class DanceLabTUI(App):
     #form { width: 44; padding: 0 1; border-right: solid $primary; }
     #form Input, #form Select { margin-bottom: 1; }
     #results { padding: 0 1; }
+    #set { height: 1fr; }
+    #tab-set .pb-box { dock: bottom; }
     #warnings { height: 9; border-top: solid $warning; display: none; }
     #warnings.open { display: block; }
     #status { height: 1; background: $panel;
@@ -514,9 +516,11 @@ class DanceLabTUI(App):
     #lib-onboard Input { width: 1fr; margin-right: 1; }
     #cue-head { height: 2; padding: 0 1; }
     #cue-table { height: 1fr; }
+    #cue-dol { dock: bottom; height: auto; }
     #cue-card { height: auto; padding: 0 1; border-top: solid $accent; }
     #cue-info { height: auto; padding: 0 1; color: $text-muted; }
     #cue-tools { height: 3; padding: 0 1; }
+    #cue-tools Button { margin-right: 2; }
     """
     BINDINGS = [
         Binding("b", "build", "Buduj"),
@@ -716,11 +720,15 @@ class DanceLabTUI(App):
                     yield Static("", id="cue-head")
                     yield DataTable(id="cue-table",
                                     cursor_foreground_priority="renderable")
-                    yield Static("", id="cue-card")
-                    yield PasekOdtwarzacza()
-                    with Horizontal(id="cue-tools"):
-                        yield Button("Wyślij cue do RB  [W]", id="cue-write")
-                    yield Static("", id="cue-info")
+                    with Vertical(id="cue-dol"):
+                        yield Static("", id="cue-card")
+                        with Horizontal(id="cue-tools"):
+                            yield Button("Wyślij cue do RB  [W]",
+                                         id="cue-write")
+                            yield Button("Wyślij playlistę do RB",
+                                         id="cue-playlist")
+                        yield Static("", id="cue-info")
+                        yield PasekOdtwarzacza()
         yield Static("", id="status")
         yield Footer()
 
@@ -1213,7 +1221,7 @@ class DanceLabTUI(App):
             linie.append(f"…i {len(plan.warnings) - 3} dalszych ostrzeżeń")
         linie.append("litera A–H = wybierz/postaw pad · P = posłuchaj od "
                      "pada · ←/→ ±1 uderzenie (Shift ±8, PgUp/PgDn ±32) · "
-                     "X zdejmij · Z cofnij · zapis do Rekordboksa — etap 4")
+                     "X zdejmij · Z cofnij · W wysyła cue (dwa razy)")
         info.update("\n".join(linie))
         if self._cue_widok:
             if self._cue_track not in self._cue_widok:
@@ -1596,6 +1604,13 @@ class DanceLabTUI(App):
             self.action_build_from_filary()
         elif event.button.id == "cue-write":
             self.action_write()
+        elif event.button.id == "cue-playlist":
+            # ta sama publikacja playlisty co W w Secie — zakładka nazywa się
+            # „Eksport", więc oba eksporty mają tu być (skarga Janka 09.08)
+            if not self._plan_paths:
+                self._note("najpierw zbuduj set (B) — wtedy będzie co wysyłać")
+            else:
+                self._write_worker()
         elif event.button.id == "cmp-play":
             self._graj_z_panelu()
         elif event.button.has_class("pb-play"):
