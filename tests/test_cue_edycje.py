@@ -217,3 +217,34 @@ def test_os_czasu_ma_glowice_w_miejscu_odtwarzania():
     assert "3:00 / 6:00" in srodek.plain, "zegar teraz/całość"
     assert os_z_glowica(None, 10.0, 40) is None, "bez analizy: brak rysunku"
     assert os_z_glowica(a, 10.0, 4) is None, "za wąsko: brak rysunku"
+
+
+def test_karta_pokazuje_wszystkie_osiem_padow(tmp_path, monkeypatch):
+    """Tabelka jak w Rekordboksie (życzenie Janka 09.08): sloty A–H są
+    WIDOCZNE zawsze — puste mówią, że można tam postawić pad."""
+    from textual.widgets import DataTable, Static, TabbedContent
+
+    from dancelab.tui.app import DanceLabTUI
+
+    monkeypatch.setattr("dancelab.tui.app.WERDYKTY_DIR", tmp_path / "w")
+    plan, by_id = _plan(monkeypatch)
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            app._ctx = {"by_id": by_id, "weights": None}
+            app._order = ["A", "B"]
+            app._cue_plan = plan
+            app.query_one("#tabs", TabbedContent).active = "tab-export"
+            await pilot.pause()
+            app._render_cue_lista()
+            app.query_one("#cue-table", DataTable).focus()
+            await pilot.pause()
+            karta = str(app.query_one("#cue-card", Static).render())
+            for litera in "ABCDEFGH":
+                assert f"\n {litera}" in karta or f"\n▶{litera}" in karta \
+                    or f"  {litera}" in karta, f"slot {litera} musi być widoczny"
+            assert karta.count("pusty") == 7, "jeden pad zajęty, siedem wolnych"
+            assert "naciśnij C, żeby postawić pad" in karta
+
+    asyncio.run(go())

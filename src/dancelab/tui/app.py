@@ -1296,14 +1296,26 @@ class DanceLabTUI(App):
         tekst.append("\n")
         tekst.append("czas     ", style="dim")
         tekst.append(linijka_czasu(dur, szer), style="dim")
-        for litera in sorted(pady):
-            p = pady[litera]
-            tekst.append("\n")
+        # TABELKA OŚMIU PADÓW jak w Rekordboksie (życzenie Janka 09.08):
+        # puste sloty są WIDOCZNE — to one mówią „tu możesz postawić kolejny",
+        # dokładnie jak szare wiersze A–H na ekranie RB.
+        from dancelab.tui.cue_edycje import PADY
+        for litera in PADY:
+            p = pady.get(litera)
             wybrany = litera == self._cue_wybor
+            tekst.append("\n")
+            if p is None:
+                tekst.append(" ▶" if wybrany else "  ",
+                             style=f"bold {PILLAR_COLOR}" if wybrany else "")
+                tekst.append(f"{litera}  ", style="dim")
+                tekst.append("— pusty".ljust(18), style="dim")
+                tekst.append(f"naciśnij {litera}, żeby postawić pad",
+                             style="dim")
+                continue
             styl = f"bold {PILLAR_COLOR}" if wybrany else ""
             tekst.append(" ▶" if wybrany else "  ", style=styl)
             tekst.append(f"{litera}  {_mmss(p['position_ms']):>7}  ",
-                         style=styl)
+                         style=styl or f"bold {PILLAR_COLOR}")
             tekst.append(f"{TYPY_PO_POLSKU.get(p['typ'], p['typ']):<9} ",
                          style=styl)
             if p["zrodlo"] == "reka":
@@ -1316,6 +1328,8 @@ class DanceLabTUI(App):
                              else "POSŁUCHAJ  ",
                              style="green" if p["confident"] else "yellow")
                 tekst.append(p.get("comment", "")[:34], style="dim")
+            if wybrany:
+                tekst.append("   X = zdejmij", style="dim")
         karta.update(tekst)
 
     # ----------------------------------------------------------- Biblioteka
