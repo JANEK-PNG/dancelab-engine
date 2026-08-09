@@ -108,9 +108,12 @@ def test_klawisze_w_zakladce_edytuja_pady(tmp_path, monkeypatch):
             await pilot.press("b")          # litera = wybór istniejącego pada
             assert app._cue_wybor == "B"
 
-            await pilot.press("left")       # ±1 uderzenie po siatce
+            # ←/→ przesuwa o TAKT (4 uderzenia), bo hot cue stoi na
+            # „jedynce" — ruch o jeden bit tylko by z niej zsuwał
+            await pilot.press("left")
             p = cue_edycje.efektywne_pady(plan, app._cue_edycje, "A")["B"]
-            assert p["position_ms"] == 300000 - 500 and p["zrodlo"] == "reka"
+            assert p["position_ms"] == 300000 - 2000, "jeden takt @120 = 2 s"
+            assert p["zrodlo"] == "reka"
 
             await pilot.press("d")          # brak pada D → nowy ręczny
             assert app._cue_wybor == "D"
@@ -532,3 +535,59 @@ def test_lista_fraz_przewija_sie_i_mowi_ile_zostalo(tmp_path, monkeypatch):
             assert "9/13" in widok and "wyżej" in widok, "widok przewinięty"
 
     asyncio.run(go())
+
+
+def test_cue_ladują_na_poczatku_taktu(monkeypatch):
+    """Życzenie Janka 09.08: hot cue stoi tam, gdzie Rekordbox rysuje czerwoną
+    linię taktu — 68.1, nie 68.2. Dotyczy WSZYSTKICH dróg: propozycji silnika,
+    ręcznie wpisanego czasu i gotowych czasów fraz."""
+    from dancelab.core.models import BeatGrid
+    from dancelab.tui.cue_edycje import czas_po_kwantyzacji
+
+    # takty co 2 s (120 BPM, 4/4) — dokładnie tak, jak liczy je Rekordbox
+    takty = [round(i * 2.0, 3) for i in range(200)]
+    siatka = BeatGrid(bpm=120.0, reliable=True,
+                      beat_times_sec=[i * 0.5 for i in range(800)],
+                      downbeat_phase_verified=True)
+
+    czas, powod = czas_po_kwantyzacji(siatka, 136.7, takty)
+    assert czas == 136.0, "najbliższy TAKT, nie najbliższy bit"
+    assert "taktu 69" in powod, f"powód ma nazwać takt: {powod}"
+
+    czas, powod = czas_po_kwantyzacji(siatka, 137.4, takty)
+    assert czas == 138.0, "w drugą stronę też do najbliższego taktu"
+
+
+def test_bez_siatki_rekordboxa_mowimy_ze_nie_znamy_taktu():
+    """Bez fazy taktu nie wiemy, który bit jest jedynką — przyciągamy do bitu
+    i mówimy o tym wprost, zamiast zgadywać takt."""
+    from dancelab.core.models import BeatGrid
+    from dancelab.tui.cue_edycje import czas_po_kwantyzacji
+
+    siatka = BeatGrid(bpm=120.0, reliable=True,
+                      beat_times_sec=[i * 0.5 for i in range(800)],
+                      downbeat_phase_verified=False)
+    czas, powod = czas_po_kwantyzacji(siatka, 136.7, downbeaty=None)
+    assert czas == 136.5, "najbliższy bit"
+    assert "który bit jest jedynką" in powod
+
+
+def test_propozycje_fraz_startuja_na_takcie():
+    """„Jak mamy te automatyczne ustawianie cue to fraz, to ma się zaczynać
+    na początku taktu" — Janek 09.08."""
+    from dancelab.core.models import AnalysisResult, Segment, SegmentType, Track
+    from dancelab.tui.cue_podglad import propozycje_czasu
+
+    analiza = AnalysisResult(
+        engine_version="test",
+        track=Track(track_id="A", source_path="/m/a.wav", duration_sec=300.0),
+        segments=[
+            Segment(segment_id="s1", track_id="A", start_sec=30.3,
+                    end_sec=60.0, segment_type=SegmentType.intro),
+            Segment(segment_id="s2", track_id="A", start_sec=60.9,
+                    end_sec=90.0, segment_type=SegmentType.drop),
+        ])
+    takty = [round(i * 2.0, 3) for i in range(200)]
+    punkty = propozycje_czasu(analiza, silnik_ms=None, downbeaty=takty)
+    assert [sek for _n, sek in punkty] == [30.0, 60.0], \
+        "każda fraza dociągnięta do początku taktu"

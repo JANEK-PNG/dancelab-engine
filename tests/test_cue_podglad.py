@@ -123,3 +123,30 @@ def test_cue_plan_typ_zwracany(monkeypatch):
     monkeypatch.setattr(cue_podglad, "_okna", _okna_atrapa)
     by_id = {"A": _analysis("A"), "B": _analysis("B")}
     assert isinstance(zbuduj_plan_cue(["A", "B"], by_id, weights=None), CuePlan)
+
+
+def test_plan_cue_przyciagany_do_taktow_rekordboxa(monkeypatch):
+    """Skarga Janka 09.08: cue mijały czerwone linie taktów. Powód: plan
+    powstawał na NASZEJ siatce. Teraz każde cue jedzie na najbliższy takt
+    Rekordboxa — a utwór bez jego siatki zostaje nietknięty, bez udawania."""
+    from dancelab.tui.cue_podglad import zbuduj_plan_cue
+
+    monkeypatch.setattr(cue_podglad, "_okna", _okna_atrapa)
+    by_id = {"A": _analysis("A"), "B": _analysis("B")}
+    plan_bez = zbuduj_plan_cue(["A", "B"], by_id, weights=None)
+    takty = {by_id["A"].track.source_path:
+             [round(i * 2.0, 3) for i in range(400)]}
+    plan = zbuduj_plan_cue(["A", "B"], by_id, weights=None,
+                           downbeaty_dla=lambda p: takty.get(p, []))
+
+    poz = {(t.content_id, c.pad_label): c.position_ms
+           for t in plan.tracks for c in t.cues}
+    for (tid, _pad), ms in poz.items():
+        if tid == "A":
+            assert ms % 2000 == 0, f"cue utworu A poza taktem: {ms} ms"
+    b_przed = {(t.content_id, c.pad_label): c.position_ms
+               for t in plan_bez.tracks for c in t.cues}
+    for klucz, ms in poz.items():
+        if klucz[0] == "B":
+            assert ms == b_przed[klucz], \
+                "bez siatki Rekordboxa nie ruszamy pozycji"

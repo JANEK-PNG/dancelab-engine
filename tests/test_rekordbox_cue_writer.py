@@ -22,9 +22,21 @@ def test_safe_swap_is_the_library_default():
 
 
 @pytest.fixture()
-def copy_db(tmp_path):
+def copy_db(tmp_path, monkeypatch):
+    """A COPY of the library, plus a lifted process guard.
+
+    pyrekordbox refuses to commit while Rekordbox is running — a guard that
+    protects the LIVE database. These tests write to a copy in tmp_path, so
+    the guard only makes the suite pass or fail depending on whether the DJ
+    happens to have Rekordbox open, which once cost a debugging session.
+    Lifted here for the copy only; `write_plan`'s own refusal is unaffected
+    and is covered by test_aborts_when_rekordbox_running.
+    """
     if not LIVE.exists():
         pytest.skip("no local master.db to copy")
+    import pyrekordbox.db6.database as _db
+
+    monkeypatch.setattr(_db, "get_rekordbox_pid", lambda *a, **k: 0)
     dst = tmp_path / "master.db"
     shutil.copy2(LIVE, dst)
     return dst

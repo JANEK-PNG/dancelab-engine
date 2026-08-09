@@ -38,9 +38,39 @@ def _okna(analysis, weights):
         weights.transition_window).windows
 
 
+def _na_takty(plan: CuePlan, order: list[str], by_id: dict,
+              downbeaty_dla) -> None:
+    """Przyciągnij KAŻDE cue planu do najbliższego taktu Rekordboxa.
+
+    Bez tego cue lądowały na NASZEJ siatce, a DJ patrzy na czerwone linie
+    Rekordboxa — na jego danych 25 z 26 padów mijało linię, czasem o 0,9 s
+    (zmierzone 09.08, stąd skarga „68.1, a nie 68.2"). Utwór bez siatki
+    Rekordboxa zostaje na naszej i nikt nie udaje, że wie lepiej.
+    """
+    from dancelab.ingestion.rekordbox_siatka import do_taktu
+
+    po_id = {t.content_id: t for t in plan.tracks}
+    for tid in order:
+        analiza, wpis = by_id.get(tid), po_id.get(tid)
+        if analiza is None or wpis is None:
+            continue
+        takty = downbeaty_dla(analiza.track.source_path)
+        if not takty:
+            continue
+        for cue in wpis.cues:
+            wynik = do_taktu(takty, cue.position_ms / 1000.0)
+            if wynik is not None:
+                cue.position_ms = int(round(wynik[0] * 1000))
+
+
 def zbuduj_plan_cue(order: list[str], by_id: dict, weights,
-                    mode: CueContentMode = CueContentMode.in_out) -> CuePlan:
-    """CuePlan dla bieżącej kolejności setu (po edycjach — z tego, co GRA)."""
+                    mode: CueContentMode = CueContentMode.in_out,
+                    downbeaty_dla=None) -> CuePlan:
+    """CuePlan dla bieżącej kolejności setu (po edycjach — z tego, co GRA).
+
+    `downbeaty_dla` to funkcja „ścieżka pliku → sekundy taktów Rekordboxa";
+    podana, przyciąga wszystkie cue do jego czerwonych linii. Wstrzykiwana,
+    żeby ta warstwa została czysta i testowalna bez Rekordboxa."""
     obecne = [tid for tid in order if tid in by_id]
     brakujace = [tid for tid in order if tid not in by_id]
 
@@ -69,6 +99,8 @@ def zbuduj_plan_cue(order: list[str], by_id: dict, weights,
         labels=load_cue_labels(),
         mode=mode,
     )
+    if downbeaty_dla is not None:
+        _na_takty(plan, obecne, by_id, downbeaty_dla)
     plan.warnings = [
         *(f"utwór {tid} bez analizy w puli — pominięty" for tid in brakujace),
         *ostrzezenia,
@@ -199,7 +231,9 @@ def wiersze_podgladu(plan: CuePlan, order: list[str],
 
 
 def propozycje_czasu(analiza, silnik_ms: int | None = None,
-                     limit: int | None = None) -> list[tuple[str, float]]:
+                     limit: int | None = None,
+                     downbeaty: list[float] | None = None,
+                     ) -> list[tuple[str, float]]:
     """Gotowe timingi do wyboru: POCZĄTKI SEKCJI utworu (intro, break,
     groove, outro) + propozycja silnika. Wszystko ZMIERZONE — żadnych
     równych „co 32 bity" wymyślonych z powietrza; utwór bez segmentacji
@@ -219,5 +253,20 @@ def propozycje_czasu(analiza, silnik_ms: int | None = None,
         punkty.append((nazwa, float(seg.start_sec)))
     if silnik_ms is not None:
         punkty.append(("silnik", silnik_ms / 1000.0))
+    if downbeaty:
+        # gotowy czas frazy MA startować na początku taktu (Janek 09.08),
+        # inaczej wybranie go z listy stawiałoby cue w połowie taktu
+        from dancelab.ingestion.rekordbox_siatka import do_taktu
+        dociagniete = []
+        for nazwa, sek in punkty:
+            wynik = do_taktu(downbeaty, sek)
+            dociagniete.append((nazwa, wynik[0] if wynik else sek))
+        punkty = dociagniete
     punkty.sort(key=lambda x: x[1])
+    bez_duplikatow: list[tuple[str, float]] = []
+    for nazwa, sek in punkty:
+        if bez_duplikatow and abs(bez_duplikatow[-1][1] - sek) < 0.01:
+            continue          # dwie sekcje dociągnięte do tego samego taktu
+        bez_duplikatow.append((nazwa, sek))
+    punkty = bez_duplikatow
     return punkty[:limit] if limit else punkty

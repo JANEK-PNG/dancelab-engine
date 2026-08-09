@@ -124,11 +124,32 @@ def parsuj_czas(tekst: str) -> float | None:
     return wynik if wynik >= 0 else None
 
 
-def czas_po_kwantyzacji(beatgrid, sekundy: float) -> tuple[float, str]:
-    """(czas po przyciągnięciu, powód). Kwantyzacja jak w Rekordboksie:
-    do frazy, gdy faza taktu jest ZWERYFIKOWANA, inaczej do najbliższego
-    bitu; przy niepewnej siatce nic nie ruszamy i mówimy dlaczego."""
+def czas_po_kwantyzacji(beatgrid, sekundy: float,
+                        downbeaty: list[float] | None = None
+                        ) -> tuple[float, str]:
+    """(czas po przyciągnięciu, powód). Hot cue ZAWSZE ląduje na początku
+    taktu — na tej samej czerwonej linii, którą rysuje Rekordbox (życzenie
+    Janka 09.08: „68.1, a nie 68.2"; dotyczy też ręcznie wpisanego czasu,
+    bo kwantyzacja jest włączona zawsze).
+
+    Kolejność źródeł prawdy o takcie:
+    1. siatka REKORDBOXA (`downbeaty`) — jego linie, jego baza, jego numer
+       taktu; wtedy powód mówi wprost, na który takt trafiliśmy;
+    2. nasza siatka ze ZWERYFIKOWANĄ fazą taktu — pełne takty od kotwicy;
+    3. bez fazy taktu nie wiemy, który bit jest jedynką: przyciągamy do
+       najbliższego BITU i mówimy o tym wprost, zamiast zgadywać.
+    """
     from dancelab.decision.cue_grid import snap_cue_start
+    from dancelab.ingestion.rekordbox_siatka import do_taktu
+
+    if downbeaty:
+        wynik = do_taktu(downbeaty, float(sekundy))
+        if wynik is not None:
+            po, numer = wynik
+            roznica = abs(po - sekundy)
+            if roznica < 0.005:
+                return po, f"trafione w takt {numer}"
+            return po, f"dociągnięte do taktu {numer} (o {roznica:.2f} s)"
 
     po = snap_cue_start(beatgrid, float(sekundy))
     roznica = abs(po - sekundy)
@@ -136,6 +157,7 @@ def czas_po_kwantyzacji(beatgrid, sekundy: float) -> tuple[float, str]:
         return po, "trafione w siatkę"
     if po == sekundy:
         return po, "siatka niepewna — zostawiam wpisany czas"
-    do_czego = ("taktu" if getattr(beatgrid, "downbeat_phase_verified", False)
-                else "bitu")
-    return po, f"dociągnięte do {do_czego} (o {roznica:.2f} s)"
+    if getattr(beatgrid, "downbeat_phase_verified", False):
+        return po, f"dociągnięte do taktu (o {roznica:.2f} s)"
+    return po, (f"dociągnięte do bitu (o {roznica:.2f} s) — nie wiem, "
+                f"który bit jest jedynką taktu")

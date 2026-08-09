@@ -16,10 +16,13 @@ from __future__ import annotations
 
 from dancelab.core.models import BeatGrid
 
-# Phrase divisions a DJ can actually count, largest first.
-CUE_PHRASE_DIVISIONS_BEATS = (64, 32, 16, 8, 4, 2)
+# Phrase divisions a DJ can actually count, largest first. All are whole BARS
+# (multiples of 4 beats): a hot cue must land on beat 1 of a bar — the red bar
+# line in Rekordbox — never mid-bar (Janek 09.08: "68.1, not 68.2"). The old
+# 2-beat division put cues on beat 3 and was the source of that complaint.
+CUE_PHRASE_DIVISIONS_BEATS = (64, 32, 16, 8, 4)
 # How far a cue may be pulled to reach each division.
-CUE_PHRASE_SNAP_TOLERANCE_BEATS = {64: 4.0, 32: 4.0, 16: 4.0, 8: 2.0, 4: 1.0, 2: 0.5}
+CUE_PHRASE_SNAP_TOLERANCE_BEATS = {64: 4.0, 32: 4.0, 16: 4.0, 8: 2.0, 4: 2.0}
 
 
 def usable_beat_grid(beatgrid: BeatGrid | None) -> BeatGrid | None:
@@ -78,14 +81,14 @@ def snap_to_phrase_grid(beatgrid: BeatGrid, target_sec: float) -> float:
     for division in CUE_PHRASE_DIVISIONS_BEATS:
         boundary = max(0, round(target_beat / division) * division)
         offset_beats = abs(target_beat - boundary)
-        if boundary == 0 and target_beat > CUE_PHRASE_SNAP_TOLERANCE_BEATS[2]:
+        if boundary == 0 and target_beat > CUE_PHRASE_SNAP_TOLERANCE_BEATS[4]:
             continue
         if offset_beats <= CUE_PHRASE_SNAP_TOLERANCE_BEATS[division]:
             return anchor + boundary * beat_period
 
-    # Last-resort safety: keep the cue on a 2-beat count rather than a random
-    # off-count. This branch should be rare because division=2 is already lenient.
-    boundary = max(0, round(target_beat / 2) * 2)
+    # Last-resort safety: the nearest BAR rather than a random off-count.
+    # Rare, because the 4-beat division above is already lenient.
+    boundary = max(0, round(target_beat / 4) * 4)
     return anchor + boundary * beat_period
 
 

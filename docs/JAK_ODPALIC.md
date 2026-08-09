@@ -102,6 +102,7 @@ Nazwy z tej tabeli są używane w całym dokumencie i w programie konsekwentnie
 | **kotwica** | brzmienie „graj jak…": wybrany DJ, do którego silnik zbliża dobór utworów |
 | **szew** | przejście między dwoma sąsiednimi utworami setu |
 | **pad** | jedno z ośmiu miejsc A–H, w których leży hot cue — jak pady na CDJ |
+| **takt** | cztery uderzenia; w Rekordboksie rysowany czerwoną linią i numerowany (68.1 = pierwsze uderzenie taktu 68). Hot cue zawsze siada na takiej linii |
 | **hot cue** | punkt startowy zapisany na padzie; to on trafia do Rekordboksa |
 | **plan** | zapisany na dysku stan setu, z nazwą. Można do niego wrócić po zamknięciu programu |
 | **werdykt** | zapis Twojej decyzji (cięcie, podmiana, przesunięcie). Z tych zapisów silnik będzie uczył się Twojego gustu |
@@ -533,7 +534,19 @@ pokazuje czas i znak stanu, pusty — przygaszoną kreskę.
 | ✋ | pad ustawiony Twoją ręką |
 
 Dla każdego przejścia silnik proponuje pad z wyjściem z utworu i pad
-z wejściem w następny, przyciągnięte do siatki bitów.
+z wejściem w następny.
+
+**Hot cue zawsze siada na początku taktu.** Na tej samej czerwonej linii,
+którą rysuje Rekordbox — czyli na „68.1", nigdy na „68.2". Dotyczy to
+wszystkich dróg: propozycji silnika, pada postawionego ręcznie, przeniesienia
+pod głowicę, gotowych czasów fraz i czasu wpisanego z klawiatury. Takty
+czytamy **z pliku analizy Rekordboxa**, żeby linia w programie i linia
+u niego były tą samą linią; szczegóły wybranego pada pokazują jej numer
+(na przykład `takt 105.1`).
+
+Utwór, którego nie ma w kolekcji Rekordboxa albo nie ma pliku analizy, nie ma
+też numeracji taktów. Wtedy program przyciąga do własnej siatki i mówi wprost,
+że nie wie, który bit jest jedynką taktu — zamiast zgadywać.
 
 ### 5.2. Wybierz pad i postaw nowy
 
@@ -571,19 +584,23 @@ bitu. Program odmawia z powodem, jeżeli odtwarzacz stoi na innym utworze.
 
 ### 5.4. Przestaw pad — drobna poprawka
 
-**Cel:** przesunąć pad o dokładną liczbę uderzeń.
+**Cel:** przesunąć pad o dokładną liczbę taktów.
 
 **Warunki wstępne:** pad jest wybrany.
 
 **Kroki**
 
-1. Naciśnij <kbd>←</kbd> lub <kbd>→</kbd> — przesunięcie o 1 uderzenie.
-2. Z <kbd>Shift</kbd> — o 8 uderzeń.
-3. <kbd>PgUp</kbd> / <kbd>PgDn</kbd> — o 32 uderzenia.
+1. Naciśnij <kbd>←</kbd> lub <kbd>→</kbd> — przesunięcie o **1 takt**.
+2. Z <kbd>Shift</kbd> — o 8 taktów (dwie frazy).
+3. <kbd>PgUp</kbd> / <kbd>PgDn</kbd> — o 32 takty.
 
-**Wynik:** pad jest przesunięty. Propozycja silnika zostaje widoczna jako
-kropka, a pad jest opisany jako ustawiony ręką — zawsze widzisz, o ile
-różnisz się od silnika.
+**Wynik:** pad jest przesunięty i **nadal stoi na początku taktu**.
+Propozycja silnika zostaje widoczna jako kropka, a pad jest opisany jako
+ustawiony ręką — zawsze widzisz, o ile różnisz się od silnika.
+
+**Uwaga:** krokiem jest takt, a nie pojedyncze uderzenie. Ruch o jedno
+uderzenie zsuwałby cue z „jedynki", a kwantyzacja i tak zaraz by je tam
+wróciła.
 
 <!-- zrzut: cue_przesuniety -->
 
@@ -603,15 +620,15 @@ różnisz się od silnika.
      <kbd>↑</kbd>/<kbd>↓</kbd>.
 3. Naciśnij <kbd>Enter</kbd>.
 
-**Wynik:** pad stoi na wpisanym czasie, dociągniętym do siatki tak, jak przy
-włączonym quantize w Rekordboksie: do taktu, gdy faza taktu jest
-zweryfikowana, w przeciwnym razie do najbliższego bitu. Notka mówi, o ile
-program dociągnął.
+**Wynik:** pad stoi na **początku najbliższego taktu** — kwantyzacja jest
+włączona zawsze, więc wpisanie „2:31,4" i tak wyląduje na linii taktu. Notka
+mówi, na który takt trafiliśmy i o ile dociągnęliśmy.
 
 <!-- zrzut: cue_czas -->
 
 **Uwaga:** lista gotowych czasów zawiera początki sekcji utworu (intro,
-break, groove, outro) oraz propozycję silnika. Lista **przewija się** —
+break, groove, outro) oraz propozycję silnika — **każda pozycja jest już
+dociągnięta do początku taktu**. Lista **przewija się** —
 licznik (na przykład `5/12`) i strzałki „↑ 4 wyżej / ↓ 3 niżej" mówią, ile
 pozycji jest poza kadrem. <kbd>Esc</kbd> wychodzi bez zmiany. Przy niepewnej
 siatce program zostawia dokładnie wpisany czas i pisze dlaczego.
@@ -786,9 +803,9 @@ Gdy utwór skończy się sam, gra następny z listy; na końcu listy zapada cisz
 |---|---|---|
 | <kbd>A</kbd>–<kbd>H</kbd> | wybierz pad; na pustym slocie postaw nowy | 5.2 |
 | ta sama litera drugi raz | przenieś pad pod głowicę odtwarzacza | 5.3 |
-| <kbd>←</kbd> / <kbd>→</kbd> | przesuń pad o 1 uderzenie | 5.4 |
-| <kbd>Shift</kbd>+strzałka | przesuń pad o 8 uderzeń | 5.4 |
-| <kbd>PgUp</kbd> / <kbd>PgDn</kbd> | przesuń pad o 32 uderzenia | 5.4 |
+| <kbd>←</kbd> / <kbd>→</kbd> | przesuń pad o 1 takt | 5.4 |
+| <kbd>Shift</kbd>+strzałka | przesuń pad o 8 taktów | 5.4 |
+| <kbd>PgUp</kbd> / <kbd>PgDn</kbd> | przesuń pad o 32 takty | 5.4 |
 | <kbd>T</kbd> | wpisz czas pada z klawiatury | 5.5 |
 | <kbd>P</kbd> | graj utwór od wybranego pada | 5.2 |
 | <kbd>S</kbd> | posłuchaj szwu do następnego utworu | 5.6 |

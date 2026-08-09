@@ -914,6 +914,16 @@ class DanceLabTUI(App):
             self._cue_wybor = None
             self._render_cue_karta()
 
+    def _cue_takty(self, tid: str | None = None) -> list[float]:
+        """Takty utworu wg Rekordboxa — te same czerwone linie, które widzisz
+        w jego oknie. Pusta lista = tego utworu nie ma w kolekcji albo nie ma
+        pliku analizy; wtedy schodzimy na naszą siatkę i mówimy o tym."""
+        from dancelab.ingestion.rekordbox_siatka import downbeaty_dla_sciezki
+        analiza = self._ctx.get("by_id", {}).get(tid or self._cue_track)
+        if analiza is None:
+            return []
+        return downbeaty_dla_sciezki(analiza.track.source_path)
+
     def _cue_pady_teraz(self) -> dict:
         from dancelab.tui import cue_edycje
         return cue_edycje.efektywne_pady(
@@ -944,7 +954,11 @@ class DanceLabTUI(App):
             p = pady[pad]
             bpm = (analiza.beatgrid.bpm if analiza.beatgrid else 0) or 120.0
             beat = 60000.0 / bpm
-            cel = int(round(self._odtwarzacz.pozycja() * 1000 / beat) * beat)
+            # pad ląduje na POCZĄTKU TAKTU, nie na dowolnym bicie
+            cel_sec, powod = cue_edycje.czas_po_kwantyzacji(
+                analiza.beatgrid, self._odtwarzacz.pozycja(),
+                self._cue_takty())
+            cel = int(round(cel_sec * 1000))
             uderzenia = int(round((cel - p["position_ms"]) / beat))
             from dancelab.tui import cue_edycje
             nowa = cue_edycje.przesun(
@@ -955,7 +969,7 @@ class DanceLabTUI(App):
                               silnik_ms=p.get("silnik_ms"))
             m, sek = divmod(int(nowa / 1000), 60)
             self._note(f"pad {pad} przeniesiony na {m}:{sek:02d} "
-                       f"(z głowicy odtwarzacza) · Z cofa")
+                       f"({powod}) · Z cofa")
             self._render_cue_lista()
             return
         analiza = self._ctx["by_id"][self._cue_track]
@@ -965,17 +979,22 @@ class DanceLabTUI(App):
             pozycja_ms = int(self._odtwarzacz.pozycja() * 1000)
         else:
             pozycja_ms = int(czas_utworu(analiza) * 500)  # środek utworu
-        bpm = analiza.beatgrid.bpm if analiza.beatgrid else 0
-        if bpm:  # na najbliższy bit naszej siatki
-            beat = 60000.0 / bpm
-            pozycja_ms = int(round(pozycja_ms / beat) * beat)
+        # nowy pad także siada na POCZĄTKU TAKTU (jedna reguła w całym
+        # edytorze — hot cue nigdy nie stoi w połowie taktu)
+        cel_sec, _powod = cue_edycje.czas_po_kwantyzacji(
+            analiza.beatgrid, pozycja_ms / 1000.0, self._cue_takty())
+        pozycja_ms = int(round(cel_sec * 1000))
         cue_edycje.postaw(self._cue_edycje, self._cue_track, pad, pozycja_ms)
         self._cue_wybor = pad
         self._log_verdict("cue_postaw", track_id=self._cue_track, pad=pad,
                           position_ms=pozycja_ms)
         self._render_cue_lista()
 
-    def _cue_przesun(self, uderzenia: int) -> None:
+    def _cue_przesun(self, takty: int) -> None:
+        """Strzałki przesuwają pad o TAKTY, nie o pojedyncze bity — hot cue
+        ma stać na „jedynce" (Janek 09.08), więc ruch o jeden bit tylko by
+        z niej zsuwał i zaraz wracał kwantyzacją."""
+        from dancelab.ingestion.rekordbox_siatka import sasiedni_takt
         from dancelab.tui import cue_edycje
         pady = self._cue_pady_teraz()
         p = pady.get(self._cue_wybor)
@@ -983,12 +1002,25 @@ class DanceLabTUI(App):
             return
         analiza = self._ctx["by_id"][self._cue_track]
         bpm = (analiza.beatgrid.bpm if analiza.beatgrid else 0) or 120.0
+        downbeaty = self._cue_takty()
+        skok = sasiedni_takt(downbeaty, p["position_ms"] / 1000.0, takty)
+        if skok is not None:
+            cel_ms, numer = int(round(skok[0] * 1000)), skok[1]
+            uderzenia = int(round((cel_ms - p["position_ms"])
+                                  / (60000.0 / bpm)))
+            dopisek = f" · takt {numer}"
+        else:                       # bez siatki Rekordboxa: takt = 4 bity
+            uderzenia = takty * 4
+            dopisek = ""
         nowa = cue_edycje.przesun(
             self._cue_edycje, self._cue_track, self._cue_wybor,
             uderzenia, bpm, p.get("silnik_ms"), p["position_ms"])
         self._log_verdict("cue_przesuniecie", track_id=self._cue_track,
-                          pad=self._cue_wybor, uderzenia=uderzenia,
+                          pad=self._cue_wybor, takty=takty,
                           position_ms=nowa, silnik_ms=p.get("silnik_ms"))
+        if dopisek:
+            m, sek = divmod(int(nowa / 1000), 60)
+            self._note(f"pad {self._cue_wybor}: {m}:{sek:02d}{dopisek}")
         self._render_cue_lista()
 
     def _cue_graj_szew(self) -> None:
@@ -1087,7 +1119,9 @@ class DanceLabTUI(App):
             return
         analiza = self._ctx["by_id"][self._cue_track]
         self._cue_czas_bufor = _mmss(p["position_ms"])
-        self._cue_prop = propozycje_czasu(analiza, p.get("silnik_ms"))
+        # frazy też startują na początku taktu (Janek 09.08)
+        self._cue_prop = propozycje_czasu(analiza, p.get("silnik_ms"),
+                                          downbeaty=self._cue_takty())
         self._cue_prop_i = 0
         self._render_cue_karta()
 
@@ -1112,7 +1146,8 @@ class DanceLabTUI(App):
             self._note(f"{tekst} jest za końcem utworu "
                        f"({_mmss(int(dlugosc * 1000))}) — pad zostaje")
             return
-        cel, powod = czas_po_kwantyzacji(analiza.beatgrid, sekundy)
+        cel, powod = czas_po_kwantyzacji(analiza.beatgrid, sekundy,
+                                         self._cue_takty())
         bpm = (analiza.beatgrid.bpm if analiza.beatgrid else 0) or 120.0
         beat = 60000.0 / bpm
         uderzenia = int(round((cel * 1000 - p["position_ms"]) / beat))
@@ -1400,7 +1435,10 @@ class DanceLabTUI(App):
         order = list(self._order)
         by_id = self._ctx["by_id"]
         try:
-            plan = zbuduj_plan_cue(order, by_id, self._ctx["weights"])
+            from dancelab.ingestion.rekordbox_siatka import (
+                downbeaty_dla_sciezki)
+            plan = zbuduj_plan_cue(order, by_id, self._ctx["weights"],
+                                   downbeaty_dla=downbeaty_dla_sciezki)
         except Exception as exc:  # noqa: BLE001
             ui(head.update, f"Podgląd cue nie wyszedł: {exc}")
             return
@@ -1471,8 +1509,8 @@ class DanceLabTUI(App):
             linie.append(f"…i {len(plan.warnings) - 3} dalszych ostrzeżeń")
         linie.append("litera A–H = wybierz pad (pusty slot = postaw) · "
                      "TA SAMA litera drugi raz = przenieś pod głowicę · "
-                     "T = wpisz czas z klawiatury (dociągnę do siatki) · "
-                     "←/→ ±1 uderzenie (Shift ±8, PgUp/PgDn ±32) · "
+                     "T = wpisz czas z klawiatury (dociągnę do taktu) · "
+                     "←/→ ±1 TAKT (Shift ±8, PgUp/PgDn ±32) · "
                      "P posłuchaj utwór · S posłuchaj SZEW do następnego "
                      "(z Twoich padów) · X zdejmij · Z cofnij · W wysyła cue")
         info.update("\n".join(linie))
@@ -1516,7 +1554,7 @@ class DanceLabTUI(App):
         if self._cue_wybor:
             naglowek.append(
                 f"· pad {self._cue_wybor}: {self._cue_wybor} jeszcze raz = "
-                f"przenieś pod głowicę · T = wpisz czas · ←/→ ±1 uderzenie "
+                f"przenieś pod głowicę · T = wpisz czas · ←/→ ±1 TAKT "
                 f"(Shift ±8) · P posłuchaj · X zdejmij · Esc",
                 style=f"bold {PILLAR_COLOR}")
         else:
@@ -1619,9 +1657,14 @@ class DanceLabTUI(App):
             return
         wyb = pady.get(self._cue_wybor or "")
         if wyb is not None:
+            from dancelab.ingestion.rekordbox_siatka import numer_taktu
+            takt = numer_taktu(self._cue_takty(),
+                               wyb["position_ms"] / 1000.0)
             tab.append(f"\n{self._cue_wybor} · ", style=f"bold {PILLAR_COLOR}")
             tab.append(f"{TYPY_PO_POLSKU.get(wyb['typ'], wyb['typ'])} · "
                        f"{_mmss(wyb['position_ms'])}", style="dim")
+            if takt is not None:
+                tab.append(f" · takt {takt}.1", style="dim")
             if wyb["zrodlo"] == "reka" and wyb.get("silnik_ms") is not None:
                 tab.append(f"\nręka (silnik: {_mmss(wyb['silnik_ms'])})",
                            style="dim")

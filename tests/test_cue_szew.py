@@ -120,7 +120,7 @@ def test_szew_bierze_pozycje_z_padow_a_nie_z_propozycji(tmp_path,
             await pilot.pause()
 
             await pilot.press("b")            # pad wyjścia (300 s)
-            await pilot.press("shift+left")   # −8 uderzeń = −4 s
+            await pilot.press("shift+left")   # −8 TAKTÓW = −32 uderzenia
             await pilot.press("s")            # S jak SZEW
             for _ in range(50):
                 await pilot.pause(0.05)
@@ -130,7 +130,7 @@ def test_szew_bierze_pozycje_z_padow_a_nie_z_propozycji(tmp_path,
             assert wywolania, "S ma zszyć parę z padów"
             tid_a, tid_b, cue_a, cue_b = wywolania[0]
             assert (tid_a, tid_b) == ("A", "B")
-            assert cue_a == 296.0, "wyjście z PRZESUNIĘTEGO pada, nie z okna"
+            assert cue_a == 284.0, "wyjście z PRZESUNIĘTEGO pada, nie z okna"
             assert cue_b == 30.0, "wejście z pada następnego utworu"
             assert app._odtwarzacz.zagrane == [(str(wav), 0.0)]
 
