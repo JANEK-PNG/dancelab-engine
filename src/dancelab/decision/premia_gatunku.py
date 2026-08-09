@@ -1,0 +1,89 @@
+"""Premia za gatunek — miękkie trzymanie się briefu, gdy twarde sito nie wchodzi.
+
+Do 09.08 preferencja gatunków działała jak wyłącznik: albo zawężała pulę
+w całości, albo — gdy pasujących utworów było mniej niż długość setu —
+znikała BEZ RESZTY. Jeden utwór poniżej progu i z „trzymaj się House'u"
+robiło się „graj cokolwiek" (skarga Janka 09.08: „jeśli mam filary w stylu X,
+gatunek w stylu Y i DJ-a w stylu Z, to jak to mamy rozwiązane?").
+
+Ten moduł daje stan pośredni: pula zostaje pełna, ale kandydat o pasującym
+gatunku dostaje PREMIĘ do oceny. Set trzyma się gatunku tak długo, jak pula
+pozwala, i przestaje dokładnie tam, gdzie musi — zamiast porzucać brief
+w całości.
+
+Kształt premii to STAŁY MARGINES: `ocena + w`, przycięte do jedynki. Znaczy
+dokładnie tyle: „przy różnicy ocen mniejszej niż w wybierz gatunek z briefu".
+
+Pierwsza wersja przesuwała ocenę ku jedynce (`ocena + w · (1 − ocena)`)
+i została odrzucona pomiarem: przy dobrym szwie 0,892 dawała ledwie 0,016
+premii, więc dokładnie tam, gdzie silnik pracuje najczęściej, gatunek nie
+zmieniał nic. Stały margines działa jednakowo na całej skali.
+
+Słaby szew i tak nie wygra: 0,59 z premią to 0,67, a dobry kandydat stoi
+przy 0,96. Waga jest RZEMIEŚLNICZA, nie pomiarowa — nie mamy danych, które
+by ją wyznaczyły, i tak jest napisana.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Sequence
+
+from dancelab.decision.library_profile import normalize_style_list, style_matches
+
+# Margines rozstrzygania: gatunek wygrywa, gdy przegrywa oceną o mniej niż
+# tyle. Zmierzone odległości na realnych parach: dobry szew ~0,96, przyzwoity
+# ~0,89, ryzykowny ~0,59 — 0,08 przestawia wybór w obrębie „przyzwoitych",
+# a nie sięga do ryzykownych.
+DOMYSLNA_WAGA = 0.08
+
+
+@dataclass
+class PremiaGatunku:
+    """Stan premii na czas budowy jednego setu (jak SoundSteering)."""
+
+    gatunki: list[str] = field(default_factory=list)
+    waga: float = DOMYSLNA_WAGA
+    trafione: int = 0
+    ocenione: int = 0
+
+    @property
+    def aktywna(self) -> bool:
+        return bool(self.gatunki) and self.waga > 0
+
+    def dopasuj(self, ocena: float, kandydat,
+                krawedzie: int = 1) -> tuple[float, str | None]:
+        """(ocena po premii, zdanie do uzasadnienia albo None).
+
+        `krawedzie` to liczba przejść zsumowanych w ocenie. Przy slocie tuż
+        przed FILAREM silnik sumuje dwie krawędzie (reguła tripletów: kandydat
+        musi też umieć wejść w filar), więc i skala ocen, i naturalne różnice
+        między kandydatami są tam dwa razy większe. Bez tego mnożnika premia
+        byłaby przy filarach o połowę słabsza niż w zwykłym slocie — gatunek
+        znaczyłby co innego w różnych miejscach setu.
+        """
+        if not self.aktywna:
+            return ocena, None
+        self.ocenione += 1
+        if not style_matches(getattr(kandydat.track, "style_label", None),
+                             self.gatunki):
+            return ocena, None
+        self.trafione += 1
+        po = ocena + self.waga * max(int(krawedzie), 1)
+        return float(min(po, float(max(int(krawedzie), 1)))), (
+            f"premia za gatunek {kandydat.track.style_label} (w={self.waga:.2f})")
+
+    def podsumowanie(self) -> str:
+        """Jedno zdanie do ostrzeżeń — ile razy premia w ogóle zadziałała."""
+        return (f"premia za gatunek ({', '.join(self.gatunki)}): pasowało "
+                f"{self.trafione} z {self.ocenione} ocenianych kandydatów")
+
+
+def zbuduj(preferencje: Sequence[str] | None,
+           waga: float | None = None) -> PremiaGatunku | None:
+    """PremiaGatunku albo None, gdy nie ma czego premiować."""
+    gatunki = normalize_style_list(preferencje)
+    if not gatunki:
+        return None
+    return PremiaGatunku(gatunki=list(gatunki),
+                         waga=DOMYSLNA_WAGA if waga is None else float(waga))

@@ -38,6 +38,7 @@ from dancelab.decision._common import nearest_bpm_variant, tempo_proximity_score
 from dancelab.decision.dedup import dedupe_by_audio
 from dancelab.decision.corpus_priors import transition_prior_lift
 from dancelab.decision.sound_affinity import blend, cosine_affinity
+from dancelab.decision import premia_gatunku as _premia
 from dancelab.decision.harmonic import harmonic_compatibility, harmonic_relation, parse_camelot
 from dancelab.decision.history import NoveltyContext, PlaylistFingerprint
 from dancelab.decision.library_profile import bpm_in_range, normalize_style_list, style_matches
@@ -880,6 +881,7 @@ def _best_successor(
     mixability_precomputation: MixabilityPrecomputation,
     novelty: "NoveltyContext | None" = None,
     steering: "SoundSteering | None" = None,
+    premia: "_premia.PremiaGatunku | None" = None,
     position: int = 0,
     bridge_to: str | None = None,
 ) -> str:
@@ -923,6 +925,10 @@ def _best_successor(
         if steering is not None and steering.active:
             score, _why = steering.adjust(
                 score, by_id[current], by_id[candidate], position)
+        if premia is not None and premia.aktywna:
+            # dwie krawędzie, gdy następny slot to filar (reguła tripletów)
+            score, _ = premia.dopasuj(
+                score, by_id[candidate], 2 if bridge_to is not None else 1)
         if novelty is not None:
             # §14: soft penalties inside the gate-passing candidate set —
             # relevance ordering first, history discourages repeats
@@ -1010,6 +1016,7 @@ def _constrained_order(
     mixability_precomputation: MixabilityPrecomputation,
     novelty: "NoveltyContext | None" = None,
     steering: "SoundSteering | None" = None,
+    premia: "_premia.PremiaGatunku | None" = None,
 ) -> list[str]:
     locked_slots = {position - 1: track_id for position, track_id in locked_positions.items()}
     locked_track_ids = set(locked_positions.values())
@@ -1095,6 +1102,7 @@ def _constrained_order(
                     mixability_precomputation=mixability_precomputation,
                     novelty=novelty,
                     steering=steering,
+                    premia=premia,
                     position=index,
                     # następny slot zajęty filarem → kandydat musi umieć
                     # w niego WEJŚĆ (krawędź mostowa; bez filarów None
@@ -1179,6 +1187,7 @@ def build_set(
     if start_track_id:
         required_ids.add(start_track_id)
 
+    premia_gatunku = None
     style_preferences = normalize_style_list(preferred_styles)
     if not style_preferences and context is not None:
         style_preferences = normalize_style_list(context.style_focus)
@@ -1198,6 +1207,11 @@ def build_set(
                     f"{dropped} non-matching track(s) left out"
                 )
         else:
+            # Twarde sito nie przechodzi (za mało pasujących utworów na set),
+            # ale preferencja NIE ZNIKA: schodzi do premii w ocenie, żeby set
+            # trzymał się gatunku tak długo, jak pula pozwala (decyzja Janka
+            # 09.08 — wcześniej jeden utwór poniżej progu kasował brief).
+            premia_gatunku = _premia.zbuduj(style_preferences)
             preference_warnings.append(
                 "style preference relaxed - not enough analyzed tracks match "
                 + ", ".join(style_preferences)
@@ -1339,6 +1353,7 @@ def build_set(
             mixability_precomputation=mixability_precomputation,
             novelty=active_novelty,
             steering=steering,
+            premia=premia_gatunku,
         )
 
     order = _run_order(novelty)
@@ -1392,6 +1407,8 @@ def build_set(
         *dedup_warnings,
         *preference_warnings,
         *(steering.coverage_warnings() if steering is not None else []),
+        *([premia_gatunku.podsumowanie()]
+          if premia_gatunku is not None and premia_gatunku.ocenione else []),
         *constraint_warnings,
         *energy_warnings,
         *_artist_diversity_warnings(order, artist_tokens),
