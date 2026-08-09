@@ -920,8 +920,13 @@ class DanceLabTUI(App):
         else:
             blad = self._odtwarzacz.graj_od_zera(sciezka, bpm)
             gdzie = "od zera"
-        self._note(f"odsłuch nie wyszedł: {blad}" if blad
-                   else f"gra {gdzie}")
+        if blad:
+            # błąd odsłuchu MUSI być widoczny od razu (dymek), nie tylko
+            # w schowanych notkach — lekcja z niemego P w Ghostty (09.08)
+            self.notify(f"odsłuch nie wyszedł: {blad}", severity="warning")
+            self._note(f"odsłuch nie wyszedł: {blad}")
+        else:
+            self._note(f"gra {gdzie}")
 
     def _cue_zdejmij(self) -> None:
         from dancelab.tui import cue_edycje

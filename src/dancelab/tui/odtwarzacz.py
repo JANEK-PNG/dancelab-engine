@@ -20,8 +20,24 @@ import shutil
 import subprocess
 import time
 
-FFPLAY = shutil.which("ffplay")
-AFPLAY = shutil.which("afplay")
+def _znajdz(nazwa: str,
+            katalogi: tuple[str, ...] = ("/opt/homebrew/bin",
+                                         "/usr/local/bin")) -> str | None:
+    """which + znane gniazda Homebrew. Aplikacja odpalana z IKONY dostaje
+    goły PATH launchd (bez /opt/homebrew/bin) — złapane 09.08, gdy odsłuch
+    od pada milczał w Ghostty, choć w terminalu działał."""
+    znaleziony = shutil.which(nazwa)
+    if znaleziony:
+        return znaleziony
+    for katalog in katalogi:
+        sciezka = pathlib.Path(katalog) / nazwa
+        if sciezka.is_file():
+            return str(sciezka)
+    return None
+
+
+FFPLAY = _znajdz("ffplay")
+AFPLAY = _znajdz("afplay")
 
 # HYBRYDA (skarga Janka 06.08: sekunda przerwy przy przełączaniu utworów):
 # ffplay wolno startuje (inicjalizacja audio ~0,5 s), afplay startuje niemal

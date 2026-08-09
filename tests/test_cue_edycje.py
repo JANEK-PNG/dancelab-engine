@@ -186,3 +186,15 @@ def test_cue_nazwa_nie_dubluje_artysty(monkeypatch):
     app = DanceLabTUI.__new__(DanceLabTUI)
     app._ctx = {"by_id": by_id}
     assert app._cue_nazwa("A") == "O'Flynn – Sekete (ft. Swordman Kit)"
+
+
+def test_znajdz_narzedzie_zna_gniazda_homebrew(tmp_path, monkeypatch):
+    """Regresja 09.08: apka z ikony dostaje goły PATH launchd — ffplay
+    z Homebrew musi się znaleźć mimo braku w PATH."""
+    import dancelab.tui.odtwarzacz as odt
+
+    monkeypatch.setattr(odt.shutil, "which", lambda n: None)
+    narzedzie = tmp_path / "ffplay"
+    narzedzie.write_text("#!/bin/sh\n")
+    assert odt._znajdz("ffplay", katalogi=(str(tmp_path),)) == str(narzedzie)
+    assert odt._znajdz("czegos_nie_ma", katalogi=(str(tmp_path),)) is None

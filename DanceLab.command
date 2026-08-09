@@ -14,5 +14,9 @@ if [ "${TERM_PROGRAM:-}" != "ghostty" ] && [ -z "${DANCELAB_BEZ_GHOSTTY:-}" ] \
     open -na Ghostty --args -e "$0"
     exit 0
 fi
+# Aplikacja odpalona z IKONY dziedziczy goły PATH launchd — bez Homebrew
+# nie ma ffplay/ffmpeg/ffprobe (odsłuch od pada, LUFS, bramkarz).
+# Złapane 09.08: P od pada milczał w Ghostty, w terminalu działał.
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
 cd "$(dirname "$0")" || exit 1
 exec .venv/bin/dancelab tui
