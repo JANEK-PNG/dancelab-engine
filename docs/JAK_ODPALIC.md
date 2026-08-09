@@ -122,7 +122,12 @@ CDJ), zaznacz potem utwory w RB i wybierz **Reload Tags**.
 
 ### Krok po kroku: zwykły set
 1. Wypełnij **brief** po lewej: długość w minutach, okno tempa
-   (np. `130-135`), ewentualnie gatunki i kotwicę.
+   (np. `130-135`), ewentualnie gatunki i kotwicę. Gatunków nie musisz
+   pamiętać: **Ctrl+G** pokazuje listę tych, które faktycznie masz
+   w bibliotece — w nazewnictwie Beatportu, z liczbą utworów przy każdym.
+   Kolejne **Ctrl+G** na podświetlonym dodaje go do pola albo zdejmuje,
+   **Esc** zamyka listę. Tagi spoza taksonomii Beatportu (np. własne)
+   są w osobnej sekcji na końcu — nic nie ginie.
 2. Naciśnij **B** — silnik buduje set; postęp widzisz na żywo.
 3. Przejrzyj tabelę, posłuchaj wątpliwych miejsc (rozdział 6), popraw
    set edycją (niżej).

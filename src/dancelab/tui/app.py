@@ -540,6 +540,7 @@ class DanceLabTUI(App):
                 priority=True),
         Binding("pageup", "skok_tyl_128", "skok -128", show=False,
                 priority=True),
+        Binding("ctrl+g", "gatunki", "Gatunki", show=False),
         Binding("c", "compare_pair", "Porównaj"),
         Binding("i", "track_info", "Info"),
         Binding("l", "toggle_notes", "Notki"),
@@ -662,9 +663,10 @@ class DanceLabTUI(App):
                             yield Input(value="90", id="minutes", type="number")
                             yield Label("Okno tempa (np. 128-140)", classes="field-label")
                             yield Input(placeholder="puste = bez okna", id="bpm")
-                            yield Label("Gatunki (Twoje tagi RB, po przecinku)",
+                            yield Label("Gatunki (Ctrl+G = lista z biblioteki)",
                                         classes="field-label")
-                            yield Input(placeholder="garage, breaks, bass", id="styles")
+                            yield Input(placeholder="Tech House, UK Garage / Bassline",
+                                        id="styles")
                             yield Label("Graj jak… (kotwica)", classes="field-label")
                             yield Select([], id="dj", prompt="— bez kotwicy —")
                             with Horizontal():
@@ -774,7 +776,7 @@ class DanceLabTUI(App):
     # w Bibliotece widać klawisze Biblioteki, w Secie klawisze Setu.
     _LIB_ONLY = {"toggle_fav", "build_from_filary", "toggle_okladki"}
     _SET_ONLY = {"build", "write", "replace", "cut", "add", "move_up",
-                 "move_down", "save_plan", "load_plan",
+                 "move_down", "save_plan", "load_plan", "gatunki",
                  "track_info", "compare_pair"}
 
     def check_action(self, action: str, parameters) -> bool:
@@ -942,6 +944,39 @@ class DanceLabTUI(App):
             self._render_cue_lista()
         else:
             self._note("nie ma czego cofać")
+
+    def action_gatunki(self) -> None:
+        """Ctrl+G: lista gatunków Z TWOJEJ biblioteki w taksonomii Beatportu
+        (decyzja Janka 09.08). Drugie Ctrl+G na podświetlonym dopisuje go do
+        pola „Gatunki" albo zdejmuje — panel zostaje otwarty, bo gatunków
+        wybiera się kilka. Esc zamyka."""
+        from dancelab.tui import gatunki as G
+        wybor = self._panel_choice("gatunki")
+        pole = self.query_one("#styles", Input)
+        if wybor is not None and not wybor.startswith("__"):
+            pole.value = G.przelacz(pole.value, wybor)
+            self._note(f"gatunki: {pole.value or '(puste — bez filtra)'}")
+            return
+        if not self._lib:
+            self._note("Biblioteka jeszcze się ładuje — gatunki za chwilę")
+            return
+        grupy = G.policz(self._lib)
+        if not grupy:
+            self._note("żaden utwór w puli nie ma gatunku — otaguj "
+                       "w Rekordboksie albo wpisz ręcznie")
+            return
+        opcje: list[tuple[str, str]] = []
+        for sekcja, pozycje in grupy:
+            opcje.append((f"— {sekcja} —", f"__{sekcja}"))
+            opcje.extend((f"  {nazwa}  ({ile})", nazwa)
+                         for nazwa, ile in pozycje)
+        mam, wszystkich, bez = G.pokrycie(self._lib)
+        self._open_suggest_panel(
+            None,
+            f"GATUNKI — masz {mam} z {wszystkich} gatunków Beatportu"
+            + (f" · {bez} bez tagu" if bez else "")
+            + "\nCtrl+G dodaje/zdejmuje · Esc zamyka",
+            opcje, "gatunki")
 
     def action_next_tab(self) -> None:
         self._switch_tab(+1)
