@@ -35,6 +35,8 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import OptionList
 from textual.widgets.option_list import Option
+
+from dancelab.tui.pasek import PasekOdtwarzacza
 from textual.widgets import (
     Button,
     DataTable,
@@ -486,13 +488,14 @@ class DanceLabTUI(App):
     .field-label { color: $text-muted; }
     #tabs { height: 1fr; }
     #lib-side-list { height: auto; }
-    #pb-box { height: 6; }
-    #pb-row1 { height: 3; width: auto; margin-top: 1; }
-    #pb-row1 Button { margin-right: 1; min-width: 8; }
-    #pb-art { width: 12; height: 6; margin: 0 2; }
-    #pb-meta { height: 6; padding-top: 1; }
-    #pb-info { height: 1; text-style: bold; }
-    #pb-sub { height: 1; color: $text-muted; }
+    .pb-box { height: 6; }
+    .pb-row1 { height: 3; width: auto; margin-top: 1; }
+    .pb-row1 Button { margin-right: 1; min-width: 8; }
+    .pb-art { width: 12; height: 6; margin: 0 2; }
+    .pb-meta { height: 6; padding-top: 1; width: 1fr; }
+    .pb-info { height: 1; text-style: bold; }
+    .pb-sub { height: 1; color: $text-muted; }
+    .pb-os { height: 1; }
     #lib-side { width: 26; border-right: solid $primary; padding: 0 1; }
     #lib-filters { height: 3; }
     #lib-filters Input { width: 1fr; margin-right: 1; }
@@ -628,18 +631,7 @@ class DanceLabTUI(App):
                         # kursor nadpisujący kolor wiersza kasował okładkę
                         yield DataTable(id="lib-table",
                                         cursor_foreground_priority="renderable")
-                        with Horizontal(id="pb-box"):
-                            with Horizontal(id="pb-row1"):
-                                yield Button("Poprz.", id="pb-prev")
-                                yield Button("-8", id="pb-back")
-                                yield Button("Graj", id="pb-play",
-                                             variant="primary")
-                                yield Button("+8", id="pb-fwd")
-                                yield Button("Nast.", id="pb-next")
-                            yield Static("", id="pb-art")
-                            with Vertical(id="pb-meta"):
-                                yield Static("nic nie gra", id="pb-info")
-                                yield Static("", id="pb-sub")
+                        yield PasekOdtwarzacza()
                         with Horizontal(id="lib-onboard"):
                             yield Input(placeholder="folder z muzyką do "
                                                     "przeskanowania (pierwszy raz "
@@ -705,6 +697,7 @@ class DanceLabTUI(App):
                                                  id="cmp-play",
                                                  variant="primary")
                             yield DataTable(id="set")
+                            yield PasekOdtwarzacza()
                             yield Log(id="warnings", highlight=False)
                         with Vertical(id="suggest"):
                             yield Label("", id="suggest-title")
@@ -721,6 +714,7 @@ class DanceLabTUI(App):
                     yield DataTable(id="cue-table",
                                     cursor_foreground_priority="renderable")
                     yield Static("", id="cue-card")
+                    yield PasekOdtwarzacza()
                     yield Static("", id="cue-info")
         yield Static("", id="status")
         yield Footer()
@@ -1471,16 +1465,16 @@ class DanceLabTUI(App):
             self.action_build_from_filary()
         elif event.button.id == "cmp-play":
             self._graj_z_panelu()
-        elif event.button.id == "pb-play":
+        elif event.button.has_class("pb-play"):
             self.action_preview_seam()
             self._tick_player()
-        elif event.button.id == "pb-next":
+        elif event.button.has_class("pb-next"):
             self._nastepny(+1)
-        elif event.button.id == "pb-prev":
+        elif event.button.has_class("pb-prev"):
             self._nastepny(-1)
-        elif event.button.id == "pb-fwd":
+        elif event.button.has_class("pb-fwd"):
             self._skok(+8)
-        elif event.button.id == "pb-back":
+        elif event.button.has_class("pb-back"):
             self._skok(-8)
 
     def _graj_z_panelu(self) -> None:
@@ -2525,8 +2519,8 @@ class DanceLabTUI(App):
         from dancelab.tui.okladki import mozaika
         moz = mozaika(str(track.source_path), 12, 6)
         from rich.text import Text
-        self.query_one("#pb-art", Static).update(
-            moz if moz is not None else Text(""))
+        for art_w in self.query(".pb-art"):
+            art_w.update(moz if moz is not None else Text(""))
 
     def _tick_player(self) -> None:
         # standard odtwarzaczy (pytanie Janka 06.08): koniec utworu = graj
@@ -2539,18 +2533,52 @@ class DanceLabTUI(App):
             if track is not None and str(track.source_path) == skonczony:
                 self._nastepny(+1, auto=True)
         gra = self._odtwarzacz.gra()
-        self.query_one("#pb-play", Button).label = "Pauza" if gra else "Graj"
+        for guzik in self.query(".pb-play"):
+            guzik.label = "Pauza" if gra else "Graj"
         if self._odtwarzacz.sciezka:
             art, tyt = getattr(self, "_gra_meta", ("", ""))
             m, s = divmod(int(self._odtwarzacz.pozycja()), 60)
             stan = "" if gra else " · pauza"
-            self.query_one("#pb-info", Static).update(
-                tyt or pathlib.Path(self._odtwarzacz.sciezka).stem[:40])
-            self.query_one("#pb-sub", Static).update(
-                f"{art + ' · ' if art else ''}{m}:{s:02d}{stan}")
+            tytul = tyt or pathlib.Path(self._odtwarzacz.sciezka).stem[:40]
+            podtytul = f"{art + ' · ' if art else ''}{m}:{s:02d}{stan}"
+            for w in self.query(".pb-info"):
+                w.update(tytul)
+            for w in self.query(".pb-sub"):
+                w.update(podtytul)
+            self._rysuj_os()
         else:
-            self.query_one("#pb-info", Static).update("nic nie gra")
-            self.query_one("#pb-sub", Static).update("")
+            for w in self.query(".pb-info"):
+                w.update("nic nie gra")
+            for w in self.query(".pb-sub"):
+                w.update("")
+            for w in self.query(".pb-os"):
+                w.update("")
+
+    def _analiza_grajaca(self):
+        """Analiza utworu, który AKTUALNIE gra — szukana po ścieżce w puli
+        setu, a jak jej nie ma, w bibliotece. None = gra coś spoza puli
+        (np. wyrenderowany szew) i oś czasu zostaje pusta."""
+        sciezka = self._odtwarzacz.sciezka
+        if not sciezka:
+            return None
+        zrodla = [(self._ctx or {}).get("by_id", {}).values(), self._lib or []]
+        for zrodlo in zrodla:
+            for a in zrodlo:
+                if str(a.track.source_path) == str(sciezka):
+                    return a
+        return None
+
+    def _rysuj_os(self) -> None:
+        """Żywa oś czasu w KAŻDEJ instancji paska: energia utworu, głowica
+        odtwarzania i zegar. Bez analizy — sam zegar, nigdy zmyślony rysunek
+        (decyzja Janka 09.08: odtwarzacz w każdej zakładce)."""
+        from dancelab.tui.pasek import czas, os_z_glowica
+        analiza = self._analiza_grajaca()
+        pozycja = self._odtwarzacz.pozycja()
+        for w in self.query(".pb-os"):
+            szer = max(w.content_size.width - 14, 0)
+            os = os_z_glowica(analiza, pozycja, szer)
+            w.update(os if os is not None else czas(pozycja))
 
     def _nastepny(self, delta: int, auto: bool = False) -> None:
         """Nast./Poprz.: przesuń zaznaczenie w aktywnej tabeli i graj od
@@ -2684,7 +2712,8 @@ class DanceLabTUI(App):
             return
         self._gra_meta = ("szew", f"przejście #{idx+1} → #{idx+2}")
         from rich.text import Text
-        self.query_one("#pb-art", Static).update(Text(""))
+        for art_w in self.query(".pb-art"):
+            art_w.update(Text(""))
         for line in info.get("rozumowanie", [])[:3]:
             self._note(line)
         self._note(f"odsłuch szwu #{idx+1}→#{idx+2}: {info['beats']} uderzeń "

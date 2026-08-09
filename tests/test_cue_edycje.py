@@ -198,3 +198,22 @@ def test_znajdz_narzedzie_zna_gniazda_homebrew(tmp_path, monkeypatch):
     narzedzie.write_text("#!/bin/sh\n")
     assert odt._znajdz("ffplay", katalogi=(str(tmp_path),)) == str(narzedzie)
     assert odt._znajdz("czegos_nie_ma", katalogi=(str(tmp_path),)) is None
+
+
+def test_os_czasu_ma_glowice_w_miejscu_odtwarzania():
+    """Oś czasu w pasku (decyzja Janka 09.08): energia utworu + głowica
+    w miejscu odtwarzania + zegar; bez analizy NIC nie rysujemy."""
+    from dancelab.core.models import FeatureFrame
+    from dancelab.tui.pasek import os_z_glowica
+
+    a = _analysis("A")            # duration_sec = 360
+    a.features = [FeatureFrame(track_id="A", timestamp_sec=float(t),
+                               rms=0.2 + (t % 60) / 100.0)
+                  for t in range(0, 360, 5)]
+    poczatek = os_z_glowica(a, 0.0, 40)
+    srodek = os_z_glowica(a, 180.0, 40)
+    assert poczatek.plain.index("▮") == 0, "na starcie głowica z lewej"
+    assert srodek.plain.index("▮") == 20, "w połowie utworu — w połowie osi"
+    assert "3:00 / 6:00" in srodek.plain, "zegar teraz/całość"
+    assert os_z_glowica(None, 10.0, 40) is None, "bez analizy: brak rysunku"
+    assert os_z_glowica(a, 10.0, 4) is None, "za wąsko: brak rysunku"

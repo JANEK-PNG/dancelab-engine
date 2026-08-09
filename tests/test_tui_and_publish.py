@@ -409,19 +409,25 @@ def test_pasek_odtwarzacza_jak_apple_music(tmp_path, monkeypatch):
             table = app.query_one("#set", DataTable)
             table.move_cursor(row=0)
             table.focus()
-            assert "nic nie gra" in str(
-                app.query_one("#pb-info", Static).render())
+            # pasek jest w KAŻDEJ zakładce (decyzja Janka 09.08) —
+            # instancji jest trzy, więc pytamy po klasie i sprawdzamy wszystkie
+            paski = list(app.query(".pb-info"))
+            assert len(paski) == 3, "odtwarzacz w Bibliotece, Secie i Eksporcie"
+            assert all("nic nie gra" in str(w.render()) for w in paski)
 
-            app.on_button_pressed(type("E", (), {"button": type(
-                "B", (), {"id": "pb-play"})()})())
+            def _klik(klasa):
+                guzik = type("B", (), {
+                    "id": None, "has_class": lambda self, k: k == klasa})()
+                app.on_button_pressed(type("E", (), {"button": guzik})())
+
+            _klik("pb-play")
             await pilot.pause()
             assert started and started[0].cmd[-1] == "/m/A.mp3"
-            assert str(app.query_one("#pb-play", Button).label) == "Pauza"
-            assert "A" in str(app.query_one("#pb-info", Static).render())
-            assert "0:0" in str(app.query_one("#pb-sub", Static).render())
+            assert all(str(g.label) == "Pauza" for g in app.query(".pb-play"))
+            assert all("A" in str(w.render()) for w in app.query(".pb-info"))
+            assert all("0:0" in str(w.render()) for w in app.query(".pb-sub"))
 
-            app.on_button_pressed(type("E", (), {"button": type(
-                "B", (), {"id": "pb-next"})()})())
+            _klik("pb-next")
             await pilot.pause()
             assert started[0].killed
             assert started[1].cmd[-1] == "/m/B.mp3"

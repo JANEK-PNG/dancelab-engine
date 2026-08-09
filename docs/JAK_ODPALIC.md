@@ -191,6 +191,14 @@ sprawdza odczytem, czy w bazie jest dokładnie to, co miało być.
 
 ## 6. Odsłuch
 
+**Odtwarzacz jest w każdej zakładce** — ten sam, wspólny: utwór puszczony
+w Bibliotece gra dalej po przejściu do Setu i Eksportu, a sterowanie masz
+pod ręką wszędzie. Pasek pokazuje: przyciski (Poprz. · −8 · Graj · +8 ·
+Nast.), okładkę, tytuł z wykonawcą oraz **oś czasu**: kształt energii
+utworu z głowicą ▮ w miejscu, w którym właśnie jesteś, i zegar
+„teraz / całość". Utwór bez policzonej analizy pokazuje sam zegar —
+nigdy zmyślony kształt.
+
 Sterowanie jak w każdym odtwarzaczu (Spotify, Apple Music, Quick Look
 Findera) — bez własnych wynalazków:
 
