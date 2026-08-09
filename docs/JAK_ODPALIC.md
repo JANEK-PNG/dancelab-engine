@@ -302,6 +302,17 @@ w nazewnictwie Beatportu, z liczbą utworów przy każdym. Nagłówek mówi, ile
 z 46 gatunków Beatportu występuje u Ciebie. Tagi spoza tej taksonomii są
 w osobnej sekcji **poza taksonomią** na końcu listy — nic nie ginie.
 
+**Nazwa gatunku jest całością.** „Tech House" to inny gatunek niż „House",
+a „140 / Deep Dubstep / Grime" to jeden gatunek, nie trzy. Program nie
+dobiera utworów po pojedynczych słowach z nazwy — wybierając „House"
+dostajesz House, a nie wszystko, co ma w nazwie słowo „house".
+
+**Gdy pasujących utworów jest mniej, niż ma mieć set**, gatunek nie znika:
+zmienia się w **premię**. Pula zostaje pełna, ale utwory z Twojego gatunku
+wygrywają wszystkie bliskie rozstrzygnięcia, więc set trzyma się briefu tak
+długo, jak biblioteka pozwala. Notka mówi wtedy, że preferencja została
+poluzowana, i ile razy premia zadziałała.
+
 ### 4.3. Wybierz kotwicę „graj jak…"
 
 **Cel:** zbliżyć dobór utworów do brzmienia wybranego DJ-a.

@@ -133,3 +133,38 @@ def test_enter_na_naglowku_sekcji_nic_nie_robi():
             assert app.query_one("#styles", Input).value == ""
 
     asyncio.run(go())
+
+
+def test_silnik_dopasowuje_gatunek_po_CALEJ_nazwie():
+    """Reguła Janka („nazwa Beatportu jest całością") obowiązuje teraz także
+    w SILNIKU, nie tylko na liście wyboru. Do 09.08 dopasowanie szło po
+    pojedynczych słowach: brief „House" wciągał 32 utwory zamiast 7."""
+    from dancelab.decision.library_profile import style_matches
+
+    assert style_matches("House", ["House"])
+    assert not style_matches("Tech House", ["House"]), \
+        "Tech House to INNY gatunek Beatportu niż House"
+    assert not style_matches("Deep House", ["House"])
+    assert not style_matches("Melodic House & Techno", ["House"])
+    assert not style_matches("Bass / Club", ["Breaks / Breakbeat / UK Bass"]), \
+        "wspolne slowo Bass to nie jest wspolny gatunek"
+    assert not style_matches("140 / Deep Dubstep / Grime", ["Deep House"])
+
+
+def test_tag_z_myslnikami_trafia_w_swoj_gatunek():
+    """Rekordbox zapisuje część tagów z myślnikami — to ta sama nazwa,
+    nie inny gatunek."""
+    from dancelab.decision.library_profile import style_matches
+
+    assert style_matches("melodic-house-&-techno", ["Melodic House & Techno"])
+    assert style_matches("Tech House", ["tech-house"])
+
+
+def test_tag_spoza_taksonomii_nie_jest_naciagany():
+    """Tag, którego nie ma u Beatportu, porównuje się sam ze sobą i NIE jest
+    doklejany do najbliższego gatunku — zgadywanie jest zakazane."""
+    from dancelab.decision.library_profile import style_matches
+
+    assert style_matches("mój własny tag", ["mój własny tag"])
+    assert not style_matches("uk-garage", ["UK Garage / Bassline"]), \
+        "skrócony tag to osobny byt — pokazujemy go w sekcji poza taksonomią"

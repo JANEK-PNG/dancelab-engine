@@ -26,20 +26,36 @@ def normalize_style_list(values: Sequence[str] | None) -> list[str]:
 
 
 def style_matches(style: str | None, preferred_styles: Sequence[str] | None) -> bool:
+    """Czy utwór jest w którymś z żądanych gatunków — po CAŁEJ NAZWIE.
+
+    Do 09.08 dopasowanie szło po pojedynczych słowach: nazwa była rozbijana
+    na człony (spacja, ukośnik, myślnik) i wystarczyło JEDNO wspólne słowo.
+    Zmierzone na bibliotece Janka: brief „House" wciągał 32 utwory zamiast 7
+    (Tech House, Deep House, Afro House, Melodic House & Techno), „Breaks /
+    Breakbeat / UK Bass" 49 zamiast 11, „Bass / Club" 30 zamiast 8. To jest
+    dokładnie ta reguła, którą Janek zawetował przy liście gatunków („140"
+    nie jest gatunkiem, bo nazwa Beatportu jest CAŁOŚCIĄ) — wybieraczka
+    została poprawiona 09.08, silnik dopiero teraz.
+
+    Reguła: obie strony sprowadzamy do nazwy kanonicznej Beatportu (jeśli
+    tag ją ma) i porównujemy w całości. Tag spoza taksonomii porównuje się
+    dosłownie sam ze sobą — nie jest naciągany na najbliższy gatunek.
+    """
     normalized = normalize_style_label(style)
     if not normalized:
         return False
     preferences = normalize_style_list(preferred_styles)
     if not preferences:
         return True
-    style_tokens = {token for token in re.split(r"[\s/_-]+", normalized) if token}
-    for preferred in preferences:
-        if normalized == preferred or normalized in preferred or preferred in normalized:
-            return True
-        preferred_tokens = {token for token in re.split(r"[\s/_-]+", preferred) if token}
-        if style_tokens & preferred_tokens:
-            return True
-    return False
+
+    from dancelab.decision.gatunki_beatport import kanoniczny
+
+    def kanon(tekst: str) -> str:
+        pelna = kanoniczny(tekst.replace("-", " "))
+        return normalize_style_label(pelna) or tekst
+
+    tag = kanon(normalized)
+    return any(tag == kanon(preferred) for preferred in preferences)
 
 
 def bpm_in_range(

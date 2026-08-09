@@ -1,16 +1,8 @@
-"""Gatunki wg taksonomii BEATPORTU — słownik i grupowanie (decyzja Janka
-09.08: „gatunki to powinniśmy mieć jak beatport").
+"""Gatunki na ekranie: liczenie, pokrycie i wybór z listy (Ctrl+G).
 
-Nazwy gatunków Beatportu są WIELOCZŁONOWE Z NATURY: „140 / Deep Dubstep /
-Grime" to JEDEN gatunek, nie trzy. Rozbijanie ich na człony wymyśliłoby
-byty, które nie istnieją („140" nie jest gatunkiem) — dlatego traktujemy
-etykietę jako całość. Tagi w kolekcji Janka pochodzą prosto z Beatportu,
-więc dopasowanie jest dosłowne (po znormalizowaniu wielkości liter
-i odstępów).
-
-Czego tu nie ma: zgadywania. Tag spoza taksonomii nie znika i nie jest
-naciągany na najbliższy — ląduje w osobnej sekcji „poza taksonomią",
-z liczbą utworów. To ta sama zasada co wszędzie: konflikt ma być widoczny.
+Sam SŁOWNIK nazw Beatportu mieszka w `decision.gatunki_beatport`, bo używa
+go także silnik przy dopasowaniu gatunku. Tutaj jest tylko to, co dotyczy
+widoku: ile czego masz w puli, co jest poza taksonomią i jak się to wybiera.
 """
 
 from __future__ import annotations
@@ -18,40 +10,14 @@ from __future__ import annotations
 import collections
 import re
 
-# Taksonomia ze strony Beatportu (zrzut Janka 09.08.2026), dwie sekcje.
-ELECTRONIC = [
-    "140 / Deep Dubstep / Grime", "Afro House", "Amapiano",
-    "Ambient / Experimental", "Bass / Club", "Bass House", "Brazilian Funk",
-    "Breaks / Breakbeat / UK Bass", "Dance / Pop", "Deep House",
-    "DJ Tools / Acapellas", "Downtempo", "Drum & Bass", "Dubstep",
-    "Electro (Classic / Detroit / Modern)", "Electronica", "Funky House",
-    "Hard Dance / Hardcore / Neo Rave", "Hard Techno", "House",
-    "Indie Dance", "Jackin House", "Latin Electronic", "Mainstage",
-    "Melodic House & Techno", "Minimal / Deep Tech", "Nu Disco / Disco",
-    "Organic House", "Progressive House", "Psy-Trance", "Tech House",
-    "Techno (Peak Time / Driving)", "Techno (Raw / Deep / Hypnotic)",
-    "Trance (Main Floor)", "Trance (Raw / Deep / Hypnotic)",
-    "Trap / Future Bass", "UK Garage / Bassline",
-]
-OPEN_FORMAT = [
-    "African", "Caribbean", "Country", "DJ Edits", "Hip-Hop", "Latin",
-    "Pop", "R&B", "Rock",
-]
-TAKSONOMIA = {"Electronic": ELECTRONIC, "Open Format": OPEN_FORMAT}
-POZA = "poza taksonomią"
-
-
-def _klucz(nazwa: str) -> str:
-    return re.sub(r"\s+", " ", str(nazwa).strip()).casefold()
-
-
-_KANON = {_klucz(g): g for lista in TAKSONOMIA.values() for g in lista}
-
-
-def kanoniczny(tag: str) -> str | None:
-    """Nazwa Beatportu dla tagu albo None, gdy tag jest spoza taksonomii."""
-    return _KANON.get(_klucz(tag))
-
+from dancelab.decision.gatunki_beatport import (  # noqa: F401 — API modułu
+    ELECTRONIC,
+    OPEN_FORMAT,
+    POZA,
+    TAKSONOMIA,
+    _klucz,
+    kanoniczny,
+)
 
 def policz(analyses) -> list[tuple[str, list[tuple[str, int]]]]:
     """[(sekcja, [(gatunek, ile utworów)])] — TYLKO gatunki obecne w puli.

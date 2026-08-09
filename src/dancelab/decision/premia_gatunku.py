@@ -19,9 +19,9 @@ i została odrzucona pomiarem: przy dobrym szwie 0,892 dawała ledwie 0,016
 premii, więc dokładnie tam, gdzie silnik pracuje najczęściej, gatunek nie
 zmieniał nic. Stały margines działa jednakowo na całej skali.
 
-Słaby szew i tak nie wygra: 0,59 z premią to 0,67, a dobry kandydat stoi
-przy 0,96. Waga jest RZEMIEŚLNICZA, nie pomiarowa — nie mamy danych, które
-by ją wyznaczyły, i tak jest napisana.
+Słaby szew i tak nie wygra: ryzykowny (0,59) z premią daje 0,74, a dobry
+kandydat stoi przy 0,96. Sama waga jest ZMIERZONA na realnej bibliotece —
+tabela w komentarzu przy `DOMYSLNA_WAGA`.
 """
 
 from __future__ import annotations
@@ -32,10 +32,15 @@ from typing import Sequence
 from dancelab.decision.library_profile import normalize_style_list, style_matches
 
 # Margines rozstrzygania: gatunek wygrywa, gdy przegrywa oceną o mniej niż
-# tyle. Zmierzone odległości na realnych parach: dobry szew ~0,96, przyzwoity
-# ~0,89, ryzykowny ~0,59 — 0,08 przestawia wybór w obrębie „przyzwoitych",
-# a nie sięga do ryzykownych.
-DOMYSLNA_WAGA = 0.08
+# tyle. ZMIERZONE na bibliotece Janka (256 utworów, set na 18, brief „House"
+# przy 7 dostępnych utworach tego gatunku) — utworów gatunku w secie / średnia
+# ocena szwu:
+#   0,00 → 2/7 · 0,9595      0,08 → 2/7 · 0,9688
+#   0,15 → 3/7 · 0,9609      0,25 → 3/7 · 0,9504
+# 0,15 kupuje utwór gatunku BEZ straty na jakości szwów; 0,25 już tylko
+# kosztuje. Powyżej tego premia i tak nie sięgnie dalej — przy 7 utworach
+# w puli na 18 slotów gatunek wchodzi tam, gdzie pasuje, i nigdzie indziej.
+DOMYSLNA_WAGA = 0.15
 
 
 @dataclass
@@ -69,8 +74,14 @@ class PremiaGatunku:
                              self.gatunki):
             return ocena, None
         self.trafione += 1
+        # BEZ przycinania do sufitu: ta liczba jest KLUCZEM PORZĄDKUJĄCYM
+        # wewnątrz wyboru następnika, a nie oceną pokazywaną DJ-owi (tę
+        # silnik liczy osobno dla gotowego planu). Przycinanie do 1,0
+        # kasowało premię dokładnie tam, gdzie biblioteka Janka żyje:
+        # zmierzona średnia ocena szwu w jego puli to 0,96, więc premia
+        # wpadała w sufit i remis rozstrzygała nazwa pliku.
         po = ocena + self.waga * max(int(krawedzie), 1)
-        return float(min(po, float(max(int(krawedzie), 1)))), (
+        return float(po), (
             f"premia za gatunek {kandydat.track.style_label} (w={self.waga:.2f})")
 
     def podsumowanie(self) -> str:

@@ -18,15 +18,18 @@ def _analiza(tid: str, styl: str | None) -> AnalysisResult:
                     style_label=styl, bpm_estimate=128.0, duration_sec=300.0))
 
 
-def test_premia_jest_stalym_marginesem_i_nie_przekracza_jedynki():
+def test_premia_jest_stalym_marginesem_na_calej_skali():
     premia = P.zbuduj(["House"])
     for ocena in (0.0, 0.2, 0.6, 0.89):
         po, _ = premia.dopasuj(ocena, _analiza("a", "House"))
         assert abs(po - (ocena + P.DOMYSLNA_WAGA)) < 1e-9, (
             f"{ocena} → {po}: premia ma być JEDNAKOWA na całej skali, "
             "inaczej przy dobrych szwach gatunek nie zmienia nic")
+    # Sufitu NIE ma celowo: to klucz porządkujący wewnątrz wyboru
+    # następnika, a nie ocena pokazywana DJ-owi. Przycinanie do 1,0
+    # kasowało premię tam, gdzie biblioteka Janka żyje (średnia 0,96).
     po, _ = premia.dopasuj(1.0, _analiza("a", "House"))
-    assert po == 1.0, "ponad jedynkę nie wychodzimy"
+    assert po > 1.0, "przy suficie premia przestałaby cokolwiek rozstrzygać"
 
 
 def test_slaby_szew_nie_robi_sie_dobry_przez_gatunek():
