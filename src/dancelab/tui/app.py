@@ -545,6 +545,7 @@ class DanceLabTUI(App):
         Binding("pageup", "skok_tyl_128", "skok -128", show=False,
                 priority=True),
         Binding("ctrl+g", "gatunki", "Gatunki", show=False),
+        Binding("ctrl+d", "grupy_dj", "Graj jak…", show=False),
         Binding("c", "compare_pair", "Porównaj"),
         Binding("i", "track_info", "Info"),
         Binding("l", "toggle_notes", "Notki"),
@@ -661,7 +662,7 @@ class DanceLabTUI(App):
                                         classes="field-label")
                             yield Input(placeholder="Tech House, UK Garage / Bassline",
                                         id="styles")
-                            yield Label("Graj jak… (kotwica)", classes="field-label")
+                            yield Label("Graj jak… (Ctrl+D = rodziny brzmienia)", classes="field-label")
                             yield Select([], id="dj", prompt="— bez kotwicy —")
                             with Horizontal():
                                 yield Switch(value=False, id="contour")
@@ -775,6 +776,7 @@ class DanceLabTUI(App):
     _LIB_ONLY = {"toggle_fav", "build_from_filary", "toggle_okladki"}
     _SET_ONLY = {"build", "replace", "cut", "add", "move_up",
                  "move_down", "save_plan", "load_plan", "gatunki",
+                 "grupy_dj",
                  "track_info", "compare_pair"}
 
     def check_action(self, action: str, parameters) -> bool:
@@ -1064,6 +1066,38 @@ class DanceLabTUI(App):
             + (f" · {bez} bez tagu" if bez else "")
             + "\nCtrl+G dodaje/zdejmuje · Esc zamyka",
             opcje, "gatunki")
+
+    def action_grupy_dj(self) -> None:
+        """Ctrl+D: kotwice pogrupowane po BRZMIENIU (zmierzone klastry
+        centroidów, nie gatunek — tego nie mamy, i nie miejsce — to tylko
+        źródło naszego scrapingu). Drugie Ctrl+D wybiera podświetlonego DJ-a
+        do briefu; Esc zamyka."""
+        from dancelab.tui import grupy_dj as G
+        wybor = self._panel_choice("dj")
+        if wybor is not None and not wybor.startswith("__"):
+            self.query_one("#dj", Select).value = wybor
+            self._close_panel()
+            self._note(f"kotwica: {wybor}")
+            return
+        try:
+            from dancelab.decision.anchors import load_anchor_book
+            book = load_anchor_book()
+        except Exception as exc:  # noqa: BLE001 — brak pliku to stan, nie awaria
+            self._note(f"kotwice niedostępne: {exc}")
+            return
+        grupy = G.grupuj(book["djs"])
+        opcje: list[tuple[str, str]] = []
+        for etykieta, czlonkowie in grupy:
+            opcje.append((f"— {etykieta} ({len(czlonkowie)}) —",
+                          f"__{etykieta[:20]}"))
+            opcje.extend((f"  {G.opis(dj, n, skok)}", dj)
+                         for dj, n, skok in czlonkowie)
+        self._open_suggest_panel(
+            None,
+            f"GRAJ JAK… — {len(book['djs'])} DJ-ów w {len(grupy)} rodzinach "
+            f"brzmieniowych (zmierzone, nie gatunek)\n"
+            f"Ctrl+D wybiera · Esc zamyka",
+            opcje, "dj")
 
     def action_next_tab(self) -> None:
         self._switch_tab(+1)

@@ -35,7 +35,7 @@ przyciskiem i wybierz **Otwórz**; więcej nie zapyta.
 | **brief** | formularz po lewej w zakładce Set: długość, okno tempa, gatunki, kotwica, świeżość — Twoje zamówienie na set |
 | **set** | ułożona przez silnik kolejność utworów w tabeli |
 | **filar** | utwór oznaczony w Bibliotece jako obowiązkowy: MUSI zagrać w budowanym secie; filarów jest od 3 do 10 |
-| **kotwica** | brzmienie „graj jak…" — wybrany DJ, do którego silnik zbliża dobór utworów |
+| **kotwica** | brzmienie „graj jak…" — wybrany DJ, do którego silnik zbliża dobór utworów; **Ctrl+D** pokazuje DJ-ów pogrupowanych w rodziny brzmieniowe (grupy z pomiaru, nie z gatunku) |
 | **szew** | przejście między dwoma sąsiednimi utworami setu |
 | **pasek szwu** | panel nad tabelą (klawisz C) z faktami o szwie i odtwarzaniem pary |
 | **plan** | zapisany na dysku stan setu, z nazwą — można do niego wrócić po zamknięciu aplikacji |
