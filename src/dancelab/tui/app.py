@@ -1309,35 +1309,45 @@ class DanceLabTUI(App):
         tekst.append(linijka_czasu(dur, szer), style="dim")
         os_w.update(tekst)
 
-        # PRAWA KOLUMNA: tabelka ośmiu padów — kolumna po prawej stronie
-        # decka, jak panel HOT CUE w Rekordboksie (życzenie Janka 09.08).
-        # Puste sloty WIDOCZNE: to one mówią „tu możesz postawić kolejny".
+        # PRAWA KOLUMNA: pady w SIATCE 2×4, jak pady na CDJ-u
+        # (życzenie Janka 09.08). Puste sloty widoczne — to one mówią
+        # „tu możesz postawić kolejny"; szczegóły wybranego pod siatką,
+        # żeby kratka została czytelna.
         from dancelab.tui.cue_edycje import PADY
         tab = Text()
         tab.append("HOT CUE\n", style="bold")
-        for litera in PADY:
-            p = pady.get(litera)
-            wybrany = litera == self._cue_wybor
-            if p is None:
+        for rzad in (PADY[:4], PADY[4:]):
+            for litera in rzad:
+                p = pady.get(litera)
+                wybrany = litera == self._cue_wybor
+                if p is None:
+                    tab.append("▶" if wybrany else " ",
+                               style=f"bold {PILLAR_COLOR}")
+                    tab.append(f"{litera} ", style="dim")
+                    tab.append("—     ", style="dim")
+                    continue
+                styl = (f"bold reverse {PILLAR_COLOR}" if wybrany
+                        else f"bold {PILLAR_COLOR}")
                 tab.append("▶" if wybrany else " ",
-                           style=f"bold {PILLAR_COLOR}" if wybrany else "")
-                tab.append(f"{litera}   ", style="dim")
-                tab.append("— pusty\n", style="dim")
-                continue
-            styl = f"bold {PILLAR_COLOR}"
-            tab.append("▶" if wybrany else " ", style=styl if wybrany else "")
-            tab.append(f"{litera}   ", style=styl)
-            tab.append(f"{_mmss(p['position_ms']):>7}  ",
-                       style="bold" if wybrany else "")
-            tab.append(f"{TYPY_PO_POLSKU.get(p['typ'], p['typ'])[:8]:<8}",
-                       style="dim")
-            if p["zrodlo"] == "reka":
-                tab.append(" ręka", style="yellow")
-            else:
-                tab.append(" ✓" if p["confident"] else " ?",
-                           style="green" if p["confident"] else "yellow")
-            tab.append("  X" if wybrany else "", style="dim")
+                           style=f"bold {PILLAR_COLOR}")
+                tab.append(f"{litera} ", style=styl)
+                m, sek = divmod(int(p["position_ms"] / 1000), 60)
+                tab.append(f"{m}:{sek:02d} ", style="bold" if wybrany else "")
+                if p["zrodlo"] == "reka":
+                    tab.append("✋", style="yellow")
+                else:
+                    tab.append("✓" if p["confident"] else "?",
+                               style="green" if p["confident"] else "yellow")
             tab.append("\n")
+        wyb = pady.get(self._cue_wybor or "")
+        if wyb is not None:
+            tab.append(f"\n{self._cue_wybor} · ", style=f"bold {PILLAR_COLOR}")
+            tab.append(f"{TYPY_PO_POLSKU.get(wyb['typ'], wyb['typ'])} · "
+                       f"{_mmss(wyb['position_ms'])}", style="dim")
+            if wyb["zrodlo"] == "reka" and wyb.get("silnik_ms") is not None:
+                tab.append(f"\nręka (silnik: {_mmss(wyb['silnik_ms'])})",
+                           style="dim")
+            tab.append("\nX zdejmij · P posłuchaj od pada", style="dim")
         pady_w.update(tab)
 
     # ----------------------------------------------------------- Biblioteka

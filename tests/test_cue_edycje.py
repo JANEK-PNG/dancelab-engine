@@ -241,10 +241,12 @@ def test_karta_pokazuje_wszystkie_osiem_padow(tmp_path, monkeypatch):
             app.query_one("#cue-table", DataTable).focus()
             await pilot.pause()
             tab = str(app.query_one("#cue-pady", Static).render())
-            assert tab.startswith("HOT CUE"), "kolumna po prawej, jak w RB"
-            for litera in "ABCDEFGH":
-                assert f"{litera}   " in tab, f"slot {litera} musi być widoczny"
-            assert tab.count("pusty") == 7, "jeden pad zajęty, siedem wolnych"
+            wiersze = tab.splitlines()
+            assert wiersze[0] == "HOT CUE", "kolumna po prawej, jak w RB"
+            # siatka 2×4 jak pady na CDJ-u (życzenie Janka 09.08)
+            assert all(f"{litera} " in wiersze[1] for litera in "ABCD")
+            assert all(f"{litera} " in wiersze[2] for litera in "EFGH")
+            assert tab.count("—") == 7, "jeden pad zajęty, siedem wolnych"
             os_lewa = str(app.query_one("#cue-os", Static).render())
             assert "energia" in os_lewa and "czas" in os_lewa, \
                 "oś utworu została po lewej stronie"

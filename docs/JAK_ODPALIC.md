@@ -70,10 +70,12 @@ kliknięciem w nazwę:
    widoczna jako kropka, a wiersz mówi „ręka" — zawsze widzisz, o ile
    różnisz się od silnika.
 
-   Pady widzisz jako **kolumnę HOT CUE po prawej stronie** karty —
-   osiem slotów A–H, jak w Rekordboksie: zajęty pokazuje czas, typ
-   i pewność, pusty jest przygaszony i czeka na literę. Po lewej
-   stronie karty jest oś utworu (energia, sekcje, pady, czas). Nowy pad ląduje tam, gdzie stoi odtwarzacz
+   Pady widzisz po prawej stronie karty jako **siatkę 2×4 — jak pady
+   na CDJ-u** (A B C D w górnym rzędzie, E F G H w dolnym). Zajęty slot
+   pokazuje czas i znak: ✓ pewny, ? do odsłuchu, ✋ ustawiony ręką; pusty
+   to przygaszona kreska czekająca na literę. Szczegóły wybranego pada
+   (typ, dokładny czas, propozycja silnika) są pod siatką. Po lewej
+   stronie karty jest oś utworu: energia, sekcje, pady i podziałka. Nowy pad ląduje tam, gdzie stoi odtwarzacz
    (albo na środku utworu, gdy nic nie gra).
 
    Układ jak w Rekordboksie: **karta edycji na górze** (energia, sekcje,
