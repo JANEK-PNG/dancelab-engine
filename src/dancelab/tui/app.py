@@ -514,10 +514,11 @@ class DanceLabTUI(App):
     #lib-table { height: 1fr; }
     #lib-onboard { height: 3; }
     #lib-onboard Input { width: 1fr; margin-right: 1; }
-    #cue-head { height: 2; padding: 0 1; }
     #cue-table { height: 1fr; }
-    #cue-dol { dock: bottom; height: auto; }
-    #cue-card { height: auto; padding: 0 1; border-top: solid $accent; }
+    #cue-head { height: 2; padding: 0 1; }
+    #cue-gora { dock: top; height: auto; }
+    #tab-export .pb-box { dock: bottom; }
+    #cue-card { height: auto; padding: 0 1; border-bottom: solid $accent; }
     #cue-info { height: auto; padding: 0 1; color: $text-muted; }
     #cue-tools { height: 3; padding: 0 1; }
     #cue-tools Button { margin-right: 2; }
@@ -717,10 +718,8 @@ class DanceLabTUI(App):
                             yield Static("", id="suggest-info")
             with TabPane("Eksport / Cue", id="tab-export"):
                 with Vertical():
-                    yield Static("", id="cue-head")
-                    yield DataTable(id="cue-table",
-                                    cursor_foreground_priority="renderable")
-                    with Vertical(id="cue-dol"):
+                    with Vertical(id="cue-gora"):
+                        yield Static("", id="cue-head")
                         yield Static("", id="cue-card")
                         with Horizontal(id="cue-tools"):
                             yield Button("Wyślij cue do RB  [W]",
@@ -728,7 +727,9 @@ class DanceLabTUI(App):
                             yield Button("Wyślij playlistę do RB",
                                          id="cue-playlist")
                         yield Static("", id="cue-info")
-                        yield PasekOdtwarzacza()
+                    yield DataTable(id="cue-table",
+                                    cursor_foreground_priority="renderable")
+                    yield PasekOdtwarzacza()
         yield Static("", id="status")
         yield Footer()
 

@@ -70,10 +70,9 @@ kliknięciem w nazwę:
    widoczna jako kropka, a wiersz mówi „ręka" — zawsze widzisz, o ile
    różnisz się od silnika.
 
-   Segment edycji (karta utworu, przyciski wysyłki i odtwarzacz) jest
-   **przypięty do dołu ekranu** — jak panel eksportu w Rekordboksie;
-   lista utworów zajmuje resztę miejsca. Odtwarzacz stoi przy dolnej
-   krawędzi w każdej zakładce.
+   Układ jak w Rekordboksie: **karta edycji na górze** (energia, sekcje,
+   pady, przyciski wysyłki), pod nią lista utworów, a odtwarzacz przypięty
+   przy dolnej krawędzi — tak samo w każdej zakładce.
 
    **Wysyłka do Rekordboksa** — dwa przyciski: *Wyślij cue do RB*
    (pady, opis niżej) i *Wyślij playlistę do RB* (ta sama publikacja
