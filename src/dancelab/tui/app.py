@@ -1193,16 +1193,21 @@ class DanceLabTUI(App):
                 istniejace = read_existing_cues(db, tables)
             finally:
                 db.close()
-            wynik = CZ.policz_kolizje(plan, istniejace)
+            from dancelab.ingestion import cue_ledger
+            wynik = CZ.policz_kolizje(plan, istniejace, cue_ledger.wczytaj())
         except Exception as exc:  # noqa: BLE001 — powód, nie traceback
             ui(self._note, f"cue: przygotowanie nie wyszło: {exc}")
             return
         self._cue_zapis_gotowy = (wynik["plan"], ids_setu)
+        ui(self._refresh_status)   # przycisk ma od razu pokazać POTWIERDŹ
         for nazwa in pominiete[:5]:
             ui(self._note, f"cue: utwór spoza kolekcji RB (pominięty): {nazwa}")
         ui(self._note,
            f"cue GOTOWE DO ZAPISU: {wynik['do_zapisu']} padów na "
-           f"{len(wynik['plan'].tracks)} utworach · Twoich padów nie ruszam "
+           f"{len(wynik['plan'].tracks)} utworach"
+           + (f" (w tym {wynik['odswiezone']} odświeżamy po sobie)"
+              if wynik.get("odswiezone") else "")
+           + f" · Twoich padów nie ruszam "
            f"({wynik['pominiete_kolizje']} naszych ustąpiło)"
            + (f" · {len(pominiete)} utworów spoza kolekcji" if pominiete else "")
            + " — naciśnij W jeszcze raz, żeby zapisać (backup automatyczny)")
@@ -1228,16 +1233,21 @@ class DanceLabTUI(App):
                 safe_swap=True)
         except Exception as exc:  # noqa: BLE001
             self._cue_zapis_gotowy = None
+            ui(self._refresh_status)
             ui(self._note, f"cue: ZAPIS NIEUDANY — {exc}")
             ui(self.notify, "zapis cue nieudany — szczegóły w notkach (L)",
                severity="error")
             return
         self._cue_zapis_gotowy = None
+        from dancelab.ingestion import cue_ledger
+        cue_ledger.zapamietaj(wynik.inserted,
+                              znacznik=time.strftime("%Y-%m-%d %H:%M"))
         ui(self._note,
            f"✅ cue zapisane: {wynik.written} padów"
            + (f", usunięte {wynik.deleted}" if wynik.deleted else "")
            + f" · backup {wynik.backup_path}")
-        ui(self._note, "cue: w Rekordboksie zobaczysz je po otwarciu programu")
+        ui(self._note, "cue: OTWÓRZ Rekordboksa — pady widać dopiero po jego "
+                       "starcie (czyta bazę przy uruchomieniu)")
         ui(self.notify, f"✅ {wynik.written} padów w Rekordboksie")
         ui(self._refresh_status)
 
@@ -2097,12 +2107,40 @@ class DanceLabTUI(App):
 
     def _refresh_status(self) -> None:
         from dancelab.ingestion.playlist_publish import BACKUP_DIR, rekordbox_running
-        rb = "⛔ Rekordbox OTWARTY — zapis W zablokowany" if rekordbox_running() \
+        otwarty = rekordbox_running()
+        rb = "⛔ Rekordbox OTWARTY — zapis W zablokowany" if otwarty \
             else "✅ Rekordbox zamknięty — W dostępne"
         n_bak = len(list(BACKUP_DIR.glob("*.db"))) if BACKUP_DIR.exists() else 0
         self.query_one("#status", Static).update(
             f"{rb}   ·   backupy: {n_bak}   ·   notki: {self._n_notes} (L)"
             + f"   ·   pula: {self.processed_dir}")
+        self._odswiez_guzik_cue(otwarty)
+
+    def _odswiez_guzik_cue(self, rb_otwarty: bool) -> None:
+        """Przycisk wysyłki cue MÓWI, w jakim jest stanie (skarga Janka
+        09.08: „stawianie cue pointów nie działa, bo nie widzę w Rekordbox").
+        Wcześniej wyglądał tak samo zawsze: przy otwartym Rekordboksie zapis
+        był niemożliwy, a jedynym sygnałem był znikający dymek; po pierwszym
+        naciśnięciu (które tylko LICZY) też nic się na nim nie zmieniało."""
+        try:
+            guzik = self.query_one("#cue-write", Button)
+        except Exception:  # noqa: BLE001 — ekran jeszcze nie zbudowany
+            return
+        gotowy = getattr(self, "_cue_zapis_gotowy", None)
+        if rb_otwarty:
+            etykieta, wariant, aktywny = ("Zamknij Rekordbox, żeby wysłać cue",
+                                          "default", False)
+        elif gotowy is not None:
+            ile = sum(len(t.cues) for t in gotowy[0].tracks)
+            etykieta, wariant, aktywny = (f"POTWIERDŹ: zapisz {ile} padów  [W]",
+                                          "warning", True)
+        else:
+            etykieta, wariant, aktywny = ("Wyślij cue do RB  [W]",
+                                          "default", True)
+        if str(guzik.label) != etykieta:
+            guzik.label = etykieta
+        guzik.variant = wariant
+        guzik.disabled = not aktywny
 
     def _note(self, line: str) -> None:
         from dancelab.tui.po_polsku import po_polsku

@@ -214,7 +214,7 @@ def test_verification_detects_missing_cue(copy_db, tmp_path, monkeypatch):
     """Real verifier: a plan whose cue was never written must fail verification."""
     monkeypatch.setattr(W, "is_rekordbox_running", lambda: False)
     tid = _first_track_id(copy_db)
-    monkeypatch.setattr(W, "_apply", lambda plan, db, tables: (1, 0))  # writes nothing
+    monkeypatch.setattr(W, "_apply", lambda plan, db, tables: (1, 0, []))  # writes nothing
     with pytest.raises(RuntimeError, match="verification failed"):
         W.write_plan(_plan_for(tid), db_path=copy_db, backup_dir=tmp_path / "bk",
                      timestamp="20260724_1702", meta={}, safe_swap=True)

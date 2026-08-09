@@ -117,14 +117,30 @@ kliknięciem w nazwę:
 
    **Wysyłka do Rekordboksa** — dwa przyciski: *Wyślij cue do RB*
    (pady, opis niżej) i *Wyślij playlistę do RB* (ta sama publikacja
-   co **W** w zakładce Set). Cue wysyłasz przyciskiem albo **W**
-   w tej zakładce, w dwóch krokach: pierwsze naciśnięcie liczy i pokazuje,
-   ile padów wejdzie, ile naszych ustąpiło Twoim własnym cue i czy któryś
-   utwór jest spoza kolekcji; drugie naciśnięcie zapisuje. Przed zapisem
-   powstaje kopia bazy, po zapisie sprawdzamy odczytem, czy pady naprawdę
-   są — jeśli nie, zmiana jest wycofywana. Rekordbox musi być zamknięty.
+   co **W** w zakładce Set).
+
+   **Trzy kroki, w tej kolejności — inaczej nie zadziała:**
+   1. **Zamknij Rekordboksa.** Przy otwartym zapis jest niemożliwy
+      (pisanie do jego bazy w trakcie pracy programu ją uszkadza).
+      Przycisk sam to mówi: przy otwartym RB jest wyszarzony i nazywa się
+      *„Zamknij Rekordbox, żeby wysłać cue"*.
+   2. **Naciśnij W (albo przycisk) DWA RAZY.** Pierwsze naciśnięcie tylko
+      **liczy** i pokazuje, ile padów wejdzie, ile ustąpiło Twoim własnym
+      cue i czy któryś utwór jest spoza kolekcji. Przycisk zmienia się
+      wtedy na **„POTWIERDŹ: zapisz N padów"** — dopiero drugie
+      naciśnięcie zapisuje.
+   3. **Otwórz Rekordboksa.** Pady zobaczysz dopiero po jego starcie,
+      bo bazę czyta przy uruchomieniu.
+
+   Przed zapisem powstaje kopia bazy, a po zapisie sprawdzamy odczytem, czy
+   pady naprawdę są — jeśli nie, zmiana jest wycofywana.
+
    **Twoich własnych padów nigdy nie nadpisujemy** — nasz pad ustępuje
-   i mówimy o tym w podsumowaniu.
+   i mówimy o tym w podsumowaniu. **Ale nasze własne pady z poprzedniej
+   wysyłki ODŚWIEŻAMY** — przesunąłeś pad i wysłałeś ponownie, więc
+   w Rekordboksie ma być nowa pozycja, nie stara. Rozpoznajemy je po
+   znaczniku, który zapisujemy sobie przy każdej wysyłce; cokolwiek nie
+   jest w tym rejestrze, uchodzi za Twoje i zostaje nietknięte.
 
 ---
 
@@ -312,5 +328,6 @@ czegoś nie wie, widzisz to wprost.
 | krzywy układ, ucięte kolumny | powiększ okno Terminala — aplikacja sama się przerysuje |
 | „command not found" | uruchamiasz spoza folderu silnika — użyj skrótu z biurka |
 | **W** odmawia | to nie błąd: Rekordbox jest otwarty; zamknij go i ponów |
+| wysłałem cue, ale **nie widzę ich w Rekordboksie** | po kolei: (1) czy Rekordbox był ZAMKNIĘTY w chwili wysyłki — przy otwartym przycisk jest wyszarzony i nic nie idzie; (2) czy naciśnąłeś **dwa razy** — pierwsze naciśnięcie tylko liczy, przycisk pokazuje wtedy „POTWIERDŹ"; (3) czy **uruchomiłeś Rekordboksa ponownie** — bazę czyta przy starcie, więc program otwarty od wcześniej pokaże stare pady; (4) utwory spoza kolekcji RB są pomijane imiennie — powód jest w notkach (**L**) |
 | budowa odmawia | powód jest zawsze w notkach (**L**) i w dymku |
 | skoki →/← nie działają | wymagają zainstalowanego ffplay (`brew install ffmpeg`) |

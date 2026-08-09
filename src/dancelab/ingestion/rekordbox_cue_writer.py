@@ -33,6 +33,9 @@ from dancelab.ingestion.rb_backup import (
 class WriteResult(BaseModel):
     written: int = 0
     deleted: int = 0
+    # rows we created: {uuid, content_id, kind, position_ms} — the caller
+    # records them so a later write can refresh its own cues (cue_ledger)
+    inserted: list[dict] = []
     backup_path: str | None = None
     verified: bool = False
     restored: bool = False
@@ -65,13 +68,19 @@ def read_existing_cues(db, tables) -> dict[str, list[ExistingCue]]:
                 pad_index=kind_to_pad_index(row.Kind),
                 position_ms=int(row.InMsec),
                 comment=row.Comment or "",
+                uuid=str(row.UUID or ""),
             )
         )
     return out
 
 
-def insert_hot_cue(db, tables, *, content_id, content_uuid, position_ms, kind, color, comment) -> int:
-    """Insert one hot cue via the proven recipe. Returns the new cue ID."""
+def insert_hot_cue(db, tables, *, content_id, content_uuid, position_ms, kind,
+                   color, comment) -> tuple[int, str]:
+    """Insert one hot cue via the proven recipe. Returns (cue ID, row UUID).
+
+    The UUID is what lets a later write recognise this row as ours and refresh
+    it, instead of mistaking it for a cue the DJ placed by hand (cue_ledger).
+    """
     proto = db.session.query(tables.DjmdCue).filter(tables.DjmdCue.Kind != 0).first()
     cols = [c.name for c in tables.DjmdCue.__table__.columns]
     if proto is not None:
@@ -81,6 +90,7 @@ def insert_hot_cue(db, tables, *, content_id, content_uuid, position_ms, kind, c
         vals.update(InMpegFrame=0, InMpegAbs=0, OutFrame=0, ActiveLoop=0,
                     rb_local_deleted=0, rb_local_synced=0)
     new_id = db.generate_unused_id(tables.DjmdCue, is_28_bit=False)
+    row_uuid = str(uuid.uuid4())
     # Rekordbox hot-cue colors: palette index in ColorTableIndex (Color=255 flags
     # "use palette"); a negative index means the Rekordbox default (Color=-1,
     # ColorTableIndex=None). Mirrors how the DJ's own cues store color.
@@ -90,16 +100,16 @@ def insert_hot_cue(db, tables, *, content_id, content_uuid, position_ms, kind, c
         color_field, color_index = -1, None
     vals.update(
         ID=new_id, ContentID=content_id, ContentUUID=content_uuid,
-        UUID=str(uuid.uuid4()), Kind=kind, InMsec=int(position_ms),
+        UUID=row_uuid, Kind=kind, InMsec=int(position_ms),
         InFrame=round(int(position_ms) * 0.15), OutMsec=-1, OutFrame=0,
         Color=color_field, ColorTableIndex=color_index, Comment=comment,
         rb_local_usn=None, created_at=None, updated_at=None,
     )
     db.session.add(tables.DjmdCue(**vals))
-    return new_id
+    return new_id, row_uuid
 
 
-def _apply(plan: CuePlan, db, tables) -> tuple[int, int]:
+def _apply(plan: CuePlan, db, tables) -> tuple[int, int, list[dict]]:
     """Execute the plan. The safety rules themselves live in cue_write_ops.
 
     This function reads the database state, asks the pure resolver what to do,
@@ -108,7 +118,7 @@ def _apply(plan: CuePlan, db, tables) -> tuple[int, int]:
     """
     wanted_ids = {str(t.content_id) for t in plan.tracks if t.cues}
     if not wanted_ids:
-        return 0, 0
+        return 0, 0, []
 
     contents = db.session.query(tables.DjmdContent).filter(
         tables.DjmdContent.ID.in_(wanted_ids)
@@ -132,14 +142,17 @@ def _apply(plan: CuePlan, db, tables) -> tuple[int, int]:
         row = row_by_pad.get((doomed.content_id, doomed.kind))
         if row is not None:
             db.session.delete(row)
+    inserted: list[dict] = []
     for cue in ops.inserts:
         content = content_by_id[str(cue.content_id)]
-        insert_hot_cue(
+        _id, row_uuid = insert_hot_cue(
             db, tables, content_id=cue.content_id, content_uuid=content.UUID,
             position_ms=cue.position_ms, kind=cue.kind, color=cue.color,
             comment=cue.comment,
         )
-    return ops.written, ops.deleted
+        inserted.append({"uuid": row_uuid, "content_id": str(cue.content_id),
+                         "kind": cue.kind, "position_ms": cue.position_ms})
+    return ops.written, ops.deleted, inserted
 
 
 def _verify_plan_written(plan: CuePlan, db, tables) -> tuple[bool, list[str]]:
@@ -196,7 +209,7 @@ def _execute_write(
     db, tables = _open(target)
     try:
         before = db.session.query(tables.DjmdCue).count()
-        result.written, result.deleted = _apply(plan, db, tables)
+        result.written, result.deleted, result.inserted = _apply(plan, db, tables)
         if playlist_name and playlist_content_ids:
             from dancelab.ingestion.rekordbox_playlist import create_set_playlist
             create_set_playlist(db, tables, name=playlist_name,

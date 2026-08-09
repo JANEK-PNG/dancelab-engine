@@ -30,6 +30,8 @@ class ExistingCue(BaseModel):
     pad_index: int | None = None  # None = memory cue (not on a pad)
     position_ms: int
     comment: str = ""
+    # UUID wiersza DjmdCue — jedyny pewnik „czy to nasz cue" (cue_ledger).
+    uuid: str = ""
 
 
 class ConflictItem(BaseModel):

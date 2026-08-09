@@ -135,3 +135,120 @@ def test_cta_w_prawym_dolnym_rogu_pod_odtwarzaczem():
             assert guzik.region.x > ekran.width // 2, "CTA po prawej stronie"
 
     asyncio.run(go())
+
+
+def test_odswiezamy_SWOJE_pady_a_cudze_zostaja(monkeypatch, tmp_path):
+    """Sedno awarii z 09.08 („nie widzę cue w Rekordboksie"): nasz własny pad
+    z poprzedniej wysyłki blokował nas jak cudzy, więc przesunięcie pada
+    nigdy nie docierało do bazy. Teraz: NASZ pad (UUID w rejestrze) jest
+    odświeżany, pad DJ-a dalej nietykalny."""
+    from dancelab.decision.cue_conflict import ExistingCue
+
+    plan, by_id = _plan(monkeypatch)
+    do_zapisu, _ids, _p = cue_zapis.zbuduj_plan_do_zapisu(
+        plan, cue_edycje.nowe(), by_id, ["A", "B"], CONTENT)
+
+    rejestr = {"nasz-uuid": {"content_id": "111", "kind": 2,
+                             "position_ms": 111_000, "zapisane": "wczoraj"}}
+    istniejace = {
+        # pad B utworu 111 = NASZ poprzedni zapis (UUID w rejestrze)
+        "111": [ExistingCue(pad_index=2, position_ms=111_000,
+                            comment="MIX OUT → next", uuid="nasz-uuid")],
+        # pad A utworu 222 = cue DJ-a, UUID nieznany
+        "222": [ExistingCue(pad_index=1, position_ms=30_000,
+                            comment="moje wejście", uuid="obcy-uuid")],
+    }
+    wynik = cue_zapis.policz_kolizje(do_zapisu, istniejace, rejestr)
+    pady = {(t.content_id, c.pad_label): c
+            for t in wynik["plan"].tracks for c in t.cues}
+
+    assert ("111", "B") in pady, "nasz własny pad ma zostać ODŚWIEŻONY"
+    assert pady[("111", "B")].replace_existing is True, \
+        "odświeżenie wymaga jawnego pozwolenia na usunięcie starego wiersza"
+    assert wynik["odswiezone"] == 1
+    assert ("222", "A") not in pady, "pad DJ-a zostaje nietknięty"
+
+
+def test_bez_uuid_w_rejestrze_pad_uchodzi_za_cudzy(monkeypatch):
+    """Zawodzimy w stronę bezpieczną: cue zapisane przez nas PRZED powstaniem
+    rejestru (albo z pustym UUID) jest traktowane jak cudze."""
+    from dancelab.decision.cue_conflict import ExistingCue
+
+    plan, by_id = _plan(monkeypatch)
+    do_zapisu, _ids, _p = cue_zapis.zbuduj_plan_do_zapisu(
+        plan, cue_edycje.nowe(), by_id, ["A", "B"], CONTENT)
+    istniejace = {"111": [ExistingCue(pad_index=2, position_ms=111_000,
+                                      comment="MIX OUT → next", uuid="")]}
+    wynik = cue_zapis.policz_kolizje(do_zapisu, istniejace, rejestr={})
+    pady = {(t.content_id, c.pad_label) for t in wynik["plan"].tracks
+            for c in t.cues}
+    assert ("111", "B") not in pady
+    assert wynik["odswiezone"] == 0
+
+
+def test_rejestr_zapisuje_i_wybacza_uszkodzenie(tmp_path):
+    from dancelab.ingestion import cue_ledger
+
+    plik = tmp_path / "rejestr.json"
+    ile = cue_ledger.zapamietaj(
+        [{"uuid": "u1", "content_id": "111", "kind": 2, "position_ms": 5000},
+         {"uuid": "", "content_id": "111", "kind": 3, "position_ms": 6000}],
+        znacznik="2026-08-09 21:00", sciezka=plik)
+    assert ile == 1, "wpis bez UUID-a jest bezużyteczny — nie zapisujemy go"
+    assert cue_ledger.wczytaj(plik)["u1"]["content_id"] == "111"
+
+    plik.write_text("{to nie jest json")
+    assert cue_ledger.wczytaj(plik) == {}, \
+        "uszkodzony rejestr = zero uprawnień, nie wywrotka"
+
+
+def test_guzik_mowi_dlaczego_nie_da_sie_wyslac():
+    """Skarga Janka 09.08: klika i „nie widzi cue w Rekordboksie". Przy
+    otwartym Rekordboksie zapis jest niemożliwy — przycisk MA to mówić
+    i być nieklikalny, zamiast wyglądać normalnie i milczeć."""
+    from textual.widgets import Button, TabbedContent
+
+    from dancelab.tui.app import DanceLabTUI
+
+    async def go(rb_otwarty: bool) -> Button:
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test(size=(120, 30)) as pilot:
+            app.query_one("#tabs", TabbedContent).active = "tab-export"
+            await pilot.pause()
+            app._odswiez_guzik_cue(rb_otwarty)
+            await pilot.pause()
+            return app.query_one("#cue-write", Button)
+
+    g = asyncio.run(go(True))
+    assert g.disabled is True
+    assert "Zamknij Rekordbox" in str(g.label)
+
+    g = asyncio.run(go(False))
+    assert g.disabled is False and "Wyślij cue" in str(g.label)
+
+
+def test_guzik_po_pierwszym_nacisnieciu_prosi_o_potwierdzenie(monkeypatch):
+    """Drugie pół awarii: pierwsze naciśnięcie tylko LICZY, a przycisk
+    wyglądał tak samo — klik wyglądał jak brak reakcji."""
+    from textual.widgets import Button, TabbedContent
+
+    from dancelab.tui.app import DanceLabTUI
+
+    plan, by_id = _plan(monkeypatch)
+    do_zapisu, ids, _p = cue_zapis.zbuduj_plan_do_zapisu(
+        plan, cue_edycje.nowe(), by_id, ["A", "B"], CONTENT)
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test(size=(120, 30)) as pilot:
+            app.query_one("#tabs", TabbedContent).active = "tab-export"
+            await pilot.pause()
+            app._cue_zapis_gotowy = (do_zapisu, ids)
+            app._odswiez_guzik_cue(False)
+            await pilot.pause()
+            g = app.query_one("#cue-write", Button)
+            ile = sum(len(t.cues) for t in do_zapisu.tracks)
+            assert "POTWIERDŹ" in str(g.label) and str(ile) in str(g.label)
+            assert g.disabled is False
+
+    asyncio.run(go())

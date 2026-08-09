@@ -93,15 +93,46 @@ def zbuduj_plan_do_zapisu(plan_podgladu: CuePlan, edycje: dict, by_id: dict,
             ids_setu, pominiete)
 
 
-def policz_kolizje(plan: CuePlan, istniejace: dict[str, list]) -> dict:
-    """Ile padów wejdzie, a ile ustąpi TWOIM cue (polityka: nigdy nie
-    nadpisujemy tego, co DJ ustawił sam)."""
+def policz_kolizje(plan: CuePlan, istniejace: dict[str, list],
+                   rejestr: dict | None = None) -> dict:
+    """Ile padów wejdzie, ile ODŚWIEŻY nasze własne, a ile ustąpi TWOIM cue.
+
+    Polityka bez zmian tam, gdzie chroni DJ-a: cue, które postawiłeś sam,
+    jest nietykalne. Zmiana z 09.08 dotyczy TYLKO padów, które sami
+    zapisaliśmy — wcześniej blokowały nas jak cudze, więc przesunięcie pada
+    nigdy nie docierało do Rekordboksa. „Nasz" znaczy: UUID wiersza jest
+    w rejestrze `cue_ledger` — bez UUID-a w rejestrze pad zawsze uchodzi za
+    cudzy (zawodzimy w stronę bezpieczną, nigdy nie zgadujemy po komentarzu).
+    """
     from dancelab.decision.cue_conflict import resolve_conflicts
     from dancelab.decision.cue_export_models import ConflictAction
+    from dancelab.ingestion.cue_ledger import nasze_pady
 
+    nasze = nasze_pady(istniejace, rejestr or {})
+    # Nasze własne pady znikają z „zajętych", żeby rozwiązywanie kolizji
+    # w ogóle je zobaczyło jako wolne; wiersz w bazie dalej istnieje, więc
+    # planowany cue dostaje jawne pozwolenie na jego usunięcie.
+    czyste = {cid: [c for c in cues
+                    if (str(cid), int(c.pad_index)) not in nasze]
+              for cid, cues in istniejace.items()}
     rozwiazany, raport = resolve_conflicts(
-        plan, istniejace, action=ConflictAction.skip)
+        plan, czyste, action=ConflictAction.skip)
+
+    odswiezone = 0
+    tracks = []
+    for t in rozwiazany.tracks:
+        cues = []
+        for c in t.cues:
+            if (str(t.content_id), PADY.index(c.pad_label) + 1) in nasze:
+                cues.append(c.model_copy(update={"replace_existing": True}))
+                odswiezone += 1
+            else:
+                cues.append(c)
+        tracks.append(t.model_copy(update={"cues": cues}))
+    rozwiazany = rozwiazany.model_copy(update={"tracks": tracks})
+
     return {"plan": rozwiazany,
             "do_zapisu": raport.cues_to_write,
+            "odswiezone": odswiezone,
             "pominiete_kolizje": sum(len(t.cues) for t in plan.tracks)
             - raport.cues_to_write}
