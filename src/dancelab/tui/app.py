@@ -516,14 +516,14 @@ class DanceLabTUI(App):
     """
     BINDINGS = [
         Binding("b", "build", "Buduj"),
-        Binding("w", "write", "→ Rekordbox"),
+        Binding("w", "write", "Wyślij do RB"),
         Binding("z", "replace", "Zamień"),
         Binding("x", "cut", "Wytnij"),
         Binding("a", "add", "Dopisz"),
         Binding("shift+up", "move_up", "przesuń ▲", show=False),
         Binding("shift+down", "move_down", "przesuń ▼", show=False),
         Binding("s", "save_plan", "Zapisz plan"),
-        Binding("o", "load_plan", "Wczytaj"),
+        Binding("o", "load_plan", "Wczytaj plan"),
         Binding("space", "preview_seam", "Graj/Pauza", priority=True),
         Binding("p", "preview_seam", "Posłuchaj", show=False),
         Binding("right", "skok_przod", "skok +8", show=False, priority=True),
@@ -542,7 +542,7 @@ class DanceLabTUI(App):
                 priority=True),
         Binding("c", "compare_pair", "Porównaj"),
         Binding("i", "track_info", "Info"),
-        Binding("l", "toggle_notes", "Log"),
+        Binding("l", "toggle_notes", "Notki"),
         Binding("u", "toggle_fav", "♥ Ulubiony"),
         Binding("f", "toggle_filar", "Filar"),
         Binding("g", "build_from_filary", "Z filarów", show=False),
@@ -620,7 +620,7 @@ class DanceLabTUI(App):
                             # okładki w liście I dociąga brakujące (iTunes →
                             # tagi); OFF tylko chowa, niczego nie kasuje
                             yield Switch(value=False, id="lib-artwork")
-                            yield Label("artwork", id="lib-artwork-label")
+                            yield Label("okładki", id="lib-artwork-label")
                         yield Static("", id="lib-count")
                         # priorytet fg "renderable": obrazki TGP kodują SIEBIE
                         # w kolorze pisma (kolor = id obrazka u terminala) —
@@ -2476,7 +2476,8 @@ class DanceLabTUI(App):
         if akcja == "pauza":
             self._note("odsłuch: pauza (spacja wznawia)")
         else:
-            self._note(f"GRA: {nazwa} ({akcja}) · spacja pauza · ↓/↑ następny · →/← ±8")
+            self._note(f"odsłuch: {nazwa} ({akcja}) · spacja pauza · "
+                       f"↓/↑ następny · →/← ±8 uderzeń")
             self._ustaw_meta_odtwarzacza(track)
         self._pokaz_odtwarzacz()
 
@@ -2618,7 +2619,7 @@ class DanceLabTUI(App):
         blad = self._odtwarzacz.graj_od_zera(str(track.source_path),
                                              track.bpm_estimate)
         if blad:
-            self._note(f"auto-podgląd: {blad}")
+            self._note(f"odsłuch: {blad}")
             return
         self._ustaw_meta_odtwarzacza(track)
         self._pokaz_odtwarzacz()
@@ -2644,14 +2645,14 @@ class DanceLabTUI(App):
     def _start_player(self, info: dict, idx: int) -> None:
         blad = self._odtwarzacz.graj_od_zera(str(info["output"]), info["bpm"])
         if blad:
-            self._note(f"odsłuch szwu: {blad}")
+            self._note(f"odsłuch szwu nie wyszedł: {blad}")
             return
         self._gra_meta = ("szew", f"przejście #{idx+1} → #{idx+2}")
         from rich.text import Text
         self.query_one("#pb-art", Static).update(Text(""))
         for line in info.get("rozumowanie", [])[:3]:
             self._note(line)
-        self._note(f"GRA szew #{idx+1}→#{idx+2}: {info['beats']} uderzeń "
+        self._note(f"odsłuch szwu #{idx+1}→#{idx+2}: {info['beats']} uderzeń "
                    f"@ {info['bpm']:.1f} BPM · P pauza · →/← ±8")
         self.query_one("#progress", Static).update(
             f"▶ szew #{idx+1}→#{idx+2} · {info['beats']} uderzeń "

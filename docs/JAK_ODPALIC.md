@@ -95,7 +95,7 @@ Utwory bez wartości w sortowanej kolumnie zawsze lądują na końcu.
 | klawisz | działanie |
 |---|---|
 | **U** | przypnij / odepnij ulubiony (♥) |
-| **K** | okładki: włącz / wyłącz — to samo co przełącznik **artwork** (opis niżej) |
+| **K** | okładki: włącz / wyłącz — to samo co przełącznik **okładki** (opis niżej) |
 | **F** | oznacz / odznacz utwór jako filar |
 | **G** | wyślij filary do zakładki Set jako szkic setu |
 | **P** | odsłuch zaznaczonego utworu (rozdział 6) |
@@ -105,7 +105,7 @@ i kliknij przycisk — tak dogrywasz nowe pliki (i tak zaczyna pierwszy
 użytkownik). Przed analizą każdy plik sprawdza bramkarz: uszkodzone
 odpadają z imiennym powodem, zamiast psuć analizę.
 
-Pod polem szukania jest mały przełącznik **artwork** (klawisz K robi
+Pod polem szukania jest mały przełącznik **okładki** (klawisz K robi
 to samo). Włączony: lista pokazuje miniatury okładek (wiersze rosną,
 widać mniej utworów naraz) i w tle rusza dociąganie braków — aplikacja
 znajduje pliki bez osadzonej okładki, pyta iTunes o artystę i tytuł
