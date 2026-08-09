@@ -185,6 +185,7 @@ def _filary_for_build(state: dict, by_id: dict, bpm_min: float | None,
     from dancelab.tui.user_store import MIN_FILARY, resolve_tracks
     ids, missing = resolve_tracks(state.get("filary", []), by_id)
     notes = [f"FILAR nieobecny w puli (pominięty): {m}" for m in missing]
+    wyciete = [f"{m} (spoza puli)" for m in missing]
     kept: list[str] = []
     for tid in ids:
         bpm = by_id[tid].track.bpm_estimate or 0.0
@@ -192,12 +193,22 @@ def _filary_for_build(state: dict, by_id: dict, bpm_min: float | None,
                 (bpm_max is not None and bpm > bpm_max):
             name = pathlib.Path(by_id[tid].track.source_path).stem[:40]
             notes.append(f"FILAR poza oknem tempa (pominięty): {name} ({bpm:.1f})")
+            wyciete.append(f"{name} ({bpm:.0f} — poza oknem)")
             continue
         kept.append(tid)
     if kept and len(kept) < MIN_FILARY:
+        # ODMOWA MUSI NIEŚĆ WINOWAJCÓW (skarga Janka 09.08: „mimo że dodałem
+        # 4 filary" — liczby bez nazwisk nie mówią, czy poszerzyć okno,
+        # czy wymienić filary)
+        kogo = "; ".join(wyciete[:3])
+        if len(wyciete) > 3:
+            kogo += f" i {len(wyciete) - 3} dalszych"
+        okno = (f"{bpm_min:g}–{bpm_max:g}" if bpm_min is not None
+                and bpm_max is not None else "ustawione")
         raise ValueError(
             f"filary to minimum {MIN_FILARY}, a po sitach zostało {len(kept)} "
-            f"— dodaj filary w Bibliotece (F) albo zdejmij wszystkie")
+            f"— wypadły: {kogo}. Poszerz okno tempa ({okno}) "
+            f"albo wymień filary (F w Bibliotece)")
     if count is not None and len(kept) > count:
         raise ValueError(f"filarów ({len(kept)}) więcej niż miejsc w secie "
                          f"({count}) — wydłuż set albo zdejmij filary")

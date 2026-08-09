@@ -761,3 +761,14 @@ def test_pool_ctx_for_dziala_bez_wczesniejszej_budowy(monkeypatch):
             assert ctx["by_id"], "pula z biblioteki dopięta pod plan"
             assert "weights" in ctx
     asyncio.run(go())
+
+
+def test_odmowa_filarow_wymienia_winowajcow_z_tempem():
+    """Skarga Janka 09.08: „mimo że dodałem 4 filary" — odmowa mówiła ILE
+    zostało, nie KTÓRE wypadły. Ma nieść nazwiska, tempa i okno."""
+    with pytest.raises(ValueError) as exc:
+        _filary_for_build(_state("a", "b", "c", "e"), _by_id(), 130, 131, 10)
+    tekst = str(exc.value)
+    assert "wypadły" in tekst
+    assert "Mercy System - Steppers (132" in tekst, "nazwisko + tempo"
+    assert "130–131" in tekst, "okno tempa w radzie"
