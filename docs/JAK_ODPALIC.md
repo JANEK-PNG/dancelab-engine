@@ -64,7 +64,9 @@ kliknięciem w nazwę:
    (a gdy pada nie ma — stawia nowy: przy pozycji odtwarzacza, jeśli
    ten utwór właśnie gra, inaczej na środku utworu); ←/→ przesuwa
    wybrany pad o 1 uderzenie (Shift ±8, PgUp/PgDn ±32), X zdejmuje,
-   Z cofa, Esc odznacza. Po przesunięciu propozycja silnika zostaje
+   Z cofa, Esc odznacza. **P (albo Spacja) gra utwór od wybranego
+   pada** — cue sprawdzasz uchem; drugi raz zatrzymuje; bez wybranego
+   pada gra od zera. Po przesunięciu propozycja silnika zostaje
    widoczna jako kropka, a wiersz mówi „ręka" — zawsze widzisz, o ile
    różnisz się od silnika. Wszystko to podgląd i szkic: zapis do
    Rekordboksa (i sprawdzenie kolizji z Twoimi cue) to następny etap.

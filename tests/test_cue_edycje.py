@@ -124,3 +124,65 @@ def test_klawisze_w_zakladce_edytuja_pady(tmp_path, monkeypatch):
             assert "D" in cue_edycje.efektywne_pady(plan, app._cue_edycje, "A")
 
     asyncio.run(go())
+
+
+def test_p_gra_od_wybranego_pada_bez_dzwieku_w_testach(tmp_path, monkeypatch):
+    """Etap 3 (skarga Janka 09.08: „nie mam pojęcia jak podsłuchać od A"):
+    P z wybranym padem gra TEN utwór od pozycji pada; drugi raz stop.
+    W testach odtwarzacz jest atrapą — dźwięk nigdy nie startuje sam."""
+    from textual.widgets import DataTable, TabbedContent
+
+    from dancelab.tui.app import DanceLabTUI
+
+    monkeypatch.setattr("dancelab.tui.app.WERDYKTY_DIR",
+                        tmp_path / "werdykty")
+    plan, by_id = _plan(monkeypatch)
+    zagrane = []
+
+    class Atrapa:
+        def gra(self):
+            return False
+
+        sciezka = None
+
+        def graj_od(self, path, bpm, sekunda):
+            zagrane.append((path, sekunda))
+            return None
+
+        def graj_od_zera(self, path, bpm):
+            zagrane.append((path, 0.0))
+            return None
+
+        def stop(self):
+            return False
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            app._odtwarzacz = Atrapa()
+            app._ctx = {"by_id": by_id, "weights": None}
+            app._order = ["A", "B"]
+            app._cue_plan = plan
+            app.query_one("#tabs", TabbedContent).active = "tab-export"
+            await pilot.pause()
+            app._render_cue_lista()
+            app.query_one("#cue-table", DataTable).focus()
+            await pilot.pause()
+
+            await pilot.press("b")          # pad B (wyjście @ 300 s)
+            await pilot.press("p")
+            assert zagrane == [("/m/A.wav", 300.0)], \
+                "P gra utwór A od pozycji pada B"
+
+    asyncio.run(go())
+
+
+def test_cue_nazwa_nie_dubluje_artysty(monkeypatch):
+    from dancelab.tui.app import DanceLabTUI
+
+    plan, by_id = _plan(monkeypatch)
+    by_id["A"].track.artist = "O'Flynn"
+    by_id["A"].track.title = "O'Flynn - Sekete (ft. Swordman Kit)"
+    app = DanceLabTUI.__new__(DanceLabTUI)
+    app._ctx = {"by_id": by_id}
+    assert app._cue_nazwa("A") == "O'Flynn – Sekete (ft. Swordman Kit)"

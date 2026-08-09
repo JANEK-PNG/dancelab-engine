@@ -828,6 +828,10 @@ class DanceLabTUI(App):
             kroki = {"left": -1, "right": +1, "shift+left": -8,
                      "shift+right": +8, "pageup": -32, "pagedown": +32}
             self._cue_przesun(kroki[klawisz])
+        elif klawisz in ("p", "space"):
+            event.stop()
+            event.prevent_default()
+            self._cue_posluchaj()
         elif self._cue_wybor and klawisz == "x":
             event.stop()
             event.prevent_default()
@@ -891,6 +895,33 @@ class DanceLabTUI(App):
                           pad=self._cue_wybor, uderzenia=uderzenia,
                           position_ms=nowa, silnik_ms=p.get("silnik_ms"))
         self._render_cue_lista()
+
+    def _cue_posluchaj(self) -> None:
+        """P/Spacja w edytorze cue (etap 3): gra TEN utwór od wybranego pada
+        (bez pada — od zera); drugi raz zatrzymuje. Dźwięk wyłącznie z tego
+        jawnego klawisza — twarda zasada projektu."""
+        if not self._cue_track:
+            return
+        analiza = self._ctx["by_id"].get(self._cue_track)
+        if analiza is None:
+            return
+        sciezka = analiza.track.source_path
+        if self._odtwarzacz.gra() and self._odtwarzacz.sciezka == sciezka:
+            self._odtwarzacz.stop()
+            self._note("odsłuch zatrzymany")
+            return
+        bpm = analiza.beatgrid.bpm if analiza.beatgrid else None
+        if self._cue_wybor:
+            pady = self._cue_pady_teraz()
+            p = pady.get(self._cue_wybor)
+            sekunda = (p["position_ms"] / 1000.0) if p else 0.0
+            blad = self._odtwarzacz.graj_od(sciezka, bpm, sekunda)
+            gdzie = f"od pada {self._cue_wybor}"
+        else:
+            blad = self._odtwarzacz.graj_od_zera(sciezka, bpm)
+            gdzie = "od zera"
+        self._note(f"odsłuch nie wyszedł: {blad}" if blad
+                   else f"gra {gdzie}")
 
     def _cue_zdejmij(self) -> None:
         from dancelab.tui import cue_edycje
@@ -966,6 +997,12 @@ class DanceLabTUI(App):
         if a is None:
             return tid
         art, tit = _wykonawca_tytul(a.track)
+        # tag tytułu często niesie już artystę („O'Flynn - Sekete") — nie
+        # dublować („O'Flynn – O'Flynn – Sekete"; skarga Janka 09.08)
+        if art and tit.lower().startswith(art.lower()):
+            reszta = tit[len(art):].lstrip(" -–—")
+            if reszta:
+                tit = reszta
         return f"{art} – {tit}" if art else tit
 
     def _render_cue_lista(self) -> None:
@@ -1010,9 +1047,9 @@ class DanceLabTUI(App):
         linie = [f"⚠ {w}" for w in plan.warnings[:3]]
         if len(plan.warnings) > 3:
             linie.append(f"…i {len(plan.warnings) - 3} dalszych ostrzeżeń")
-        linie.append("litera A–H = wybierz/postaw pad · ←/→ ±1 uderzenie "
-                     "(Shift ±8, PgUp/PgDn ±32) · X zdejmij · Z cofnij · "
-                     "zapis do Rekordboksa — etap 4")
+        linie.append("litera A–H = wybierz/postaw pad · P = posłuchaj od "
+                     "pada · ←/→ ±1 uderzenie (Shift ±8, PgUp/PgDn ±32) · "
+                     "X zdejmij · Z cofnij · zapis do Rekordboksa — etap 4")
         info.update("\n".join(linie))
         if self._cue_widok:
             if self._cue_track not in self._cue_widok:
@@ -1049,8 +1086,12 @@ class DanceLabTUI(App):
             naglowek.append(f"· {analiza.track.key_estimate} ", style="dim")
         if self._cue_wybor:
             naglowek.append(f"· pad {self._cue_wybor} wybrany "
-                            f"(←/→ ±1 · Shift ±8 · X zdejmij · Esc)",
+                            f"(P=posłuchaj od pada · ←/→ ±1 · Shift ±8 · "
+                            f"X zdejmij · Esc)",
                             style=f"bold {PILLAR_COLOR}")
+        else:
+            naglowek.append("· litera A–H = wybierz/postaw pad · "
+                            "P = posłuchaj", style="dim")
         linia_padow = [" "] * szer
         kropki = {}
         for litera, p in pady.items():

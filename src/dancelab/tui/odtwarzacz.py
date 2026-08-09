@@ -95,6 +95,15 @@ class Odtwarzacz:
         self._path, self._bpm, self._offset = path, bpm, 0.0
         return self._uruchom(0.0)
 
+    def graj_od(self, path: str, bpm: float | None,
+                sekunda: float) -> str | None:
+        """Odsłuch od pada (edytor cue, etap 3): start od wskazanej sekundy.
+        Start od środka to działka ffplay; bez niego degradacja jawna."""
+        self.stop()
+        self._path, self._bpm = path, bpm
+        self._offset = max(float(sekunda), 0.0)
+        return self._uruchom(self._offset)
+
     def skocz(self, uderzenia: int) -> tuple[float, str | None]:
         """±N uderzeń wg tempa utworu (siatka silnika). Tylko gdy gra."""
         if not self.gra():
