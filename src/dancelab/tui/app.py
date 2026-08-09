@@ -517,14 +517,15 @@ class DanceLabTUI(App):
     #cue-table { height: 1fr; }
     #cue-head { height: 2; padding: 0 1; }
     #cue-gora { dock: top; height: auto; }
-    #tab-export .pb-box { dock: bottom; }
     #cue-karta { height: auto; border-bottom: solid $accent; }
     #cue-os { width: 1fr; height: auto; padding: 0 1; }
     #cue-pady { width: 46; height: auto; padding: 0 1;
                 border-left: solid $accent; }
     #cue-info { height: auto; padding: 0 1; color: $text-muted; }
+    #cue-dol { dock: bottom; height: auto; }
     #cue-tools { height: 3; padding: 0 1; }
-    #cue-tools Button { margin-right: 2; }
+    #cue-tools Button { margin-left: 2; }
+    #cue-luz { width: 1fr; }
     """
     BINDINGS = [
         Binding("b", "build", "Buduj"),
@@ -726,15 +727,22 @@ class DanceLabTUI(App):
                         with Horizontal(id="cue-karta"):
                             yield Static("", id="cue-os")
                             yield Static("", id="cue-pady")
+                        yield Static("", id="cue-info")
+                    yield DataTable(id="cue-table",
+                                    cursor_foreground_priority="renderable")
+                    # DÓŁ: odtwarzacz, a pod nim CTA w prawym rogu —
+                    # dokładnie jak w Bibliotece (życzenie Janka 09.08).
+                    # Jeden blok, bo dwa osobne dokowania do tej samej
+                    # krawędzi nakładały się na siebie (pasek przykrywał
+                    # guziki — złapane na zrzucie).
+                    with Vertical(id="cue-dol"):
+                        yield PasekOdtwarzacza()
                         with Horizontal(id="cue-tools"):
+                            yield Static("", id="cue-luz")
                             yield Button("Wyślij cue do RB  [W]",
                                          id="cue-write")
                             yield Button("Wyślij playlistę do RB",
                                          id="cue-playlist")
-                        yield Static("", id="cue-info")
-                    yield DataTable(id="cue-table",
-                                    cursor_foreground_priority="renderable")
-                    yield PasekOdtwarzacza()
         yield Static("", id="status")
         yield Footer()
 

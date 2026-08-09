@@ -112,3 +112,26 @@ def test_w_w_eksporcie_nie_pisze_playlisty_i_odmawia_bez_setu():
             assert "najpierw zbuduj set" in notki
 
     asyncio.run(go())
+
+
+def test_cta_w_prawym_dolnym_rogu_pod_odtwarzaczem():
+    """Układ jak w Bibliotece (życzenie Janka 09.08): guziki wysyłki
+    w prawym dolnym rogu, POD paskiem odtwarzacza. Regresja: gdy oba
+    dokowały się osobno do dolnej krawędzi, pasek PRZYKRYWAŁ guziki."""
+    from textual.widgets import Button, TabbedContent
+
+    from dancelab.tui.app import DanceLabTUI
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test(size=(120, 30)) as pilot:
+            app.query_one("#tabs", TabbedContent).active = "tab-export"
+            await pilot.pause()
+            guzik = app.query_one("#cue-write", Button)
+            pasek = next(w for w in app.query(".pb-box") if w.region.height)
+            assert guzik.region.y >= pasek.region.y + pasek.region.height, \
+                "CTA pod paskiem, nie pod nim schowane"
+            ekran = app.query_one("#cue-dol").region
+            assert guzik.region.x > ekran.width // 2, "CTA po prawej stronie"
+
+    asyncio.run(go())
