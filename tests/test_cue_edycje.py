@@ -252,3 +252,92 @@ def test_karta_pokazuje_wszystkie_osiem_padow(tmp_path, monkeypatch):
                 "oś utworu została po lewej stronie"
 
     asyncio.run(go())
+
+
+def test_druga_litera_przenosi_pad_pod_glowice(tmp_path, monkeypatch):
+    """Skarga Janka 09.08: „jak przestawić hot cue w czasie, bo to
+    nieintuicyjne". Strzałki zostają do precyzji, ale duży skok robi się
+    tak jak na sprzęcie: graj → dojedź → ta sama litera drugi raz."""
+    from textual.widgets import DataTable, TabbedContent
+
+    from dancelab.tui.app import DanceLabTUI
+
+    monkeypatch.setattr("dancelab.tui.app.WERDYKTY_DIR", tmp_path / "w")
+    plan, by_id = _plan(monkeypatch)
+
+    class Atrapa:
+        sciezka = "/m/A.wav"
+
+        def gra(self):
+            return True
+
+        def pozycja(self):
+            return 100.0        # 1:40
+
+        def skonczyl_sie(self):
+            return None
+
+        def stop(self):
+            return False
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            app._odtwarzacz = Atrapa()
+            app._ctx = {"by_id": by_id, "weights": None}
+            app._order = ["A", "B"]
+            app._cue_plan = plan
+            app.query_one("#tabs", TabbedContent).active = "tab-export"
+            await pilot.pause()
+            app._render_cue_lista()
+            app.query_one("#cue-table", DataTable).focus()
+            await pilot.pause()
+
+            await pilot.press("b")             # wybór (pad B @ 300 s)
+            assert app._cue_wybor == "B"
+            p = cue_edycje.efektywne_pady(plan, app._cue_edycje, "A")["B"]
+            assert p["position_ms"] == 300_000, "pierwsze naciśnięcie nie rusza"
+
+            await pilot.press("b")             # drugie = przenieś pod głowicę
+            p = cue_edycje.efektywne_pady(plan, app._cue_edycje, "A")["B"]
+            assert p["position_ms"] == 100_000, "pad ląduje na 1:40"
+            assert p["zrodlo"] == "reka"
+            assert p["silnik_ms"] == 300_000, "ślad silnika zostaje"
+
+            await pilot.press("z")             # cofnięcie działa
+            p = cue_edycje.efektywne_pady(plan, app._cue_edycje, "A")["B"]
+            assert p["position_ms"] == 300_000
+
+    asyncio.run(go())
+
+
+def test_przenoszenie_odmawia_gdy_odtwarzacz_stoi_gdzie_indziej(tmp_path,
+                                                               monkeypatch):
+    """Bez odtwarzacza na TYM utworze „przenieś tu" nie ma sensu — odmowa
+    z powodem, nie ciche przeniesienie w przypadkowe miejsce."""
+    from textual.widgets import DataTable, TabbedContent
+
+    from dancelab.tui.app import DanceLabTUI
+
+    monkeypatch.setattr("dancelab.tui.app.WERDYKTY_DIR", tmp_path / "w")
+    plan, by_id = _plan(monkeypatch)
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            app._ctx = {"by_id": by_id, "weights": None}
+            app._order = ["A", "B"]
+            app._cue_plan = plan
+            app.query_one("#tabs", TabbedContent).active = "tab-export"
+            await pilot.pause()
+            app._render_cue_lista()
+            app.query_one("#cue-table", DataTable).focus()
+            await pilot.pause()
+            await pilot.press("b")
+            await pilot.press("b")
+            p = cue_edycje.efektywne_pady(plan, app._cue_edycje, "A")["B"]
+            assert p["position_ms"] == 300_000, "nic nie ruszone"
+            notki = " ".join(str(x) for x in app.query_one("#warnings").lines)
+            assert "najpierw P" in notki
+
+    asyncio.run(go())

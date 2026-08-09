@@ -883,8 +883,35 @@ class DanceLabTUI(App):
             return
         pady = self._cue_pady_teraz()
         if pad in pady:
-            self._cue_wybor = pad
-            self._render_cue_karta()
+            if self._cue_wybor != pad:
+                self._cue_wybor = pad          # pierwsze naciśnięcie: wybór
+                self._render_cue_karta()
+                return
+            # DRUGIE naciśnięcie tej samej litery: PRZENIEŚ PAD TUTAJ, czyli
+            # do głowicy odtwarzacza (skarga Janka 09.08: strzałki po jednym
+            # uderzeniu są nieintuicyjne przy dużych przeskokach). Wzorzec
+            # dwóch naciśnięć jak w całej aplikacji; Z cofa.
+            analiza = self._ctx["by_id"][self._cue_track]
+            if self._odtwarzacz.sciezka != analiza.track.source_path:
+                self._note(f"pad {pad}: najpierw P — odtwarzacz musi stać "
+                           f"na TYM utworze, żeby przenieść pad w to miejsce")
+                return
+            p = pady[pad]
+            bpm = (analiza.beatgrid.bpm if analiza.beatgrid else 0) or 120.0
+            beat = 60000.0 / bpm
+            cel = int(round(self._odtwarzacz.pozycja() * 1000 / beat) * beat)
+            uderzenia = int(round((cel - p["position_ms"]) / beat))
+            from dancelab.tui import cue_edycje
+            nowa = cue_edycje.przesun(
+                self._cue_edycje, self._cue_track, pad, uderzenia, bpm,
+                p.get("silnik_ms"), p["position_ms"])
+            self._log_verdict("cue_przeniesienie", track_id=self._cue_track,
+                              pad=pad, position_ms=nowa,
+                              silnik_ms=p.get("silnik_ms"))
+            m, sek = divmod(int(nowa / 1000), 60)
+            self._note(f"pad {pad} przeniesiony na {m}:{sek:02d} "
+                       f"(z głowicy odtwarzacza) · Z cofa")
+            self._render_cue_lista()
             return
         analiza = self._ctx["by_id"][self._cue_track]
         sciezka = analiza.track.source_path
@@ -1234,9 +1261,11 @@ class DanceLabTUI(App):
         linie = [f"⚠ {w}" for w in plan.warnings[:3]]
         if len(plan.warnings) > 3:
             linie.append(f"…i {len(plan.warnings) - 3} dalszych ostrzeżeń")
-        linie.append("litera A–H = wybierz/postaw pad · P = posłuchaj od "
-                     "pada · ←/→ ±1 uderzenie (Shift ±8, PgUp/PgDn ±32) · "
-                     "X zdejmij · Z cofnij · W wysyła cue (dwa razy)")
+        linie.append("litera A–H = wybierz pad (pusty slot = postaw) · "
+                     "TA SAMA litera drugi raz = przenieś pad pod głowicę "
+                     "odtwarzacza · ←/→ ±1 uderzenie (Shift ±8, PgUp/PgDn "
+                     "±32) · P posłuchaj od pada · X zdejmij · Z cofnij · "
+                     "W wysyła cue (dwa razy)")
         info.update("\n".join(linie))
         if self._cue_widok:
             if self._cue_track not in self._cue_widok:
@@ -1276,10 +1305,11 @@ class DanceLabTUI(App):
         if analiza.track.key_estimate:
             naglowek.append(f"· {analiza.track.key_estimate} ", style="dim")
         if self._cue_wybor:
-            naglowek.append(f"· pad {self._cue_wybor} wybrany "
-                            f"(P=posłuchaj od pada · ←/→ ±1 · Shift ±8 · "
-                            f"X zdejmij · Esc)",
-                            style=f"bold {PILLAR_COLOR}")
+            naglowek.append(
+                f"· pad {self._cue_wybor}: {self._cue_wybor} jeszcze raz = "
+                f"przenieś tu (głowica) · ←/→ ±1 uderzenie · Shift ±8 · "
+                f"PgUp/PgDn ±32 · P posłuchaj · X zdejmij · Esc",
+                style=f"bold {PILLAR_COLOR}")
         else:
             naglowek.append("· litera A–H = wybierz/postaw pad · "
                             "P = posłuchaj", style="dim")

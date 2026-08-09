@@ -60,7 +60,16 @@ kliknięciem w nazwę:
    pady na osi, podziałka czasu i lista padów z pozycjami. Dla każdego
    przejścia silnik proponuje pad z wyjściem z utworu i pad z wejściem
    w następny, przyciągnięte do siatki bitów; „pewność" mówi wprost:
-   ✓ albo POSŁUCHAJ. **Edycja jak na CDJ:** litera A–H wybiera pad
+   ✓ albo POSŁUCHAJ.
+
+   **Jak przestawić pad w czasie.** Duży skok robisz jak na sprzęcie:
+   **P** puszcza utwór, strzałkami dojeżdżasz do miejsca, a potem
+   naciskasz **tę samą literę drugi raz** — pad przeskakuje pod głowicę
+   odtwarzacza (na najbliższy bit). Drobne poprawki: **←/→** o jedno
+   uderzenie, **Shift** o osiem, **PgUp/PgDn** o trzydzieści dwa.
+   **Z** cofa każdą zmianę.
+
+   **Edycja jak na CDJ:** litera A–H wybiera pad
    (a gdy pada nie ma — stawia nowy: przy pozycji odtwarzacza, jeśli
    ten utwór właśnie gra, inaczej na środku utworu); ←/→ przesuwa
    wybrany pad o 1 uderzenie (Shift ±8, PgUp/PgDn ±32), X zdejmuje,
