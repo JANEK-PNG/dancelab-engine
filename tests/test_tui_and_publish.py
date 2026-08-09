@@ -91,11 +91,11 @@ def test_tui_edycje_bez_setu_odmawiaja_z_powodem():
             from textual.widgets import TabbedContent
             app.query_one("#tabs", TabbedContent).active = "tab-set"
             await pilot.pause()
-            for key in ("x", "a", "s", "v", "z", "i"):
+            for key in ("x", "a", "s", "z", "i"):   # V wyleciało 09.08
                 await pilot.press(key)
                 await pilot.pause()
             lines = " ".join(str(l) for l in app.query_one("#warnings").lines)
-            assert lines.count("najpierw zbuduj") >= 6
+            assert lines.count("najpierw zbuduj") >= 5
     asyncio.run(go())
 
 
@@ -147,8 +147,8 @@ def test_tui_ciecie_i_przesuniecie_loguja_werdykty(tmp_path, monkeypatch):
             await pilot.press("shift+up")     # C przed A
             await pilot.pause()
             assert app._order == ["C", "A"]
-            await pilot.press("v")            # świadomy werdykt
-            await pilot.pause()
+            # V wyleciało (decyzja Janka 09.08) — werdykt końcowy robi się
+            # sam przy W; edycje i tak są w dzienniku na bieżąco
             assert len(app._edits) == 2
 
             # notki schowane domyślnie, L pokazuje; poświata pomalowała sąsiada
@@ -167,10 +167,9 @@ def test_tui_ciecie_i_przesuniecie_loguja_werdykty(tmp_path, monkeypatch):
 
     log = (tmp_path / "tui_edycje.jsonl").read_text().splitlines()
     assert len(log) == 2 and '"ciecie"' in log[0] and '"przesuniecie"' in log[1]
-    werdykty = list(tmp_path.glob("tui_werdykt_*.json"))
-    assert len(werdykty) == 1
-    tekst = werdykty[0].read_text()
-    assert '"plan_silnika"' in tekst and '"stan_dja"' in tekst
+    # zrzut „silnik vs DJ" powstaje wyłącznie automatycznie przy W —
+    # test wysyłkowy: test_werdykt_koncowy_zapisuje_sie_sam_przy_wysylce
+    assert list(tmp_path.glob("tui_werdykt_*.json")) == []
 
 
 def test_tui_budowa_bez_kotwicy_nie_pada_na_noselection():
@@ -488,3 +487,40 @@ def test_koniec_utworu_gra_nastepny_a_koniec_listy_cisza(tmp_path,
             lines = " ".join(str(l) for l in app.query_one("#warnings").lines)
             assert "koniec listy" in lines
     asyncio.run(go())
+
+
+def test_werdykt_koncowy_zapisuje_sie_sam_przy_wysylce(tmp_path, monkeypatch):
+    """Decyzja Janka 09.08: ręczny werdykt (V) wyleciał — zrzut „silnik vs
+    DJ" robi się SAM w chwili udanej wysyłki do Rekordboksa, bo lista przy
+    W jest ostateczna. Miara rozjazdu w pliku."""
+    import json
+
+    import dancelab.tui.app as m
+    from dancelab.tui.app import DanceLabTUI
+
+    monkeypatch.setattr(m, "WERDYKTY_DIR", tmp_path)
+
+    class _T:
+        def __init__(self, tid):
+            self.track_id = tid
+            self.source_path = f"/m/{tid}.mp3"
+
+    class _A:
+        def __init__(self, tid):
+            self.track = _T(tid)
+
+    app = DanceLabTUI.__new__(DanceLabTUI)
+    app._ctx = {"by_id": {t: _A(t) for t in ("a", "b", "c")}, "params": {}}
+    app._engine_order = ["a", "b", "c"]
+    app._order = ["a", "c", "b"]          # DJ przestawił dwa ostatnie
+    app._edits = [{"typ": "przesuniecie"}]
+    app._plan_name = "test"
+    app._note = lambda *a, **k: None
+
+    app._zapisz_werdykt_koncowy()
+    pliki = list(tmp_path.glob("tui_werdykt_*.json"))
+    assert len(pliki) == 1
+    rec = json.loads(pliki[0].read_text())
+    assert rec["powod"] == "wysylka_do_rekordboxa"
+    assert rec["miara"] == {"utworow_finalnie": 3, "utworow_z_planu": 3,
+                            "na_tej_samej_pozycji": 1, "liczba_edycji": 1}

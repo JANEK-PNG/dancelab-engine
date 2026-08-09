@@ -524,7 +524,6 @@ class DanceLabTUI(App):
         Binding("shift+down", "move_down", "przesuń ▼", show=False),
         Binding("s", "save_plan", "Zapisz plan"),
         Binding("o", "load_plan", "Wczytaj"),
-        Binding("v", "verdict", "Werdykt"),
         Binding("space", "preview_seam", "Graj/Pauza", priority=True),
         Binding("p", "preview_seam", "Posłuchaj", show=False),
         Binding("right", "skok_przod", "skok +8", show=False, priority=True),
@@ -775,7 +774,7 @@ class DanceLabTUI(App):
     # w Bibliotece widać klawisze Biblioteki, w Secie klawisze Setu.
     _LIB_ONLY = {"toggle_fav", "build_from_filary", "toggle_okladki"}
     _SET_ONLY = {"build", "write", "replace", "cut", "add", "move_up",
-                 "move_down", "save_plan", "load_plan", "verdict",
+                 "move_down", "save_plan", "load_plan",
                  "track_info", "compare_pair"}
 
     def check_action(self, action: str, parameters) -> bool:
@@ -2384,10 +2383,13 @@ class DanceLabTUI(App):
 
     # ------------------------------------------------------------- werdykt V
 
-    def action_verdict(self) -> None:
-        """Świadomy zrzut: plan silnika vs stan po Twoich edycjach."""
+    def _zapisz_werdykt_koncowy(self) -> None:
+        """AUTOMATYCZNY werdykt w chwili wysyłki do Rekordboksa (decyzja
+        Janka 09.08: ręczne V wyleciało — lista przy W jest OSTATECZNA,
+        więc dopiero wtedy wiadomo, jak bardzo DJ zmienił propozycję
+        silnika). Zrzut: plan silnika vs stan końcowy + wszystkie edycje
+        po drodze + prosta miara rozjazdu."""
         if not self._order or not self._ctx:
-            self._note("najpierw zbuduj set (B) albo wczytaj plan (O)")
             return
         import json
         import time
@@ -2396,18 +2398,27 @@ class DanceLabTUI(App):
         def rows(ids):
             return [{"track_id": t, "path": by_id[t].track.source_path}
                     for t in ids if t in by_id]
+        wspolne = [t for t in self._order if t in self._engine_order]
+        te_same_pozycje = sum(
+            1 for i, t in enumerate(self._order)
+            if i < len(self._engine_order) and self._engine_order[i] == t)
         rec = {"ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+               "powod": "wysylka_do_rekordboxa",
                "nazwa": self._plan_name,
                "parametry": self._ctx.get("params", {}),
                "plan_silnika": rows(self._engine_order),
                "stan_dja": rows(self._order),
-               "edycje": self._edits}
+               "edycje": self._edits,
+               "miara": {"utworow_finalnie": len(self._order),
+                         "utworow_z_planu": len(wspolne),
+                         "na_tej_samej_pozycji": te_same_pozycje,
+                         "liczba_edycji": len(self._edits)}}
         WERDYKTY_DIR.mkdir(parents=True, exist_ok=True)
         path = WERDYKTY_DIR / f"tui_werdykt_{time.strftime('%Y%m%d_%H%M%S')}.json"
         path.write_text(json.dumps(rec, ensure_ascii=False, indent=1))
-        self._note(f"WERDYKT: plan {len(self._engine_order)} utworów vs "
-                   f"Twoje {len(self._order)}, edycji {len(self._edits)} "
-                   f"→ {path.name}")
+        self._note(f"werdykt końcowy zapisany automatycznie: "
+                   f"{te_same_pozycje}/{len(self._order)} pozycji bez zmian, "
+                   f"edycji {len(self._edits)} → {path.name}")
 
     # ---------------------------------------------------- odsłuch szwu (P)
 
@@ -2758,6 +2769,7 @@ class DanceLabTUI(App):
                f"✅ zapisane: {report.playlist_name} ({report.written} utworów) "
                f"· backup {report.backup_path}")
             ui(self._utrwal_odcisk, "wysłany do Rekordboxa")
+            ui(self._zapisz_werdykt_koncowy)
             self.call_from_thread(
                 self.notify,
                 f"✅ {report.playlist_name}: {report.written} utworów w Rekordboksie")

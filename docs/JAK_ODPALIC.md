@@ -169,8 +169,9 @@ Każda edycja zapisuje się jako werdykt.
   wczytaniu pomijane z wyraźną notką.
 
 ### Werdykt i informacje
-- **V** — zapisuje obok siebie „co ułożył silnik" i „co zostawiłeś po
-  swoich zmianach".
+- Werdykt końcowy („co ułożył silnik" obok „co zostawiłeś") zapisuje
+  się **sam** w chwili wysyłki do Rekordboksa (**W**) — bo dopiero
+  wtedy lista jest ostateczna. Nie ma żadnego klawisza do zapamiętania.
 - **I** — karta zaznaczonego utworu: metadane silnika, położenie pliku
   na dysku oraz to, co wie Rekordbox (jego tonacja i tempo, komentarz,
   playlisty, w których utwór leży). Drugie **I** lub **Esc** zamyka.
