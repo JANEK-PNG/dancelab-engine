@@ -772,3 +772,26 @@ def test_odmowa_filarow_wymienia_winowajcow_z_tempem():
     assert "wypadły" in tekst
     assert "Mercy System - Steppers (132" in tekst, "nazwisko + tempo"
     assert "130–131" in tekst, "okno tempa w radzie"
+
+
+def test_buduj_set_zawsze_widoczny_bez_skrolowania():
+    """Skarga Janka 09.08: „Buduj set powinien być fixed na dole, bo teraz
+    trzeba zeskrolować, żeby się pojawił". Guzik dokowany do dołu kolumny
+    briefu; pola przewijają się pod nim. Test mierzy GEOMETRIĘ."""
+    from textual.widgets import Button, TabbedContent
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test(size=(120, 30)) as pilot:
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
+            guzik = app.query_one("#go", Button)
+            kolumna = app.query_one("#form")
+            wyniki = app.query_one("#results")
+            dol_guzika = guzik.region.y + guzik.region.height
+            dol_kolumny = kolumna.region.y + kolumna.region.height
+            assert abs(dol_guzika - dol_kolumny) <= 1, \
+                "guzik przy dolnej krawędzi, nie na końcu przewijania"
+            assert wyniki.region.x > kolumna.region.x, \
+                "kolumna wyników nadal OBOK briefu, nie pod nim"
+    asyncio.run(go())

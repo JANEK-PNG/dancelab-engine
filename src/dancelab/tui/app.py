@@ -471,6 +471,7 @@ class DanceLabTUI(App):
     TITLE = "DanceLab — budowa setu"
     CSS = """
     #form { width: 44; padding: 0 1; border-right: solid $primary; }
+    #go { dock: bottom; width: 100%; margin: 1 0; }
     #form Input, #form Select { margin-bottom: 1; }
     #results { padding: 0 1; }
     #set { height: 1fr; }
@@ -701,7 +702,11 @@ class DanceLabTUI(App):
                                 allow_blank=False)
                             yield Input(placeholder="seed (puste = losowy)",
                                         id="seed")
-                            yield Button("Buduj set  [B]", id="go", variant="primary")
+                            # BUDUJ dokowany do dołu kolumny: przewijają
+                            # się pola briefu, nie przycisk (skarga Janka
+                            # 09.08 — trzeba było skrolować, żeby go znaleźć)
+                            yield Button("Buduj set  [B]", id="go",
+                                         variant="primary")
                         with Vertical(id="results"):
                             yield Static("Ustaw parametry i naciśnij B.", id="progress")
                             with Vertical(id="compare"):
