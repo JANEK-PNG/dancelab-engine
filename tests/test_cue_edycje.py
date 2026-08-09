@@ -240,11 +240,13 @@ def test_karta_pokazuje_wszystkie_osiem_padow(tmp_path, monkeypatch):
             app._render_cue_lista()
             app.query_one("#cue-table", DataTable).focus()
             await pilot.pause()
-            karta = str(app.query_one("#cue-card", Static).render())
+            tab = str(app.query_one("#cue-pady", Static).render())
+            assert tab.startswith("HOT CUE"), "kolumna po prawej, jak w RB"
             for litera in "ABCDEFGH":
-                assert f"\n {litera}" in karta or f"\n▶{litera}" in karta \
-                    or f"  {litera}" in karta, f"slot {litera} musi być widoczny"
-            assert karta.count("pusty") == 7, "jeden pad zajęty, siedem wolnych"
-            assert "naciśnij C, żeby postawić pad" in karta
+                assert f"{litera}   " in tab, f"slot {litera} musi być widoczny"
+            assert tab.count("pusty") == 7, "jeden pad zajęty, siedem wolnych"
+            os_lewa = str(app.query_one("#cue-os", Static).render())
+            assert "energia" in os_lewa and "czas" in os_lewa, \
+                "oś utworu została po lewej stronie"
 
     asyncio.run(go())

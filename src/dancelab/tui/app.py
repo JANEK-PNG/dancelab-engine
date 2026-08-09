@@ -518,7 +518,10 @@ class DanceLabTUI(App):
     #cue-head { height: 2; padding: 0 1; }
     #cue-gora { dock: top; height: auto; }
     #tab-export .pb-box { dock: bottom; }
-    #cue-card { height: auto; padding: 0 1; border-bottom: solid $accent; }
+    #cue-karta { height: auto; border-bottom: solid $accent; }
+    #cue-os { width: 1fr; height: auto; padding: 0 1; }
+    #cue-pady { width: 46; height: auto; padding: 0 1;
+                border-left: solid $accent; }
     #cue-info { height: auto; padding: 0 1; color: $text-muted; }
     #cue-tools { height: 3; padding: 0 1; }
     #cue-tools Button { margin-right: 2; }
@@ -720,7 +723,9 @@ class DanceLabTUI(App):
                 with Vertical():
                     with Vertical(id="cue-gora"):
                         yield Static("", id="cue-head")
-                        yield Static("", id="cue-card")
+                        with Horizontal(id="cue-karta"):
+                            yield Static("", id="cue-os")
+                            yield Static("", id="cue-pady")
                         with Horizontal(id="cue-tools"):
                             yield Button("Wyślij cue do RB  [W]",
                                          id="cue-write")
@@ -1144,7 +1149,8 @@ class DanceLabTUI(App):
             ui(head.update, "Brak setu — zbuduj go w zakładce Set (B); "
                             "wtedy zobaczysz tu propozycje padów.")
             ui(tabela.clear)
-            ui(self.query_one("#cue-card", Static).update, "")
+            ui(self.query_one("#cue-os", Static).update, "")
+            ui(self.query_one("#cue-pady", Static).update, "")
             ui(info.update, "")
             return
         ui(head.update, "Liczę okna przejść dla bieżącego setu…")
@@ -1240,14 +1246,18 @@ class DanceLabTUI(App):
                                               czas_utworu, komorka_pada,
                                               linijka_czasu, os_energii,
                                               pas_sekcji)
-        karta = self.query_one("#cue-card", Static)
+        os_w = self.query_one("#cue-os", Static)
+        pady_w = self.query_one("#cue-pady", Static)
         tid = self._cue_track
         if not tid or self._cue_plan is None or tid not in self._ctx["by_id"]:
-            karta.update("")
+            os_w.update("")
+            pady_w.update("")
             return
         analiza = self._ctx["by_id"][tid]
         dur = czas_utworu(analiza)
-        szer = self._CUE_KARTA_SZER
+        # szerokość osi z REALNEGO widgetu (kolumna zwęziła się o tabelkę
+        # padów po prawej — stała szerokość zawijała wiersze)
+        szer = max(os_w.content_size.width - 10, 20) or self._CUE_KARTA_SZER
         pady = cue_edycje.efektywne_pady(
             self._cue_plan, self._cue_edycje, tid)
         bg = analiza.beatgrid
@@ -1281,6 +1291,7 @@ class DanceLabTUI(App):
                 pady_t.append("·", style="dim")
             else:
                 pady_t.append(" ")
+        # LEWA KOLUMNA: oś utworu (energia, sekcje, pady na osi, czas)
         tekst = Text()
         tekst.append_text(naglowek)
         tekst.append("\n")
@@ -1296,41 +1307,38 @@ class DanceLabTUI(App):
         tekst.append("\n")
         tekst.append("czas     ", style="dim")
         tekst.append(linijka_czasu(dur, szer), style="dim")
-        # TABELKA OŚMIU PADÓW jak w Rekordboksie (życzenie Janka 09.08):
-        # puste sloty są WIDOCZNE — to one mówią „tu możesz postawić kolejny",
-        # dokładnie jak szare wiersze A–H na ekranie RB.
+        os_w.update(tekst)
+
+        # PRAWA KOLUMNA: tabelka ośmiu padów — kolumna po prawej stronie
+        # decka, jak panel HOT CUE w Rekordboksie (życzenie Janka 09.08).
+        # Puste sloty WIDOCZNE: to one mówią „tu możesz postawić kolejny".
         from dancelab.tui.cue_edycje import PADY
+        tab = Text()
+        tab.append("HOT CUE\n", style="bold")
         for litera in PADY:
             p = pady.get(litera)
             wybrany = litera == self._cue_wybor
-            tekst.append("\n")
             if p is None:
-                tekst.append(" ▶" if wybrany else "  ",
-                             style=f"bold {PILLAR_COLOR}" if wybrany else "")
-                tekst.append(f"{litera}  ", style="dim")
-                tekst.append("— pusty".ljust(18), style="dim")
-                tekst.append(f"naciśnij {litera}, żeby postawić pad",
-                             style="dim")
+                tab.append("▶" if wybrany else " ",
+                           style=f"bold {PILLAR_COLOR}" if wybrany else "")
+                tab.append(f"{litera}   ", style="dim")
+                tab.append("— pusty\n", style="dim")
                 continue
-            styl = f"bold {PILLAR_COLOR}" if wybrany else ""
-            tekst.append(" ▶" if wybrany else "  ", style=styl)
-            tekst.append(f"{litera}  {_mmss(p['position_ms']):>7}  ",
-                         style=styl or f"bold {PILLAR_COLOR}")
-            tekst.append(f"{TYPY_PO_POLSKU.get(p['typ'], p['typ']):<9} ",
-                         style=styl)
+            styl = f"bold {PILLAR_COLOR}"
+            tab.append("▶" if wybrany else " ", style=styl if wybrany else "")
+            tab.append(f"{litera}   ", style=styl)
+            tab.append(f"{_mmss(p['position_ms']):>7}  ",
+                       style="bold" if wybrany else "")
+            tab.append(f"{TYPY_PO_POLSKU.get(p['typ'], p['typ'])[:8]:<8}",
+                       style="dim")
             if p["zrodlo"] == "reka":
-                tekst.append("ręka       ", style=styl or "yellow")
-                if p.get("silnik_ms") is not None:
-                    tekst.append(f"(silnik proponował "
-                                 f"{_mmss(p['silnik_ms'])})", style="dim")
+                tab.append(" ręka", style="yellow")
             else:
-                tekst.append("✓          " if p["confident"]
-                             else "POSŁUCHAJ  ",
-                             style="green" if p["confident"] else "yellow")
-                tekst.append(p.get("comment", "")[:34], style="dim")
-            if wybrany:
-                tekst.append("   X = zdejmij", style="dim")
-        karta.update(tekst)
+                tab.append(" ✓" if p["confident"] else " ?",
+                           style="green" if p["confident"] else "yellow")
+            tab.append("  X" if wybrany else "", style="dim")
+            tab.append("\n")
+        pady_w.update(tab)
 
     # ----------------------------------------------------------- Biblioteka
 
