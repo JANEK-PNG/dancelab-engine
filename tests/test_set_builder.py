@@ -438,3 +438,24 @@ def test_track_without_rms_does_not_anchor_the_energy_scale():
     plan = build_set(tracks, weights, arc="build")
     assert any("energy" in w.lower() and "ghost" in w for w in plan.warnings), plan.warnings
     assert plan.track_order[0] != "ghost", "unmeasured track was treated as the quietest"
+
+
+def test_slot_przed_filarem_liczy_krawedz_mostowa(weights):
+    """Badanie tripletów (09.08.2026): most potrzebuje drugiego brzegu.
+    Slot bezpośrednio przed zablokowanym filarem ocenia kandydata za OBIE
+    krawędzie (wejście z poprzednika + wejście W filar, wagi równe α=1).
+    Tu: z 8A oba pomosty wychodzą tak samo dobrze (9A vs 7A — sąsiedzi),
+    ale filar stoi w 10A: 9A wchodzi w niego gładko (sąsiad), 7A ryzykownie.
+    Parowy builder nie widzi różnicy; mostowy musi wybrać 9A."""
+    tracks = [
+        track("start", "8A", 128.0, 0.5),
+        track("most_dobry", "9A", 128.0, 0.5),
+        track("most_slepy", "7A", 128.0, 0.5),
+        track("filar", "10A", 128.0, 0.5),
+    ]
+    plan = build_set(tracks, weights, start_track_id="start",
+                     locked_positions={3: "filar"})
+    assert plan.track_order[0] == "start"
+    assert plan.track_order[2] == "filar"
+    assert plan.track_order[1] == "most_dobry", \
+        "przed filarem wygrywa kandydat, który umie w filar wejść"

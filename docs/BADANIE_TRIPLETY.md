@@ -114,8 +114,10 @@ dość informacji. Siła tripletu to siła **ograniczenia**, nie spekulacji.
   zamienia intuicję w dowód.
 * Budowa zwykła zostaje parowa z łukiem globalnym (zmierzone: lookahead
   nie płaci).
-* Do wdrożenia: budowa w trybach filarowych ma liczyć krawędź DO
-  nadchodzącego filara (zmierzony zysk +8 pp dokładnych rekonstrukcji).
+* **Wdrożone (09.08.2026):** budowa w trybach filarowych liczy krawędź
+  DO nadchodzącego filara (`set_builder._best_successor`, parametr
+  `bridge_to`; zmierzony zysk +8 pp dokładnych rekonstrukcji; ścieżka
+  bez filarów niezmieniona bajt w bajt).
 * Architektura dwupoziomowa potwierdzona: embedding zawęża worek,
   most wybiera w worku.
 

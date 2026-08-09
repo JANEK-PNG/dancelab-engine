@@ -881,6 +881,7 @@ def _best_successor(
     novelty: "NoveltyContext | None" = None,
     steering: "SoundSteering | None" = None,
     position: int = 0,
+    bridge_to: str | None = None,
 ) -> str:
     scored: list[tuple[float, str]] = []
     for candidate in candidates:
@@ -896,6 +897,27 @@ def _best_successor(
             context,
             mixability_precomputation,
         )
+        if bridge_to is not None:
+            # KRAWĘDŹ MOSTOWA (badanie tripletów, 09.08.2026): gdy następny
+            # slot to FILAR, kandydat jest oceniany także za wejście W NIEGO —
+            # suma obu krawędzi, wagi równe (zmierzone α=1,0). Na 636
+            # segmentach realnych setów podnosi dokładne rekonstrukcje
+            # 28,1%→36,2% (p<0,0001). Tylko ustalone C — spekulacyjny
+            # lookahead bez celu zmierzony jako bezwartościowy i celowo
+            # NIEobecny (p=0,88 na 152 setach).
+            score_w_filar, _, _ = transition_score(
+                by_id[candidate],
+                by_id[bridge_to],
+                weights,
+                arc,
+                energy[candidate],
+                energy[bridge_to],
+                energy_range,
+                planner_mode,
+                context,
+                mixability_precomputation,
+            )
+            score += score_w_filar
         # Sterowanie (kotwica/kontur) to jawne wejście DJ-a — działa tylko gdy
         # o nie poprosił; ścieżka domyślna pozostaje bajt w bajt ta sama.
         if steering is not None and steering.active:
@@ -1074,6 +1096,10 @@ def _constrained_order(
                     novelty=novelty,
                     steering=steering,
                     position=index,
+                    # następny slot zajęty filarem → kandydat musi umieć
+                    # w niego WEJŚĆ (krawędź mostowa; bez filarów None
+                    # i ścieżka pozostaje bajt w bajt dawna)
+                    bridge_to=locked_slots.get(index + 1),
                 )
             remaining.remove(chosen)
 
