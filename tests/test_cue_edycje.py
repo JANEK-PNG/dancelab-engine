@@ -388,15 +388,17 @@ def test_t_wpisuje_czas_pada_i_dociaga(tmp_path, monkeypatch):
             app.query_one("#cue-table", DataTable).focus()
             await pilot.pause()
             await pilot.press("b")               # wybór pada B (300 s)
-            await pilot.press("t")               # pole czasu PRZY padach
+            await pilot.press("t")               # edycja W KRATCE pada
             await pilot.pause()
-            pole = app.query_one("#cue-czas", Input)
-            assert not pole.has_class("hide"), "pole obok padów, bez okienka"
-            assert app.focused is pole
-            pole.value = "2:31,2"
+            assert app._cue_czas_bufor is not None, "tryb edycji w kratce"
+            for _ in range(8):                   # kasujemy podpowiedziany czas
+                await pilot.press("backspace")
+            for znak in ("2", "colon", "3", "1", "comma", "2"):
+                await pilot.press(znak)          # piszemy wprost w kratce
+            assert app._cue_czas_bufor == "2:31,2"
             await pilot.press("enter")
             await pilot.pause()
-            assert pole.has_class("hide"), "po zatwierdzeniu pole się chowa"
+            assert app._cue_czas_bufor is None, "po Enterze wychodzimy z trybu"
             p = cue_edycje.efektywne_pady(plan, app._cue_edycje, "A")["B"]
             assert p["position_ms"] == 151_000, \
                 "2:31,2 dociągnięte do bitu na 2:31,0"
@@ -430,9 +432,56 @@ def test_esc_zamyka_pole_czasu_bez_zmiany(tmp_path, monkeypatch):
             await pilot.pause()
             await pilot.press("escape")
             await pilot.pause()
-            assert app.query_one("#cue-czas", Input).has_class("hide")
-            assert app.focused.id == "cue-table", "fokus wraca do listy"
+            assert app._cue_czas_bufor is None, "Esc wychodzi z edycji"
+            assert app.focused.id == "cue-table", "fokus zostaje na liście"
             p = cue_edycje.efektywne_pady(plan, app._cue_edycje, "A")["B"]
             assert p["position_ms"] == 300_000, "pad nietknięty"
+
+    asyncio.run(go())
+
+
+def test_gotowe_czasy_fraz_do_wyboru_strzalkami(tmp_path, monkeypatch):
+    """„Dropdown z gotowymi timingami fraz" (życzenie Janka 09.08):
+    propozycje to POCZĄTKI SEKCJI utworu + czas silnika — zmierzone,
+    nie wymyślone; ↑↓ wstawia je do kratki."""
+    from textual.widgets import DataTable, TabbedContent
+
+    from dancelab.core.models import Segment, SegmentType
+    from dancelab.tui.app import DanceLabTUI
+    from dancelab.tui.cue_podglad import propozycje_czasu
+
+    monkeypatch.setattr("dancelab.tui.app.WERDYKTY_DIR", tmp_path / "w")
+    plan, by_id = _plan(monkeypatch)
+    by_id["A"].segments = [
+        Segment(segment_id="s1", track_id="A", start_sec=0.0, end_sec=30.0,
+                segment_type=SegmentType.intro),
+        Segment(segment_id="s2", track_id="A", start_sec=124.0, end_sec=180.0,
+                segment_type=SegmentType.breakdown),
+    ]
+
+    prop = propozycje_czasu(by_id["A"], silnik_ms=300_000)
+    assert ("INTRO", 0.0) in prop and ("BREAK", 124.0) in prop
+    assert ("silnik", 300.0) in prop, "propozycja silnika też na liście"
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            app._ctx = {"by_id": by_id, "weights": None}
+            app._order = ["A", "B"]
+            app._cue_plan = plan
+            app.query_one("#tabs", TabbedContent).active = "tab-export"
+            await pilot.pause()
+            app._render_cue_lista()
+            app.query_one("#cue-table", DataTable).focus()
+            await pilot.pause()
+            await pilot.press("b")
+            await pilot.press("t")
+            await pilot.pause()
+            await pilot.press("down")            # wybór kolejnej frazy
+            assert app._cue_czas_bufor == "2:04.0", "BREAK wskoczył do kratki"
+            await pilot.press("enter")
+            await pilot.pause()
+            p = cue_edycje.efektywne_pady(plan, app._cue_edycje, "A")["B"]
+            assert p["position_ms"] == 124_000
 
     asyncio.run(go())

@@ -69,9 +69,12 @@ kliknięciem w nazwę:
    uderzenie, **Shift** o osiem, **PgUp/PgDn** o trzydzieści dwa.
    **Z** cofa każdą zmianę.
 
-   Czas możesz też **wpisać z klawiatury**: **T** na wybranym padzie
-   odsłania pole **pod siatką padów** (format `2:31` albo `2:31.5`,
-   przecinek też działa); Enter zatwierdza, Esc zamyka bez zmiany.
+   Czas możesz też **wpisać wprost w kratce pada**: **T** zamienia czas
+   wybranego pada w pole do pisania (format `2:31` albo `2:31.5`,
+   przecinek działa jak kropka). Pod siatką pojawia się wtedy **lista
+   gotowych czasów fraz** — początki sekcji utworu (intro, break,
+   groove, outro) i propozycja silnika; wybierasz je **↑/↓**, a Enter
+   zatwierdza. Esc wychodzi bez zmiany.
    Wpisana wartość jest **dociągana do siatki** — jak quantize
    w Rekordboksie: do taktu, gdy faza taktu jest zweryfikowana, inaczej
    do najbliższego bitu. Notka mówi, o ile dociągnęliśmy; przy niepewnej

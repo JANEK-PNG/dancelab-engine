@@ -519,11 +519,8 @@ class DanceLabTUI(App):
     #cue-gora { dock: top; height: auto; }
     #cue-karta { height: auto; border-bottom: solid $accent; }
     #cue-os { width: 1fr; height: auto; padding: 0 1; }
-    #cue-prawa { width: 46; height: auto; padding: 0 1;
-                 border-left: solid $accent; }
-    #cue-pady { height: auto; }
-    #cue-czas { height: 3; margin-top: 1; }
-    #cue-czas.hide { display: none; }
+    #cue-pady { width: 46; height: auto; padding: 0 1;
+                border-left: solid $accent; }
     #cue-info { height: auto; padding: 0 1; color: $text-muted; }
     #cue-dol { dock: bottom; height: auto; }
     #cue-tools { height: 3; padding: 0 1; }
@@ -596,6 +593,9 @@ class DanceLabTUI(App):
         self._cue_track: str | None = None     # utwór w karcie
         self._cue_wybor: str | None = None     # wybrany pad (litera)
         self._cue_zapis_gotowy = None          # policzony plan zapisu (2 naciśnięcia W)
+        self._cue_czas_bufor: str | None = None   # edycja w kratce
+        self._cue_prop: list = []              # gotowe czasy fraz
+        self._cue_prop_i = 0
         self._suggest_slot: int | None = None
         self._panel_mode: str | None = None   # "suggest" | "insert" | "plans"
         self._row_cells: list[tuple[str, str]] = []   # (nr, utwór) do poświaty
@@ -729,12 +729,7 @@ class DanceLabTUI(App):
                         yield Static("", id="cue-head")
                         with Horizontal(id="cue-karta"):
                             yield Static("", id="cue-os")
-                            with Vertical(id="cue-prawa"):
-                                yield Static("", id="cue-pady")
-                                # edycja czasu TU, przy padach — bez okienka
-                                # (weto Janka 09.08 na popup)
-                                yield Input(placeholder="np. 2:31",
-                                            id="cue-czas", classes="hide")
+                            yield Static("", id="cue-pady")
                         yield Static("", id="cue-info")
                     yield DataTable(id="cue-table",
                                     cursor_foreground_priority="renderable")
@@ -844,13 +839,34 @@ class DanceLabTUI(App):
             return
         if active != "tab-export" or self._cue_plan is None:
             return
-        if getattr(self.focused, "id", None) == "cue-czas":
-            if event.key == "escape":
-                event.stop()
-                event.prevent_default()
-                self._cue_schowaj_czas()
-            return
         if getattr(self.focused, "id", None) != "cue-table":
+            return
+        if self._cue_czas_bufor is not None:
+            # EDYCJA W KRATCE PADA (weto Janka 09.08 na osobne pole):
+            # cyfry piszą, ↑↓ wybierają gotowy czas frazy, Enter zatwierdza.
+            event.stop()
+            event.prevent_default()
+            k = event.key
+            if k == "escape":
+                self._cue_czas_bufor = None
+                self._render_cue_karta()
+            elif k == "enter":
+                self._cue_ustaw_czas(self._cue_czas_bufor)
+            elif k == "backspace":
+                self._cue_czas_bufor = self._cue_czas_bufor[:-1]
+                self._render_cue_karta()
+            elif k in ("up", "down") and self._cue_prop:
+                krok = -1 if k == "up" else 1
+                self._cue_prop_i = ((self._cue_prop_i + krok)
+                                    % len(self._cue_prop))
+                from dancelab.tui.cue_podglad import _mmss
+                self._cue_czas_bufor = _mmss(
+                    int(self._cue_prop[self._cue_prop_i][1] * 1000))
+                self._render_cue_karta()
+            elif len(getattr(event, "character", "") or "") == 1 \
+                    and event.character in "0123456789:.,":
+                self._cue_czas_bufor += event.character
+                self._render_cue_karta()
             return
         klawisz = event.key
         if klawisz in tuple("abcdefgh"):
@@ -965,24 +981,19 @@ class DanceLabTUI(App):
         self._render_cue_lista()
 
     def _cue_wpisz_czas(self) -> None:
-        """T: pole czasu OBOK padów (weto Janka 09.08 na okienko). Wpisana
-        wartość przechodzi przez kwantyzację — do taktu przy zweryfikowanej
-        fazie, inaczej do bitu; przy niepewnej siatce zostaje wpisana."""
-        from dancelab.tui.cue_podglad import _mmss
+        """T: edycja czasu W KRATCE pada + lista gotowych czasów fraz
+        (życzenie Janka 09.08: „edytujmy timing zaraz obok hot cue,
+        z dropdownem gotowych timingów fraz")."""
+        from dancelab.tui.cue_podglad import _mmss, propozycje_czasu
         pady = self._cue_pady_teraz()
         p = pady.get(self._cue_wybor)
         if p is None:
             return
-        pole = self.query_one("#cue-czas", Input)
-        pole.remove_class("hide")
-        pole.value = _mmss(p["position_ms"])
-        pole.focus()
-
-    def _cue_schowaj_czas(self) -> None:
-        pole = self.query_one("#cue-czas", Input)
-        pole.add_class("hide")
-        pole.value = ""
-        self.query_one("#cue-table", DataTable).focus()
+        analiza = self._ctx["by_id"][self._cue_track]
+        self._cue_czas_bufor = _mmss(p["position_ms"])
+        self._cue_prop = propozycje_czasu(analiza, p.get("silnik_ms"))
+        self._cue_prop_i = 0
+        self._render_cue_karta()
 
     def _cue_ustaw_czas(self, tekst: str) -> None:
         """Enter w polu czasu: parsowanie, kwantyzacja, przesunięcie pada."""
@@ -992,7 +1003,7 @@ class DanceLabTUI(App):
         pady = self._cue_pady_teraz()
         p = pady.get(self._cue_wybor)
         if p is None:
-            self._cue_schowaj_czas()
+            self._cue_czas_bufor = None
             return
         analiza = self._ctx["by_id"][self._cue_track]
         sekundy = parsuj_czas(tekst)
@@ -1015,7 +1026,7 @@ class DanceLabTUI(App):
                           pad=self._cue_wybor, wpisane_sec=sekundy,
                           position_ms=nowa)
         self._note(f"pad {self._cue_wybor} → {_mmss(nowa)} · {powod}")
-        self._cue_schowaj_czas()
+        self._cue_czas_bufor = None
         self._render_cue_lista()
 
     def _cue_posluchaj(self) -> None:
@@ -1441,6 +1452,12 @@ class DanceLabTUI(App):
                 tab.append("▶" if wybrany else " ",
                            style=f"bold {PILLAR_COLOR}")
                 tab.append(f"{litera} ", style=styl)
+                if wybrany and self._cue_czas_bufor is not None:
+                    # EDYCJA W KRATCE: wartość pisze się tam, gdzie stoi
+                    tab.append(f"{self._cue_czas_bufor}▏",
+                               style="bold reverse")
+                    tab.append(" ")
+                    continue
                 m, sek = divmod(int(p["position_ms"] / 1000), 60)
                 tab.append(f"{m}:{sek:02d} ", style="bold" if wybrany else "")
                 if p["zrodlo"] == "reka":
@@ -1449,6 +1466,21 @@ class DanceLabTUI(App):
                     tab.append("✓" if p["confident"] else "?",
                                style="green" if p["confident"] else "yellow")
             tab.append("\n")
+        if self._cue_czas_bufor is not None:
+            tab.append("\nwpisz czas albo wybierz frazę (↑↓):\n", style="dim")
+            from dancelab.tui.cue_podglad import _mmss as _mm
+            for i, (etykieta, sek) in enumerate(self._cue_prop):
+                wskazany = i == self._cue_prop_i
+                tab.append("▸ " if wskazany else "  ",
+                           style=f"bold {PILLAR_COLOR}" if wskazany else "")
+                tab.append(f"{etykieta:<8} {_mm(int(sek * 1000)):>7}\n",
+                           style="" if wskazany else "dim")
+            if not self._cue_prop:
+                tab.append("  (ten utwór nie ma segmentacji — wpisz ręcznie)\n",
+                           style="dim")
+            tab.append("Enter zatwierdź · Esc anuluj", style="dim")
+            pady_w.update(tab)
+            return
         wyb = pady.get(self._cue_wybor or "")
         if wyb is not None:
             tab.append(f"\n{self._cue_wybor} · ", style=f"bold {PILLAR_COLOR}")
@@ -1635,11 +1667,6 @@ class DanceLabTUI(App):
         stan = "włączone" if self._user_state["okladki_w_liscie"] else "wyłączone"
         self._note(f"okładki w liście: {stan}")
         self._render_library(keep_cursor=True)
-
-    def on_input_submitted(self, event) -> None:
-        """Enter w polu czasu pada (jedyne pole App z zatwierdzaniem)."""
-        if getattr(event.input, "id", None) == "cue-czas":
-            self._cue_ustaw_czas(event.value.strip())
 
     def on_switch_changed(self, event: Switch.Changed) -> None:
         if event.switch.id != "lib-artwork":

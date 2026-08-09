@@ -196,3 +196,24 @@ def wiersze_podgladu(plan: CuePlan, order: list[str],
                 uwagi[:60],
             ))
     return wiersze
+
+
+def propozycje_czasu(analiza, silnik_ms: int | None = None,
+                     limit: int = 6) -> list[tuple[str, float]]:
+    """Gotowe timingi do wyboru: POCZĄTKI SEKCJI utworu (intro, break,
+    groove, outro) + propozycja silnika. Wszystko ZMIERZONE — żadnych
+    równych „co 32 bity" wymyślonych z powietrza; utwór bez segmentacji
+    daje pustą listę i wtedy zostaje wpisanie ręczne.
+    """
+    punkty: list[tuple[str, float]] = []
+    for seg in sorted(getattr(analiza, "segments", None) or [],
+                      key=lambda x: x.start_sec):
+        typ = getattr(seg.segment_type, "value", seg.segment_type)
+        nazwa = NAZWY_SEKCJI.get(str(typ), str(typ))
+        if punkty and abs(punkty[-1][1] - seg.start_sec) < 1.0:
+            continue
+        punkty.append((nazwa, float(seg.start_sec)))
+    if silnik_ms is not None:
+        punkty.append(("silnik", silnik_ms / 1000.0))
+    punkty.sort(key=lambda x: x[1])
+    return punkty[:limit] if limit else punkty
