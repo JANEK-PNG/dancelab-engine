@@ -52,10 +52,12 @@ PODPISY = {
     "set_brief": "Zakładka Set przed budową: brief po lewej z przypiętym na "
                  "dole przyciskiem „Buduj set”.",
     "set_gatunki": "Lista gatunków (Ctrl+G): tylko te, które są w Twojej "
-                   "bibliotece, w nazewnictwie Beatportu, z liczbą utworów; "
-                   "na końcu sekcja „poza taksonomią”.",
+                   "bibliotece, w nazewnictwie Beatportu, z liczbą utworów. "
+                   "Enter dodaje gatunek i stawia przy nim ✓; na końcu listy "
+                   "sekcja „poza taksonomią”.",
     "set_djs": "Lista DJ-ów do kotwicy (Ctrl+D): rodziny brzmieniowe policzone "
-               "z nagrań, z opisem brzmienia i liczbą setów.",
+               "z nagrań, z opisem brzmienia i liczbą setów. Enter wybiera "
+               "kotwicę i zamyka listę.",
     "set_filary_tryb": "Wybór trybu rozstawienia filarów (klawisz F): podpory, "
                        "równy rozstaw albo rama.",
     "set_lista": "Zbudowany set: tabela z tempem, tonacją, gatunkiem i sumą "

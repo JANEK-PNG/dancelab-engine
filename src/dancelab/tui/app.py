@@ -1273,49 +1273,68 @@ class DanceLabTUI(App):
             self._note("nie ma czego cofać")
 
     def action_gatunki(self) -> None:
-        """Ctrl+G: lista gatunków Z TWOJEJ biblioteki w taksonomii Beatportu
-        (decyzja Janka 09.08). Drugie Ctrl+G na podświetlonym dopisuje go do
-        pola „Gatunki" albo zdejmuje — panel zostaje otwarty, bo gatunków
-        wybiera się kilka. Esc zamyka."""
+        """Ctrl+G: OTWIERA i ZAMYKA listę gatunków z Twojej biblioteki
+        w taksonomii Beatportu. Wyboru dokonuje ENTER — strzałkami stajesz
+        na gatunku, Enter go dodaje albo zdejmuje, a lista zostaje otwarta,
+        bo gatunków wybiera się kilka (życzenie Janka 09.08: „Ctrl+G dopiero
+        zamyka, Enter dodaje")."""
         from dancelab.tui import gatunki as G
-        wybor = self._panel_choice("gatunki")
-        pole = self.query_one("#styles", Input)
-        if wybor is not None and not wybor.startswith("__"):
-            pole.value = G.przelacz(pole.value, wybor)
-            self._note(f"gatunki: {pole.value or '(puste — bez filtra)'}")
+        if self.query_one("#suggest").has_class("open") \
+                and self._panel_mode == "gatunki":
+            self._close_panel()
+            self.query_one("#set", DataTable).focus()
             return
         if not self._lib:
             self._note("Biblioteka jeszcze się ładuje — gatunki za chwilę")
             return
-        grupy = G.policz(self._lib)
-        if not grupy:
+        if not G.policz(self._lib):
             self._note("żaden utwór w puli nie ma gatunku — otaguj "
                        "w Rekordboksie albo wpisz ręcznie")
             return
-        opcje: list[tuple[str, str]] = []
-        for sekcja, pozycje in grupy:
-            opcje.append((f"— {sekcja} —", f"__{sekcja}"))
-            opcje.extend((f"  {nazwa}  ({ile})", nazwa)
-                         for nazwa, ile in pozycje)
         mam, wszystkich, bez = G.pokrycie(self._lib)
         self._open_suggest_panel(
             None,
             f"GATUNKI — masz {mam} z {wszystkich} gatunków Beatportu"
             + (f" · {bez} bez tagu" if bez else "")
-            + "\nCtrl+G dodaje/zdejmuje · Esc zamyka",
-            opcje, "gatunki")
+            + "\nEnter dodaje/zdejmuje · Ctrl+G albo Esc zamyka",
+            self._opcje_gatunkow(), "gatunki")
+
+    def _opcje_gatunkow(self) -> list[tuple[str, str]]:
+        """Lista do panelu; wybrane gatunki niosą ✓, żeby było widać stan
+        BEZ patrzenia w pole briefu."""
+        from dancelab.tui import gatunki as G
+        wpisane = self.query_one("#styles", Input).value
+        opcje: list[tuple[str, str]] = []
+        for sekcja, pozycje in G.policz(self._lib):
+            opcje.append((f"— {sekcja} —", f"__{sekcja}"))
+            for nazwa, ile in pozycje:
+                znak = "✓" if G.jest_wybrany(wpisane, nazwa) else " "
+                opcje.append((f" {znak} {nazwa}  ({ile})", nazwa))
+        return opcje
+
+    def _gatunek_enterem(self, wybor: str) -> None:
+        """Enter na gatunku: dopisz albo zdejmij, lista zostaje otwarta."""
+        from dancelab.tui import gatunki as G
+        pole = self.query_one("#styles", Input)
+        pole.value = G.przelacz(pole.value, wybor)
+        lst = self.query_one("#suggest-list", OptionList)
+        gdzie = lst.highlighted
+        lst.clear_options()
+        for label, oid in self._opcje_gatunkow():
+            lst.add_option(Option(label, id=oid))
+        if gdzie is not None:
+            lst.highlighted = min(gdzie, lst.option_count - 1)
+        self._note(f"gatunki: {pole.value or '(puste — bez filtra)'}")
 
     def action_grupy_dj(self) -> None:
-        """Ctrl+D: kotwice pogrupowane po BRZMIENIU (zmierzone klastry
-        centroidów, nie gatunek — tego nie mamy, i nie miejsce — to tylko
-        źródło naszego scrapingu). Drugie Ctrl+D wybiera podświetlonego DJ-a
-        do briefu; Esc zamyka."""
+        """Ctrl+D: OTWIERA i ZAMYKA listę kotwic pogrupowanych po BRZMIENIU
+        (zmierzone klastry centroidów, nie gatunek). Wyboru dokonuje ENTER —
+        kotwica jest jedna, więc Enter ją ustawia i zamyka listę."""
         from dancelab.tui import grupy_dj as G
-        wybor = self._panel_choice("dj")
-        if wybor is not None and not wybor.startswith("__"):
-            self.query_one("#dj", Select).value = wybor
+        if self.query_one("#suggest").has_class("open") \
+                and self._panel_mode == "dj":
             self._close_panel()
-            self._note(f"kotwica: {wybor}")
+            self.query_one("#set", DataTable).focus()
             return
         try:
             from dancelab.decision.anchors import load_anchor_book
@@ -1334,7 +1353,7 @@ class DanceLabTUI(App):
             None,
             f"GRAJ JAK… — {len(book['djs'])} DJ-ów w {len(grupy)} rodzinach "
             f"brzmieniowych (zmierzone, nie gatunek)\n"
-            f"Ctrl+D wybiera · Esc zamyka",
+            f"Enter wybiera kotwicę · Ctrl+D albo Esc zamyka",
             opcje, "dj")
 
     def action_next_tab(self) -> None:
@@ -1662,11 +1681,30 @@ class DanceLabTUI(App):
         return search, key, lo, hi, err
 
     def on_option_list_option_selected(self, event) -> None:
-        """Klik w sekcję po lewej przełącza widok Biblioteki. Lista sugestii
-        w zakładce Set celowo NIE reaguje na Enter — tam obowiązuje wzorzec
-        dwóch naciśnięć (Z/A/O potwierdza)."""
+        """ENTER (albo klik) na liście.
+
+        W Bibliotece przełącza sekcję po lewej. W panelu gatunków i kotwic
+        ZATWIERDZA wybór — konwencja z każdego programu, a skrót, którym
+        panel otwarto, tylko go zamyka (życzenie Janka 09.08: „Enter dodaje
+        gatunek, Ctrl+G dopiero zamyka"). Panele propozycji (Z/A/O) zostają
+        przy wzorcu dwóch naciśnięć — tam Enter tylko zaznacza."""
         if getattr(event.option_list, "id", None) == "lib-side-list":
             self._set_lib_section(event.option.id)
+            return
+        if not self.query_one("#suggest").has_class("open"):
+            return
+        wybor = event.option.id
+        if not wybor or wybor.startswith("__"):   # nagłówek sekcji
+            return
+        if self._panel_mode == "gatunki":
+            event.stop()
+            self._gatunek_enterem(wybor)
+        elif self._panel_mode == "dj":
+            event.stop()
+            self.query_one("#dj", Select).value = wybor
+            self._close_panel()
+            self.query_one("#set", DataTable).focus()
+            self._note(f"kotwica: {wybor}")
 
     def _set_lib_section(self, section: str) -> None:
         self._lib_section = section

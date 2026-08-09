@@ -89,6 +89,15 @@ def pokrycie(analyses) -> tuple[int, int, int]:
     return mam, sum(len(v) for v in TAKSONOMIA.values()), bez
 
 
+def wybrane_klucze(wybrane: str) -> set[str]:
+    """Klucze gatunków wpisanych w polu — do zaznaczania ich na liście."""
+    return {_klucz(s) for s in wybrane.split(",") if s.strip()}
+
+
+def jest_wybrany(wybrane: str, gatunek: str) -> bool:
+    return _klucz(gatunek) in wybrane_klucze(wybrane)
+
+
 def przelacz(wybrane: str, gatunek: str) -> str:
     """Dodaj/usuń gatunek w polu „Gatunki" (lista po przecinku).
 

@@ -283,12 +283,16 @@ się pod nim, więc nie trzeba go szukać.
 
 **Kroki**
 
-1. Naciśnij <kbd>Ctrl</kbd>+<kbd>G</kbd>.
-2. Wskaż gatunek na liście.
-3. Naciśnij <kbd>Ctrl</kbd>+<kbd>G</kbd> ponownie, żeby go dodać lub zdjąć.
-4. Naciśnij <kbd>Esc</kbd>, żeby zamknąć listę.
+1. Naciśnij <kbd>Ctrl</kbd>+<kbd>G</kbd>, żeby otworzyć listę.
+2. Strzałkami <kbd>↑</kbd>/<kbd>↓</kbd> stań na gatunku.
+3. Naciśnij <kbd>Enter</kbd> — gatunek zostaje dodany, a przy jego nazwie
+   pojawia się ✓. Ponowny <kbd>Enter</kbd> na tym samym gatunku go zdejmuje.
+4. Powtórz kroki 2–3 dla kolejnych gatunków — lista zostaje otwarta.
+5. Naciśnij <kbd>Ctrl</kbd>+<kbd>G</kbd> albo <kbd>Esc</kbd>, żeby zamknąć
+   listę.
 
-**Wynik:** wybrane gatunki wpisują się do pola **Gatunki** w briefie.
+**Wynik:** wybrane gatunki wpisują się do pola **Gatunki** w briefie, a na
+liście widać przy nich ✓.
 
 <!-- zrzut: set_gatunki -->
 
@@ -305,11 +309,15 @@ w osobnej sekcji **poza taksonomią** na końcu listy — nic nie ginie.
 
 **Kroki**
 
-1. Naciśnij <kbd>Ctrl</kbd>+<kbd>D</kbd>.
-2. Wskaż DJ-a na liście.
-3. Naciśnij <kbd>Esc</kbd>, żeby zamknąć listę.
+1. Naciśnij <kbd>Ctrl</kbd>+<kbd>D</kbd>, żeby otworzyć listę.
+2. Strzałkami <kbd>↑</kbd>/<kbd>↓</kbd> stań na DJ-u.
+3. Naciśnij <kbd>Enter</kbd>.
 
-**Wynik:** kotwica wpisuje się w pole **Graj jak…**.
+**Wynik:** kotwica wpisuje się w pole **Graj jak…**, a lista sama się
+zamyka — kotwica jest jedna, więc nie ma czego dobierać.
+
+**Uwaga:** <kbd>Ctrl</kbd>+<kbd>D</kbd> albo <kbd>Esc</kbd> zamyka listę bez
+wybierania.
 
 <!-- zrzut: set_djs -->
 
@@ -757,8 +765,9 @@ Gdy utwór skończy się sam, gra następny z listy; na końcu listy zapada cisz
 
 | klawisz | działanie | punkt |
 |---|---|---|
-| <kbd>Ctrl</kbd>+<kbd>G</kbd> | lista gatunków | 4.2 |
-| <kbd>Ctrl</kbd>+<kbd>D</kbd> | lista DJ-ów do kotwicy | 4.3 |
+| <kbd>Ctrl</kbd>+<kbd>G</kbd> | otwórz lub zamknij listę gatunków | 4.2 |
+| <kbd>Ctrl</kbd>+<kbd>D</kbd> | otwórz lub zamknij listę DJ-ów | 4.3 |
+| <kbd>Enter</kbd> | w otwartej liście: dodaj gatunek / wybierz kotwicę | 4.2, 4.3 |
 | <kbd>F</kbd> | tryb rozstawienia filarów | 4.4 |
 | <kbd>B</kbd> | zbuduj set | 4.5 |
 | <kbd>Z</kbd> | podmień utwór (dwa naciśnięcia) | 4.6 |
