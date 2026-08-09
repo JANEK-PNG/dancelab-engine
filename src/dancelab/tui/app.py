@@ -516,6 +516,7 @@ class DanceLabTUI(App):
     #cue-table { height: 1fr; }
     #cue-card { height: auto; padding: 0 1; border-top: solid $accent; }
     #cue-info { height: auto; padding: 0 1; color: $text-muted; }
+    #cue-tools { height: 3; padding: 0 1; }
     """
     BINDINGS = [
         Binding("b", "build", "Buduj"),
@@ -581,6 +582,7 @@ class DanceLabTUI(App):
         self._cue_widok: list[str] = []        # kolejność wierszy listy cue
         self._cue_track: str | None = None     # utwór w karcie
         self._cue_wybor: str | None = None     # wybrany pad (litera)
+        self._cue_zapis_gotowy = None          # policzony plan zapisu (2 naciśnięcia W)
         self._suggest_slot: int | None = None
         self._panel_mode: str | None = None   # "suggest" | "insert" | "plans"
         self._row_cells: list[tuple[str, str]] = []   # (nr, utwór) do poświaty
@@ -715,6 +717,8 @@ class DanceLabTUI(App):
                                     cursor_foreground_priority="renderable")
                     yield Static("", id="cue-card")
                     yield PasekOdtwarzacza()
+                    with Horizontal(id="cue-tools"):
+                        yield Button("Wyślij cue do RB  [W]", id="cue-write")
                     yield Static("", id="cue-info")
         yield Static("", id="status")
         yield Footer()
@@ -769,7 +773,7 @@ class DanceLabTUI(App):
     # Pasek skrótów jest KONTEKSTOWY (prośba Janka: „lista skrótów rośnie") —
     # w Bibliotece widać klawisze Biblioteki, w Secie klawisze Setu.
     _LIB_ONLY = {"toggle_fav", "build_from_filary", "toggle_okladki"}
-    _SET_ONLY = {"build", "write", "replace", "cut", "add", "move_up",
+    _SET_ONLY = {"build", "replace", "cut", "add", "move_up",
                  "move_down", "save_plan", "load_plan", "gatunki",
                  "track_info", "compare_pair"}
 
@@ -923,6 +927,95 @@ class DanceLabTUI(App):
         else:
             self._note(f"gra {gdzie}")
 
+    def _wyslij_cue(self) -> None:
+        """W w zakładce Eksport/Cue: pady z ekranu → hot cue w Rekordboksie.
+
+        DWA NACIŚNIĘCIA (wzorzec całej aplikacji dla rzeczy nieodwracalnych):
+        pierwsze liczy i pokazuje, co dokładnie się stanie; drugie zapisuje.
+        Polityka kolizji: NIGDY nie nadpisujemy padów, które ustawiłeś sam —
+        nasz pad ustępuje Twojemu i mówimy o tym wprost."""
+        if self._cue_plan is None or not self._order or not self._ctx:
+            self._note("najpierw zbuduj set (B) — wtedy będzie co wysyłać")
+            return
+        from dancelab.ingestion.playlist_publish import rekordbox_running
+        if rekordbox_running():
+            self._note("Rekordbox OTWARTY — zamknij go przed zapisem cue")
+            self.notify("Rekordbox otwarty — zapis cue zablokowany",
+                        severity="warning")
+            return
+        if getattr(self, "_cue_zapis_gotowy", None) is None:
+            self._cue_przygotuj_zapis()
+        else:
+            self._cue_zapisz_worker()
+
+    @work(thread=True, exclusive=True, group="cue-zapis")
+    def _cue_przygotuj_zapis(self) -> None:
+        """Krok 1: policz plan i kolizje NA ŻYWEJ bazie, ale niczego nie
+        zapisuj — DJ ma najpierw zobaczyć liczby."""
+        from dancelab.tui import cue_zapis as CZ
+        ui = self.call_from_thread
+        ui(self._note, "cue: liczę plan i sprawdzam kolizje z Twoimi padami…")
+        try:
+            content_ids = CZ.mapa_content_id()
+            plan, ids_setu, pominiete = CZ.zbuduj_plan_do_zapisu(
+                self._cue_plan, self._cue_edycje, self._ctx["by_id"],
+                list(self._order), content_ids)
+            from dancelab.ingestion.rekordbox_cue_writer import (
+                _open, read_existing_cues)
+            from dancelab.ingestion.playlist_publish import PIONEER
+            db, tables = _open(PIONEER / "master.db")
+            try:
+                istniejace = read_existing_cues(db, tables)
+            finally:
+                db.close()
+            wynik = CZ.policz_kolizje(plan, istniejace)
+        except Exception as exc:  # noqa: BLE001 — powód, nie traceback
+            ui(self._note, f"cue: przygotowanie nie wyszło: {exc}")
+            return
+        self._cue_zapis_gotowy = (wynik["plan"], ids_setu)
+        for nazwa in pominiete[:5]:
+            ui(self._note, f"cue: utwór spoza kolekcji RB (pominięty): {nazwa}")
+        ui(self._note,
+           f"cue GOTOWE DO ZAPISU: {wynik['do_zapisu']} padów na "
+           f"{len(wynik['plan'].tracks)} utworach · Twoich padów nie ruszam "
+           f"({wynik['pominiete_kolizje']} naszych ustąpiło)"
+           + (f" · {len(pominiete)} utworów spoza kolekcji" if pominiete else "")
+           + " — naciśnij W jeszcze raz, żeby zapisać (backup automatyczny)")
+        ui(self.notify, f"W jeszcze raz = zapis {wynik['do_zapisu']} padów")
+
+    @work(thread=True, exclusive=True, group="cue-zapis")
+    def _cue_zapisz_worker(self) -> None:
+        """Krok 2: zapis przez sprawdzoną warstwę bezpieczeństwa (odmowa przy
+        otwartym RB, backup, weryfikacja odczytem, auto-przywrócenie)."""
+        import time
+        from dancelab.ingestion.playlist_publish import BACKUP_DIR, PIONEER
+        from dancelab.ingestion.rekordbox_cue_writer import write_plan
+        ui = self.call_from_thread
+        plan, _ids = self._cue_zapis_gotowy
+        ui(self._note, "cue: zapisuję (backup przed zmianą)…")
+        try:
+            wynik = write_plan(
+                plan,
+                db_path=PIONEER / "master.db",
+                backup_dir=BACKUP_DIR,
+                timestamp=time.strftime("%Y%m%d_%H%M%S"),
+                meta={"zrodlo": "TUI edytor cue", "plan": self._plan_name},
+                safe_swap=True)
+        except Exception as exc:  # noqa: BLE001
+            self._cue_zapis_gotowy = None
+            ui(self._note, f"cue: ZAPIS NIEUDANY — {exc}")
+            ui(self.notify, "zapis cue nieudany — szczegóły w notkach (L)",
+               severity="error")
+            return
+        self._cue_zapis_gotowy = None
+        ui(self._note,
+           f"✅ cue zapisane: {wynik.written} padów"
+           + (f", usunięte {wynik.deleted}" if wynik.deleted else "")
+           + f" · backup {wynik.backup_path}")
+        ui(self._note, "cue: w Rekordboksie zobaczysz je po otwarciu programu")
+        ui(self.notify, f"✅ {wynik.written} padów w Rekordboksie")
+        ui(self._refresh_status)
+
     def _cue_zdejmij(self) -> None:
         from dancelab.tui import cue_edycje
         cue_edycje.zdejmij(self._cue_edycje, self._cue_track, self._cue_wybor)
@@ -1040,7 +1133,11 @@ class DanceLabTUI(App):
 
     def _render_cue_lista(self) -> None:
         """Lista: jeden wiersz = jeden utwór, z osią energii i literami padów
-        (sparkline Tufte'a — decyzja Janka 08.08 po wecie na wiersz-na-cue)."""
+        (sparkline Tufte'a — decyzja Janka 08.08 po wecie na wiersz-na-cue).
+
+        Każda zmiana padów unieważnia policzony plan zapisu — inaczej drugie
+        W zapisałoby stan sprzed edycji."""
+        self._cue_zapis_gotowy = None
         from rich.text import Text
         from dancelab.tui import cue_edycje
         from dancelab.tui.cue_podglad import (czas_utworu, komorka_pada,
@@ -1463,6 +1560,8 @@ class DanceLabTUI(App):
             self._lib_analyze_worker()
         elif event.button.id == "lib-build":
             self.action_build_from_filary()
+        elif event.button.id == "cue-write":
+            self.action_write()
         elif event.button.id == "cmp-play":
             self._graj_z_panelu()
         elif event.button.has_class("pb-play"):
@@ -1986,6 +2085,9 @@ class DanceLabTUI(App):
     # ------------------------------------------------------------- zapis
 
     def action_write(self) -> None:
+        if self.query_one("#tabs", TabbedContent).active == "tab-export":
+            self._wyslij_cue()
+            return
         if not self._plan_paths:
             self._note("najpierw zbuduj set (B)")
             return

@@ -68,8 +68,16 @@ kliknięciem w nazwę:
    pada** — cue sprawdzasz uchem; drugi raz zatrzymuje; bez wybranego
    pada gra od zera. Po przesunięciu propozycja silnika zostaje
    widoczna jako kropka, a wiersz mówi „ręka" — zawsze widzisz, o ile
-   różnisz się od silnika. Wszystko to podgląd i szkic: zapis do
-   Rekordboksa (i sprawdzenie kolizji z Twoimi cue) to następny etap.
+   różnisz się od silnika.
+
+   **Wysyłka do Rekordboksa** — przycisk *Wyślij cue do RB* albo **W**
+   w tej zakładce, w dwóch krokach: pierwsze naciśnięcie liczy i pokazuje,
+   ile padów wejdzie, ile naszych ustąpiło Twoim własnym cue i czy któryś
+   utwór jest spoza kolekcji; drugie naciśnięcie zapisuje. Przed zapisem
+   powstaje kopia bazy, po zapisie sprawdzamy odczytem, czy pady naprawdę
+   są — jeśli nie, zmiana jest wycofywana. Rekordbox musi być zamknięty.
+   **Twoich własnych padów nigdy nie nadpisujemy** — nasz pad ustępuje
+   i mówimy o tym w podsumowaniu.
 
 ---
 
