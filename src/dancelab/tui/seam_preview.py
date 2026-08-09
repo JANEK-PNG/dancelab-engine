@@ -126,3 +126,64 @@ def zbuduj_szew(analysis_a, analysis_b, weights, *,
             output_path=out, duration_beats=info["beats"],
         )
     return {"output": out, **info}
+
+
+def zbuduj_szew_z_padow(analysis_a, analysis_b, *, cue_a_sec: float,
+                        cue_b_sec: float) -> dict:
+    """Szew renderowany z TWOICH PADÓW, nie z propozycji silnika.
+
+    Decyzja Janka 09.08 (przeniesienie porównania do Eksport/Cue): w edytorze
+    cue słuchasz dokładnie tego, co za chwilę pojedzie na CDJ-e — wyjścia
+    z pada utworu A i wejścia z pada utworu B. Renderer przyjmuje konkretne
+    pozycje, więc nic tu nie zgadujemy: bierzemy to, co stoi na ekranie.
+
+    Reszta liczb jest liczona TAK SAMO jak w planie silnika (to samo
+    dopasowanie oktawy tempa, ta sama reguła długości i zapasu), żeby dwa
+    odsłuchy tej samej pary różniły się WYŁĄCZNIE pozycją cue. Brak zapasu
+    = ValueError z powodem po polsku, nie cichy krótszy szew.
+    """
+    from dancelab.decision.tempo_adjustment import nearest_octave_candidate
+    from dancelab.decision.transition_length import suggest_transition_beats
+    from dancelab.preview.transition_simulation import (
+        plan_transition_duration,
+        render_transition_preview,
+        transition_preview_cache_path,
+    )
+    a, b = analysis_a, analysis_b
+    bpm_a, bpm_b = a.track.bpm_estimate, b.track.bpm_estimate
+    if not bpm_a or not bpm_b:
+        raise ValueError("szew jest zablokowany frazowo — oba utwory muszą "
+                         "mieć tempo z analizy")
+    rate_b = bpm_a / nearest_octave_candidate(bpm_a, bpm_b).bpm
+
+    sug = suggest_transition_beats(a, cue_a_sec, b, cue_b_sec)
+    plan = plan_transition_duration(
+        sug.beats if sug.beats is not None else 64,
+        available_a_beats=max((a.track.duration_sec or 0) - cue_a_sec, 0.0)
+        * bpm_a / 60.0,
+        available_b_beats=max((b.track.duration_sec or 0) - cue_b_sec, 0.0)
+        / rate_b * bpm_a / 60.0,
+    )
+    if plan.selected_beats is None:
+        raise ValueError("od tych padów nie starcza zapasu na szew — "
+                         "przesuń wyjście wcześniej albo wejście dalej")
+    beats = plan.selected_beats
+
+    out = transition_preview_cache_path(
+        CACHE_DIR,
+        source_a=a.track.source_path, source_b=b.track.source_path,
+        track_id_a=a.track.track_id, track_id_b=b.track.track_id,
+        cue_a_sec=cue_a_sec, cue_b_sec=cue_b_sec, playback_rate_b=rate_b,
+        profile_id=DEFAULT_PROFILE, duration_beats=beats,
+    )
+    if not out.exists():
+        out.parent.mkdir(parents=True, exist_ok=True)
+        render_transition_preview(
+            source_a=a.track.source_path, source_b=b.track.source_path,
+            cue_a_sec=cue_a_sec, cue_b_sec=cue_b_sec, bpm_master=float(bpm_a),
+            playback_rate_b=rate_b, profile_id=DEFAULT_PROFILE,
+            output_path=out, duration_beats=beats,
+        )
+    return {"output": out, "cue_a_sec": cue_a_sec, "cue_b_sec": cue_b_sec,
+            "bpm": float(bpm_a), "rate_b": rate_b, "beats": beats,
+            "rozumowanie": list(sug.reasoning), "zrodlo": "pady DJ-a"}

@@ -509,7 +509,6 @@ class DanceLabTUI(App):
     #lib-table .datatable--header { text-style: bold; background: $boost; }
     #compare { height: 7; border-bottom: solid $accent; padding: 0 1;
                display: none; }
-    #cmp-buttons { height: 3; }
     #compare.open { display: block; }
     #cmp-title { color: $accent; text-style: bold; }
     #lib-table { height: 1fr; }
@@ -712,10 +711,6 @@ class DanceLabTUI(App):
                             with Vertical(id="compare"):
                                 yield Static("", id="cmp-title")
                                 yield Static("", id="cmp-info")
-                                with Horizontal(id="cmp-buttons"):
-                                    yield Button("▶ Graj oba  [P]",
-                                                 id="cmp-play",
-                                                 variant="primary")
                             yield DataTable(id="set")
                             yield PasekOdtwarzacza()
                             yield Log(id="warnings", highlight=False)
@@ -886,6 +881,12 @@ class DanceLabTUI(App):
             kroki = {"left": -1, "right": +1, "shift+left": -8,
                      "shift+right": +8, "pageup": -32, "pagedown": +32}
             self._cue_przesun(kroki[klawisz])
+        elif klawisz == "s":
+            # S jak SZEW. Nie C — C to pad C na siatce CDJ, litery A–H
+            # należą do padów i nie wolno im nic odbierać.
+            event.stop()
+            event.prevent_default()
+            self._cue_graj_szew()
         elif klawisz == "t" and self._cue_wybor:
             event.stop()
             event.prevent_default()
@@ -984,6 +985,91 @@ class DanceLabTUI(App):
                           pad=self._cue_wybor, uderzenia=uderzenia,
                           position_ms=nowa, silnik_ms=p.get("silnik_ms"))
         self._render_cue_lista()
+
+    def _cue_graj_szew(self) -> None:
+        """S w Eksport/Cue: posłuchaj szwu Z TWOICH PADÓW — wyjścia z tego
+        utworu w wejście do następnego (decyzja Janka 09.08: porównanie
+        pary przeniesione tutaj, bo tu słychać to, co naprawdę pojedzie
+        na CDJ-e, a nie propozycję silnika).
+
+        Który pad jest wyjściem: ten ZAZNACZONY, a bez zaznaczenia ostatnie
+        „wyjście" na osi, a gdy go nie ma — ostatni pad utworu. Wejście
+        analogicznie od początku następnego utworu. Wybór jest zawsze
+        wypisany imiennie, żebyś wiedział, czego słuchasz."""
+        if not self._cue_track or not self._cue_widok:
+            return
+        i = self._cue_widok.index(self._cue_track)
+        if i + 1 >= len(self._cue_widok):
+            self._note("ostatni utwór nie ma następnika — S gra szew "
+                       "do następnego utworu setu")
+            return
+        nastepny = self._cue_widok[i + 1]
+        from dancelab.tui import cue_edycje
+        pady_a = self._cue_pady_teraz()
+        pady_b = cue_edycje.efektywne_pady(
+            self._cue_plan, self._cue_edycje, nastepny)
+        if not pady_a or not pady_b:
+            czego = ("tego utworu" if not pady_a else "następnego utworu")
+            self._note(f"S: {czego} nie ma ani jednego pada — postaw pad "
+                       f"(litera A–H), wtedy zszyję parę z Twoich padów")
+            return
+
+        def wybierz(pady: dict, typ: str, ostatni: bool) -> tuple[str, dict]:
+            kand = [(k, v) for k, v in pady.items() if v["typ"] == typ] \
+                or list(pady.items())
+            kand.sort(key=lambda kv: kv[1]["position_ms"])
+            return kand[-1] if ostatni else kand[0]
+
+        if self._cue_wybor and self._cue_wybor in pady_a:
+            pad_a, p_a = self._cue_wybor, pady_a[self._cue_wybor]
+        else:
+            pad_a, p_a = wybierz(pady_a, "mix_out", ostatni=True)
+        pad_b, p_b = wybierz(pady_b, "mix_in", ostatni=False)
+        self._note(f"szew z padów: wyjście {pad_a} → wejście {pad_b} "
+                   f"({self._cue_nazwa(nastepny)[:30]})")
+        self._szew_z_padow_worker(self._cue_track, nastepny,
+                                  p_a["position_ms"] / 1000.0,
+                                  p_b["position_ms"] / 1000.0)
+
+    @work(thread=True, exclusive=True, group="seam")
+    def _szew_z_padow_worker(self, tid_a: str, tid_b: str,
+                             cue_a: float, cue_b: float) -> None:
+        """Render szwu jest CICHY (plik w cache); dźwięk rusza dopiero
+        w `_zagraj_szew_z_padow` na wątku UI, po Twoim S."""
+        from dancelab.tui.seam_preview import zbuduj_szew_z_padow
+        ui = self.call_from_thread
+        by_id = self._ctx["by_id"]
+        ui(self._note, "szew z Twoich padów: renderuję…")
+        try:
+            info = zbuduj_szew_z_padow(by_id[tid_a], by_id[tid_b],
+                                       cue_a_sec=cue_a, cue_b_sec=cue_b)
+        except Exception as exc:  # noqa: BLE001 — powód, nie traceback
+            ui(self._note, f"szew nie wyszedł: {exc}")
+            ui(self.notify, f"szew nie wyszedł: {exc}",
+               severity="warning", timeout=6)
+            return
+        ui(self._zagraj_szew_z_padow, info, tid_a, tid_b)
+
+    def _zagraj_szew_z_padow(self, info: dict, tid_a: str,
+                             tid_b: str) -> None:
+        blad = self._odtwarzacz.graj_od_zera(str(info["output"]), info["bpm"])
+        if blad:
+            self.notify(f"odsłuch szwu nie wyszedł: {blad}",
+                        severity="warning", timeout=6)
+            self._note(f"odsłuch szwu nie wyszedł: {blad}")
+            return
+        self._gra_meta = ("szew z Twoich padów",
+                          f"{self._cue_nazwa(tid_a)[:22]} → "
+                          f"{self._cue_nazwa(tid_b)[:22]}")
+        from rich.text import Text
+        for art_w in self.query(".pb-art"):
+            art_w.update(Text(""))
+        ma, sa = divmod(int(info["cue_a_sec"]), 60)
+        mb, sb = divmod(int(info["cue_b_sec"]), 60)
+        self._note(f"szew Z TWOICH PADÓW: wyjście {ma}:{sa:02d} → wejście "
+                   f"{mb}:{sb:02d} · {info['beats']} uderzeń "
+                   f"@ {info['bpm']:.1f} BPM · P zatrzymuje")
+        self._tick_player()
 
     def _cue_wpisz_czas(self) -> None:
         """T: edycja czasu W KRATCE pada + lista gotowych czasów fraz
@@ -1353,7 +1439,8 @@ class DanceLabTUI(App):
                      "TA SAMA litera drugi raz = przenieś pod głowicę · "
                      "T = wpisz czas z klawiatury (dociągnę do siatki) · "
                      "←/→ ±1 uderzenie (Shift ±8, PgUp/PgDn ±32) · "
-                     "P posłuchaj · X zdejmij · Z cofnij · W wysyła cue")
+                     "P posłuchaj utwór · S posłuchaj SZEW do następnego "
+                     "(z Twoich padów) · X zdejmij · Z cofnij · W wysyła cue")
         info.update("\n".join(linie))
         if self._cue_widok:
             if self._cue_track not in self._cue_widok:
@@ -1801,8 +1888,6 @@ class DanceLabTUI(App):
                 self._note("najpierw zbuduj set (B) — wtedy będzie co wysyłać")
             else:
                 self._write_worker()
-        elif event.button.id == "cmp-play":
-            self._graj_z_panelu()
         elif event.button.has_class("pb-play"):
             self.action_preview_seam()
             self._tick_player()
@@ -1814,14 +1899,6 @@ class DanceLabTUI(App):
             self._skok(+8)
         elif event.button.has_class("pb-back"):
             self._skok(-8)
-
-    def _graj_z_panelu(self) -> None:
-        if self._stop_player():
-            return
-        if self._compare_idx is None or self._compare_idx + 1 >= len(self._order):
-            self._note("panel nie trzyma pary — otwórz porównanie (C)")
-            return
-        self._seam_worker(self._compare_idx)
 
     def action_build_from_filary(self) -> None:
         """G / przycisk w Bibliotece: filary → zakładka Set jako SZKIC.
@@ -2820,18 +2897,11 @@ class DanceLabTUI(App):
         return self._ctx["by_id"][self._order[idx]].track
 
     def action_preview_seam(self) -> None:
-        """P jest KONTEKSTOWE: w Secie przy otwartym pasku szwu gra
-        PRZEJŚCIE pary; poza tym gra SAM zaznaczony utwór (Set i Biblioteka).
+        """P gra ZAZNACZONY UTWÓR — w każdej zakładce to samo (decyzja
+        Janka 09.08: odsłuch szwu przeniesiony do Eksport/Cue, gdzie szew
+        powstaje z TWOICH padów, a nie z propozycji silnika).
         P drugi raz = pauza; P na tym samym utworze = wznowienie od miejsca.
         Dźwięk startuje WYŁĄCZNIE z jawnego klawisza."""
-        aktywna = self.query_one("#tabs", TabbedContent).active
-        if aktywna == "tab-set" \
-                and self.query_one("#compare").has_class("open") \
-                and self._compare_idx is not None:
-            if self._stop_player():
-                return
-            self._seam_worker(self._compare_idx)
-            return
         track = self._biezacy_track()
         if track is None:
             if not self._stop_player():
@@ -3028,48 +3098,14 @@ class DanceLabTUI(App):
         self._ustaw_meta_odtwarzacza(track)
         self._pokaz_odtwarzacz()
 
-    @work(thread=True, exclusive=True, group="seam")
-    def _seam_worker(self, idx: int) -> None:
-        from dancelab.tui.seam_preview import zbuduj_szew
-        ui = self.call_from_thread
-        by_id = self._ctx["by_id"]
-        a = by_id[self._order[idx]]
-        b = by_id[self._order[idx + 1]]
-        ui(self.query_one("#progress", Static).update,
-           f"Renderuję szew #{idx+1}→#{idx+2} (fraz-lock, krzywe deckowe)…")
-        try:
-            info = zbuduj_szew(a, b, self._ctx["weights"])
-        except Exception as exc:  # noqa: BLE001 — powód, nie traceback
-            ui(self._note, f"szew nie wyszedł: {exc}")
-            self.call_from_thread(self.notify, f"szew nie wyszedł: {exc}",
-                                  severity="warning", timeout=6)
-            return
-        ui(self._start_player, info, idx)
-
-    def _start_player(self, info: dict, idx: int) -> None:
-        blad = self._odtwarzacz.graj_od_zera(str(info["output"]), info["bpm"])
-        if blad:
-            self._note(f"odsłuch szwu nie wyszedł: {blad}")
-            return
-        self._gra_meta = ("szew", f"przejście #{idx+1} → #{idx+2}")
-        from rich.text import Text
-        for art_w in self.query(".pb-art"):
-            art_w.update(Text(""))
-        for line in info.get("rozumowanie", [])[:3]:
-            self._note(line)
-        self._note(f"odsłuch szwu #{idx+1}→#{idx+2}: {info['beats']} uderzeń "
-                   f"@ {info['bpm']:.1f} BPM · P pauza · →/← ±8")
-        self.query_one("#progress", Static).update(
-            f"▶ szew #{idx+1}→#{idx+2} · {info['beats']} uderzeń "
-            f"@ {info['bpm']:.1f} BPM · P pauza · →/← ±8 uderzeń")
-
     # ------------------------------------------- porównanie pary od dołu (C)
 
     def action_compare_pair(self) -> None:
         """C: panel porównania pary zaznaczony→następny wysuwa się od dołu —
-        dwa paski energii ze złotym oknem szwu z planu silnika (wzorzec:
-        zakładka Export w Rekordboksie). Drugie C / Esc chowa. Graj oba = P
-        (sync i kwantyzacja siedzą w renderze z natury — nic do włączania)."""
+        fakty o szwie z planu silnika (wzorzec: zakładka Export
+        w Rekordboksie). Drugie C / Esc chowa. Tu się PATRZY; słucha się
+        w Eksport/Cue (C), bo tam szew powstaje z Twoich padów — czyli
+        z tego, co naprawdę pojedzie na CDJ-e."""
         panel = self.query_one("#compare")
         if panel.has_class("open"):
             panel.remove_class("open")
@@ -3100,8 +3136,8 @@ class DanceLabTUI(App):
 
     def _open_compare(self, a, b, plan: dict, idx: int) -> None:
         """Pasek szwu w duchu CURVE („+" między dwoma utworami): jedna linia
-        faktów o szwie i JEDEN przycisk odsłuchu. Beatsync i kwantyzacja są
-        zawsze włączone — siedzą w naturze fraz-lockowanego renderu."""
+        faktów o szwie, bez odsłuchu. Odsłuch mieszka w Eksport/Cue, żeby
+        DJ słyszał SWOJE pady, nie propozycję silnika."""
         art_a, tyt_a = _wykonawca_tytul(a.track)
         art_b, tyt_b = _wykonawca_tytul(b.track)
 
@@ -3116,7 +3152,7 @@ class DanceLabTUI(App):
         self.query_one("#cmp-info", Static).update(
             f"{plan['beats']} uderzeń @ {plan['bpm']:.1f} BPM · "
             f"wyjście z A {ma}:{sa:02d} · wejście w B {mb}:{sb:02d} · "
-            f"P/▶ gra oba · sync+kwantyzacja zawsze ON · C/Esc chowa")
+            f"posłuchaj w Eksport/Cue (C) — z Twoich padów · C/Esc chowa")
         self._compare_idx = idx
         self.query_one("#compare").add_class("open")
         self.query_one("#set", DataTable).focus()

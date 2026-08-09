@@ -445,8 +445,9 @@ def test_wyciecie_filaru_zdejmuje_pin(tmp_path, monkeypatch):
 
 
 def test_c_otwiera_pasek_szwu_i_zamyka(tmp_path, monkeypatch):
-    """C otwiera pasek szwu w duchu CURVE (fakty + jeden przycisk ▶);
-    drugie C chowa; ostatni utwór odmawia. Plan z atrapy — bez audio."""
+    """C otwiera pasek szwu w duchu CURVE — same FAKTY o szwie i wskazanie,
+    gdzie się go słucha (Eksport/Cue, z padów DJ-a). Drugie C chowa; ostatni
+    utwór odmawia. Plan z atrapy — bez audio."""
     import dancelab.tui.seam_preview as sp
     monkeypatch.setattr(sp, "zaplanuj_szew", lambda a, b, w, **kw: {
         "cue_a_sec": 200.0, "cue_b_sec": 10.0, "beats": 64, "bpm": 130.0,
@@ -477,7 +478,9 @@ def test_c_otwiera_pasek_szwu_i_zamyka(tmp_path, monkeypatch):
             tytul = str(app.query_one("#cmp-title", Static).render())
             assert "SZEW #1 ⇄ #2" in tytul and "Mercy System" in tytul
             info = str(app.query_one("#cmp-info", Static).render())
-            assert "64 uderzeń" in info and "zawsze ON" in info
+            assert "64 uderzeń" in info
+            assert "Eksport/Cue" in info, \
+                "pasek ma mówić, GDZIE się szwu słucha"
             await pilot.press("c")            # drugie C chowa
             await pilot.pause()
             assert not app.query_one("#compare").has_class("open")

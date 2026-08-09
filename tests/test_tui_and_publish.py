@@ -292,17 +292,23 @@ def test_p_kontekstowe_pauza_skoki_i_szew(tmp_path, monkeypatch):
             ss2 = float(started[2].cmd[started[2].cmd.index("-ss") + 1])
             assert ss2 >= ss and started[2].cmd[-1] == "/m/B.mp3"
 
-            # pasek szwu otwarty → P gra PRZEJŚCIE
+            # Pasek szwu w Secie POKAZUJE fakty, ale niczego nie gra —
+            # od 09.08 szwu słucha się w Eksport/Cue, gdzie powstaje
+            # z padów DJ-a. P zostaje przy utworze.
             await pilot.press("p")            # pauza utworu
             await pilot.pause()
+            ile = len(started)
             app._compare_idx = 0
             app.query_one("#compare").add_class("open")
             await pilot.press("p")
-            for _ in range(50):
+            for _ in range(20):
                 await pilot.pause(0.1)
-                if len(started) > 5:
+                if len(started) > ile:
                     break
-            assert started[5].cmd[-1] == str(wav), "P przy pasku szwu = szew"
+            assert started[-1].cmd[-1] == "/m/B.mp3", \
+                "P w Secie gra UTWÓR, nie szew"
+            assert all(pr.cmd[-1] != str(wav) for pr in started), \
+                "żaden render szwu nie leci z Setu"
     asyncio.run(go())
 
 

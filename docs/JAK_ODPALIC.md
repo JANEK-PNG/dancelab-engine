@@ -1,6 +1,6 @@
 # DanceLab — instrukcja użytkownika
 
-Wersja z 2026-08-06. Dla DJ-a, bez wiedzy technicznej.
+Wersja z 2026-08-09. Dla DJ-a, bez wiedzy technicznej.
 DanceLab buduje sety z Twojej biblioteki: analizuje utwory, układa
 kolejność wokół Twoich decyzji i oddaje gotową playlistę do Rekordboxa.
 
@@ -37,7 +37,7 @@ przyciskiem i wybierz **Otwórz**; więcej nie zapyta.
 | **filar** | utwór oznaczony w Bibliotece jako obowiązkowy: MUSI zagrać w budowanym secie; filarów jest od 3 do 10 |
 | **kotwica** | brzmienie „graj jak…" — wybrany DJ, do którego silnik zbliża dobór utworów; **Ctrl+D** pokazuje DJ-ów pogrupowanych w rodziny brzmieniowe (grupy z pomiaru, nie z gatunku) |
 | **szew** | przejście między dwoma sąsiednimi utworami setu |
-| **pasek szwu** | panel nad tabelą (klawisz C) z faktami o szwie i odtwarzaniem pary |
+| **pasek szwu** | panel nad tabelą w Secie (klawisz C) z faktami o szwie: ile uderzeń, w jakim tempie, w którym miejscu wyjście i wejście. Tu się patrzy — słucha się w Eksport/Cue (klawisz S), bo tam szew powstaje z Twoich padów |
 | **plan** | zapisany na dysku stan setu, z nazwą — można do niego wrócić po zamknięciu aplikacji |
 | **werdykt** | zapis Twojej decyzji (cięcie, podmiana, przesunięcie) — z tych zapisów silnik będzie uczył się Twojego gustu |
 | **notki** | dziennik silnika: czego nie wie, co odrzucił i dlaczego (klawisz L) |
@@ -91,6 +91,17 @@ kliknięciem w nazwę:
    pada gra od zera. Po przesunięciu propozycja silnika zostaje
    widoczna jako kropka, a wiersz mówi „ręka" — zawsze widzisz, o ile
    różnisz się od silnika.
+
+   **S — posłuchaj SZWU do następnego utworu.** To jest miejsce, w którym
+   sprawdzasz przejście: DanceLab składa wyjście z tego utworu z wejściem
+   w następny **dokładnie z tych padów, które masz na ekranie** — czyli
+   z tego, co za chwilę pojedzie na CDJ-e, a nie z propozycji silnika.
+   Przesuń pad i naciśnij S jeszcze raz: usłyszysz różnicę. Bez
+   zaznaczenia szew idzie z ostatniego „wyjścia" w pierwsze „wejście"
+   następnego; z zaznaczonym padem wychodzi właśnie z niego. Aplikacja
+   zawsze wypisuje, których padów użyła. Ostatni utwór setu nie ma
+   następnika i mówi to wprost. (Klawisz to **S**, nie C — litery A–H
+   należą do padów i nic im ich nie odbiera.)
 
    Pady widzisz po prawej stronie karty jako **siatkę 2×4 — jak pady
    na CDJ-u** (A B C D w górnym rzędzie, E F G H w dolnym). Zajęty slot
@@ -257,9 +268,13 @@ Findera) — bez własnych wynalazków:
   liczone z tempa utworu); z **Shift** skok o **32**, a **PgUp/PgDn**
   (albo ⌘⇧ ze strzałką, jeśli Twój terminal go przepuszcza) o **128**.
   Gdy nic nie gra, klawisze działają normalnie.
-- **C** w Secie otwiera **pasek szwu** nad tabelą — fakty o parze
-  zaznaczony→następny i przycisk **▶ Graj oba**. Przy otwartym pasku
-  spacja/P gra przejście pary. Drugie **C** lub **Esc** chowa pasek.
+- **C** w Secie otwiera **pasek szwu** nad tabelą: fakty o parze
+  zaznaczony→następny — ile uderzeń, w jakim tempie, gdzie wyjście
+  i gdzie wejście. Pasek nic nie gra; drugie **C** lub **Esc** chowa go.
+- **S** w zakładce Eksport / Cue **gra ten szew** — złożony z Twoich
+  padów, a nie z propozycji silnika. Dlatego odsłuch przejścia mieszka
+  tam, gdzie stoją pady: słyszysz dokładnie to, co pojedzie na CDJ-e,
+  i po każdym przesunięciu pada możesz to sprawdzić uchem.
 
 W Bibliotece, pod listą utworów, jest **odtwarzacz** w układzie
 Apple Music: po lewej przyciski Poprz. · -8 · Graj/Pauza · +8 · Nast.,
