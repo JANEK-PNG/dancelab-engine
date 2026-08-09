@@ -74,7 +74,9 @@ kliknięciem w nazwę:
    przecinek działa jak kropka). Pod siatką pojawia się wtedy **lista
    gotowych czasów fraz** — początki sekcji utworu (intro, break,
    groove, outro) i propozycja silnika; wybierasz je **↑/↓**, a Enter
-   zatwierdza. Esc wychodzi bez zmiany.
+   zatwierdza. Lista **przewija się** — licznik (np. `5/12`) i strzałki
+   „↑ 4 wyżej / ↓ 3 niżej" mówią, ile fraz jest poza kadrem, więc nic
+   nie ucieka po cichu. Esc wychodzi bez zmiany.
    Wpisana wartość jest **dociągana do siatki** — jak quantize
    w Rekordboksie: do taktu, gdy faza taktu jest zweryfikowana, inaczej
    do najbliższego bitu. Notka mówi, o ile dociągnęliśmy; przy niepewnej

@@ -1467,14 +1467,24 @@ class DanceLabTUI(App):
                                style="green" if p["confident"] else "yellow")
             tab.append("\n")
         if self._cue_czas_bufor is not None:
-            tab.append("\nwpisz czas albo wybierz frazę (↑↓):\n", style="dim")
             from dancelab.tui.cue_podglad import _mmss as _mm
-            for i, (etykieta, sek) in enumerate(self._cue_prop):
+            ile = len(self._cue_prop)
+            okno = 6                       # widok przewija się po całej liście
+            start = max(0, min(self._cue_prop_i - okno // 2, ile - okno))
+            licznik = (f" {self._cue_prop_i + 1}/{ile}" if ile else "")
+            tab.append(f"\nwpisz czas albo wybierz frazę (↑↓){licznik}:\n",
+                       style="dim")
+            if start > 0:
+                tab.append(f"  ↑ {start} wyżej\n", style="dim")
+            for i in range(start, min(start + okno, ile)):
+                etykieta, sek = self._cue_prop[i]
                 wskazany = i == self._cue_prop_i
                 tab.append("▸ " if wskazany else "  ",
                            style=f"bold {PILLAR_COLOR}" if wskazany else "")
                 tab.append(f"{etykieta:<8} {_mm(int(sek * 1000)):>7}\n",
                            style="" if wskazany else "dim")
+            if start + okno < ile:
+                tab.append(f"  ↓ {ile - start - okno} niżej\n", style="dim")
             if not self._cue_prop:
                 tab.append("  (ten utwór nie ma segmentacji — wpisz ręcznie)\n",
                            style="dim")

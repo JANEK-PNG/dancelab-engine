@@ -485,3 +485,50 @@ def test_gotowe_czasy_fraz_do_wyboru_strzalkami(tmp_path, monkeypatch):
             assert p["position_ms"] == 124_000
 
     asyncio.run(go())
+
+
+def test_lista_fraz_przewija_sie_i_mowi_ile_zostalo(tmp_path, monkeypatch):
+    """Skarga Janka 09.08: „lista powinna się skrolować, bo w oryginale
+    jest więcej fraz niż w wyborze". Dane wracają w CAŁOŚCI, przewija się
+    widok, a licznik i strzałki mówią, ile jest poza kadrem."""
+    from textual.widgets import DataTable, Static, TabbedContent
+
+    from dancelab.core.models import Segment, SegmentType
+    from dancelab.tui.app import DanceLabTUI
+    from dancelab.tui.cue_podglad import propozycje_czasu
+
+    monkeypatch.setattr("dancelab.tui.app.WERDYKTY_DIR", tmp_path / "w")
+    plan, by_id = _plan(monkeypatch)
+    by_id["A"].segments = [
+        Segment(segment_id=f"s{i}", track_id="A", start_sec=i * 25.0,
+                end_sec=(i + 1) * 25.0,
+                segment_type=SegmentType.groove if i % 2 else
+                SegmentType.breakdown)
+        for i in range(12)
+    ]
+    assert len(propozycje_czasu(by_id["A"], 300_000)) == 13, \
+        "wszystkie frazy + silnik, bez cichego obcinania"
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            app._ctx = {"by_id": by_id, "weights": None}
+            app._order = ["A", "B"]
+            app._cue_plan = plan
+            app.query_one("#tabs", TabbedContent).active = "tab-export"
+            await pilot.pause()
+            app._render_cue_lista()
+            app.query_one("#cue-table", DataTable).focus()
+            await pilot.pause()
+            await pilot.press("b")
+            await pilot.press("t")
+            await pilot.pause()
+            widok = str(app.query_one("#cue-pady", Static).render())
+            assert "1/13" in widok, "licznik pozycji na liście"
+            assert "niżej" in widok, "widać, że coś jest poza kadrem"
+            for _ in range(8):
+                await pilot.press("down")
+            widok = str(app.query_one("#cue-pady", Static).render())
+            assert "9/13" in widok and "wyżej" in widok, "widok przewinięty"
+
+    asyncio.run(go())
