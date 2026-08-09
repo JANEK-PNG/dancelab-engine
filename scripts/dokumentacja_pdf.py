@@ -31,13 +31,63 @@ ZRZUTY = KORZEN / "docs" / "zrzuty"
 DOMYSLNY_PDF = pathlib.Path.home() / "Desktop" / "DanceLab — jak odpalic.pdf"
 
 PODPISY = {
-    "cue": "Zakładka Eksport / Cue: karta utworu z osią energii i siatką padów "
-           "u góry, lista setu pośrodku, odtwarzacz i przyciski wysyłki na dole.",
-    "biblioteka": "Zakładka Biblioteka: sekcje po lewej, szukajka i filtry "
-                  "na górze, odtwarzacz pod listą, przełącznik okładek pod "
-                  "polem szukania.",
-    "set": "Zakładka Set: brief po lewej, tabela setu pośrodku, panel "
-           "podpowiedzi po prawej.",
+    # Biblioteka
+    "lib_widok": "Zakładka Biblioteka: sekcje po lewej, szukajka i filtry na "
+                 "górze, tabela utworów pośrodku, wiersz Analizuj i odtwarzacz "
+                 "na dole.",
+    "lib_szukanie": "Szukanie i filtry w działaniu: wpisany fragment nazwy oraz "
+                    "okno tempa; licznik nad tabelą pokazuje, ile utworów "
+                    "zostało.",
+    "lib_oznaczenia": "Oznaczenia utworów: ♥ ulubiony i ⚑ filar w pierwszych "
+                      "kolumnach tabeli.",
+    "lib_okladki": "Okładki włączone klawiszem K: miniatury w wierszach, "
+                   "przełącznik „okładki” pod polem szukania.",
+    "lib_sortowanie": "Sortowanie po kliknięciu w nagłówek kolumny: strzałka "
+                      "w nagłówku i opis sortowania nad tabelą.",
+    "lib_analizuj": "Wiersz Analizuj na dole zakładki: ścieżka folderu "
+                    "z muzyką i przycisk uruchamiający analizę.",
+    "lib_notki": "Notki (klawisz L): dziennik silnika — czego nie wie i co "
+                 "odrzucił, z licznikiem w pasku statusu.",
+    # Set
+    "set_brief": "Zakładka Set przed budową: brief po lewej z przypiętym na "
+                 "dole przyciskiem „Buduj set”.",
+    "set_gatunki": "Lista gatunków (Ctrl+G): tylko te, które są w Twojej "
+                   "bibliotece, w nazewnictwie Beatportu, z liczbą utworów; "
+                   "na końcu sekcja „poza taksonomią”.",
+    "set_djs": "Lista DJ-ów do kotwicy (Ctrl+D): rodziny brzmieniowe policzone "
+               "z nagrań, z opisem brzmienia i liczbą setów.",
+    "set_filary_tryb": "Wybór trybu rozstawienia filarów (klawisz F): podpory, "
+                       "równy rozstaw albo rama.",
+    "set_lista": "Zbudowany set: tabela z tempem, tonacją, gatunkiem i sumą "
+                 "minut; filary na złoto.",
+    "set_podmiana": "Panel podmiany (klawisz Z): dziesięć propozycji ocenionych "
+                    "w tym miejscu setu, z wyborem trybu oceny u góry.",
+    "set_dopisz": "Panel dopisania utworu (klawisz A): te same propozycje "
+                  "co przy podmianie, ale utwór wejdzie ZA zaznaczonym.",
+    "set_szew": "Pasek szwu (klawisz C): fakty o przejściu — liczba uderzeń, "
+                "tempo, miejsce wyjścia i wejścia. Sam nic nie gra.",
+    "set_info": "Karta utworu (klawisz I): metadane silnika, plik na dysku "
+                "oraz to, co o utworze wie Rekordbox.",
+    "set_plany": "Lista zapisanych planów (klawisz O): nazwa, liczba utworów, "
+                 "okno tempa, kotwica i data.",
+    "set_nazwa_planu": "Okno zapisu planu (klawisz S): pole nazwy oraz "
+                       "przyciski Zapisz i Anuluj.",
+    # Eksport / Cue
+    "cue_widok": "Zakładka Eksport / Cue: karta utworu z osią energii i siatką "
+                 "padów u góry, lista setu pośrodku, odtwarzacz i przyciski "
+                 "wysyłki na dole.",
+    "cue_pad": "Pad wybrany literą: podświetlony w siatce 2×4, a pod nią "
+               "szczegóły — typ, dokładny czas i propozycja silnika.",
+    "cue_przesuniety": "Pad po przesunięciu o osiem uderzeń: propozycja "
+                       "silnika zostaje widoczna, a pad jest opisany jako "
+                       "ustawiony ręką.",
+    "cue_czas": "Wpisywanie czasu pada (klawisz T) wprost w kratce, z listą "
+                "gotowych czasów fraz do wyboru strzałkami.",
+    "cue_potwierdz": "Po pierwszym naciśnięciu W: przycisk zmienia się na "
+                     "„POTWIERDŹ zapis N padów”. Dopiero drugie naciśnięcie "
+                     "zapisuje.",
+    "cue_rb_otwarty": "Przy otwartym Rekordboksie przycisk wysyłki cue jest "
+                      "wyszarzony i mówi wprost, co zrobić.",
 }
 
 CHROME = ("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
@@ -61,7 +111,9 @@ def _slug(tekst: str) -> str:
     """Kotwica w stylu GitHuba — taka, jakiej używa spis treści w Markdownie."""
     czysty = re.sub(r"<[^>]+>", "", tekst).strip().lower()
     czysty = re.sub(r"[^\w\s-]", "", czysty, flags=re.UNICODE)
-    return re.sub(r"[\s]+", "-", czysty)
+    # KAŻDA spacja osobno, nie ciągi — tak robi GitHub, a ten sam plik
+    # czyta się też tam („Eksport / Cue" daje podwójny myślnik)
+    return czysty.replace(" ", "-")
 
 
 def _kotwice(html: str) -> str:

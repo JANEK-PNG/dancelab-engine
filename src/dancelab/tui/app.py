@@ -525,6 +525,11 @@ class DanceLabTUI(App):
     #cue-dol { dock: bottom; height: auto; }
     #cue-tools { height: 3; padding: 0 1; }
     #cue-tools Button { margin-left: 2; }
+    /* STAŁA szerokość na najdłuższą etykietę stanu: przycisk zmienia napis
+       w trakcie pracy, a szerokość „auto" policzona przy budowie ekranu
+       już się nie przelicza — napis „POTWIERDŹ…" wychodził UCIĘTY
+       (złapane na zrzucie do instrukcji 09.08) */
+    #cue-write { width: 36; }
     #cue-luz { width: 1fr; }
     """
     BINDINGS = [
@@ -2128,11 +2133,11 @@ class DanceLabTUI(App):
             return
         gotowy = getattr(self, "_cue_zapis_gotowy", None)
         if rb_otwarty:
-            etykieta, wariant, aktywny = ("Zamknij Rekordbox, żeby wysłać cue",
+            etykieta, wariant, aktywny = ("Zamknij Rekordbox, by wysłać cue",
                                           "default", False)
         elif gotowy is not None:
             ile = sum(len(t.cues) for t in gotowy[0].tracks)
-            etykieta, wariant, aktywny = (f"POTWIERDŹ: zapisz {ile} padów  [W]",
+            etykieta, wariant, aktywny = (f"POTWIERDŹ zapis {ile} padów [W]",
                                           "warning", True)
         else:
             etykieta, wariant, aktywny = ("Wyślij cue do RB  [W]",

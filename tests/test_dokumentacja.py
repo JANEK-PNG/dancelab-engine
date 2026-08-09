@@ -42,19 +42,46 @@ def test_kazdy_znacznik_zrzutu_ma_plik():
             f"brak pliku zrzutu: docs/zrzuty/{nazwa}.svg"
 
 
-def test_kazda_procedura_ma_cel_kroki_i_wynik():
-    """Rozdział 4 trzyma jeden wzorzec: cel → warunki wstępne → kroki →
-    wynik. Procedura bez wyniku zostawia czytelnika bez odpowiedzi na
-    pytanie skąd wiem, że się udało."""
+def _sekcje() -> list[tuple[str, str]]:
+    """(tytuł, treść) dla każdego punktu ### instrukcji."""
     tekst = INSTRUKCJA.read_text()
-    rozdzial = tekst[tekst.index("## 4. Procedury"):tekst.index("## 5. ")]
-    kawalki = re.split(r"^### 4\.\d+\. ", rozdzial, flags=re.M)[1:]
-    assert len(kawalki) >= 10, f"procedur jest tylko {len(kawalki)}"
-    for kawalek in kawalki:
-        nazwa = kawalek.splitlines()[0]
+    kawalki = re.split(r"^### ", tekst, flags=re.M)[1:]
+    return [(k.splitlines()[0].strip(), k) for k in kawalki]
+
+
+def test_kazda_czynnosc_ma_cel_warunki_kroki_i_wynik():
+    """Wzorzec ogłoszony we wstępie: cel → warunki wstępne → kroki → wynik.
+    Punkt bez wyniku zostawia czytelnika bez odpowiedzi na pytanie, skąd ma
+    wiedzieć, że się udało."""
+    czynnosci = [(t, k) for t, k in _sekcje() if "**Cel:**" in k]
+    assert len(czynnosci) >= 20, f"czynności jest tylko {len(czynnosci)}"
+    for tytul, tresc in czynnosci:
         for etykieta in ("**Cel:**", "**Warunki wstępne:**", "**Kroki",
                          "**Wynik:**"):
-            assert etykieta in kawalek, f'procedura {nazwa} bez {etykieta}'
+            assert etykieta in tresc, f'punkt {tytul} bez {etykieta}'
+
+
+def test_kazdy_punkt_zakladek_ma_zrzut_ekranu():
+    """Żądanie Janka z 09.08: każda opcja opatrzona zrzutem. Wyjątki są
+    WYMIENIONE z nazwy i uzasadnione w samym dokumencie — cichych nie ma."""
+    bez_zrzutu_swiadomie = {
+        # zrzut wymagałby uruchomienia dźwięku (twarda zasada projektu)
+        "5.6. Posłuchaj szwu do następnego utworu",
+        # te punkty opisują ten sam ekran, co punkt „Co widać na ekranie"
+        "5.3. Przestaw pad — duży skok",
+        "5.8. Wyślij playlistę z tej zakładki",
+        "3.8. Wyślij filary do zakładki Set",
+        "4.12. Wyślij playlistę do Rekordboksa",
+    }
+    braki = []
+    for tytul, tresc in _sekcje():
+        if not tytul[0].isdigit() or tytul[0] not in "345":
+            continue
+        if tytul in bez_zrzutu_swiadomie:
+            continue
+        if "<!-- zrzut:" not in tresc:
+            braki.append(tytul)
+    assert not braki, f"punkty bez zrzutu ekranu: {braki}"
 
 
 def test_naglowki_sa_ponumerowane_po_kolei():

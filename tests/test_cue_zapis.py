@@ -131,8 +131,15 @@ def test_cta_w_prawym_dolnym_rogu_pod_odtwarzaczem():
             pasek = next(w for w in app.query(".pb-box") if w.region.height)
             assert guzik.region.y >= pasek.region.y + pasek.region.height, \
                 "CTA pod paskiem, nie pod nim schowane"
+            # „w prawym dolnym rogu" = ostatni guzik dotyka prawej krawędzi,
+            # a przed guzikami stoi rozpychacz. Sprawdzamy DOSUNIĘCIE, nie
+            # arytmetykę na połowie ekranu — ta pękała przy dłuższej etykiecie.
             ekran = app.query_one("#cue-dol").region
-            assert guzik.region.x > ekran.width // 2, "CTA po prawej stronie"
+            ostatni = app.query_one("#cue-playlist", Button)
+            assert ostatni.region.right >= ekran.right - 2, \
+                "CTA dosunięte do prawej krawędzi"
+            assert app.query_one("#cue-luz").region.width > 0, \
+                "rozpychacz spycha guziki w prawo"
 
     asyncio.run(go())
 
