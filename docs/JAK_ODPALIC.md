@@ -70,7 +70,8 @@ kliknięciem w nazwę:
    **Z** cofa każdą zmianę.
 
    Czas możesz też **wpisać z klawiatury**: **T** na wybranym padzie
-   otwiera okienko (format `2:31` albo `2:31.5`, przecinek też działa).
+   odsłania pole **pod siatką padów** (format `2:31` albo `2:31.5`,
+   przecinek też działa); Enter zatwierdza, Esc zamyka bez zmiany.
    Wpisana wartość jest **dociągana do siatki** — jak quantize
    w Rekordboksie: do taktu, gdy faza taktu jest zweryfikowana, inaczej
    do najbliższego bitu. Notka mówi, o ile dociągnęliśmy; przy niepewnej

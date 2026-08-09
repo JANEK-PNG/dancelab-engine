@@ -388,15 +388,51 @@ def test_t_wpisuje_czas_pada_i_dociaga(tmp_path, monkeypatch):
             app.query_one("#cue-table", DataTable).focus()
             await pilot.pause()
             await pilot.press("b")               # wybór pada B (300 s)
-            await pilot.press("t")               # okienko czasu
+            await pilot.press("t")               # pole czasu PRZY padach
             await pilot.pause()
-            # modal to OSOBNY ekran — pytamy o niego, nie o tło
-            app.screen.query_one("#czas-pada", Input).value = "2:31,2"
+            pole = app.query_one("#cue-czas", Input)
+            assert not pole.has_class("hide"), "pole obok padów, bez okienka"
+            assert app.focused is pole
+            pole.value = "2:31,2"
             await pilot.press("enter")
             await pilot.pause()
-            await pilot.pause()
+            assert pole.has_class("hide"), "po zatwierdzeniu pole się chowa"
             p = cue_edycje.efektywne_pady(plan, app._cue_edycje, "A")["B"]
             assert p["position_ms"] == 151_000, \
                 "2:31,2 dociągnięte do bitu na 2:31,0"
+
+    asyncio.run(go())
+
+
+def test_esc_zamyka_pole_czasu_bez_zmiany(tmp_path, monkeypatch):
+    """Pole czasu przy padach (weto Janka na okienko): Esc chowa je
+    i oddaje fokus liście, nie ruszając pada."""
+    from textual.widgets import DataTable, Input, TabbedContent
+
+    from dancelab.tui.app import DanceLabTUI
+
+    monkeypatch.setattr("dancelab.tui.app.WERDYKTY_DIR", tmp_path / "w")
+    plan, by_id = _plan(monkeypatch)
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            app._ctx = {"by_id": by_id, "weights": None}
+            app._order = ["A", "B"]
+            app._cue_plan = plan
+            app.query_one("#tabs", TabbedContent).active = "tab-export"
+            await pilot.pause()
+            app._render_cue_lista()
+            app.query_one("#cue-table", DataTable).focus()
+            await pilot.pause()
+            await pilot.press("b")
+            await pilot.press("t")
+            await pilot.pause()
+            await pilot.press("escape")
+            await pilot.pause()
+            assert app.query_one("#cue-czas", Input).has_class("hide")
+            assert app.focused.id == "cue-table", "fokus wraca do listy"
+            p = cue_edycje.efektywne_pady(plan, app._cue_edycje, "A")["B"]
+            assert p["position_ms"] == 300_000, "pad nietknięty"
 
     asyncio.run(go())

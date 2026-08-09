@@ -467,48 +467,6 @@ class NazwaPlanuScreen(ModalScreen):
         self.dismiss(None)
 
 
-class CzasPadaScreen(ModalScreen):
-    """T na wybranym padzie: ręczne wpisanie czasu (życzenie Janka 09.08).
-    Wpisany czas przechodzi przez kwantyzację — jak w Rekordboksie
-    z włączonym quantize; o ile dociągnęliśmy, mówimy w notce."""
-
-    CSS = """
-    CzasPadaScreen { align: center middle; }
-    #czas-box { width: 60; height: 9; border: solid $accent;
-                background: $panel; padding: 1 2; }
-    #czas-przyciski { height: 3; margin-top: 1; }
-    #czas-przyciski Button { margin-right: 2; }
-    """
-    BINDINGS = [Binding("escape", "anuluj", "Anuluj")]
-
-    def __init__(self, pad: str, teraz: str):
-        super().__init__()
-        self._pad = pad
-        self._teraz = teraz
-
-    def compose(self) -> ComposeResult:
-        with Vertical(id="czas-box"):
-            yield Label(f"Pad {self._pad} — czas (np. 2:31 albo 2:31.5); "
-                        f"dociągnę do siatki:")
-            yield Input(value=self._teraz, id="czas-pada")
-            with Horizontal(id="czas-przyciski"):
-                yield Button("Ustaw", id="czas-ok", variant="primary")
-                yield Button("Anuluj", id="czas-cancel")
-
-    def on_input_submitted(self, event) -> None:
-        self.dismiss(event.value.strip() or None)
-
-    def on_button_pressed(self, event) -> None:
-        if event.button.id == "czas-ok":
-            self.dismiss(self.query_one("#czas-pada", Input).value.strip()
-                         or None)
-        else:
-            self.dismiss(None)
-
-    def action_anuluj(self) -> None:
-        self.dismiss(None)
-
-
 class DanceLabTUI(App):
     TITLE = "DanceLab — budowa setu"
     CSS = """
@@ -561,8 +519,11 @@ class DanceLabTUI(App):
     #cue-gora { dock: top; height: auto; }
     #cue-karta { height: auto; border-bottom: solid $accent; }
     #cue-os { width: 1fr; height: auto; padding: 0 1; }
-    #cue-pady { width: 46; height: auto; padding: 0 1;
-                border-left: solid $accent; }
+    #cue-prawa { width: 46; height: auto; padding: 0 1;
+                 border-left: solid $accent; }
+    #cue-pady { height: auto; }
+    #cue-czas { height: 3; margin-top: 1; }
+    #cue-czas.hide { display: none; }
     #cue-info { height: auto; padding: 0 1; color: $text-muted; }
     #cue-dol { dock: bottom; height: auto; }
     #cue-tools { height: 3; padding: 0 1; }
@@ -768,7 +729,12 @@ class DanceLabTUI(App):
                         yield Static("", id="cue-head")
                         with Horizontal(id="cue-karta"):
                             yield Static("", id="cue-os")
-                            yield Static("", id="cue-pady")
+                            with Vertical(id="cue-prawa"):
+                                yield Static("", id="cue-pady")
+                                # edycja czasu TU, przy padach — bez okienka
+                                # (weto Janka 09.08 na popup)
+                                yield Input(placeholder="np. 2:31",
+                                            id="cue-czas", classes="hide")
                         yield Static("", id="cue-info")
                     yield DataTable(id="cue-table",
                                     cursor_foreground_priority="renderable")
@@ -877,6 +843,12 @@ class DanceLabTUI(App):
         except Exception:  # noqa: BLE001
             return
         if active != "tab-export" or self._cue_plan is None:
+            return
+        if getattr(self.focused, "id", None) == "cue-czas":
+            if event.key == "escape":
+                event.stop()
+                event.prevent_default()
+                self._cue_schowaj_czas()
             return
         if getattr(self.focused, "id", None) != "cue-table":
             return
@@ -993,48 +965,58 @@ class DanceLabTUI(App):
         self._render_cue_lista()
 
     def _cue_wpisz_czas(self) -> None:
-        """T: wpisz czas wybranego pada z klawiatury. Wpisana wartość
-        przechodzi przez kwantyzację (jak quantize w Rekordboksie) —
-        dociągamy do taktu przy zweryfikowanej fazie, inaczej do bitu,
-        a przy niepewnej siatce zostawiamy wpisane i mówimy o tym."""
+        """T: pole czasu OBOK padów (weto Janka 09.08 na okienko). Wpisana
+        wartość przechodzi przez kwantyzację — do taktu przy zweryfikowanej
+        fazie, inaczej do bitu; przy niepewnej siatce zostaje wpisana."""
+        from dancelab.tui.cue_podglad import _mmss
+        pady = self._cue_pady_teraz()
+        p = pady.get(self._cue_wybor)
+        if p is None:
+            return
+        pole = self.query_one("#cue-czas", Input)
+        pole.remove_class("hide")
+        pole.value = _mmss(p["position_ms"])
+        pole.focus()
+
+    def _cue_schowaj_czas(self) -> None:
+        pole = self.query_one("#cue-czas", Input)
+        pole.add_class("hide")
+        pole.value = ""
+        self.query_one("#cue-table", DataTable).focus()
+
+    def _cue_ustaw_czas(self, tekst: str) -> None:
+        """Enter w polu czasu: parsowanie, kwantyzacja, przesunięcie pada."""
         from dancelab.tui.cue_edycje import (czas_po_kwantyzacji, parsuj_czas,
                                              przesun)
         from dancelab.tui.cue_podglad import _mmss
         pady = self._cue_pady_teraz()
         p = pady.get(self._cue_wybor)
         if p is None:
+            self._cue_schowaj_czas()
             return
         analiza = self._ctx["by_id"][self._cue_track]
-
-        def po_wpisaniu(tekst: str | None) -> None:
-            if not tekst:
-                return
-            sekundy = parsuj_czas(tekst)
-            if sekundy is None:
-                self._note(f'nie rozumiem czasu „{tekst}” — '
-                           f'wpisz np. 2:31 albo 151')
-                return
-            dlugosc = analiza.track.duration_sec or 0
-            if dlugosc and sekundy > dlugosc:
-                self._note(f"{tekst} jest za utworem ({_mmss(int(dlugosc*1000))}) "
-                           f"— pad zostaje na miejscu")
-                return
-            cel, powod = czas_po_kwantyzacji(analiza.beatgrid, sekundy)
-            bpm = (analiza.beatgrid.bpm if analiza.beatgrid else 0) or 120.0
-            beat = 60000.0 / bpm
-            uderzenia = int(round((cel * 1000 - p["position_ms"]) / beat))
-            nowa = przesun(self._cue_edycje, self._cue_track, self._cue_wybor,
-                           uderzenia, bpm, p.get("silnik_ms"),
-                           p["position_ms"])
-            self._log_verdict("cue_czas_wpisany", track_id=self._cue_track,
-                              pad=self._cue_wybor, wpisane_sec=sekundy,
-                              position_ms=nowa)
-            self._note(f"pad {self._cue_wybor} → {_mmss(nowa)} · {powod}")
-            self._render_cue_lista()
-
-        self.push_screen(
-            CzasPadaScreen(self._cue_wybor, _mmss(p["position_ms"])),
-            po_wpisaniu)
+        sekundy = parsuj_czas(tekst)
+        if sekundy is None:
+            self._note(f'nie rozumiem czasu „{tekst}” — wpisz np. 2:31 '
+                       f'albo 151')
+            return
+        dlugosc = analiza.track.duration_sec or 0
+        if dlugosc and sekundy > dlugosc:
+            self._note(f"{tekst} jest za końcem utworu "
+                       f"({_mmss(int(dlugosc * 1000))}) — pad zostaje")
+            return
+        cel, powod = czas_po_kwantyzacji(analiza.beatgrid, sekundy)
+        bpm = (analiza.beatgrid.bpm if analiza.beatgrid else 0) or 120.0
+        beat = 60000.0 / bpm
+        uderzenia = int(round((cel * 1000 - p["position_ms"]) / beat))
+        nowa = przesun(self._cue_edycje, self._cue_track, self._cue_wybor,
+                       uderzenia, bpm, p.get("silnik_ms"), p["position_ms"])
+        self._log_verdict("cue_czas_wpisany", track_id=self._cue_track,
+                          pad=self._cue_wybor, wpisane_sec=sekundy,
+                          position_ms=nowa)
+        self._note(f"pad {self._cue_wybor} → {_mmss(nowa)} · {powod}")
+        self._cue_schowaj_czas()
+        self._render_cue_lista()
 
     def _cue_posluchaj(self) -> None:
         """P/Spacja w edytorze cue (etap 3): gra TEN utwór od wybranego pada
@@ -1653,6 +1635,11 @@ class DanceLabTUI(App):
         stan = "włączone" if self._user_state["okladki_w_liscie"] else "wyłączone"
         self._note(f"okładki w liście: {stan}")
         self._render_library(keep_cursor=True)
+
+    def on_input_submitted(self, event) -> None:
+        """Enter w polu czasu pada (jedyne pole App z zatwierdzaniem)."""
+        if getattr(event.input, "id", None) == "cue-czas":
+            self._cue_ustaw_czas(event.value.strip())
 
     def on_switch_changed(self, event: Switch.Changed) -> None:
         if event.switch.id != "lib-artwork":
