@@ -467,6 +467,48 @@ class NazwaPlanuScreen(ModalScreen):
         self.dismiss(None)
 
 
+class CzasPadaScreen(ModalScreen):
+    """T na wybranym padzie: ręczne wpisanie czasu (życzenie Janka 09.08).
+    Wpisany czas przechodzi przez kwantyzację — jak w Rekordboksie
+    z włączonym quantize; o ile dociągnęliśmy, mówimy w notce."""
+
+    CSS = """
+    CzasPadaScreen { align: center middle; }
+    #czas-box { width: 60; height: 9; border: solid $accent;
+                background: $panel; padding: 1 2; }
+    #czas-przyciski { height: 3; margin-top: 1; }
+    #czas-przyciski Button { margin-right: 2; }
+    """
+    BINDINGS = [Binding("escape", "anuluj", "Anuluj")]
+
+    def __init__(self, pad: str, teraz: str):
+        super().__init__()
+        self._pad = pad
+        self._teraz = teraz
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="czas-box"):
+            yield Label(f"Pad {self._pad} — czas (np. 2:31 albo 2:31.5); "
+                        f"dociągnę do siatki:")
+            yield Input(value=self._teraz, id="czas-pada")
+            with Horizontal(id="czas-przyciski"):
+                yield Button("Ustaw", id="czas-ok", variant="primary")
+                yield Button("Anuluj", id="czas-cancel")
+
+    def on_input_submitted(self, event) -> None:
+        self.dismiss(event.value.strip() or None)
+
+    def on_button_pressed(self, event) -> None:
+        if event.button.id == "czas-ok":
+            self.dismiss(self.query_one("#czas-pada", Input).value.strip()
+                         or None)
+        else:
+            self.dismiss(None)
+
+    def action_anuluj(self) -> None:
+        self.dismiss(None)
+
+
 class DanceLabTUI(App):
     TITLE = "DanceLab — budowa setu"
     CSS = """
@@ -851,6 +893,10 @@ class DanceLabTUI(App):
             kroki = {"left": -1, "right": +1, "shift+left": -8,
                      "shift+right": +8, "pageup": -32, "pagedown": +32}
             self._cue_przesun(kroki[klawisz])
+        elif klawisz == "t" and self._cue_wybor:
+            event.stop()
+            event.prevent_default()
+            self._cue_wpisz_czas()
         elif klawisz in ("p", "space"):
             event.stop()
             event.prevent_default()
@@ -945,6 +991,50 @@ class DanceLabTUI(App):
                           pad=self._cue_wybor, uderzenia=uderzenia,
                           position_ms=nowa, silnik_ms=p.get("silnik_ms"))
         self._render_cue_lista()
+
+    def _cue_wpisz_czas(self) -> None:
+        """T: wpisz czas wybranego pada z klawiatury. Wpisana wartość
+        przechodzi przez kwantyzację (jak quantize w Rekordboksie) —
+        dociągamy do taktu przy zweryfikowanej fazie, inaczej do bitu,
+        a przy niepewnej siatce zostawiamy wpisane i mówimy o tym."""
+        from dancelab.tui.cue_edycje import (czas_po_kwantyzacji, parsuj_czas,
+                                             przesun)
+        from dancelab.tui.cue_podglad import _mmss
+        pady = self._cue_pady_teraz()
+        p = pady.get(self._cue_wybor)
+        if p is None:
+            return
+        analiza = self._ctx["by_id"][self._cue_track]
+
+        def po_wpisaniu(tekst: str | None) -> None:
+            if not tekst:
+                return
+            sekundy = parsuj_czas(tekst)
+            if sekundy is None:
+                self._note(f'nie rozumiem czasu „{tekst}” — '
+                           f'wpisz np. 2:31 albo 151')
+                return
+            dlugosc = analiza.track.duration_sec or 0
+            if dlugosc and sekundy > dlugosc:
+                self._note(f"{tekst} jest za utworem ({_mmss(int(dlugosc*1000))}) "
+                           f"— pad zostaje na miejscu")
+                return
+            cel, powod = czas_po_kwantyzacji(analiza.beatgrid, sekundy)
+            bpm = (analiza.beatgrid.bpm if analiza.beatgrid else 0) or 120.0
+            beat = 60000.0 / bpm
+            uderzenia = int(round((cel * 1000 - p["position_ms"]) / beat))
+            nowa = przesun(self._cue_edycje, self._cue_track, self._cue_wybor,
+                           uderzenia, bpm, p.get("silnik_ms"),
+                           p["position_ms"])
+            self._log_verdict("cue_czas_wpisany", track_id=self._cue_track,
+                              pad=self._cue_wybor, wpisane_sec=sekundy,
+                              position_ms=nowa)
+            self._note(f"pad {self._cue_wybor} → {_mmss(nowa)} · {powod}")
+            self._render_cue_lista()
+
+        self.push_screen(
+            CzasPadaScreen(self._cue_wybor, _mmss(p["position_ms"])),
+            po_wpisaniu)
 
     def _cue_posluchaj(self) -> None:
         """P/Spacja w edytorze cue (etap 3): gra TEN utwór od wybranego pada
@@ -1262,10 +1352,10 @@ class DanceLabTUI(App):
         if len(plan.warnings) > 3:
             linie.append(f"…i {len(plan.warnings) - 3} dalszych ostrzeżeń")
         linie.append("litera A–H = wybierz pad (pusty slot = postaw) · "
-                     "TA SAMA litera drugi raz = przenieś pad pod głowicę "
-                     "odtwarzacza · ←/→ ±1 uderzenie (Shift ±8, PgUp/PgDn "
-                     "±32) · P posłuchaj od pada · X zdejmij · Z cofnij · "
-                     "W wysyła cue (dwa razy)")
+                     "TA SAMA litera drugi raz = przenieś pod głowicę · "
+                     "T = wpisz czas z klawiatury (dociągnę do siatki) · "
+                     "←/→ ±1 uderzenie (Shift ±8, PgUp/PgDn ±32) · "
+                     "P posłuchaj · X zdejmij · Z cofnij · W wysyła cue")
         info.update("\n".join(linie))
         if self._cue_widok:
             if self._cue_track not in self._cue_widok:
@@ -1307,8 +1397,8 @@ class DanceLabTUI(App):
         if self._cue_wybor:
             naglowek.append(
                 f"· pad {self._cue_wybor}: {self._cue_wybor} jeszcze raz = "
-                f"przenieś tu (głowica) · ←/→ ±1 uderzenie · Shift ±8 · "
-                f"PgUp/PgDn ±32 · P posłuchaj · X zdejmij · Esc",
+                f"przenieś pod głowicę · T = wpisz czas · ←/→ ±1 uderzenie "
+                f"(Shift ±8) · P posłuchaj · X zdejmij · Esc",
                 style=f"bold {PILLAR_COLOR}")
         else:
             naglowek.append("· litera A–H = wybierz/postaw pad · "

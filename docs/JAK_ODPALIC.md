@@ -69,6 +69,13 @@ kliknięciem w nazwę:
    uderzenie, **Shift** o osiem, **PgUp/PgDn** o trzydzieści dwa.
    **Z** cofa każdą zmianę.
 
+   Czas możesz też **wpisać z klawiatury**: **T** na wybranym padzie
+   otwiera okienko (format `2:31` albo `2:31.5`, przecinek też działa).
+   Wpisana wartość jest **dociągana do siatki** — jak quantize
+   w Rekordboksie: do taktu, gdy faza taktu jest zweryfikowana, inaczej
+   do najbliższego bitu. Notka mówi, o ile dociągnęliśmy; przy niepewnej
+   siatce zostawiamy dokładnie to, co wpisałeś, i piszemy dlaczego.
+
    **Edycja jak na CDJ:** litera A–H wybiera pad
    (a gdy pada nie ma — stawia nowy: przy pozycji odtwarzacza, jeśli
    ten utwór właśnie gra, inaczej na środku utworu); ←/→ przesuwa

@@ -103,3 +103,39 @@ def efektywne_pady(plan, edycje: dict, tid: str) -> dict[str, dict]:
         if t_id == tid:
             wynik.pop(pad, None)
     return wynik
+
+
+def parsuj_czas(tekst: str) -> float | None:
+    """„2:31", „2:31.5", „151", „151,5" → sekundy. None = nie rozumiem.
+
+    Przecinek działa jak kropka (polska klawiatura), spacje bez znaczenia.
+    Nie zgadujemy: byle co zwraca None, a UI mówi o tym wprost."""
+    t = str(tekst).strip().replace(",", ".").replace(" ", "")
+    if not t:
+        return None
+    try:
+        if ":" in t:
+            minuty, sekundy = t.rsplit(":", 1)
+            wynik = int(minuty) * 60 + float(sekundy)
+        else:
+            wynik = float(t)
+    except ValueError:
+        return None
+    return wynik if wynik >= 0 else None
+
+
+def czas_po_kwantyzacji(beatgrid, sekundy: float) -> tuple[float, str]:
+    """(czas po przyciągnięciu, powód). Kwantyzacja jak w Rekordboksie:
+    do frazy, gdy faza taktu jest ZWERYFIKOWANA, inaczej do najbliższego
+    bitu; przy niepewnej siatce nic nie ruszamy i mówimy dlaczego."""
+    from dancelab.decision.cue_grid import snap_cue_start
+
+    po = snap_cue_start(beatgrid, float(sekundy))
+    roznica = abs(po - sekundy)
+    if roznica < 0.005:
+        return po, "trafione w siatkę"
+    if po == sekundy:
+        return po, "siatka niepewna — zostawiam wpisany czas"
+    do_czego = ("taktu" if getattr(beatgrid, "downbeat_phase_verified", False)
+                else "bitu")
+    return po, f"dociągnięte do {do_czego} (o {roznica:.2f} s)"

@@ -341,3 +341,62 @@ def test_przenoszenie_odmawia_gdy_odtwarzacz_stoi_gdzie_indziej(tmp_path,
             assert "najpierw P" in notki
 
     asyncio.run(go())
+
+
+def test_parsowanie_czasu_i_kwantyzacja():
+    """Ręczne wpisanie czasu (życzenie Janka 09.08): rozumiemy zapis
+    minutowy i sekundowy, przecinek jak kropka; wpisana wartość jest
+    dociągana do siatki — jak quantize w Rekordboksie."""
+    from dancelab.core.models import BeatGrid
+    from dancelab.tui.cue_edycje import czas_po_kwantyzacji, parsuj_czas
+
+    assert parsuj_czas("2:31") == 151.0
+    assert parsuj_czas("2:31,5") == 151.5, "przecinek działa jak kropka"
+    assert parsuj_czas(" 151 ") == 151.0
+    assert parsuj_czas("bzdura") is None and parsuj_czas("") is None
+
+    # siatka co 0,5 s (120 BPM), faza taktu NIEzweryfikowana → snap do bitu
+    grid = BeatGrid(bpm=120.0, beat_times_sec=[i * 0.5 for i in range(400)],
+                    quality_score=0.9)
+    czas, powod = czas_po_kwantyzacji(grid, 151.2)
+    assert czas == 151.0 and "bitu" in powod
+    czas, powod = czas_po_kwantyzacji(grid, 151.0)
+    assert czas == 151.0 and powod == "trafione w siatkę"
+
+
+def test_t_wpisuje_czas_pada_i_dociaga(tmp_path, monkeypatch):
+    from textual.widgets import DataTable, Input, TabbedContent
+
+    from dancelab.core.models import BeatGrid
+    from dancelab.tui.app import DanceLabTUI
+
+    monkeypatch.setattr("dancelab.tui.app.WERDYKTY_DIR", tmp_path / "w")
+    plan, by_id = _plan(monkeypatch)
+    by_id["A"].beatgrid = BeatGrid(
+        bpm=120.0, beat_times_sec=[i * 0.5 for i in range(800)],
+        quality_score=0.9)
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            app._ctx = {"by_id": by_id, "weights": None}
+            app._order = ["A", "B"]
+            app._cue_plan = plan
+            app.query_one("#tabs", TabbedContent).active = "tab-export"
+            await pilot.pause()
+            app._render_cue_lista()
+            app.query_one("#cue-table", DataTable).focus()
+            await pilot.pause()
+            await pilot.press("b")               # wybór pada B (300 s)
+            await pilot.press("t")               # okienko czasu
+            await pilot.pause()
+            # modal to OSOBNY ekran — pytamy o niego, nie o tło
+            app.screen.query_one("#czas-pada", Input).value = "2:31,2"
+            await pilot.press("enter")
+            await pilot.pause()
+            await pilot.pause()
+            p = cue_edycje.efektywne_pady(plan, app._cue_edycje, "A")["B"]
+            assert p["position_ms"] == 151_000, \
+                "2:31,2 dociągnięte do bitu na 2:31,0"
+
+    asyncio.run(go())
