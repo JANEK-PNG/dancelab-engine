@@ -2433,6 +2433,10 @@ class DanceLabTUI(App):
         attach_rekordbox_meta(analyses)
 
         anchor = None
+        # UWAGA: `notes` powstaje dopiero pod koniec tej metody — komunikaty
+        # o kotwicy zbieramy osobno i doklejamy tam. (Dwa razy 09.08 sięgnąłem
+        # po zmienną, której w tym miejscu jeszcze nie ma, i ubiłem budowę.)
+        uwagi_kotwicy: list[str] = []
         if p["dj"]:
             from dancelab.decision.anchors import (MOJE_ULUBIONE, AnchorError,
                                                    kotwica_z_utworow,
@@ -2445,12 +2449,13 @@ class DanceLabTUI(App):
                 try:
                     anchor = kotwica_z_utworow(
                         [a for a in analyses if a.track.track_id in ulubione])
-                    notes.append(
+                    uwagi_kotwicy.append(
                         f"kotwica z Twoich ulubionych: {anchor.n_tracks} "
                         f"utworów (kontur skoków niedostępny — to cecha "
                         f"sposobu grania, nie zbioru)")
                 except AnchorError as exc:
-                    notes.append(f"kotwica z ulubionych niemożliwa: {exc}")
+                    uwagi_kotwicy.append(
+                        f"kotwica z ulubionych niemożliwa: {exc}")
             else:
                 anchor = resolve_anchor(p["dj"])
 
@@ -2547,7 +2552,8 @@ class DanceLabTUI(App):
             filary=filary,   # już po mapowaniu na egzemplarze kanoniczne —
             odcisk=odcisk,   # flagi ⚑ muszą trafiać w to, co GRA; odcisk
         )                    # do historii dopiero przy S/W
-        notes = [*emb.notes, *gen.notes, *ton.notes, *filar_notes,
+        notes = [*uwagi_kotwicy, *emb.notes, *gen.notes, *ton.notes,
+                 *filar_notes,
                  f"dokarmione: wektory {emb.attached}, gatunki {gen.attached}, "
                  f"tonacje RB {ton.attached}"]
         self._plan_name = (f"TUI {p['dj'] or 'set'} "
