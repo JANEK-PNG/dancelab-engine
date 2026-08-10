@@ -914,6 +914,23 @@ class DanceLabTUI(App):
             self._cue_wybor = None
             self._render_cue_karta()
 
+    def _bez_pliku(self, track) -> str | None:
+        """Powód odmowy, gdy czynność wymaga PLIKU, a utwór go nie ma.
+
+        Utwory zaimportowane z analiz Rekordboxa (strumienie Apple Music) mają
+        tempo, siatkę, energię i sekcje, ale nie mają audio na dysku — więc
+        odsłuch i render szwu są niemożliwe. Mówimy to wprost, zamiast
+        pokazywać błąd odtwarzacza."""
+        # Kryterium: ścieżka NIE JEST ścieżką w systemie plików (strumień
+        # zapisany jako `apple-music:tracks:123`). Plik, który zniknął, to
+        # inny przypadek — tam odtwarzacz ma prawo powiedzieć swoje.
+        sciezka = str(getattr(track, "source_path", "") or "")
+        if sciezka and not sciezka.startswith("/"):
+            return (f"{(track.title or sciezka)[:38]}: nie ma pliku na dysku "
+                    f"(utwór ze strumienia) — zagrasz go w Rekordboksie, "
+                    f"tutaj policzymy tylko dobór")
+        return None
+
     def _cue_takty(self, tid: str | None = None) -> list[float]:
         """Takty utworu wg Rekordboxa — te same czerwone linie, które widzisz
         w jego oknie. Pusta lista = tego utworu nie ma w kolekcji albo nie ma
@@ -1041,6 +1058,11 @@ class DanceLabTUI(App):
                        "do następnego utworu setu")
             return
         nastepny = self._cue_widok[i + 1]
+        for tid in (self._cue_track, nastepny):
+            powod = self._bez_pliku(self._ctx["by_id"][tid].track)
+            if powod:
+                self._note(f"szew: {powod}")
+                return
         from dancelab.tui import cue_edycje
         pady_a = self._cue_pady_teraz()
         pady_b = cue_edycje.efektywne_pady(
@@ -1168,6 +1190,10 @@ class DanceLabTUI(App):
             return
         analiza = self._ctx["by_id"].get(self._cue_track)
         if analiza is None:
+            return
+        powod = self._bez_pliku(analiza.track)
+        if powod:
+            self._note(powod)
             return
         sciezka = analiza.track.source_path
         if self._odtwarzacz.gra() and self._odtwarzacz.sciezka == sciezka:
@@ -2301,11 +2327,23 @@ class DanceLabTUI(App):
         repo = FileAnalysisRepository(self.processed_dir)
         analyses = [repo.get(t) for t in repo.list_track_ids()]
         before = len(analyses)
-        analyses = [a for a in analyses
-                    if pathlib.Path(a.track.source_path).exists()
-                    and pathlib.Path(a.track.source_path).stem.strip().lower()
-                    not in STEM_NAMES
-                    and (a.track.duration_sec or 0) <= MAX_TRACK_SEC]
+        from dancelab.ingestion.rekordbox_import import WERSJA as RB_WERSJA
+
+        def zdrowy(a) -> bool:
+            # Utwory zaimportowane z analiz Rekordboxa NIE MAJĄ pliku i to
+            # jest ich stan normalny, nie awaria (strumienie Apple Music =
+            # 1571 z 1880 pozycji kolekcji Janka). Sito „brak pliku" powstało
+            # przeciw plikom, które ZNIKNĘŁY — nie przeciw utworom, o których
+            # z góry wiadomo, że pliku nie mają.
+            if (a.track.duration_sec or 0) > MAX_TRACK_SEC:
+                return False
+            if a.engine_version == RB_WERSJA:
+                return True
+            sciezka = pathlib.Path(a.track.source_path)
+            return (sciezka.exists()
+                    and sciezka.stem.strip().lower() not in STEM_NAMES)
+
+        analyses = [a for a in analyses if zdrowy(a)]
         notes = []
         if before - len(analyses):
             notes.append(f"higiena puli: odrzucone {before - len(analyses)} "
@@ -3030,6 +3068,10 @@ class DanceLabTUI(App):
         if track is None:
             if not self._stop_player():
                 self._note("ustaw kursor na utworze do odsłuchu")
+            return
+        powod = self._bez_pliku(track)
+        if powod:
+            self._note(powod)
             return
         akcja, blad = self._odtwarzacz.przelacz(
             str(track.source_path), track.bpm_estimate)
