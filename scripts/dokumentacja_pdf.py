@@ -46,6 +46,9 @@ PODPISY = {
                       "w nagłówku i opis sortowania nad tabelą.",
     "lib_analizuj": "Wiersz Analizuj na dole zakładki: ścieżka folderu "
                     "z muzyką i przycisk uruchamiający analizę.",
+    "lib_strumien": "Utwór ze strumienia: jest w Bibliotece i wchodzi do "
+                    "setów, ale odsłuch odmawia z powodem — nie ma pliku na "
+                    "dysku, więc zagrasz go w Rekordboksie.",
     "lib_notki": "Notki (klawisz L): dziennik silnika — czego nie wie i co "
                  "odrzucił, z licznikiem w pasku statusu.",
     # Set

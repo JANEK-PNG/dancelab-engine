@@ -230,7 +230,33 @@ powodem w notkach, zamiast psuć analizę.
 
 <!-- zrzut: lib_analizuj -->
 
-### 3.7. Zajrzyj do notek
+### 3.7. Utwory ze strumieni (Apple Music)
+
+Większość kolekcji w Rekordboksie to zwykle **strumienie**, a nie pliki na
+dysku — u nas 1571 z 1880 pozycji. DanceLab widzi je tak samo jak pliki, bo
+przejmuje to, co Rekordbox już policzył: tempo, tonację, gatunek, siatkę
+taktów, energię i podział na frazy.
+
+| co działa | co nie działa |
+|---|---|
+| dobór do setu, ocena przejść, filary, gatunki, kotwica | odsłuch w DanceLab (<kbd>P</kbd>) |
+| wysyłka playlisty i hot cue do Rekordboxa | odsłuch szwu (<kbd>S</kbd>) |
+| widok w Bibliotece, szukanie, filtry | pomiar głośności LUFS (kolumna zostaje pusta) |
+
+<!-- zrzut: lib_strumien -->
+
+Powód jest prosty: nie ma pliku, więc nie ma czego zagrać. Program mówi to
+wprost — „nie ma pliku na dysku (utwór ze strumienia) — zagrasz go
+w Rekordboksie". Liczby takiego utworu pochodzą z analizy Pioneera, nie
+z naszej; są oznaczone w danych, żeby nikt ich nie pomylił z pomiarem
+DanceLaba.
+
+**Brzmienie** takich utworów liczymy z 30-sekundowej próbki z katalogu
+iTunes: pobieramy ją, liczymy wektor i **od razu kasujemy audio**. To ten
+wektor napędza kotwicę „graj jak…". Wysyłamy przy tym wyłącznie numer
+katalogowy utworu — nic o Tobie.
+
+### 3.8. Zajrzyj do notek
 
 **Cel:** sprawdzić, czego silnik nie wie i co odrzucił.
 
@@ -246,7 +272,7 @@ statusu, a odmowy i wyniki wysyłki wyskakują dodatkowo jako dymek.
 
 <!-- zrzut: lib_notki -->
 
-### 3.8. Wyślij filary do zakładki Set
+### 3.9. Wyślij filary do zakładki Set
 
 **Cel:** zacząć budowę setu od utworów, które muszą zagrać.
 
@@ -341,7 +367,7 @@ brzmienia i liczba przeanalizowanych setów.
 
 **Cel:** zdecydować, gdzie w secie mają wylądować filary.
 
-**Warunki wstępne:** filary są wysłane do zakładki Set (punkt 3.8).
+**Warunki wstępne:** filary są wysłane do zakładki Set (punkt 3.9).
 
 **Kroki**
 
@@ -787,7 +813,7 @@ Gdy utwór skończy się sam, gra następny z listy; na końcu listy zapada cisz
 | <kbd>U</kbd> | ulubiony (♥) | 3.4 |
 | <kbd>F</kbd> | filar (⚑) | 3.4 |
 | <kbd>K</kbd> | okładki | 3.5 |
-| <kbd>G</kbd> | wyślij filary do zakładki Set | 3.8 |
+| <kbd>G</kbd> | wyślij filary do zakładki Set | 3.9 |
 
 ### 7.3. Set
 

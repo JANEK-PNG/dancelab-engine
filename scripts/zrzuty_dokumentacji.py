@@ -130,6 +130,21 @@ async def biblioteka(s: Sesja) -> None:
         pole.value = ""
         await s.pilot.pause()
 
+    if s.chce("lib_strumien"):
+        tabela.focus()
+        widok = getattr(s.app, "_lib_view", [])
+        i = next((n for n, a in enumerate(widok)
+                  if not str(a.track.source_path).startswith("/")), None)
+        if i is not None:
+            tabela.move_cursor(row=i)
+            await s.pilot.press("p")      # odmowa, bo nie ma pliku
+            await s.pilot.press("l")      # notki na wierzch
+            await s.zrzut("lib_strumien")
+            await s.pilot.press("l")
+            await s.pilot.pause()
+        else:
+            print("  (brak utworu ze strumienia w puli — pomijam)")
+
     if s.chce("lib_notki"):
         tabela.focus()
         await s.pilot.press("l")

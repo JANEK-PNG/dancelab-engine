@@ -70,7 +70,7 @@ def test_kazdy_punkt_zakladek_ma_zrzut_ekranu():
         # te punkty opisują ten sam ekran, co punkt „Co widać na ekranie"
         "5.3. Przestaw pad — duży skok",
         "5.8. Wyślij playlistę z tej zakładki",
-        "3.8. Wyślij filary do zakładki Set",
+        "3.9. Wyślij filary do zakładki Set",
         "4.12. Wyślij playlistę do Rekordboksa",
     }
     braki = []

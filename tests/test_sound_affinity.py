@@ -113,3 +113,39 @@ def test_a_library_without_embeddings_scores_exactly_as_before():
     off, _, _ = transition_score(a, b, base, "build", 0.1, 0.12, 0.2)
     on, _, _ = transition_score(a, b, loud, "build", 0.1, 0.12, 0.2)
     assert off == on
+
+
+def test_wektory_z_probek_wchodza_do_katalogu(tmp_path, monkeypatch):
+    """Strumienie to 82% kolekcji Janka i nie mają pliku, więc ich jedyne
+    źródło brzmienia to 30-sekundowa próbka. Katalog musi je podpinać po
+    `apple-music:tracks:ID` — inaczej kotwica „graj jak…" jest martwa
+    (zmierzone 09.08: 0 z 201 utworów puli miało wektor)."""
+    import json
+
+    from dancelab.core.models import AnalysisResult, Track
+    from dancelab.ingestion import analysis_enrichment as AE
+
+    biblioteka = tmp_path / "library_embeddings.json"
+    biblioteka.write_text(json.dumps({
+        "library_root": "/muzyka",
+        "tracks": {"a.wav": [0.1, 0.2]}}))
+    probki = tmp_path / "apple_preview_embeddings.json"
+    probki.write_text(json.dumps({
+        "schema_version": "apple-preview-embeddings-v1",
+        "tracks": {"123": {"vector": [0.3, 0.4], "source": "preview"}}}))
+    monkeypatch.setattr(AE, "APPLE_PREVIEW_EMBEDDINGS", probki)
+
+    katalog, nota = AE.load_embedding_catalogue(biblioteka)
+    assert katalog["/muzyka/a.wav"] == [0.1, 0.2]
+    assert katalog["apple-music:tracks:123"] == [0.3, 0.4]
+    assert "próbek" in nota, "nota ma mówić, że część wektorów jest z próbek"
+
+    analizy = [
+        AnalysisResult(engine_version="t", track=Track(
+            track_id="p", source_path="/muzyka/a.wav")),
+        AnalysisResult(engine_version="t", track=Track(
+            track_id="s", source_path="apple-music:tracks:123")),
+    ]
+    raport = AE.attach_sound_embeddings(analizy, katalog)
+    assert raport.attached == 2 and raport.missing == 0
+    assert analizy[1].track.sound_embedding == [0.3, 0.4]

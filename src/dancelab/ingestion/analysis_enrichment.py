@@ -32,6 +32,10 @@ from typing import Iterable
 from dancelab.core.models import AnalysisResult
 
 LIBRARY_EMBEDDINGS = pathlib.Path("data/reports/library_embeddings.json")
+# Wektory z 30-sekundowych PRÓBEK iTunes — jedyne źródło brzmienia dla
+# utworów bez pliku (strumienie Apple Music to 82% kolekcji Janka).
+APPLE_PREVIEW_EMBEDDINGS = pathlib.Path(
+    "data/reports/apple_preview_embeddings.json")
 
 
 def _nfc(s: str) -> str:
@@ -57,7 +61,29 @@ def load_embedding_catalogue(
     data = json.loads(p.read_text())
     root = _nfc(data.get("library_root", ""))
     out = {f"{root}/{_nfc(rel)}": vec for rel, vec in (data.get("tracks") or {}).items()}
-    return out, f"wektory brzmienia: {len(out)} z {p.name}"
+    zrodla = [f"{len(out)} z plików"]
+
+    # Strumienie: klucz to identyfikator katalogu iTunes, a `source_path`
+    # takiego utworu ma postać `apple-music:tracks:123` — łączymy po nim.
+    # UWAGA na porównywanie MIĘDZY źródłami: wektor z 30 s próbki powstaje
+    # inaczej niż z całego pliku (zmierzone 02.08: klasyfikator „próbka czy
+    # plik" osiąga AUC 0,889 na samych wektorach). W obrębie jednej grupy
+    # jest spójny; przy mieszaniu grup trzeba o tym pamiętać.
+    pp = pathlib.Path(APPLE_PREVIEW_EMBEDDINGS)
+    if pp.exists():
+        try:
+            prev = json.loads(pp.read_text()).get("tracks") or {}
+        except (json.JSONDecodeError, OSError):
+            prev = {}
+        ile = 0
+        for tid, wpis in prev.items():
+            wektor = wpis.get("vector") if isinstance(wpis, dict) else wpis
+            if wektor:
+                out[f"apple-music:tracks:{tid}"] = wektor
+                ile += 1
+        if ile:
+            zrodla.append(f"{ile} z 30-sekundowych próbek")
+    return out, "wektory brzmienia: " + " + ".join(zrodla)
 
 
 def attach_sound_embeddings(
