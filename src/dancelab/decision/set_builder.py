@@ -867,6 +867,44 @@ def _validate_build_constraints(
     return target_count, warnings
 
 
+# Poniżej tej oceny szew jest SŁABY — DJ usłyszy zderzenie, nie przejście.
+# Wyznaczone z rozkładu zmierzonego 09.08 na 3000 losowych par z puli 1913
+# utworów: mediana pary losowej 0,357, pierwszy kwartyl 0,164, a przyzwoity
+# szew ~0,89. 0,60 leży wyraźnie nad losem i wyraźnie pod przyzwoitym.
+SLABY_SZEW = 0.60
+
+
+def _ostrzezenia_o_slabych_szwach(transitions, order: list[str],
+                                  pula: int) -> list[str]:
+    """Set dłuższy, niż pula udźwignie, degraduje się PO CICHU.
+
+    Złapane 09.08 testem person: ta sama biblioteka 150 utworów daje przy
+    secie na 10 średnią 0,955 i najsłabszy szew 0,695, a przy secie na 30 —
+    najsłabszy 0,386 i skok tempa 26 BPM, i ani jednego ostrzeżenia. Zosia
+    (pierwszy rok grania) prosi o dwie godziny ze 150 utworów, dostaje
+    sklejkę i nie wie, że przesadziła.
+
+    Mówimy TYLKO to, co zmierzone: ile szwów jest słabych, gdzie i jak
+    słaby jest najgorszy. Wniosek („skróć set albo dołóż muzyki") jest
+    podpowiedzią, nie diagnozą — pula bywa też po prostu niespójna.
+    """
+    slabe = [(i + 1, t) for i, t in enumerate(transitions)
+             if t.transition_score < SLABY_SZEW]
+    if not slabe:
+        return []
+    poz, najgorszy = min(slabe, key=lambda x: x[1].transition_score)
+    gdzie = ", ".join(str(i) for i, _ in slabe[:6])
+    if len(slabe) > 6:
+        gdzie += f" i {len(slabe) - 6} dalszych"
+    return [
+        f"SŁABE SZWY: {len(slabe)} z {len(transitions)} poniżej "
+        f"{SLABY_SZEW:.2f} (najsłabszy {najgorszy.transition_score:.2f} "
+        f"na styku {poz}→{poz + 1}); miejsca: {gdzie}",
+        f"set na {len(order)} utworów z puli {pula} — przy takiej długości "
+        f"kończą się dobre pary; skróć set albo dołóż muzyki",
+    ]
+
+
 def _best_successor(
     current: str,
     candidates: list[str],
@@ -1207,6 +1245,27 @@ def build_set(
                     f"style preference applied ({', '.join(style_preferences)}); "
                     f"{dropped} non-matching track(s) left out"
                 )
+        elif not style_ids:
+            # ZERO trafień to inny przypadek niż „za mało": brief jest spisany
+            # w słowniku, którego ta biblioteka NIE UŻYWA. Złapane 09.08 testem
+            # person: Kuba wpisał „Techno (Peak Time / Driving)" (nazwa
+            # Beatportu), a jego biblioteka ma „Electro" ×100 i „Films/Games"
+            # ×22 z katalogu — brief pasował do zera utworów i został po cichu
+            # zdjęty, więc do setu techno wszedł hip-hop. Synonimów NIE
+            # zgadujemy (nazwa gatunku jest całością); mówimy wprost, czego
+            # ta biblioteka faktycznie używa.
+            import collections as _c
+
+            liczby = _c.Counter(
+                a.track.style_label for a in by_id_all.values()
+                if a.track.style_label)
+            masz = ", ".join(f"{n} ({i})" for n, i in liczby.most_common(4))
+            preference_warnings.append(
+                f"GATUNEK Z BRIEFU NIE WYSTĘPUJE w tej bibliotece: "
+                f"{', '.join(preferred_styles or style_preferences)} "
+                f"— brief pominięty. "
+                + (f"Masz tu: {masz}" if masz
+                   else "Żaden utwór tej biblioteki nie ma gatunku."))
         else:
             # Twarde sito nie przechodzi (za mało pasujących utworów na set),
             # ale preferencja NIE ZNIKA: schodzi do premii w ocenie, żeby set
@@ -1435,6 +1494,7 @@ def build_set(
         *_release_diversity_warnings(order, release_tokens),
         *_tempo_plan_warnings(order, tempo_targets, bpm_of),
         *_arc_shape_warnings(order, arc=arc, energy=energy, e_range=e_range),
+        *_ostrzezenia_o_slabych_szwach(transitions, order, len(by_id_all)),
         *novelty_warnings,
     ]
     if len(order) < 2:

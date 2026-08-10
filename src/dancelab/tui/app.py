@@ -2526,6 +2526,13 @@ class DanceLabTUI(App):
         self._edits = []
         self._mean_score = plan.mean_transition_score
         self._render_order(by_id)
+        # Dwa rodzaje ostrzeżeń nie mogą siedzieć w schowanych notkach:
+        # „brief zignorowany" i „set się sypie" zmieniają to, co DJ dostał
+        # (oba złapane testem person 09.08).
+        for w in plan.warnings:
+            if w.startswith(("GATUNEK Z BRIEFU", "SŁABE SZWY")):
+                # `_show_plan` biegnie już na wątku UI — bez pośrednika
+                self.notify(w[:180], severity="warning", timeout=10)
         for note in [*plan.warnings, *extra_notes]:
             self._note(note)
 

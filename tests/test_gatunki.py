@@ -168,3 +168,48 @@ def test_tag_spoza_taksonomii_nie_jest_naciagany():
     assert style_matches("mój własny tag", ["mój własny tag"])
     assert not style_matches("uk-garage", ["UK Garage / Bassline"]), \
         "skrócony tag to osobny byt — pokazujemy go w sekcji poza taksonomią"
+
+
+def test_gatunek_spoza_slownika_biblioteki_mowi_CO_MASZ():
+    """Znalezisko z testu person 09.08: Kuba wpisał nazwę Beatportu, a jego
+    biblioteka używa słownika katalogu („Electro"). Brief pasował do ZERA
+    utworów i został po cichu zdjęty — do setu techno wszedł hip-hop.
+    Synonimów nie zgadujemy; mówimy, czego ta biblioteka faktycznie używa."""
+    from dancelab.core.config import load_weights
+    from dancelab.core.models import AnalysisResult, BeatGrid, Track
+    from dancelab.decision.set_builder import build_set
+
+    def utwor(i: int, styl: str) -> AnalysisResult:
+        return AnalysisResult(
+            engine_version="t",
+            track=Track(track_id=f"t{i}", source_path=f"/m/{i}.wav",
+                        style_label=styl, bpm_estimate=140.0,
+                        key_estimate="8A", duration_sec=300.0),
+            beatgrid=BeatGrid(bpm=140.0, reliable=True))
+
+    pula = [utwor(i, "Electro") for i in range(20)] + \
+           [utwor(100 + i, "Films/Games") for i in range(5)]
+    plan = build_set(pula, load_weights("configs/descriptor_weights.yaml"),
+                     target_track_count=6, planner_mode="smart",
+                     preferred_styles=["Techno (Peak Time / Driving)"])
+
+    uwagi = [w for w in plan.warnings if w.startswith("GATUNEK Z BRIEFU")]
+    assert uwagi, "brief pasujący do ZERA utworów musi być zgłoszony"
+    assert "Techno (Peak Time / Driving)" in uwagi[0], "cytujemy to, co wpisał"
+    assert "Electro (20)" in uwagi[0], "mówimy, co ta biblioteka MA"
+    assert len(plan.track_order) == 6, "set i tak powstaje, brief pominięty"
+
+
+def test_gatunek_ktory_JEST_nie_wywoluje_tego_ostrzezenia():
+    from dancelab.core.config import load_weights
+    from dancelab.core.models import AnalysisResult, BeatGrid, Track
+    from dancelab.decision.set_builder import build_set
+
+    pula = [AnalysisResult(engine_version="t", track=Track(
+        track_id=f"t{i}", source_path=f"/m/{i}.wav", style_label="House",
+        bpm_estimate=126.0, key_estimate="8A", duration_sec=300.0),
+        beatgrid=BeatGrid(bpm=126.0, reliable=True)) for i in range(20)]
+    plan = build_set(pula, load_weights("configs/descriptor_weights.yaml"),
+                     target_track_count=6, planner_mode="smart",
+                     preferred_styles=["House"])
+    assert not [w for w in plan.warnings if w.startswith("GATUNEK Z BRIEFU")]
