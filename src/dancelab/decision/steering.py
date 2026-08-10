@@ -47,6 +47,13 @@ class SoundSteering:
 
     anchor: np.ndarray | None = None
     anchor_weight: float = DEFAULT_ANCHOR_WEIGHT
+    # Środek przestrzeni brzmienia (średni wektor puli). Odjęty od OBU stron
+    # porównania sprawia, że kotwica mierzy to, co danego DJ-a WYRÓŻNIA,
+    # zamiast tego, co łączy wszystkich. Zmierzone 09.08: bez tego mediana
+    # kosinusa między centroidami 363 par DJ-ów to 0,886, więc „graj jak
+    # Four Tet" i „graj jak Ben UFO" dawały ten sam set; po wyśrodkowaniu
+    # mediana spada do 0,008, a ta para zostaje blisko (+0,458).
+    srodek: np.ndarray | None = None
     contour: list[float] | None = None
     contour_weight: float = DEFAULT_CONTOUR_WEIGHT
     anchor_name: str | None = None
@@ -88,7 +95,14 @@ class SoundSteering:
         why: list[str] = []
 
         if self.anchor is not None:
-            aff = cosine_affinity(self.anchor, np.asarray(cand_vec))
+            kotwica = self.anchor
+            wektor = np.asarray(cand_vec, dtype=float)
+            if self.srodek is not None:
+                # KONTUR zostaje na surowych wektorach: jego cele zmierzono
+                # na nich i wyśrodkowanie unieważniłoby kalibrację.
+                kotwica = kotwica - self.srodek
+                wektor = wektor - self.srodek
+            aff = cosine_affinity(kotwica, wektor)
             if aff is not None:
                 w = self.anchor_weight
                 score = (1.0 - w) * score + w * aff

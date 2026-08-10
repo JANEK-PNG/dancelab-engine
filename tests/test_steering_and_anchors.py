@@ -158,7 +158,7 @@ def test_brak_rekordboxa_nie_wywala_tylko_raportuje():
 # ---------------------------------------------------------------- tonacje RB
 
 def _key_track(cam=None, conf=None, source=None, path="/m/x.mp3"):
-    from dancelab.core.models import AnalysisResult, Track
+    from dancelab.core.models import Track
     class A:
         track = Track(track_id="t1", source_path=path, key_estimate=cam,
                       key_confidence=conf, key_detection_source=source)
@@ -193,3 +193,40 @@ def test_brak_tonacji_w_rb_zostawia_detektor_z_jego_pewnoscia():
     assert a.track.key_estimate == "3B" and a.track.key_confidence == 0.12
     assert report.missing == 1
     assert any("zostaje detektor" in n for n in report.notes)
+
+
+def test_wysrodkowanie_odsiewa_to_co_wspolne_wszystkim():
+    """Kotwice DJ-ów leżą blisko siebie (zmierzone 09.08: mediana kosinusa
+    0,886 na 363 parach), bo wektor każdego zawiera to samo „to jest muzyka
+    taneczna". Odjęcie środka przestrzeni zostawia to, co danego DJ-a
+    WYRÓŻNIA — i dopiero wtedy dwie kotwice wskazują różne utwory."""
+    import numpy as np
+
+    from dancelab.core.models import AnalysisResult, Track
+    from dancelab.decision.steering import SoundSteering
+
+    wspolne = np.array([1.0, 1.0, 0.0, 0.0])      # to, co mają wszyscy
+    dj_a = wspolne + np.array([0.0, 0.0, 0.3, 0.0])
+    dj_b = wspolne + np.array([0.0, 0.0, 0.0, 0.3])
+    utwor_a = wspolne + np.array([0.0, 0.0, 0.4, 0.0])
+    utwor_b = wspolne + np.array([0.0, 0.0, 0.0, 0.4])
+    srodek = np.mean([dj_a, dj_b, utwor_a, utwor_b], axis=0)
+
+    def kandydat(wektor):
+        return AnalysisResult(engine_version="t", track=Track(
+            track_id="k", source_path="/m/k.wav",
+            sound_embedding=list(wektor)))
+
+    def ocena(kotwica, wektor, srodkuj):
+        st = SoundSteering(anchor=kotwica, anchor_weight=0.5,
+                           srodek=srodek if srodkuj else None)
+        return st.adjust(1.0, kandydat(wspolne), kandydat(wektor), 1)[0]
+
+    # BEZ środka obie kotwice wolą ten sam utwór prawie tak samo
+    bez = [ocena(dj_a, utwor_a, False), ocena(dj_a, utwor_b, False)]
+    assert abs(bez[0] - bez[1]) < 0.02, \
+        "bez wyśrodkowania kotwica ledwie odróżnia utwory"
+
+    # PO wyśrodkowaniu kotwica A wyraźnie woli utwór A, a B utwór B
+    assert ocena(dj_a, utwor_a, True) > ocena(dj_a, utwor_b, True) + 0.1
+    assert ocena(dj_b, utwor_b, True) > ocena(dj_b, utwor_a, True) + 0.1

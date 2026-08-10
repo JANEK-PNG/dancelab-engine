@@ -1308,7 +1308,13 @@ def build_set(
             DEFAULT_CONTOUR_WEIGHT,
             SoundSteering,
         )
+        # środek przestrzeni = średni wektor PULI; liczymy raz na budowę
+        wektory = [a.track.sound_embedding for a in by_id_all.values()
+                   if a.track.sound_embedding is not None]
+        srodek = (_np.asarray(wektory, dtype=float).mean(axis=0)
+                  if len(wektory) >= 20 else None)
         steering = SoundSteering(
+            srodek=srodek,
             anchor=_np.asarray(sound_anchor, dtype=float) if sound_anchor is not None else None,
             anchor_weight=DEFAULT_ANCHOR_WEIGHT if anchor_weight is None else float(anchor_weight),
             contour=list(jump_contour) if jump_contour else None,
