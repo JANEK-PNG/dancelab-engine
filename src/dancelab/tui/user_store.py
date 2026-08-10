@@ -21,7 +21,27 @@ from __future__ import annotations
 import json
 import pathlib
 
-STATE_PATH = pathlib.Path("data/exports/tui_stan.json")
+STATE_PATH = pathlib.Path("data/exports/tui_stan.json")   # stan sprzed podziału
+
+
+def sciezka_stanu(pula: str | None = None) -> pathlib.Path:
+    """Stan JEST WŁASNOŚCIĄ BIBLIOTEKI, nie programu.
+
+    Złapane 09.08 testem person: filary Janka pojawiały się w KAŻDEJ innej
+    bibliotece („FILAR nieobecny w puli" ×9 u każdej persony), bo stan leżał
+    w jednym pliku niezależnym od puli. Ulubiony utwór i filar odnoszą się do
+    konkretnego zbioru — po zmianie zbioru nie znaczą nic.
+
+    Stary plik zostaje jako stan puli DOMYŚLNEJ, żeby nikt nie stracił
+    swoich filarów przy tej zmianie.
+    """
+    if not pula:
+        return STATE_PATH
+    import hashlib
+
+    klucz = hashlib.sha1(str(pathlib.Path(pula).expanduser().resolve(
+        strict=False)).encode()).hexdigest()[:12]
+    return STATE_PATH.with_name(f"tui_stan__{klucz}.json")
 MIN_FILARY = 3
 MAX_FILARY = 10
 
@@ -33,18 +53,32 @@ def _kopia(v):
     return list(v) if isinstance(v, list) else v
 
 
-def load_state() -> dict:
-    if not STATE_PATH.exists():
-        return {k: _kopia(v) for k, v in _EMPTY.items()}
-    state = json.loads(STATE_PATH.read_text())
+def load_state(pula: str | None = None) -> dict:
+    sciezka = sciezka_stanu(pula)
+    if not sciezka.exists():
+        # PIERWSZE uruchomienie na tej puli: jeśli to pula domyślna, a stan
+        # sprzed podziału istnieje, przejmujemy go — inaczej pusty.
+        if pula and STATE_PATH.exists() and _domyslna(pula):
+            sciezka = STATE_PATH
+        else:
+            return {k: _kopia(v) for k, v in _EMPTY.items()}
+    state = json.loads(sciezka.read_text())
     for key, default in _EMPTY.items():
         state.setdefault(key, _kopia(default))
     return state
 
 
-def save_state(state: dict) -> None:
-    STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=1))
+def _domyslna(pula: str) -> bool:
+    from dancelab.tui.app import PROCESSED_DEFAULT
+
+    return (pathlib.Path(pula).expanduser().resolve(strict=False)
+            == pathlib.Path(PROCESSED_DEFAULT).expanduser().resolve(strict=False))
+
+
+def save_state(state: dict, pula: str | None = None) -> None:
+    sciezka = sciezka_stanu(pula)
+    sciezka.parent.mkdir(parents=True, exist_ok=True)
+    sciezka.write_text(json.dumps(state, ensure_ascii=False, indent=1))
 
 
 def _entry_index(entries: list[dict], track_id: str, path: str) -> int | None:

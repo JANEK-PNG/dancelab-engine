@@ -158,7 +158,10 @@ def test_u_i_f_pinuja_z_biblioteki(tmp_path, monkeypatch):
             await pilot.pause()
             assert app._user_state["filary"] == []
     asyncio.run(go())
-    assert (tmp_path / "stan.json").exists()   # stan przeżywa zamknięcie
+    # stan przeżywa zamknięcie — i należy do TEJ biblioteki, nie do programu
+    # (od 09.08 plik jest osobny dla każdej puli; wcześniej filary jednego
+    # użytkownika wyciekały do wszystkich bibliotek)
+    assert store.sciezka_stanu("/nieistniejacy/katalog").exists()
 
 
 def test_biblioteka_renderuje_i_filtruje_na_zywo():
@@ -407,7 +410,7 @@ def test_f_w_secie_otwiera_tryby_a_wybor_sie_zapisuje(tmp_path, monkeypatch):
             assert app._panel_mode is None     # panel zamknięty po wyborze
     asyncio.run(go())
     import json
-    assert json.loads((tmp_path / "stan.json").read_text())[
+    assert json.loads(store.sciezka_stanu("/nieistniejacy/katalog").read_text())[
         "tryb_filarow"] == "podpory"
 
 

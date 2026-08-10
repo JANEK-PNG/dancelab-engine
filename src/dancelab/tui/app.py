@@ -783,7 +783,7 @@ class DanceLabTUI(App):
         self._lib_section = "all"
         try:
             from dancelab.tui.user_store import load_state
-            self._user_state = load_state()
+            self._user_state = load_state(self.processed_dir)
         except Exception as exc:  # noqa: BLE001 — zepsuty plik stanu ≠ martwa apka
             self._note(f"stan ulubionych/filarów nieodczytany: {exc}")
             self._user_state = {"ulubione_utwory": [], "ulubione_playlisty": [],
@@ -1887,7 +1887,7 @@ class DanceLabTUI(App):
         from dancelab.tui.user_store import save_state
         self._user_state["okladki_w_liscie"] = \
             not self._user_state.get("okladki_w_liscie")
-        save_state(self._user_state)
+        save_state(self._user_state, self.processed_dir)
         stan = "włączone" if self._user_state["okladki_w_liscie"] else "wyłączone"
         self._note(f"okładki w liście: {stan}")
         self._render_library(keep_cursor=True)
@@ -1935,7 +1935,7 @@ class DanceLabTUI(App):
     def _apply_pillar_mode(self, mode: str) -> None:
         from dancelab.tui.user_store import save_state
         self._user_state["tryb_filarow"] = mode
-        save_state(self._user_state)
+        save_state(self._user_state, self.processed_dir)
         self._close_panel()
         dopisek = " — zastosuje się przy budowie (B)"
         self._note(f"tryb filarów: {_TRYB_LABEL.get(mode, mode)}{dopisek}")
@@ -1959,7 +1959,7 @@ class DanceLabTUI(App):
         if refuse:
             self.notify(refuse, severity="warning", timeout=6)
             return
-        save_state(self._user_state)
+        save_state(self._user_state, self.processed_dir)
         name = pathlib.Path(t.source_path).stem[:40]
         self._note(f"{label}: {'＋' if added else '－'} {name}")
         self._render_library(keep_cursor=True)
@@ -2327,27 +2327,41 @@ class DanceLabTUI(App):
         repo = FileAnalysisRepository(self.processed_dir)
         analyses = [repo.get(t) for t in repo.list_track_ids()]
         before = len(analyses)
-        from dancelab.ingestion.rekordbox_import import WERSJA as RB_WERSJA
+        # Kryterium jest to samo, co przy odmowie odsłuchu (`_bez_pliku`):
+        # ŚCIEŻKA NIE JEST ŚCIEŻKĄ W SYSTEMIE PLIKÓW = utwór ze źródła bez
+        # pliku (strumień) i to jest jego stan normalny. Sito „brak pliku"
+        # powstało przeciw plikom, które ZNIKNĘŁY.
+        # Wcześniej przepustka była przywiązana do jednej wersji silnika
+        # (`rekordbox-anlz`) — złapane 09.08 testem person: biblioteka
+        # zbudowana z innego źródła znikała w całości, a użytkownik dostawał
+        # „pusta pula" i notkę o stemach.
+        odrzucone = {"stem": 0, "dlugosc": 0, "brak_pliku": 0}
 
         def zdrowy(a) -> bool:
-            # Utwory zaimportowane z analiz Rekordboxa NIE MAJĄ pliku i to
-            # jest ich stan normalny, nie awaria (strumienie Apple Music =
-            # 1571 z 1880 pozycji kolekcji Janka). Sito „brak pliku" powstało
-            # przeciw plikom, które ZNIKNĘŁY — nie przeciw utworom, o których
-            # z góry wiadomo, że pliku nie mają.
             if (a.track.duration_sec or 0) > MAX_TRACK_SEC:
+                odrzucone["dlugosc"] += 1
                 return False
-            if a.engine_version == RB_WERSJA:
-                return True
-            sciezka = pathlib.Path(a.track.source_path)
-            return (sciezka.exists()
-                    and sciezka.stem.strip().lower() not in STEM_NAMES)
+            sciezka = str(a.track.source_path or "")
+            if not sciezka.startswith("/"):
+                return True                     # źródło bez pliku — w porządku
+            p = pathlib.Path(sciezka)
+            if not p.exists():
+                odrzucone["brak_pliku"] += 1
+                return False
+            if p.stem.strip().lower() in STEM_NAMES:
+                odrzucone["stem"] += 1
+                return False
+            return True
 
         analyses = [a for a in analyses if zdrowy(a)]
         notes = []
         if before - len(analyses):
+            powody = ", ".join(f"{n}: {i}" for n, i in (
+                ("stemy", odrzucone["stem"]),
+                ("dłuższe niż 15 min", odrzucone["dlugosc"]),
+                ("brak pliku na dysku", odrzucone["brak_pliku"])) if i)
             notes.append(f"higiena puli: odrzucone {before - len(analyses)} "
-                         f"(stemy / pliki >15 min / brak pliku)")
+                         f"({powody})")
         return analyses, notes
 
     def _build_plan(self):
@@ -2671,7 +2685,7 @@ class DanceLabTUI(App):
             return False
         entries.pop(trafiony)
         from dancelab.tui.user_store import save_state
-        save_state(self._user_state)
+        save_state(self._user_state, self.processed_dir)
         if self._lib:
             self._render_library(keep_cursor=True)
         return True
