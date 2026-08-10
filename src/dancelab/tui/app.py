@@ -1405,6 +1405,11 @@ class DanceLabTUI(App):
             return
         grupy = G.grupuj(book["djs"])
         opcje: list[tuple[str, str]] = []
+        from dancelab.decision.anchors import MOJE_ULUBIONE
+        ilu = len(self._user_state.get("ulubione_utwory", []))
+        opcje.append((f"— twoje brzmienie —", "__twoje"))
+        opcje.append((f"  {MOJE_ULUBIONE} ({ilu} utworów) — kotwica policzona "
+                      f"z Twoich ♥, gdy Twojego DJ-a tu nie ma", MOJE_ULUBIONE))
         for etykieta, czlonkowie in grupy:
             opcje.append((f"— {etykieta} ({len(czlonkowie)}) —",
                           f"__{etykieta[:20]}"))
@@ -1412,8 +1417,8 @@ class DanceLabTUI(App):
                          for dj, n, skok in czlonkowie)
         self._open_suggest_panel(
             None,
-            f"GRAJ JAK… — {len(book['djs'])} DJ-ów w {len(grupy)} rodzinach "
-            f"brzmieniowych (zmierzone, nie gatunek)\n"
+            f"GRAJ JAK… — {len(book['djs'])} DJ-ów ZMIERZONYCH z ich setów; "
+            f"kogo tu nie ma, tego nie mierzyliśmy\n"
             f"Enter wybiera kotwicę · Ctrl+D albo Esc zamyka",
             opcje, "dj")
 
@@ -1770,7 +1775,16 @@ class DanceLabTUI(App):
             self._gatunek_enterem(wybor)
         elif self._panel_mode == "dj":
             event.stop()
-            self.query_one("#dj", Select).value = wybor
+            pole = self.query_one("#dj", Select)
+            # Lista w panelu i lista w polu mogą się rozjechać (np. gdy pole
+            # dostało opcje z innego źródła). Textual rzuca wtedy wyjątkiem
+            # i ubija budowę — dokładamy brakującą pozycję zamiast wywalać
+            # aplikację (złapane 09.08 przy dodawaniu kotwicy z ulubionych).
+            dostepne = {w for _e, w in (pole._options or [])}
+            if wybor not in dostepne:
+                pole.set_options([(wybor, wybor),
+                                  *((e, w) for e, w in (pole._options or []))])
+            pole.value = wybor
             self._close_panel()
             self.query_one("#set", DataTable).focus()
             self._note(f"kotwica: {wybor}")
@@ -2210,9 +2224,14 @@ class DanceLabTUI(App):
 
     def _load_anchors(self) -> None:
         try:
-            from dancelab.decision.anchors import list_anchors
-            options = [(f"{name}  ({n} wekt., skok {med})", name)
-                       for name, n, med in list_anchors(limit=500)]
+            from dancelab.decision.anchors import MOJE_ULUBIONE, list_anchors
+            # Własne brzmienie NA POCZĄTKU listy: księga ma 285 DJ-ów
+            # zmierzonych z ich setów i nie ma jak dopisać kogoś, czyich
+            # setów nie mamy (test person 09.08 — Kuba gra jak Amelie Lens,
+            # której tam nie ma). Ulubione działają dla każdego.
+            options = [(f"{MOJE_ULUBIONE} — z Twoich ♥", MOJE_ULUBIONE)]
+            options += [(f"{name}  ({n} wekt., skok {med})", name)
+                        for name, n, med in list_anchors(limit=500)]
             self.query_one("#dj", Select).set_options(options)
         except Exception as exc:  # noqa: BLE001 — brak pliku kotwic to stan, nie awaria
             self._note(f"kotwice niedostępne: {exc}")
@@ -2415,8 +2434,25 @@ class DanceLabTUI(App):
 
         anchor = None
         if p["dj"]:
-            from dancelab.decision.anchors import resolve_anchor
-            anchor = resolve_anchor(p["dj"])
+            from dancelab.decision.anchors import (MOJE_ULUBIONE, AnchorError,
+                                                   kotwica_z_utworow,
+                                                   resolve_anchor)
+            if p["dj"] == MOJE_ULUBIONE:
+                from dancelab.tui.user_store import resolve_tracks
+                ulubione, _brak = resolve_tracks(
+                    self._user_state.get("ulubione_utwory", []),
+                    {a.track.track_id: a for a in analyses})
+                try:
+                    anchor = kotwica_z_utworow(
+                        [a for a in analyses if a.track.track_id in ulubione])
+                    notes.append(
+                        f"kotwica z Twoich ulubionych: {anchor.n_tracks} "
+                        f"utworów (kontur skoków niedostępny — to cecha "
+                        f"sposobu grania, nie zbioru)")
+                except AnchorError as exc:
+                    notes.append(f"kotwica z ulubionych niemożliwa: {exc}")
+            else:
+                anchor = resolve_anchor(p["dj"])
 
         count = estimate_track_count_for_duration(analyses, p["minutes"])
         filary, filar_notes = _filary_for_build(

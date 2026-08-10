@@ -117,8 +117,12 @@ def test_enter_wybiera_kotwice_i_zamyka(monkeypatch):
             app.action_grupy_dj()
             await pilot.pause()
             lst = app.query_one("#suggest-list")
+            # pomijamy nagłówki sekcji ORAZ kotwicę z własnych ulubionych —
+            # tu testujemy wybór DJ-a z księgi
+            from dancelab.decision.anchors import MOJE_ULUBIONE
             i = next(n for n in range(lst.option_count)
-                     if not lst.get_option_at_index(n).id.startswith("__"))
+                     if not lst.get_option_at_index(n).id.startswith("__")
+                     and lst.get_option_at_index(n).id != MOJE_ULUBIONE)
             wybrany = lst.get_option_at_index(i).id
             lst.highlighted = i
             await pilot.press("enter")

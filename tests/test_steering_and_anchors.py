@@ -1,4 +1,6 @@
 """Sterowanie brzmieniem (kotwica/kontur) i kotwice DJ-ów — granice uczciwości.
+import pytest
+
 
 Zasady pilnowane tu testami:
   * ścieżka DOMYŚLNA nie zmienia się ani o bit, gdy sterowania nie ma;
@@ -230,3 +232,37 @@ def test_wysrodkowanie_odsiewa_to_co_wspolne_wszystkim():
     # PO wyśrodkowaniu kotwica A wyraźnie woli utwór A, a B utwór B
     assert ocena(dj_a, utwor_a, True) > ocena(dj_a, utwor_b, True) + 0.1
     assert ocena(dj_b, utwor_b, True) > ocena(dj_b, utwor_a, True) + 0.1
+
+
+def test_kotwica_z_wlasnych_utworow_gdy_DJ_A_NIE_MA_W_KSIEDZE():
+    """Test person 09.08: księga ma 285 DJ-ów zmierzonych z ich setów, a Kuba
+    gra jak Amelie Lens, której tam nie ma — i nie da się jej dopisać bez jej
+    setlist. Własne utwory rozwiązują to bez zgadywania."""
+    from dancelab.core.models import AnalysisResult, Track
+    from dancelab.decision.anchors import (MOJE_ULUBIONE, kotwica_z_utworow)
+
+    def utwor(i: int, wektor):
+        return AnalysisResult(engine_version="t", track=Track(
+            track_id=f"t{i}", source_path=f"/m/{i}.wav",
+            sound_embedding=list(wektor)))
+
+    ulubione = [utwor(0, [1.0, 0.0]), utwor(1, [0.8, 0.2]), utwor(2, [0.9, 0.1])]
+    kotwica = kotwica_z_utworow(ulubione)
+    assert kotwica.name == MOJE_ULUBIONE
+    assert kotwica.n_tracks == 3
+    assert kotwica.centroid == pytest.approx([0.9, 0.1], abs=1e-9), \
+        "kotwica to ŚREDNIA wskazanych utworów"
+    assert kotwica.contour == [], \
+        "kontur skoków to cecha SPOSOBU GRANIA — ze zbioru utworów go nie ma"
+    assert kotwica.source == "wlasne utwory"
+
+
+def test_za_malo_utworow_na_wlasna_kotwice_to_ODMOWA_z_powodem():
+    from dancelab.core.models import AnalysisResult, Track
+    from dancelab.decision.anchors import AnchorError, kotwica_z_utworow
+
+    dwa = [AnalysisResult(engine_version="t", track=Track(
+        track_id=f"t{i}", source_path=f"/m/{i}.wav",
+        sound_embedding=[1.0, 0.0])) for i in range(2)]
+    with pytest.raises(AnchorError, match="co najmniej 3"):
+        kotwica_z_utworow(dwa)

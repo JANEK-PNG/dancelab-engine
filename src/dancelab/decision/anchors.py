@@ -52,6 +52,37 @@ def load_anchor_book(path: str | pathlib.Path = DEFAULT_PATH) -> dict:
     return book
 
 
+MOJE_ULUBIONE = "★ moje ulubione"
+
+
+def kotwica_z_utworow(analizy, nazwa: str = MOJE_ULUBIONE) -> DJAnchor:
+    """Kotwica policzona z WŁASNYCH utworów DJ-a, nie z księgi.
+
+    Powód (test person 09.08): księga ma 285 DJ-ów zmierzonych z ich setów,
+    a Kuba gra jak Amelie Lens, której tam nie ma — i nie ma jak jej dodać
+    bez jej setlist. Własne utwory rozwiązują to bez zgadywania: bierzemy
+    ŚREDNI wektor wskazanych nagrań i traktujemy go jak każdą inną kotwicę
+    (wyśrodkowanie i sito działają tak samo).
+
+    Kontur skoków zostaje PUSTY — to cecha sposobu grania DJ-a, której
+    z samego zbioru utworów nie da się odczytać, a udawanie jej byłoby
+    zmyślaniem.
+    """
+    import numpy as np
+
+    wektory = [a.track.sound_embedding for a in analizy
+               if getattr(a.track, "sound_embedding", None)]
+    if len(wektory) < 3:
+        raise AnchorError(
+            f"za mało utworów z wektorem brzmienia na własną kotwicę "
+            f"({len(wektory)}) — potrzeba co najmniej 3")
+    srodek = np.asarray(wektory, dtype=float).mean(axis=0)
+    return DJAnchor(name=nazwa, n_tracks=len(wektory), n_mixes=0,
+                    centroid=[float(x) for x in srodek], contour=[],
+                    cos_median=None, cos_q25=None, cos_q75=None,
+                    source="wlasne utwory")
+
+
 def resolve_anchor(name: str,
                    path: str | pathlib.Path = DEFAULT_PATH) -> DJAnchor:
     """Kotwica dla nazwy DJ-a. Dokładne dopasowanie albo odmowa z podpowiedzią."""
