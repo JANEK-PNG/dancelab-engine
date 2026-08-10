@@ -1142,6 +1142,7 @@ def build_set(
     sound_anchor: Sequence[float] | None = None,
     anchor_name: str | None = None,
     anchor_weight: float | None = None,
+    anchor_share: float | None = None,
     jump_contour: Sequence[float] | None = None,
     contour_weight: float | None = None,
 ) -> SetPlan:
@@ -1241,6 +1242,23 @@ def build_set(
                 f"{resolved_bpm_min or '-∞'}-{resolved_bpm_max or '+∞'}"
             )
 
+    # SITO BRZMIENIOWE — kotwica zawęża PULĘ, zanim rdzeń zacznie układać
+    # kolejność. Jako dodatek do oceny kotwica wybierała część wspólną
+    # wszystkich DJ-ów (zmierzone 09.08: waga 0,35→0,90 nie zmieniała setu).
+    srodek_brzmienia = None
+    if sound_anchor is not None:
+        from dancelab.decision import sito_brzmienia as _sito
+
+        srodek_brzmienia = _sito.srodek_puli(
+            [a.track.sound_embedding for a in by_id_all.values()])
+        by_id, uwagi_sita = _sito.przesiej(
+            by_id, sound_anchor, wymagane=required_ids,
+            ile_utworow=target_count_for_preferences,
+            udzial=(_sito.DOMYSLNY_UDZIAL if anchor_share is None
+                    else float(anchor_share)),
+            srodek=srodek_brzmienia)
+        preference_warnings.extend(uwagi_sita)
+
     target_count, constraint_warnings = _validate_build_constraints(
         by_id,
         target_track_count=target_track_count,
@@ -1308,13 +1326,9 @@ def build_set(
             DEFAULT_CONTOUR_WEIGHT,
             SoundSteering,
         )
-        # środek przestrzeni = średni wektor PULI; liczymy raz na budowę
-        wektory = [a.track.sound_embedding for a in by_id_all.values()
-                   if a.track.sound_embedding is not None]
-        srodek = (_np.asarray(wektory, dtype=float).mean(axis=0)
-                  if len(wektory) >= 20 else None)
         steering = SoundSteering(
-            srodek=srodek,
+            srodek=(_np.asarray(srodek_brzmienia, dtype=float)
+                    if srodek_brzmienia is not None else None),
             anchor=_np.asarray(sound_anchor, dtype=float) if sound_anchor is not None else None,
             anchor_weight=DEFAULT_ANCHOR_WEIGHT if anchor_weight is None else float(anchor_weight),
             contour=list(jump_contour) if jump_contour else None,
