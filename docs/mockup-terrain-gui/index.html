@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DanceLab — GUI w skórze TERRAIN (struktura TUI, pełne klawisze)</title>
+<style>
+:root{
+  --ink:#f2f1e9; --soft:#aaa99f; --dim:#8a897f;
+  --ground:#11120f; --deep:#0a0b09;
+  --sur:#181a16; --sur2:#20231d; --sur3:#292d25;
+  --line:#373a32; --line2:#282b25;
+  --volt:#d9ff43; --volt-ink:#101208;
+  --deck-a:#65d8ff; --deck-b:#ffbd5d; --green:#69db98; --red:#ff6c66;
+  --mono:"IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+  --sans:"Manrope","Avenir Next","Segoe UI",sans-serif;
+}
+*{box-sizing:border-box} html,body{margin:0;height:100%}
+body{background:var(--deep);color:var(--ink);font-family:var(--sans);font-size:13.5px;display:flex;flex-direction:column;overflow:hidden}
+svg{vertical-align:-2px}
+.banner{background:var(--sur3);color:var(--soft);font-family:var(--mono);font-size:10.5px;text-align:center;padding:3px;letter-spacing:.06em}
+.banner b{color:var(--volt)}
+.tabs{display:flex;gap:2px;padding:6px 14px 0;background:var(--ground);border-bottom:1px solid var(--line)}
+.tab{padding:7px 16px;font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent}
+.tab.active{color:var(--ink);border-color:var(--volt)}
+.main{flex:1;display:flex;min-height:0}
+#ws{flex:1;display:flex;min-width:0}
+/* panel */
+.panel{width:340px;border-left:1px solid var(--line2);background:var(--ground);display:none;flex-direction:column;min-height:0}
+.panel.open{display:flex}
+.panel h3{margin:0;padding:10px 14px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--dim);border-bottom:1px solid var(--line2);white-space:pre-line;font-weight:400}
+.plist{flex:1;overflow:auto;padding:4px 0}
+.pop{padding:4px 14px;font-size:12.5px;color:var(--soft);cursor:pointer;border-radius:6px;margin:0 6px}
+.pop.hdr{font-family:var(--mono);font-size:10px;color:var(--dim);letter-spacing:.09em;margin-top:6px;cursor:default}
+.pop.cur{background:var(--sur2);color:var(--ink);box-shadow:inset 2px 0 0 var(--volt)}
+.pop .chk{color:var(--volt);display:inline-block;width:15px}
+/* forma Set */
+.formcol{width:380px;flex:0 0 auto;overflow:auto;padding:12px 16px;border-right:1px solid var(--line2);display:flex;flex-direction:column;gap:4px;background:var(--ground)}
+.flabel{font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;color:var(--dim);margin-top:10px}
+.fld{background:var(--sur);border:1px solid var(--line);border-radius:9px;color:var(--ink);font:inherit;padding:9px 12px;width:100%}
+.fld::placeholder{color:var(--dim)}
+.sel{position:relative;background:var(--sur);border:1px solid var(--line);border-radius:9px;padding:9px 34px 9px 12px;cursor:pointer;color:var(--ink);transition:border-color .14s}
+.sel:hover{border-color:var(--line)}
+.sel:after{content:"";position:absolute;right:12px;top:50%;width:7px;height:7px;border-right:1.6px solid var(--soft);border-bottom:1.6px solid var(--soft);transform:translateY(-70%) rotate(45deg)}
+.sel .k{font-family:var(--mono);font-size:9.5px;color:var(--dim);float:right;margin-right:8px}
+.switchrow{display:flex;gap:10px;align-items:center;margin-top:8px;color:var(--soft);font-size:12.5px}
+.swx{width:36px;height:20px;border-radius:10px;background:var(--sur3);position:relative;cursor:pointer;flex:0 0 auto;transition:background .14s}
+.swx i{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--dim);transition:all .14s}
+.swx.on{background:var(--volt)}
+.swx.on i{left:18px;background:var(--volt-ink)}
+.cta{margin-top:14px;background:var(--volt);color:var(--volt-ink);border:none;border-radius:11px;padding:13px;font:inherit;font-weight:800;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .09s}
+.cta:active{transform:scale(.98)}
+.ghost{background:var(--sur2);color:var(--soft);border:1px solid var(--line);border-radius:9px;padding:8px 14px;font:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+/* prawa czesc */
+.right{flex:1;display:flex;flex-direction:column;min-width:0}
+.rhead{padding:10px 16px 4px;color:var(--ink)}
+.tblwrap{flex:1;overflow:auto;padding:0 16px}
+table{border-collapse:collapse;width:100%}
+th{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;color:var(--soft);text-align:left;padding:3px 8px;font-weight:700;white-space:nowrap;position:sticky;top:0;background:var(--deep);cursor:pointer}
+td{padding:5px 8px;font-size:12.5px;white-space:nowrap;border-bottom:1px solid var(--line2)}
+tr.cur td{background:var(--sur2)}
+tr.cur td:first-child{box-shadow:inset 2px 0 0 var(--volt)}
+.bpm{font-family:var(--mono);font-weight:700}.key{font-family:var(--mono)}
+.ico-t{cursor:pointer;opacity:.9}
+.badge{font-family:var(--mono);font-size:10px;border-radius:5px;padding:1px 6px}
+.badge.rb{background:color-mix(in srgb,var(--green) 18%,transparent);color:var(--green)}
+.badge.reka{background:color-mix(in srgb,var(--deck-a) 18%,transparent);color:var(--deck-a)}
+.badge.num{background:var(--sur2);color:var(--soft)}
+/* player GUI */
+.player{display:flex;align-items:center;gap:12px;padding:10px 16px;border-top:1px solid var(--line2);background:var(--ground)}
+.ic{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--sur);color:var(--ink);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .09s}
+.ic:hover{border-color:var(--soft)}
+.ic:active{transform:scale(.94)}
+.ic.big{width:46px;height:46px;background:var(--volt);border-color:var(--volt);color:var(--volt-ink)}
+.ic.small{width:32px;height:32px}
+.cover{width:40px;height:40px;border-radius:7px;background:linear-gradient(135deg,var(--sur3),var(--sur))}
+.pt{font-size:12.5px;line-height:1.35;min-width:150px}
+.pt .dim{font-size:11px}
+.prog{flex:1;height:6px;border-radius:3px;background:var(--sur2);position:relative;cursor:pointer}
+.prog .fill{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--volt)}
+.prog .knob{position:absolute;top:-4px;width:14px;height:14px;border-radius:50%;background:var(--ink);transform:translateX(-7px)}
+.ptime{font-family:var(--mono);font-size:11px;color:var(--dim);min-width:84px;text-align:right}
+/* strip, warns, info */
+.strip{margin:8px 16px 0;background:var(--sur);border:1px solid var(--line2);border-left:3px solid var(--deck-a);border-radius:9px;padding:7px 11px;font-family:var(--mono);font-size:11px;color:var(--soft)}
+.warns{margin:8px 16px 0;background:var(--sur);border:1px solid var(--line2);border-radius:9px;padding:7px 11px;font-size:12px;color:var(--deck-b);max-height:100px;overflow:auto}
+.infocard{margin:8px 16px 0;background:var(--sur);border:1px solid var(--line2);border-radius:9px;padding:8px 12px;font-size:12.5px;color:var(--soft)}
+.dim{color:var(--dim)}.soft{color:var(--soft)}.mono{font-family:var(--mono)}
+/* status + footer */
+.status{display:flex;gap:16px;padding:6px 16px;background:var(--ground);border-top:1px solid var(--line2);font-size:12px;color:var(--soft);align-items:center}
+.sdot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px}
+.footer{display:flex;gap:10px;padding:5px 16px;background:var(--deep);font-size:11px;color:var(--dim);flex-wrap:wrap;align-items:center}
+kbd{font-family:var(--mono);font-size:10px;background:var(--sur2);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:1px 5px;color:var(--ink)}
+.fk{display:inline-flex;gap:5px;align-items:center;color:var(--soft)}
+.footer .right{margin-left:auto}
+.toast{position:fixed;left:50%;bottom:78px;transform:translateX(-50%) translateY(8px);background:var(--sur3);border:1px solid var(--line);border-radius:10px;padding:10px 14px;max-width:560px;opacity:0;pointer-events:none;transition:all .22s;font-size:12.5px;z-index:20}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.toast b{color:var(--volt)}
+.modal-back{position:fixed;inset:0;background:rgba(6,7,5,.7);display:none;align-items:center;justify-content:center;z-index:15}
+.modal-back.open{display:flex}
+.modal{width:390px;background:var(--sur);border:1px solid var(--line);border-radius:14px;padding:20px}
+.modal h2{margin:0 0 10px;font-size:14px}
+.modal .hint{font-size:11px;color:var(--dim);margin-top:8px}
+/* biblioteka */
+.side{width:190px;flex:0 0 auto;border-right:1px solid var(--line2);padding:10px 0;background:var(--ground)}
+.side .opt{padding:6px 14px;font-size:12.5px;color:var(--soft);cursor:pointer;display:flex;gap:8px;align-items:center}
+.side .opt.active{color:var(--ink);background:var(--sur2);box-shadow:inset 2px 0 0 var(--volt)}
+.side .opt.dis{color:var(--dim)}
+.filters{display:flex;gap:8px;padding:10px 16px;align-items:center}
+.search{flex:1;display:flex;align-items:center;gap:8px;background:var(--sur);border:1px solid var(--line);border-radius:9px;padding:0 12px}
+.search input{flex:1;background:none;border:none;color:var(--ink);font:inherit;padding:8px 0;outline:none}
+.filters .fld{width:110px;flex:0 0 auto;padding:8px 10px}
+.licznik{font-family:var(--mono);font-size:10.5px;color:var(--dim);padding:4px 16px}
+/* cue */
+.cardtop{display:flex;gap:16px;padding:6px 16px 0}
+.osgrid{display:grid;grid-template-columns:56px 1fr;gap:2px 10px;font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:6px}
+.osrow{position:relative;height:16px}
+.sekstrip{display:flex;height:16px;border-radius:4px;overflow:hidden}
+.sekstrip i{height:100%;display:flex;align-items:center;justify-content:center;font-size:8.5px;color:#cfd2c5;letter-spacing:.05em}
+.padlet{position:absolute;top:-2px;font-size:10px;padding:0 4px;border-radius:3px;background:var(--sur3);color:var(--deck-b)}
+.padlet.selp{background:var(--deck-b);color:#221500}
+.padlet.cudzy{color:var(--red)}
+.hotcue{width:320px;flex:0 0 auto;border-left:1px solid var(--line2);padding-left:14px}
+.padgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.padb{height:52px;border-radius:9px;border:1px solid var(--line);background:var(--sur2);color:var(--dim);font-family:var(--mono);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all .09s}
+.padb b{font-size:14px}
+.padb .t{font-size:9px}
+.padb.set{border-color:var(--deck-b);color:var(--deck-b);background:color-mix(in srgb,var(--deck-b) 8%,var(--sur2))}
+.padb.selp{outline:2px solid var(--deck-b)}
+.padb.cudzy{border-color:var(--red);color:var(--red)}
+.padb:active{transform:scale(.96)}
+.helpline{font-size:11px;color:var(--dim);padding:8px 16px;border-top:1px solid var(--line2);margin-top:8px}
+.spark{height:15px;background:var(--sur);border-radius:3px;position:relative;overflow:hidden;min-width:260px}
+.spark i{position:absolute;bottom:0;width:3px;background:var(--sur3)}
+.spark b{position:absolute;top:0;font-family:var(--mono);font-size:9px;color:var(--deck-b);font-weight:400}
+.sendrow{display:flex;gap:10px;justify-content:flex-end;padding:6px 16px 12px}
+.cta.inline{margin:0;width:auto;padding:11px 20px;font-size:13px}
+.cta.amber{background:var(--deck-b);color:#221500}
+.hide{display:none!important}
+</style>
+</head>
+<body tabindex="0">
+<div class="banner">POZORNA APKA · struktura TUI · skóra TERRAIN jako GUI · <b>klawisze działają jak w TUI</b> · Ctrl+Tab zakładki · Esc zamyka</div>
+<div class="tabs" id="tabs">
+ <div class="tab" data-t="lib">BIBLIOTEKA</div>
+ <div class="tab active" data-t="set">SET</div>
+ <div class="tab" data-t="cue">EKSPORT / CUE</div>
+</div>
+<div class="main"><div id="ws"></div>
+ <div class="panel" id="panel"><h3 id="ptitle"></h3><div class="plist" id="plist"></div></div></div>
+<div class="status" id="statusbar"></div>
+<div class="footer" id="footer"></div>
+<div class="toast" id="toast"></div>
+<div class="modal-back" id="modal"><div class="modal">
+ <h2>Nazwa planu</h2><input class="fld" id="planname" placeholder="np. piątek klub v2">
+ <div class="hint">Enter zapisuje · Esc anuluje</div></div></div>
+
+<script>
+/* ── ikony SVG (zero emoji — reguła designu) ── */
+const I={
+ play:'<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg>',
+ pause:'<svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="3.5" y="2.5" width="3" height="11" rx="1"/><rect x="9.5" y="2.5" width="3" height="11" rx="1"/></svg>',
+ prev:'<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2.5h2v11H3zM14 2.5v11l-8-5.5z"/></svg>',
+ next:'<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M11 2.5h2v11h-2zM2 2.5v11l8-5.5z"/></svg>',
+ rw:'<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8.5 2.5v11L1.5 8zM15 2.5v11L8 8z"/></svg>',
+ ff:'<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M7.5 2.5v11L14.5 8zM1 2.5v11L8 8z"/></svg>',
+ heart:(on)=>`<svg width="14" height="14" viewBox="0 0 16 16" fill="${on?'var(--red)':'none'}" stroke="${on?'var(--red)':'var(--dim)'}" stroke-width="1.4"><path d="M8 13.5C4 10.5 1.5 8 1.5 5.5 1.5 3.6 3 2.5 4.6 2.5 6 2.5 7.3 3.4 8 4.6c.7-1.2 2-2.1 3.4-2.1 1.6 0 3.1 1.1 3.1 3 0 2.5-2.5 5-6.5 8z"/></svg>`,
+ flag:(on)=>`<svg width="13" height="13" viewBox="0 0 16 16" fill="${on?'var(--volt)':'none'}" stroke="${on?'var(--volt)':'var(--dim)'}" stroke-width="1.4"><path d="M3.5 1.5v13M3.5 2.5h9l-2 3 2 3h-9"/></svg>`,
+ bolt:'<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M9 1 2.5 9H7l-1 6L13 7H8.5z"/></svg>',
+ up:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 13V3M4 7l4-4 4 4M2.5 14.5h11"/></svg>',
+ search:'<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="var(--dim)" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>',
+ disc:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6.2"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/></svg>',
+ lib:'<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 2.5h3v11h-3zM7 2.5h3v11H7zM11.5 3.5l3-.7 2.5 10.7-3 .7z" transform="scale(.85)"/></svg>',
+ listen:'<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 10v-2a5 5 0 0 1 10 0v2M3 10a1.8 1.8 0 0 0 0 3.6h.8V10zm10 0a1.8 1.8 0 0 1 0 3.6h-.8V10z" fill="none"/></svg>'};
+
+const TR=[
+ ["Balearic Breeze","Sault",122.0,"8A","RB",62,"Organic House",6.4],
+ ["Rivermouth","O'Flynn",121.0,"7A","RB",58,"Breaks / UK Bass",5.9],
+ ["Warm Static","Kelly Lee Owens",120.0,"8B",0.62,44,"Electronica",6.8],
+ ["Glass Court","Jayda G",124.0,"9B","RB",71,"House",6.1],
+ ["Sunday Slow","HAAi",126.0,"10A","ręka",66,"Breaks / UK Bass",7.2],
+ ["Tin Lake","Bicep",128.0,"9A","RB",77,"Electronica",6.6],
+ ["Night Mover","Overmono",134.0,"9A","RB",83,"Breaks / UK Bass",5.8],
+ ["Neon Polny","Catz 'N Dogz",125.0,"8A","RB",69,"House",7.0],
+ ["Cegła","Zamilska",132.0,"4A",0.44,88,"Techno (Raw / Deep / Hypnotic)",5.5],
+ ["Ostra","VTSS",138.0,"5A","RB",92,"Techno (Peak Time / Driving)",6.3],
+ ["Kair","Eltron",127.0,"9A","RB",73,"House",6.9],
+ ["Mgła","Olivia",119.0,"—",0.31,51,"Electronica",8.1]];
+const JAK=[0.97,0.93,0.91,0.88,0.95,0.90,0.86,0.92,0.74];
+const S={tab:'set',
+ lib:{cur:0,fav:new Set([0,1,5]),fil:new Set([0,4,8]),okladki:false,sekcja:'Cała'},
+ set:{built:false,order:[],cur:0,compare:false,info:false,notki:false,edits:0,plany:[["piątek klub",10],["chill open",8]]},
+ cue:{cur:0,pads:{},sel:null,w:1,undo:[],tp:false,tpCur:0,tpVal:''},
+ play:{on:false,poz:0,dl:384,kto:null},
+ panel:null,pcur:0,gatWybrane:new Set(),kotwica:"— bez kotwicy —",kontur:false,modal:false};
+TR.forEach((_,i)=>S.cue.pads[i]=[{l:'A',t:.12,cudzy:true},{l:'E',t:.64,eng:true}]);
+const FRAZY=[["INTRO",0],["UP",28.2],["BREAK",56.5],["GROOVE",84.7],["GROOVE",141.2],["BREAK",169.4],["GROOVE",220.0],["OUTRO",290.0]];
+const ws=document.getElementById('ws');
+function toast(h,ms=3600){const t=document.getElementById('toast');t.innerHTML=h;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),ms)}
+function czas(s){s=Math.max(0,Math.round(s));return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`}
+function pew(v){return v==="RB"?`<span class="badge rb">RB</span>`:v==="ręka"?`<span class="badge reka">ręka</span>`:`<span class="badge num">${typeof v==='number'?v.toFixed(2):v}</span>`}
+
+const FOOT={
+ lib:[['p','odsłuch'],['u','♥'],['f','filar'],['g','z filarów'],['k','okładki'],['i','info'],['^g','gatunki'],['^d','graj jak'],['q','wyjdź']],
+ set:[['b','buduj'],['w','wyślij'],['z','zamień'],['x','wytnij'],['a','dopisz'],['s','zapisz plan'],['o','wczytaj'],['c','porównaj'],['i','info'],['l','notki'],['v','werdykt']],
+ cue:[['a–h','pad'],['←→','o takt'],['t','czas/fraza'],['x','zdejmij'],['z','cofnij'],['s','szew'],['p','od pada'],['w','wyślij 2×']]};
+function chrome(){
+ document.getElementById('footer').innerHTML=FOOT[S.tab].map(f=>`<span class="fk"><kbd>${f[0]}</kbd>${f[1]}</span>`).join('')+`<span class="right fk"><kbd>^p</kbd>palette</span>`;
+ document.getElementById('statusbar').innerHTML=`<span><span class="sdot"></span>Rekordbox zamknięty — W dostępne</span><span class="mono dim">backupy: 22</span><span class="mono dim">notki: 7 (L)</span><span class="mono dim" style="margin-left:auto">pula: experiments_priv/2026-07-30_rebuild/processed</span>`}
+
+/* ── player GUI ── */
+function playerRow(){const p=S.play;const t=p.kto!==null?TR[p.kto]:null;const proc=(p.poz/p.dl*100).toFixed(1);
+ return `<div class="player">
+  <button class="ic small" onclick="prevNext(-1)" title="Poprz.">${I.prev}</button>
+  <button class="ic small" onclick="skok(-8)" title="-8 uderzeń">${I.rw}</button>
+  <button class="ic big" onclick="grajPauza()" title="Graj/Pauza (Spacja)">${p.on?I.pause:I.play}</button>
+  <button class="ic small" onclick="skok(8)" title="+8 uderzeń">${I.ff}</button>
+  <button class="ic small" onclick="prevNext(1)" title="Nast.">${I.next}</button>
+  <div class="cover"></div>
+  <div class="pt">${t?`<b>${t[0]}</b><br><span class="dim">${t[1]}${p.on?'':' · pauza'}</span>`:`<span class="soft">nic nie gra</span><br><span class="dim">Spacja/P gra zaznaczony</span>`}</div>
+  <div class="prog" onclick="toast('scrub: klik w oś (pozornie)')"><div class="fill" style="width:${proc}%"></div><div class="knob" style="left:${proc}%"></div></div>
+  <div class="ptime">${czas(p.poz)} / ${czas(p.dl)}</div></div>`}
+
+/* ── SET ── */
+function rSet(){
+ const o=S.set;
+ const rows=o.built?o.order.map((ti,i)=>{const t=TR[ti];const j=i<o.order.length-1?(JAK[i]??0.9):null;
+  return `<tr class="${i===o.cur?'cur':''}" data-i="${i}"><td class="mono">${i+1}${S.lib.fil.has(ti)?' '+I.flag(true):''}</td>
+  <td class="bpm">${t[2].toFixed(1)}</td><td class="key">${t[3]}</td><td>${pew(t[4])}</td><td class="soft">${t[6]}</td>
+  <td class="mono dim">${Math.round((i+1)*6.2)}</td><td>${t[1]} – ${t[0]}</td>
+  <td class="mono" style="color:${j!==null&&j<0.8?'var(--deck-b)':'var(--dim)'}">${j!==null?j.toFixed(2):''}</td></tr>`}).join(''):'';
+ ws.innerHTML=`
+ <div class="formcol">
+  <div class="flabel">PULA</div><div class="sel">Biblioteka (cache analiz)</div>
+  <input class="fld" placeholder="ścieżka folderu (tryb Folder)">
+  <div class="flabel">DŁUGOŚĆ (MIN)</div><input class="fld" value="90">
+  <div class="flabel">OKNO TEMPA</div><input class="fld" placeholder="np. 128-140 · puste = bez okna">
+  <div class="flabel">GATUNKI</div>
+  <div class="sel" onclick="openPanel('gatunki')">${[...S.gatWybrane].join(', ')||'— bez filtra —'}<span class="k">^G</span></div>
+  <div class="flabel">GRAJ JAK…</div>
+  <div class="sel" onclick="openPanel('dj')">${S.kotwica}<span class="k">^D</span></div>
+  <div class="switchrow"><span class="swx ${S.kontur?'on':''}" onclick="S.kontur=!S.kontur;rSet()"><i></i></span> kontur skoków tego DJ-a</div>
+  <div class="flabel">ŁUK / PLAN TEMPA / TRYB</div>
+  <div class="sel">bez łuku <span class="dim">(zmierzone)</span></div>
+  <div class="sel">staircase</div><div class="sel">smart</div>
+  <div class="flabel">ŚWIEŻOŚĆ</div>
+  <div class="sel">deterministyczny — zawsze ten sam</div>
+  <input class="fld" placeholder="seed (puste = losowy)">
+  <button class="cta" onclick="buduj()">${I.bolt} Buduj set <kbd style="background:rgba(0,0,0,.2);border-color:transparent;color:inherit">B</kbd></button>
+ </div>
+ <div class="right">
+  <div class="rhead">${o.built?`<b>set: ${o.order.length} utworów · 62 min</b> <span class="dim">· edycje: ${o.edits}</span>`:'Ustaw parametry i naciśnij <kbd>B</kbd>.'}</div>
+  ${o.compare&&o.built?`<div class="strip">SZEW ${o.cur+1}→${Math.min(o.cur+2,o.order.length)} · ${TR[o.order[o.cur]][2].toFixed(1)}→${TR[o.order[Math.min(o.cur+1,o.order.length-1)]][2].toFixed(1)} · 8A→7A sąsiednia · okno 32/16 t · ocena ${(JAK[o.cur]??0.9).toFixed(2)} — C chowa · odsłuch w Eksport/Cue</div>`:''}
+  ${o.notki?`<div class="warns">⚠ sito brzmienia: 1 913 → 383 (kotwica ★)<br>⚠ 1 szew &lt; 0,80 (styk 9→10)<br>⚠ filar „Cegła" w odległym tempie — kosztuje szew</div>`:''}
+  ${o.info&&o.built?infoCard(TR[o.order[o.cur]]):''}
+  <div class="tblwrap"><table><thead><tr><th>#</th><th>BPM</th><th>TON</th><th>PEW.</th><th>GATUNEK</th><th>Σ MIN</th><th>UTWÓR</th><th>SZEW→</th></tr></thead><tbody>${rows}</tbody></table></div>
+  ${playerRow()}
+ </div>`;
+ ws.querySelectorAll('tr[data-i]').forEach(r=>r.onclick=()=>{o.cur=+r.dataset.i;rSet()});
+}
+function infoCard(t){return `<div class="infocard"><b style="color:var(--ink)">${t[0]}</b> — ${t[1]} <span class="dim">· karta INFO (I zamyka)</span><br><span class="mono">BPM ${t[2].toFixed(1)} · ${t[3]} · pew. ${t[4]==='RB'?'RB (sędzia)':t[4]} · ${t[7].toFixed(1)} min</span> · w kolekcji RB: tak · playlisty RB: 2</div>`}
+
+/* ── BIBLIOTEKA ── */
+function rLib(){
+ const rows=TR.map((t,i)=>`<tr class="${i===S.lib.cur?'cur':''}" data-i="${i}">
+  <td class="ico-t" data-fav="${i}">${I.heart(S.lib.fav.has(i))}</td>
+  <td class="ico-t" data-fil="${i}">${I.flag(S.lib.fil.has(i))}</td>
+  ${S.lib.okladki?'<td><span class="cover" style="width:22px;height:22px;display:inline-block"></span></td>':''}
+  <td class="bpm">${t[2].toFixed(1)}</td><td class="key">${t[3]}</td><td>${pew(t[4])}</td>
+  <td class="mono dim">${t[5]}</td><td class="dim">${t[6]}</td><td class="mono dim">${t[7].toFixed(1)}</td>
+  <td>${t[1]}</td><td>${t[0]}</td></tr>`).join('');
+ ws.innerHTML=`
+ <div class="side">
+  <div class="opt ${S.lib.sekcja==='Cała'?'active':''}" data-s="Cała">${I.lib} Cała biblioteka</div>
+  <div class="opt ${S.lib.sekcja==='♥'?'active':''}" data-s="♥">${I.heart(true)} Ulubione utwory</div>
+  <div class="opt ${S.lib.sekcja==='⚑'?'active':''}" data-s="⚑">${I.flag(true)} Filary</div>
+  <div class="opt dis">${I.disc} playlisty — wkrótce</div></div>
+ <div class="right">
+  <div class="filters">
+   <div class="search">${I.search}<input placeholder="szukaj: nazwa albo gatunek"></div>
+   <input class="fld" placeholder="tonacja 8A"><input class="fld" placeholder="BPM 120-130">
+   <div class="switchrow" style="margin:0"><span class="swx ${S.lib.okladki?'on':''}" id="oklsw"><i></i></span> okładki <kbd>K</kbd></div>
+  </div>
+  ${S.set.info?infoCard(TR[S.lib.cur]):''}
+  <div class="tblwrap"><table><thead><tr><th></th><th></th>${S.lib.okladki?'<th>ART</th>':''}<th>BPM</th><th>TON</th><th>PEW.</th><th>ENERGIA</th><th>GATUNEK</th><th>MIN</th><th>WYKONAWCA</th><th>UTWÓR</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="licznik">${TR.length} utworów · sekcja: ${S.lib.sekcja} · <kbd>U</kbd>=♥ · <kbd>F</kbd>=filar · <kbd>G</kbd>=szkic z filarów</div>
+  ${playerRow()}
+ </div>`;
+ ws.querySelectorAll('tr[data-i]').forEach(r=>r.onclick=e=>{
+  if(e.target.closest('[data-fav]')){const i=+e.target.closest('[data-fav]').dataset.fav;S.lib.fav.has(i)?S.lib.fav.delete(i):S.lib.fav.add(i);rLib();return}
+  if(e.target.closest('[data-fil]')){const i=+e.target.closest('[data-fil]').dataset.fil;S.lib.fil.has(i)?S.lib.fil.delete(i):S.lib.fil.add(i);rLib();return}
+  S.lib.cur=+r.dataset.i;rLib()});
+ ws.querySelectorAll('.opt[data-s]').forEach(o=>o.onclick=()=>{S.lib.sekcja=o.dataset.s;rLib()});
+ const sw=document.getElementById('oklsw');if(sw)sw.onclick=()=>{S.lib.okladki=!S.lib.okladki;rLib()};
+}
+
+/* ── EKSPORT / CUE ── */
+function rCue(){
+ const c=S.cue;const t=TR[c.cur];const pads=c.pads[c.cur]||[];
+ const selP=c.sel!==null&&pads[c.sel]?pads[c.sel]:null;
+ const razem=Object.values(c.pads).flat().length;
+ const pewneN=Object.values(c.pads).flat().filter(p=>p.eng).length;
+ const padgrid=['A','B','C','D','E','F','G','H'].map(L=>{
+  const pi=pads.findIndex(p=>p.l===L);const p=pi>=0?pads[pi]:null;
+  return `<button class="padb ${p?'set':''} ${pi===c.sel&&pi>=0?'selp':''} ${p&&p.cudzy?'cudzy':''}" data-pad="${L}">
+   <b>${L}</b><span class="t">${p?czas(p.t*S.play.dl)+(p.cudzy?' DJ':p.eng?'':' ?'):'—'}</span></button>`}).join('');
+ const picker=c.tp?`
+  <div class="dim" style="margin-top:8px;font-size:11px">wpisz czas albo wybierz frazę (↑↓):</div>
+  <div class="mono" style="background:var(--sur);border:1px solid var(--line);border-radius:6px;padding:3px 8px;margin:4px 0;display:inline-block">${c.tpVal||'<span class="dim">m:ss.d</span>'}<span style="background:var(--deck-b);color:#000">&nbsp;</span></div>
+  ${FRAZY.map((f,i)=>`<div class="pop ${i===c.tpCur?'cur':''}" style="margin:0;padding:2px 8px;font-family:var(--mono);font-size:11px">${f[0].padEnd(7,' ')} ${czas(f[1])}</div>`).join('')}
+  <div class="dim" style="font-size:10.5px;margin-top:4px"><kbd>Enter</kbd> zatwierdź · <kbd>Esc</kbd> anuluj</div>`:'';
+ const sek=[['INTRO',14,'#3b4863'],['UP',22,'#3d5a49'],['BREAK',18,'#6b5b2a'],['GROOVE',26,'#3d5a49'],['OUTRO',20,'#3b4863']];
+ const sekstrip=sek.map(s=>`<i style="width:${s[1]}%;background:${s[2]}">${s[0]}</i>`).join('');
+ const padyOs=pads.map((p,pi)=>`<span class="padlet ${pi===c.sel?'selp':''} ${p.cudzy?'cudzy':''}" style="left:${(p.t*100).toFixed(1)}%">${p.l}</span>`).join('');
+ const czasOs=[0,60,120,180,240,300].map(s=>`<span style="position:absolute;left:${(s/S.play.dl*100).toFixed(1)}%">${czas(s)}</span>`).join('');
+ const list=TR.map((tt,i)=>{let bars='';let s=i*31+7;
+  for(let b=0;b<46;b++){s=(s*16807)%2147483647;bars+=`<i style="left:${b*2.2}%;height:${(s/2147483647)*75+15}%"></i>`}
+  const ll=(c.pads[i]||[]).map(p=>`<b style="left:${p.t*100}%">${p.l}</b>`).join('');
+  const pw=(c.pads[i]||[]).filter(p=>p.eng).length,pq=(c.pads[i]||[]).length-pw;
+  return `<tr class="${i===c.cur?'cur':''}" data-i="${i}"><td class="mono">${i+1}</td><td>${tt[1]} – ${tt[0]}</td>
+  <td><div class="spark">${bars}${ll}</div></td><td class="mono">${(c.pads[i]||[]).length}</td><td class="mono soft">${pw}✓ ${pq}?</td></tr>`}).join('');
+ ws.innerHTML=`<div class="right">
+  <div class="rhead">Pady bieżącego setu: <b>${razem} cue na ${TR.length} utworów</b> <span class="badge num">✓ pewne: ${pewneN}</span> <span class="dim">— TYLKO PODGLĄD, nic nie zapisuję</span></div>
+  <div class="cardtop">
+   <div style="flex:1;min-width:0">
+    <div><b>${t[1]} – ${t[0]}</b> <span class="soft mono" style="font-size:11.5px">${t[2].toFixed(1)} BPM · ${t[3]}</span>
+     ${selP?`<span class="mono" style="font-size:10.5px;color:var(--deck-b)"> · pad ${selP.l}: ta sama litera = pod głowicę · <kbd>T</kbd> czas · <kbd>←→</kbd> ±1 takt · <kbd>X</kbd> zdejmij</span>`:''}</div>
+    <div class="osgrid">
+     <span>energia</span><span class="osrow" style="height:26px"><canvas id="ka" style="position:absolute;inset:0;width:100%;height:100%"></canvas></span>
+     <span>sekcje</span><span class="osrow"><span class="sekstrip">${sekstrip}</span></span>
+     <span>pady</span><span class="osrow">${padyOs}</span>
+     <span>czas</span><span class="osrow">${czasOs}</span>
+    </div>
+   </div>
+   <div class="hotcue">
+    <div class="mono" style="font-size:10px;letter-spacing:.11em;color:var(--dim)">HOT CUE <span style="float:right">klik = wybierz · drugi klik = pod głowicę</span></div>
+    <div class="padgrid">${padgrid}</div>
+    ${picker}
+   </div>
+  </div>
+  <div class="helpline"><kbd>A–H</kbd> wybierz/postaw · ta sama litera 2× = pod głowicę · <kbd>T</kbd> czas/fraza · <kbd>←→</kbd> ±1 takt (<kbd>⇧</kbd>±8) · <kbd>P</kbd> utwór · <kbd>S</kbd> szew do następnego · <kbd>X</kbd> zdejmij · <kbd>Z</kbd> cofnij · <kbd>W</kbd> wysyła</div>
+  <div class="tblwrap"><table><thead><tr><th>#</th><th>UTWÓR</th><th>OŚ UTWORU</th><th>PADY</th><th>PEWNOŚĆ</th></tr></thead><tbody>${list}</tbody></table></div>
+  ${playerRow()}
+  <div class="sendrow">
+   <button class="cta inline ${c.w===1?'':'amber'}" id="wb">${I.up} ${c.w===1?'Wyślij cue do RB':'POTWIERDŹ zapis '+Object.values(c.pads).flat().filter(p=>!p.cudzy).length+' padów'} <kbd style="background:rgba(0,0,0,.2);border-color:transparent;color:inherit">W</kbd></button>
+   <button class="ghost" onclick="toast('<b>playlista wysłana do RB (pozornie)</b> · backup → dopasowanie → weryfikacja odczytem')">${I.disc} Wyślij playlistę do RB</button>
+  </div></div>`;
+ ws.querySelectorAll('tr[data-i]').forEach(r=>r.onclick=()=>{c.cur=+r.dataset.i;c.sel=null;c.w=1;c.tp=false;rCue()});
+ ws.querySelectorAll('.padb').forEach(b=>b.onclick=()=>klawiszPad(b.dataset.pad.toLowerCase()));
+ document.getElementById('wb').onclick=()=>klawiszW();
+ requestAnimationFrame(()=>{const cv=document.getElementById('ka');if(!cv)return;const w=cv.width=cv.offsetWidth,h=cv.height=cv.offsetHeight,x=cv.getContext('2d');x.fillStyle='#65d8ff';let s=c.cur*13+5;for(let i=0;i<w;i+=3){s=(s*16807)%2147483647;const v=(s/2147483647)*.8+.1;const bar=v*h*(.35+.65*Math.abs(Math.sin(i/w*Math.PI*1.3)));x.globalAlpha=.5;x.fillRect(i,h-bar,2,bar)}});
+}
+
+/* ── panel ── */
+function openPanel(mode){S.panel=mode;S.pcur=0;drawPanel();document.getElementById('panel').classList.add('open')}
+function closePanel(){S.panel=null;document.getElementById('panel').classList.remove('open')}
+function panelOpts(){
+ if(S.panel==='gatunki')return [["— BEATPORT —",null],["Breaks / UK Bass (212)","Breaks / UK Bass"],["House (391)","House"],["Techno (Peak Time / Driving) (167)","Techno (Peak Time / Driving)"],["Organic House (98)","Organic House"],["Electronica (244)","Electronica"],["— POZA TAKSONOMIĄ —",null],["Dance (61)","Dance"],["Electronic (204)","Electronic"]];
+ if(S.panel==='dj')return [["— TWOJE BRZMIENIE —",null],["★ moje ulubione (23 utwory)","★ moje ulubione"],["— LEFTFIELD / UK (rodzina brzmienia) —",null],["Four Tet · 96 wektorów · skok ±6,2","Four Tet"],["Ben UFO · 74 · ±8,1","Ben UFO"],["Jamie xx · 51 · ±5,4","Jamie xx"],["— TECHNO HIPNOTYCZNE —",null],["Donato Dozzy · 44 · ±3,9","Donato Dozzy"]];
+ if(S.panel==='slot')return [["kandydaci do slotu "+(S.set.cur+1)+" (wejście+wyjście)",null],["O'Flynn – Rivermouth · 0,97 (we 0,96 · wy 0,98)","1"],["Jayda G – Glass Court · 0,91 (we 0,93 · wy 0,89)","3"],["Bicep – Tin Lake · 0,88 · bez pliku — odsłuch odmówi","5"],["Eltron – Kair · 0,85","10"]];
+ if(S.panel==='plany')return [["klik + O = wczytaj · X = usuń (kosz)",null],...S.set.plany.map(p=>[`${p[0]} · ${p[1]} utworów · smart`,p[0]])];
+ if(S.panel==='filary')return [["tryb filarów: klik + F wybiera",null],["PODPORY — pomiar wstawia w najsłabsze",'podpory'],["RÓWNY ROZSTAW",'rozstaw'],["RAMA (pierwszy/ostatni)",'rama']];
+ return []}
+function drawPanel(){
+ const tyt={gatunki:`GATUNKI — masz 21 z 46 Beatportu · 214 bez tagu\nEnter dodaje/zdejmuje · ^G/Esc zamyka`,
+  dj:`KSIĘGA KOTWIC — 285 DJ-ów zmierzonych z setów\nkogo tu nie ma, tego nie mierzyliśmy · Enter ustawia i zamyka`,
+  slot:`PODPOWIEDŹ SLOTU (Z podmienia · A dopisuje)`,plany:`WCZYTAJ PLAN`,filary:`TRYB FILARÓW`};
+ document.getElementById('ptitle').textContent=tyt[S.panel]||'';
+ const opts=panelOpts();
+ document.getElementById('plist').innerHTML=opts.map((o,i)=>{
+  const hdr=o[1]===null;const cur=i===S.pcur&&!hdr;
+  const chk=S.panel==='gatunki'&&o[1]?`<span class="chk">${S.gatWybrane.has(o[1])?'✓':' '}</span>`:'';
+  const star=S.panel==='dj'&&o[1]===S.kotwica?' ✓':'';
+  return `<div class="pop ${hdr?'hdr':''} ${cur?'cur':''}" data-i="${i}">${chk}${o[0]}${star}</div>`}).join('');
+ document.getElementById('plist').querySelectorAll('.pop:not(.hdr)').forEach(p=>p.onclick=()=>{S.pcur=+p.dataset.i;panelEnter()});
+}
+function panelMove(d){const opts=panelOpts();let i=S.pcur;do{i=Math.min(Math.max(i+d,0),opts.length-1)}while(opts[i]&&opts[i][1]===null&&i>0&&i<opts.length-1);S.pcur=i;drawPanel()}
+function panelEnter(){const o=panelOpts()[S.pcur];if(!o||o[1]===null)return;
+ if(S.panel==='gatunki'){S.gatWybrane.has(o[1])?S.gatWybrane.delete(o[1]):S.gatWybrane.add(o[1]);drawPanel();if(S.tab==='set')rSet();toast(`gatunki: <b>${[...S.gatWybrane].join(', ')||'(puste — bez filtra)'}</b> — lista zostaje otwarta`)}
+ else if(S.panel==='dj'){S.kotwica=o[1];closePanel();if(S.tab==='set')rSet();toast(`kotwica: <b>${o[1]}</b> — Enter ustawia i zamyka`)}
+ else if(S.panel==='slot'){toast(`Z podmienia slot ${S.set.cur+1} na: <b>${o[0].split('·')[0]}</b> (pozornie)`);S.set.edits++;closePanel();rSet()}
+ else if(S.panel==='plany'){toast(`plan „<b>${o[1]}</b>" wczytany (pozornie)`);S.set.built=true;S.set.order=[0,1,2,3,4,5,6,7,8,9];closePanel();rSet()}
+ else if(S.panel==='filary'){toast(`tryb filarów: <b>${o[1]}</b>`);closePanel()}}
+
+/* ── akcje ── */
+function buduj(){S.set.built=true;S.set.order=[0,1,2,3,4,5,6,7,8,9];S.set.cur=0;
+ toast(`<b>set zbudowany</b> (pozornie): 10 utworów · 62 min · najsłabszy szew 0,74`);
+ if(S.tab!=='set')setTab('set');else rSet()}
+function klawiszW(){
+ if(S.tab==='cue'){const c=S.cue;
+  if(c.w===1){c.w=2;toast('policzone: <b>12 padów</b> · 2 cudze ustąpią (skip) · 1 utwór poza kolekcją — pominięty imiennie');rCue()}
+  else{c.w=1;toast('<b>zapisane (pozornie)</b> · kopia utworzona · rejestr UUID — w prawdziwej apce: master.db');rCue()}}
+ else if(S.tab==='set'&&S.set.built){toast('<b>playlista wysłana do RB (pozornie)</b> · backup → dopasowanie → weryfikacja odczytem')}}
+function ruszPad(d){const c=S.cue;const pads=c.pads[c.cur];if(c.sel===null||!pads[c.sel])return false;
+ const p=pads[c.sel];if(p.cudzy){toast('pad <b style="color:var(--red)">cudzy</b> — nietykalny (skip)');return true}
+ c.undo.push({i:c.cur,sel:c.sel,t:p.t});p.t=Math.min(.98,Math.max(.01,p.t+d/64));rCue();return true}
+function klawiszPad(K){const c=S.cue;const pads=c.pads[c.cur];const L=K.toUpperCase();
+ const idx=pads.findIndex(p=>p.l===L);
+ if(idx>=0&&c.sel===idx){const p=pads[idx];
+  if(p.cudzy){toast('pad <b style="color:var(--red)">cudzy</b> — nietykalny (skip)')}
+  else if(S.play.kto===c.cur){c.undo.push({i:c.cur,sel:idx,t:p.t});p.t=Math.min(.98,S.play.poz/S.play.dl);p.eng=false;toast(`pad <b>${L}</b> przeniesiony pod głowicę (${czas(S.play.poz)}) · snap do taktu`)}
+  else toast('głowica nie gra tego utworu — Spacja najpierw')}
+ else if(idx>=0){c.sel=idx;toast(`pad <b>${L}</b> wybrany${pads[idx].cudzy?' — <b style="color:var(--red)">cudzy, nietykalny</b>':''}`)}
+ else{const t=S.play.on&&S.play.kto===c.cur?S.play.poz/S.play.dl:0.5;pads.push({l:L,t});c.sel=pads.length-1;toast(`nowy pad <b>${L}</b> @ ${S.play.on?'pozycja głowicy':'środek'} · snap do taktu`)}
+ rCue()}
+function grajPauza(){const kto=S.tab==='lib'?S.lib.cur:(S.tab==='set'&&S.set.built?S.set.order[S.set.cur]:S.tab==='cue'?S.cue.cur:null);
+ if(kto===null){toast('najpierw zbuduj (B) albo zaznacz utwór');return}
+ if(S.play.on&&S.play.kto===kto){S.play.on=false;toast('pauza (pozycja zapamiętana)')}
+ else{S.play.on=true;S.play.kto=kto;if(S.tab==='cue'){const p=(S.cue.pads[kto]||[])[S.cue.sel];S.play.poz=p?p.t*S.play.dl:0;toast(`▶ gra od ${p?('pada '+p.l):'zera'} — dźwięk tylko z jawnego klawisza`)}else toast(`▶ ${TR[kto][0]} (pozornie, bez dźwięku)`)}
+ rerender()}
+function skok(n){if(!S.play.on){toast('skoki działają, gdy gra');return}S.play.poz=Math.min(S.play.dl,Math.max(0,S.play.poz+n*(60/126)));rerender()}
+function prevNext(d){if(!S.play.on){toast('next/prev działa, gdy gra (wzorzec Quick Look)');return}
+ if(S.tab==='lib'){S.lib.cur=Math.min(Math.max(S.lib.cur+d,0),TR.length-1);S.play.kto=S.lib.cur;S.play.poz=0}
+ if(S.tab==='set'&&S.set.built){S.set.cur=Math.min(Math.max(S.set.cur+d,0),S.set.order.length-1);S.play.kto=S.set.order[S.set.cur];S.play.poz=0}
+ rerender()}
+
+document.body.addEventListener('keydown',e=>{
+ const k=e.key,K=k.toLowerCase();
+ if(S.modal){if(k==='Enter'){const n=document.getElementById('planname').value||'bez nazwy';S.set.plany.unshift([n,S.set.order.length]);S.modal=false;document.getElementById('modal').classList.remove('open');toast(`plan „<b>${n}</b>" zapisany (pozornie)`);rSet()}
+  if(k==='Escape'){S.modal=false;document.getElementById('modal').classList.remove('open')}return}
+ if(e.target.tagName==='INPUT'&&k!=='Escape'&&!(e.ctrlKey&&(K==='g'||K==='d'))&&k!=='Tab')return;
+ if(S.tab==='cue'&&S.cue.tp){const c=S.cue;e.preventDefault();
+  if(k==='Escape'){c.tp=false;c.tpVal='';rCue();return}
+  if(k==='ArrowDown'){c.tpCur=Math.min(c.tpCur+1,FRAZY.length-1);rCue();return}
+  if(k==='ArrowUp'){c.tpCur=Math.max(c.tpCur-1,0);rCue();return}
+  if(k==='Enter'){const p=c.pads[c.cur][c.sel];
+   if(c.tpVal){const m=c.tpVal.match(/^(\d+):(\d{1,2})(?:\.(\d))?$/);
+    if(m){const sek=(+m[1])*60+(+m[2])+(m[3]?+m[3]/10:0);p.t=Math.min(.98,sek/S.play.dl);toast(`czas <b>${c.tpVal}</b> → dociągnięty do taktu`)}
+    else{toast('format m:ss.d — np. 2:37.3');return}}
+   else{p.t=Math.min(.98,FRAZY[c.tpCur][1]/S.play.dl);toast(`pad ${p.l} → fraza <b>${FRAZY[c.tpCur][0]}</b> (${czas(FRAZY[c.tpCur][1])})`)}
+   p.eng=false;c.tp=false;c.tpVal='';rCue();return}
+  if(k==='Backspace'){c.tpVal=c.tpVal.slice(0,-1);rCue();return}
+  if(/^[0-9:.]$/.test(k)){c.tpVal+=k;rCue();return}
+  return}
+ if(e.ctrlKey&&k==='Tab'){e.preventDefault();const t=['lib','set','cue'];const i=t.indexOf(S.tab);setTab(t[(i+(e.shiftKey?2:1))%3]);return}
+ if(e.ctrlKey&&K==='g'){e.preventDefault();S.panel==='gatunki'?closePanel():openPanel('gatunki');return}
+ if(e.ctrlKey&&K==='d'){e.preventDefault();S.panel==='dj'?closePanel():openPanel('dj');return}
+ if(S.panel){
+  if(k==='ArrowDown'){e.preventDefault();panelMove(1);return}
+  if(k==='ArrowUp'){e.preventDefault();panelMove(-1);return}
+  if(k==='Enter'){e.preventDefault();panelEnter();return}
+  if(k==='Escape'){closePanel();return}
+  if(S.panel==='plany'&&K==='o'){panelEnter();return}
+  if(S.panel==='plany'&&K==='x'){toast('plan usunięty do kosza (pozornie)');S.set.plany.splice(Math.max(0,S.pcur-1),1);drawPanel();return}
+  if(S.panel==='filary'&&K==='f'){panelEnter();return}
+  if(S.panel==='slot'&&K==='z'){panelEnter();return}}
+ if(k==='Escape'){if(S.tab==='cue'&&S.cue.sel!==null){S.cue.sel=null;rCue();return}}
+ if(k===' '||K==='p'){e.preventDefault();grajPauza();return}
+ if(k==='ArrowLeft'||k==='ArrowRight'){const d=(k==='ArrowRight'?1:-1);
+  if(S.tab==='cue'&&ruszPad(d*(e.shiftKey?8:1))){e.preventDefault();return}
+  if(S.play.on){e.preventDefault();skok(d*(e.shiftKey?32:8));return}}
+ if(k==='PageDown'||k==='PageUp'){if(S.play.on){e.preventDefault();skok(k==='PageDown'?128:-128);return}}
+ if(k==='ArrowDown'||k==='ArrowUp'){e.preventDefault();const d=k==='ArrowDown'?1:-1;
+  if(e.shiftKey&&S.tab==='set'&&S.set.built){const o=S.set,i=o.cur,j=i+d;if(j>=0&&j<o.order.length){[o.order[i],o.order[j]]=[o.order[j],o.order[i]];o.cur=j;o.edits++;toast('przesunięte (⇧↑↓)');rSet()}return}
+  if(S.tab==='lib'){S.lib.cur=Math.min(Math.max(S.lib.cur+d,0),TR.length-1);if(S.play.on){S.play.kto=S.lib.cur;S.play.poz=0}rLib()}
+  if(S.tab==='set'&&S.set.built){S.set.cur=Math.min(Math.max(S.set.cur+d,0),S.set.order.length-1);rSet()}
+  if(S.tab==='cue'){S.cue.cur=Math.min(Math.max(S.cue.cur+d,0),TR.length-1);S.cue.sel=null;S.cue.w=1;rCue()}
+  return}
+ if(S.tab==='cue'&&K==='t'&&!e.ctrlKey&&!e.metaKey){const c=S.cue;
+  if(c.sel===null){toast('najpierw wybierz pad (litera A–H)');return}
+  if(c.pads[c.cur][c.sel].cudzy){toast('pad cudzy — nietykalny');return}
+  c.tp=true;c.tpVal='';c.tpCur=0;rCue();return}
+ if(S.tab==='cue'&&/^[a-h]$/.test(K)&&!e.ctrlKey&&!e.metaKey){klawiszPad(K);return}
+ if(K==='b'){if(S.tab!=='set')setTab('set');buduj();return}
+ if(K==='w'){klawiszW();return}
+ if(K==='u'&&S.tab==='lib'){const i=S.lib.cur;S.lib.fav.has(i)?S.lib.fav.delete(i):S.lib.fav.add(i);toast(S.lib.fav.has(i)?'♥ dodany (karmi kotwicę ★)':'♥ zdjęty');rLib();return}
+ if(K==='f'&&S.tab==='lib'){const i=S.lib.cur;S.lib.fil.has(i)?S.lib.fil.delete(i):S.lib.fil.add(i);toast(S.lib.fil.has(i)?'FILAR — musi zagrać':'filar zdjęty');rLib();return}
+ if(K==='g'&&S.tab==='lib'){toast('<b>szkic z filarów</b> w Secie (złote flagi, BEZ budowy)');openPanel('filary');return}
+ if(K==='k'&&S.tab==='lib'){S.lib.okladki=!S.lib.okladki;toast(`okładki ${S.lib.okladki?'ON — wiersze wyżej, mniej w kadrze (kompromis nazwany)':'off'}`);rLib();return}
+ if(K==='i'){S.set.info=!S.set.info;rerender();return}
+ if(K==='l'&&S.tab==='set'){S.set.notki=!S.set.notki;rSet();return}
+ if(K==='c'&&S.tab==='set'){S.set.compare=!S.set.compare;rSet();return}
+ if(K==='s'&&S.tab==='set'){if(!S.set.built){toast('najpierw zbuduj (B)');return}S.modal=true;document.getElementById('modal').classList.add('open');setTimeout(()=>document.getElementById('planname').focus(),50);return}
+ if(K==='s'&&S.tab==='cue'){toast('▶ <b>szew od padów</b> (pozornie): render z efektywnych padów');return}
+ if(K==='o'&&S.tab==='set'){openPanel('plany');return}
+ if(K==='z'&&S.tab==='set'){if(S.set.built)openPanel('slot');return}
+ if(K==='z'&&S.tab==='cue'){const u=S.cue.undo.pop();if(u){S.cue.pads[u.i][u.sel].t=u.t;toast('cofnięte (migawka)');rCue()}else toast('nie ma czego cofać');return}
+ if(K==='a'&&S.tab==='set'){if(S.set.built){openPanel('slot');toast('A: dopisz ZA zaznaczonym')}return}
+ if(K==='x'&&S.tab==='set'){if(S.set.built&&S.set.order.length>2){S.set.order.splice(S.set.cur,1);S.set.cur=Math.min(S.set.cur,S.set.order.length-1);S.set.edits++;toast('wycięte (X)');rSet()}return}
+ if(K==='x'&&S.tab==='cue'){const c=S.cue;if(c.sel!==null&&!c.pads[c.cur][c.sel].cudzy){c.undo.push({i:c.cur,sel:c.sel,t:c.pads[c.cur][c.sel].t});c.pads[c.cur].splice(c.sel,1);c.sel=null;toast('pad zdjęty (X) · Z cofa');rCue()}else if(c.sel!==null)toast('pad cudzy — nietykalny');return}
+ if(K==='v'&&S.tab==='set'){toast('<b>werdykt zapisany</b> (pozornie)');return}
+ if(K==='q'){toast('Q: w prawdziwej apce wyjście — makieta zostaje ;)');return}
+});
+setInterval(()=>{if(S.play.on){S.play.poz+=1;if(S.play.poz>=S.play.dl){S.play.on=false;S.play.poz=0;toast('koniec utworu — auto-next tylko spod kursora')}
+ const f=document.querySelector('.prog .fill'),kn=document.querySelector('.prog .knob'),pt=document.querySelector('.ptime');
+ if(f){const pr=(S.play.poz/S.play.dl*100).toFixed(1)+'%';f.style.width=pr;kn.style.left=pr;pt.textContent=`${czas(S.play.poz)} / ${czas(S.play.dl)}`}else rerender()}},1000);
+function setTab(t){S.tab=t;document.querySelectorAll('#tabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.t===t));rerender();chrome()}
+function rerender(){({lib:rLib,set:rSet,cue:rCue})[S.tab]()}
+document.querySelectorAll('#tabs .tab').forEach(t=>t.onclick=()=>setTab(t.dataset.t));
+setTab('set');document.body.focus();
+</script>
+</body>
+</html>
