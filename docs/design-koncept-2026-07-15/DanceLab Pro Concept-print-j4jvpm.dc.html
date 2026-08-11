@@ -1,0 +1,2269 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style data-omelette-print-defaults>
+@media print {
+  @page { margin: 0.5in; }
+  h1, h2, h3, h4, h5, h6 { break-after: avoid; }
+  figure, table, pre, blockquote, img, svg, tr, [class~="card" i] { break-inside: avoid; }
+  img, svg { max-width: 100%; }
+  p { orphans: 3; widows: 3; }
+}
+</style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics="">
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=Space+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0C0E11;font-family:'IBM Plex Sans',system-ui,sans-serif}
+a{color:#8FB8E8}a:hover{color:#BAD7F5}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(255,255,255,.07);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 20px}
+.dv-tid{font:600 10px 'JetBrains Mono',monospace;padding:3px 7px;background:#E8EEF5;color:#0C0E11;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 'IBM Plex Sans',sans-serif;color:#E8EEF5}
+.dv-opts{display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px 'JetBrains Mono',monospace;padding:3px 7px;background:rgba(255,255,255,.1);color:#E8EEF5;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11px/1.3 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.55)}
+.dv-card{max-width:100%;border:1px solid rgba(255,255,255,.09);border-radius:8px;box-shadow:0 2px 14px rgba(0,0,0,.5);overflow:hidden}
+.dv-opt:target .dv-oid{background:#D6F94B;color:#0C0E11}
+.dv-next{margin:22px 0 0;font:12px/1.5 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.5)}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t3">
+<div class="dv-thd"><a class="dv-tid" href="#t3">3</a><span class="dv-tname">One app, one journey — <a class="dv-oid" href="#1b">1b</a> is the SEAM level of <a class="dv-oid" href="#2a">2a</a>–<a class="dv-oid" href="#2e">2e</a>; every old wizard step mapped; problem → solution in five verbs</span></div>
+
+<div class="dv-opts">
+
+<!-- ============ 3a THE USER JOURNEY ============ -->
+<div class="dv-opt" id="3a" style="max-width:1444px">
+<div class="dv-olabel"><a class="dv-oid" href="#3a">3a</a>THE USER JOURNEY — one continuous app; the old five-step wizard fully absorbed, nothing lost</div>
+<div class="dv-card" style="width:1440px;background:#131110">
+<div data-screen-label="3a User journey — problem to solution" style="width:1440px;background:#131110;color:#F0EDE6;font-family:'IBM Plex Sans',sans-serif;padding:22px 26px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px">
+
+  <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+    <span style="font:700 15px 'Space Grotesk',sans-serif;color:#F0EDE6">THE USER JOURNEY — FIVE VERBS, ONE WINDOW</span>
+    <span style="font:400 10px 'JetBrains Mono',monospace;color:#6B655A">screens: <a class="dv-oid" href="#2a">2a</a> <a class="dv-oid" href="#2d">2d</a> → <a class="dv-oid" href="#2b">2b</a> → <a class="dv-oid" href="#2e">2e</a> → <a class="dv-oid" href="#1b">1b</a> → <a class="dv-oid" href="#2c">2c</a> — the same app at four zoom levels</span>
+    <span style="margin-left:auto;font:400 10px 'JetBrains Mono',monospace;color:#A39C8D">old wizard: five gated pages, no sound before Step 4 · TERRAIN: zero gates — audition any seam the moment it exists</span>
+  </div>
+
+  <!-- journey spine -->
+  <div style="position:relative;display:grid;grid-template-columns:150px repeat(5,1fr) 150px;gap:12px;align-items:stretch">
+    <div style="position:absolute;left:60px;right:60px;top:9px;height:1px;background:#3F3931"></div>
+
+    <!-- PROBLEM -->
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="height:20px;display:flex;justify-content:center;align-items:center"><span style="position:relative;width:8px;height:8px;border-radius:50%;background:#F2B84B"></span></div>
+      <div style="flex:1;background:#191715;border:1px solid #2E2A25;border-radius:3px;padding:11px 12px;display:flex;flex-direction:column;gap:6px">
+        <span style="font:700 9px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#F2B84B">PROBLEM</span>
+        <span style="font:400 10.5px/1.55 'IBM Plex Sans',sans-serif;color:#A39C8D">Saturday closing slot · 60 min · 412 tracks · 2 promos arrived tonight.</span>
+        <span style="margin-top:auto;font:400 9px 'JetBrains Mono',monospace;color:#6B655A">T+0:00</span>
+      </div>
+    </div>
+
+    <!-- 1 DROP -->
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="height:20px;display:flex;justify-content:center"><span style="position:relative;width:18px;height:18px;border-radius:50%;background:#191715;border:1px solid #5A5245;display:inline-flex;align-items:center;justify-content:center;font:600 9px 'JetBrains Mono',monospace;color:#F0EDE6">1</span></div>
+      <div style="flex:1;background:#191715;border:1px solid #2E2A25;border-radius:3px;padding:11px 12px;display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;align-items:baseline;gap:6px"><span style="font:700 14px 'Space Grotesk',sans-serif;color:#F0EDE6">DROP</span><span style="margin-left:auto;display:inline-flex;gap:3px"><a class="dv-oid" href="#2a">2a</a><a class="dv-oid" href="#2d">2d</a></span></div>
+        <div style="font:400 9.5px/1.55 'IBM Plex Sans',sans-serif;color:#A39C8D"><span style="color:#F0EDE6;font-weight:600">You</span> — drag audio or a Rekordbox XML anywhere in the window. Keep working.</div>
+        <div style="font:400 9.5px/1.55 'IBM Plex Sans',sans-serif;color:#6B655A"><span style="font:500 8px 'JetBrains Mono',monospace">ENGINE</span> decode › grid › key › structure › stems · honest ETA · problems become row badges.</div>
+        <div style="display:flex;gap:3px;flex-wrap:wrap">
+          <span style="font:500 8px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through;border:1px solid #262320;border-radius:2px;padding:2px 5px;white-space:nowrap">STEP 1 IMPORT</span>
+          <span style="font:500 8px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through;border:1px solid #262320;border-radius:2px;padding:2px 5px;white-space:nowrap">STEP 2 CHECK</span>
+        </div>
+        <div style="margin-top:auto;display:flex;align-items:center;gap:6px">
+          <span style="font:600 9.5px 'Space Grotesk',sans-serif;color:#131110;background:#D6F94B;border-radius:3px;padding:4px 8px;white-space:nowrap">Write the brief</span>
+          <span style="margin-left:auto;font:500 9px 'JetBrains Mono',monospace;color:#A39C8D">hands 0:20</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 BRIEF -->
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="height:20px;display:flex;justify-content:center"><span style="position:relative;width:18px;height:18px;border-radius:50%;background:#191715;border:1px solid #5A5245;display:inline-flex;align-items:center;justify-content:center;font:600 9px 'JetBrains Mono',monospace;color:#F0EDE6">2</span></div>
+      <div style="flex:1;background:#191715;border:1px solid #2E2A25;border-radius:3px;padding:11px 12px;display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;align-items:baseline;gap:6px"><span style="font:700 14px 'Space Grotesk',sans-serif;color:#F0EDE6">BRIEF</span><span style="margin-left:auto;display:inline-flex;gap:3px"><a class="dv-oid" href="#2b">2b</a><a class="dv-oid" href="#2d">2d</a></span></div>
+        <div style="font:400 9.5px/1.55 'IBM Plex Sans',sans-serif;color:#A39C8D"><span style="color:#F0EDE6;font-weight:600">You</span> — length · arc · tempo window · style · role; pin must-plays with <span style="font-family:'JetBrains Mono',monospace">P</span>.</div>
+        <div style="font:400 9.5px/1.55 'IBM Plex Sans',sans-serif;color:#6B655A"><span style="font:500 8px 'JetBrains Mono',monospace">ENGINE</span> still analyzing behind you — the brief never waits for the library.</div>
+        <div style="display:flex;gap:3px;flex-wrap:wrap">
+          <span style="font:500 8px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through;border:1px solid #262320;border-radius:2px;padding:2px 5px;white-space:nowrap">STEP 3 FORM</span>
+        </div>
+        <div style="margin-top:auto;display:flex;align-items:center;gap:6px">
+          <span style="font:600 9.5px 'Space Grotesk',sans-serif;color:#131110;background:#D6F94B;border-radius:3px;padding:4px 8px;white-space:nowrap">Draw the terrain</span>
+          <span style="margin-left:auto;font:500 9px 'JetBrains Mono',monospace;color:#A39C8D">hands 0:40</span>
+        </div>
+        <div style="font:400 8.5px/1.5 'IBM Plex Sans',sans-serif;color:#6B655A">refuses politely until ≥8 tracks fit — shows the ETA, never a dead end</div>
+      </div>
+    </div>
+
+    <!-- 3 GROW -->
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="height:20px;display:flex;justify-content:center"><span style="position:relative;width:18px;height:18px;border-radius:50%;background:#191715;border:1px solid #5A5245;display:inline-flex;align-items:center;justify-content:center;font:600 9px 'JetBrains Mono',monospace;color:#F0EDE6">3</span></div>
+      <div style="flex:1;background:#191715;border:1px solid #2E2A25;border-radius:3px;padding:11px 12px;display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;align-items:baseline;gap:6px"><span style="font:700 14px 'Space Grotesk',sans-serif;color:#F0EDE6">GROW</span><span style="margin-left:auto;display:inline-flex;gap:3px"><a class="dv-oid" href="#2e">2e</a></span></div>
+        <div style="font:400 9.5px/1.55 'IBM Plex Sans',sans-serif;color:#A39C8D"><span style="color:#F0EDE6;font-weight:600">You</span> — watch slots fill against the dashed arc, or walk away. <span style="color:#F0EDE6">Stop here</span> keeps what’s placed.</div>
+        <div style="font:400 9.5px/1.55 'IBM Plex Sans',sans-serif;color:#6B655A"><span style="font:500 8px 'JetBrains Mono',monospace">ENGINE</span> ranks all 412 per slot · every pick keeps its reasons in the live log · pins guaranteed.</div>
+        <div style="display:flex;gap:3px;flex-wrap:wrap">
+          <span style="font:500 8px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through;border:1px solid #262320;border-radius:2px;padding:2px 5px;white-space:nowrap">STEP 3 GENERATE</span>
+        </div>
+        <div style="margin-top:auto;display:flex;align-items:center;gap:6px">
+          <span style="font:600 9.5px 'Space Grotesk',sans-serif;color:#131110;background:#D6F94B;border-radius:3px;padding:4px 8px;white-space:nowrap">Open the worst seam</span>
+          <span style="margin-left:auto;font:500 9px 'JetBrains Mono',monospace;color:#A39C8D">hands 0:00</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 WALK THE SEAMS -->
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="height:20px;display:flex;justify-content:center"><span style="position:relative;width:18px;height:18px;border-radius:50%;background:#191715;border:1px solid #5A5245;display:inline-flex;align-items:center;justify-content:center;font:600 9px 'JetBrains Mono',monospace;color:#F0EDE6">4</span></div>
+      <div style="flex:1;background:#191715;border:1px solid #2E2A25;border-radius:3px;padding:11px 12px;display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;align-items:baseline;gap:6px"><span style="font:700 14px 'Space Grotesk',sans-serif;color:#F0EDE6;white-space:nowrap">WALK THE SEAMS</span><span style="margin-left:auto;display:inline-flex;gap:3px"><a class="dv-oid" href="#1b">1b</a></span></div>
+        <div style="font:400 9.5px/1.55 'IBM Plex Sans',sans-serif;color:#A39C8D"><span style="color:#F0EDE6;font-weight:600">You</span> — ears only where flagged: audition the real render, then Keep · Keep w/ strategy · Skip · Needs listen.</div>
+        <div style="font:400 9.5px/1.55 'IBM Plex Sans',sans-serif;color:#6B655A"><span style="font:500 8px 'JetBrains Mono',monospace">ENGINE</span> sample-accurate A→B render — the same envelope math the export writes.</div>
+        <div style="display:flex;gap:3px;flex-wrap:wrap">
+          <span style="font:500 8px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through;border:1px solid #262320;border-radius:2px;padding:2px 5px;white-space:nowrap">STEP 4 REVIEW</span>
+        </div>
+        <div style="margin-top:auto;display:flex;align-items:center;gap:6px">
+          <span style="font:600 9.5px 'Space Grotesk',sans-serif;color:#131110;background:#D6F94B;border-radius:3px;padding:4px 8px;white-space:nowrap">Export gate…</span>
+          <span style="margin-left:auto;font:500 9px 'JetBrains Mono',monospace;color:#A39C8D">~2:00 × 2 flagged</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5 GATE -->
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="height:20px;display:flex;justify-content:center"><span style="position:relative;width:18px;height:18px;border-radius:50%;background:#191715;border:1px solid #5A5245;display:inline-flex;align-items:center;justify-content:center;font:600 9px 'JetBrains Mono',monospace;color:#F0EDE6">5</span></div>
+      <div style="flex:1;background:#191715;border:1px solid #2E2A25;border-radius:3px;padding:11px 12px;display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;align-items:baseline;gap:6px"><span style="font:700 14px 'Space Grotesk',sans-serif;color:#F0EDE6">GATE</span><span style="margin-left:auto;display:inline-flex;gap:3px"><a class="dv-oid" href="#2c">2c</a></span></div>
+        <div style="font:400 9.5px/1.55 'IBM Plex Sans',sans-serif;color:#A39C8D"><span style="color:#F0EDE6;font-weight:600">You</span> — read the diff, clear blockers; each links straight back to its seam or track.</div>
+        <div style="font:400 9.5px/1.55 'IBM Plex Sans',sans-serif;color:#6B655A"><span style="font:500 8px 'JetBrains Mono',monospace">ENGINE</span> writes order + cues only · Esc writes nothing · the gate re-opens exactly here.</div>
+        <div style="display:flex;gap:3px;flex-wrap:wrap">
+          <span style="font:500 8px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through;border:1px solid #262320;border-radius:2px;padding:2px 5px;white-space:nowrap">STEP 5 EXPORT</span>
+          <span style="font:500 8px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through;border:1px solid #262320;border-radius:2px;padding:2px 5px;white-space:nowrap">STEP 2 HARD STOPS</span>
+        </div>
+        <div style="margin-top:auto;display:flex;align-items:center;gap:6px">
+          <span style="font:600 9.5px 'Space Grotesk',sans-serif;color:#131110;background:#D6F94B;border-radius:3px;padding:4px 8px;white-space:nowrap">Write XML</span>
+          <span style="margin-left:auto;font:500 9px 'JetBrains Mono',monospace;color:#A39C8D">hands 0:30</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOLUTION -->
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="height:20px;display:flex;justify-content:center;align-items:center"><span style="position:relative;width:8px;height:8px;border-radius:50%;background:#3DDC97"></span></div>
+      <div style="flex:1;background:#191715;border:1px solid #2B6B5D;border-radius:3px;padding:11px 12px;display:flex;flex-direction:column;gap:6px">
+        <span style="font:700 9px 'JetBrains Mono',monospace;letter-spacing:.14em;color:#3DDC97">SOLUTION</span>
+        <span style="font:400 10.5px/1.55 'IBM Plex Sans',sans-serif;color:#A39C8D">saturday_closing.xml in Rekordbox — order + 38 cues; grids &amp; audio untouched.</span>
+        <span style="margin-top:auto;font:400 9px/1.6 'JetBrains Mono',monospace;color:#3DDC97">T+15:00 · hands ≈6:00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- time ribbon -->
+  <div style="display:flex;align-items:baseline;gap:8px;background:#191715;border:1px solid #2E2A25;border-radius:3px;padding:9px 14px;flex-wrap:wrap">
+    <span style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#6B655A;margin-right:4px">CLOCK</span>
+    <span style="font:400 9.5px 'JetBrains Mono',monospace;color:#A39C8D"><span style="color:#F0EDE6">T+0:00</span> drop → <span style="color:#F0EDE6">+0:30</span> brief written → <span style="color:#F0EDE6">+1:10</span> terrain draws while analysis finishes → <span style="color:#F0EDE6">+10:00</span> both flagged seams heard → <span style="color:#F0EDE6">+14:30</span> diff read → <span style="color:#F0EDE6">+15:00</span> XML in Rekordbox</span>
+    <span style="margin-left:auto;font:400 9.5px 'JetBrains Mono',monospace;color:#6B655A">the old wizard spent this long before the first sound</span>
+  </div>
+
+  <!-- always-on lanes -->
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="width:64px;flex:none;font:500 8.5px 'JetBrains Mono',monospace;color:#6B655A">ANALYSIS</span>
+      <span style="flex:1;height:3px;border-radius:2px;background:#2E2A25"></span>
+      <span style="font:400 9px 'IBM Plex Sans',sans-serif;color:#6B655A">background from first drop to gate — never blocks a verb; failures are row badges, blockers exist only at the file write</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="width:64px;flex:none;font:500 8.5px 'JetBrains Mono',monospace;color:#6B655A">SAVING</span>
+      <span style="flex:1;height:3px;border-radius:2px;background:#2E2A25"></span>
+      <span style="font:400 9px 'IBM Plex Sans',sans-serif;color:#6B655A">no Save button, no “unsaved changes” — the set autosaves (“saved 18:02”); the gate is the app’s only file write</span>
+    </div>
+  </div>
+
+  <!-- wayfinding rule -->
+  <div style="border:1px solid #3F3931;background:#191715;border-radius:3px;padding:10px 14px;display:flex;gap:14px;align-items:baseline;flex-wrap:wrap">
+    <span style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#D6F94B">FOLLOW THE VOLT</span>
+    <span style="font:400 10px/1.6 'IBM Plex Sans',sans-serif;color:#A39C8D">exactly one volt verb on screen at any moment — <span style="color:#F0EDE6">Drop → Write the brief → Draw the terrain → next flagged seam → Write XML</span>. Statuses unlock verbs, never lock doors. Lost? <span style="font-family:'JetBrains Mono',monospace">⌘−</span> zooms out to SET — the dock at the bottom is the map, in every state, including empty.</span>
+  </div>
+
+  <!-- coverage audit -->
+  <div style="border-top:1px solid #2E2A25;padding-top:14px;display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:baseline;gap:12px">
+      <span style="font:700 11px 'Space Grotesk',sans-serif;letter-spacing:.06em;color:#F0EDE6">NOTHING LOST — EVERY CONTROL OF THE OLD WIZARD, REHOMED</span>
+      <span style="font:400 9.5px 'JetBrains Mono',monospace;color:#6B655A">struck = old app · → = where it lives on TERRAIN</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+
+      <div style="border:1px solid #262320;border-radius:3px;padding:10px 12px;background:#141210;display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;gap:7px;align-items:baseline;flex-wrap:wrap"><span style="font:500 9px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through">STEP 1 — IMPORT TRACKS</span><span style="color:#6B655A;font-size:9px">→</span><span style="font:600 10.5px 'Space Grotesk',sans-serif;color:#F0EDE6">LIBRARY</span><span style="margin-left:auto;display:inline-flex;gap:3px"><a class="dv-oid" href="#2a">2a</a><a class="dv-oid" href="#2d">2d</a></span></div>
+        <div style="display:flex;flex-direction:column;gap:3px;font:400 9px/1.5 'IBM Plex Sans',sans-serif;color:#A39C8D">
+          <div>import screen <span style="color:#6B655A">→</span> drop anywhere, any time — starts on drop</div>
+          <div>track list + progress <span style="color:#6B655A">→</span> per-stage rows: decode › grid › key › structure › stems</div>
+          <div>workers · cache footer <span style="color:#6B655A">→</span> top-bar counts · drop-strip meta</div>
+        </div>
+      </div>
+
+      <div style="border:1px solid #262320;border-radius:3px;padding:10px 12px;background:#141210;display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;gap:7px;align-items:baseline;flex-wrap:wrap"><span style="font:500 9px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through">STEP 2 — INITIAL CHECK</span><span style="color:#6B655A;font-size:9px">→</span><span style="font:600 10.5px 'Space Grotesk',sans-serif;color:#F0EDE6">BADGES, NEVER A GATE</span><span style="margin-left:auto;display:inline-flex;gap:3px"><a class="dv-oid" href="#2a">2a</a><a class="dv-oid" href="#2c">2c</a></span></div>
+        <div style="display:flex;flex-direction:column;gap:3px;font:400 9px/1.5 'IBM Plex Sans',sans-serif;color:#A39C8D">
+          <div>pass/fail page <span style="color:#6B655A">→</span> row badges: failed · DSP fallback · grid 0.41</div>
+          <div>blocked Next <span style="color:#6B655A">→</span> nothing blocks; hard stops resurface as gate blockers</div>
+          <div>re-run analysis <span style="color:#6B655A">→</span> <span style="font-family:'JetBrains Mono',monospace">A</span> analyze selection · retry on the row</div>
+        </div>
+      </div>
+
+      <div style="border:1px solid #262320;border-radius:3px;padding:10px 12px;background:#141210;display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;gap:7px;align-items:baseline;flex-wrap:wrap"><span style="font:500 9px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through">STEP 3 — GENERATE SET</span><span style="color:#6B655A;font-size:9px">→</span><span style="font:600 10.5px 'Space Grotesk',sans-serif;color:#F0EDE6">BRIEF + DRAWING</span><span style="margin-left:auto;display:inline-flex;gap:3px"><a class="dv-oid" href="#2b">2b</a><a class="dv-oid" href="#2d">2d</a><a class="dv-oid" href="#2e">2e</a></span></div>
+        <div style="display:flex;flex-direction:column;gap:3px;font:400 9px/1.5 'IBM Plex Sans',sans-serif;color:#A39C8D">
+          <div>track count / target duration <span style="color:#6B655A">→</span> LENGTH — 10 tracks / ≈1 h</div>
+          <div>style focus <span style="color:#6B655A">→</span> STYLE FOCUS — source-backed tags</div>
+          <div>tempo window <span style="color:#6B655A">→</span> TEMPO WINDOW 170–176 · open = full library</div>
+          <div>set context: role + crowd <span style="color:#6B655A">→</span> ROLE · CROWD chips</div>
+          <div>energy arc <span style="color:#6B655A">→</span> ARC — drawn curves</div>
+          <div>smart-playlist preference <span style="color:#6B655A">→</span> ranking with reasons · LIVE LOG</div>
+          <div>variation + seed <span style="color:#6B655A">→</span> VARIATION · SEED chips</div>
+          <div>Generate button <span style="color:#6B655A">→</span> Draw the terrain · Stop here keeps what’s placed</div>
+        </div>
+      </div>
+
+      <div style="border:1px solid #262320;border-radius:3px;padding:10px 12px;background:#141210;display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;gap:7px;align-items:baseline;flex-wrap:wrap"><span style="font:500 9px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through">STEP 4 — REVIEW TRANSITIONS</span><span style="color:#6B655A;font-size:9px">→</span><span style="font:600 10.5px 'Space Grotesk',sans-serif;color:#F0EDE6">SEAM</span><span style="margin-left:auto;display:inline-flex;gap:3px"><a class="dv-oid" href="#1b">1b</a></span></div>
+        <div style="display:flex;flex-direction:column;gap:3px;font:400 9px/1.5 'IBM Plex Sans',sans-serif;color:#A39C8D">
+          <div>transition list sidebar <span style="color:#6B655A">→</span> dock joints + quality bars — click any joint</div>
+          <div>mix model dropdown <span style="color:#6B655A">→</span> the same five models, chips</div>
+          <div>length in beats <span style="color:#6B655A">→</span> LENGTH · BEATS + runway guard</div>
+          <div>tempo strategy <span style="color:#6B655A">→</span> follow outgoing / shadow rec in sim header</div>
+          <div>render / pause audition <span style="color:#6B655A">→</span> ▶ space · Q·LOCK quantize</div>
+          <div>EQ + fader curves, 8-beat grid <span style="color:#6B655A">→</span> three lanes + MIXER readout</div>
+          <div>hot cues A–H <span style="color:#6B655A">→</span> cue slots on the deck strips</div>
+          <div>isolate stems <span style="color:#6B655A">→</span> per-deck stems chip · demucs / DSP fallback</div>
+          <div>blind rating + corrections CSV <span style="color:#6B655A">→</span> Keep / w strategy / Skip / Needs listen — reasons attach to the seam</div>
+        </div>
+      </div>
+
+      <div style="border:1px solid #262320;border-radius:3px;padding:10px 12px;background:#141210;display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;gap:7px;align-items:baseline;flex-wrap:wrap"><span style="font:500 9px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through">STEP 5 — EXPORT</span><span style="color:#6B655A;font-size:9px">→</span><span style="font:600 10.5px 'Space Grotesk',sans-serif;color:#F0EDE6">EXPORT GATE</span><span style="margin-left:auto;display:inline-flex;gap:3px"><a class="dv-oid" href="#2c">2c</a></span></div>
+        <div style="display:flex;flex-direction:column;gap:3px;font:400 9px/1.5 'IBM Plex Sans',sans-serif;color:#A39C8D">
+          <div>playlist name field <span style="color:#6B655A">→</span> set named once — lives in the top bar</div>
+          <div>output path + Browse <span style="color:#6B655A">→</span> path row in the gate</div>
+          <div>Export Rekordbox XML <span style="color:#6B655A">→</span> Write XML — blocked until listened</div>
+          <div>export summary <span style="color:#6B655A">→</span> WILL WRITE diff: order · 38 cues · MyTag</div>
+          <div>“Rekordbox analyzes grid” note <span style="color:#6B655A">→</span> NEVER TOUCHED panel</div>
+          <div>export-complete state <span style="color:#6B655A">→</span> gate re-opens exactly here · Esc writes nothing</div>
+        </div>
+      </div>
+
+      <div style="border:1px solid #262320;border-radius:3px;padding:10px 12px;background:#141210;display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;gap:7px;align-items:baseline;flex-wrap:wrap"><span style="font:500 9px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through">HEADER &amp; MODES</span><span style="color:#6B655A;font-size:9px">→</span><span style="font:600 10.5px 'Space Grotesk',sans-serif;color:#F0EDE6">ONE WINDOW</span></div>
+        <div style="display:flex;flex-direction:column;gap:3px;font:400 9px/1.5 'IBM Plex Sans',sans-serif;color:#A39C8D">
+          <div>Simple Mode toggle <span style="color:#6B655A">→</span> zoom is the mode: LIBRARY › SET › SEAM › TRACK</div>
+          <div>Unsaved changes · Save <span style="color:#6B655A">→</span> autosave — “saved 18:02”</div>
+          <div>Cache ready · Mix ideas ready <span style="color:#6B655A">→</span> honest counts: analyzed · running · queued</div>
+          <div>Back / Next footer <span style="color:#6B655A">→</span> gone — statuses unlock volt verbs</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: “animate the journey as a guided walkthrough” · “night-zero journey (first launch, empty library)” · “print one-pager of this map”</p>
+</section>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Wizard → instrument. The whole app on <a class="dv-oid" href="#1b">1b</a> TERRAIN — no steps, no Next/Back. Screens sit in journey order: J1 drop → J2 brief → J3 grow → J4 seams → J5 gate</span></div>
+
+<div class="dv-card" style="width:1440px;max-width:100%;background:#131110;margin:0 0 26px">
+  <div style="display:grid;grid-template-columns:400px 1fr">
+    <div style="padding:24px 28px;border-right:1px solid #2E2A25">
+      <div style="font:700 26px 'Space Grotesk',sans-serif;color:#F0EDE6;letter-spacing:.01em">TERRAIN</div>
+      <div style="font:500 10px 'JetBrains Mono',monospace;color:#6B655A;letter-spacing:.18em;margin-top:6px">CONCEPT · MENTAL MODEL</div>
+      <div style="margin-top:14px;font:400 12.5px/1.7 'IBM Plex Sans',sans-serif;color:#A39C8D">The set is terrain — an energy landscape you shape. The whole app is one zoomable line: zoom out and you hold the <em style="color:#F0EDE6;font-style:normal">SET</em> (energy curve, quality bars, peaks); zoom in on any joint and you are in the <em style="color:#F0EDE6;font-style:normal">SEAM</em> inspector; zoom further for <em style="color:#F0EDE6;font-style:normal">TRACK</em> anatomy. The timeline dock never leaves the bottom of the screen — you always know where in the night you are. One non-data accent (volt) marks exactly one thing: what is selected.</div>
+    </div>
+    <div style="padding:24px 28px">
+      <div style="font:500 10px 'JetBrains Mono',monospace;color:#6B655A;letter-spacing:.18em;margin-bottom:12px">TOKENS — WARM GRAPHITE · VOLT = SELECTION ONLY, NEVER DATA</div>
+      <div style="display:flex;gap:22px;flex-wrap:wrap">
+        <div>
+          <div style="font:500 9px 'JetBrains Mono',monospace;color:#6B655A;letter-spacing:.12em;margin-bottom:5px">SURFACES + SELECTION</div>
+          <div style="display:flex;gap:4px">
+            <div style="width:34px;height:34px;background:#131110;border:1px solid #2E2A25;border-radius:3px"></div>
+            <div style="width:34px;height:34px;background:#191715;border:1px solid #2E2A25;border-radius:3px"></div>
+            <div style="width:34px;height:34px;background:#211D1A;border:1px solid #3F3931;border-radius:3px"></div>
+            <div style="width:34px;height:34px;background:#D6F94B;border-radius:3px"></div>
+          </div>
+          <div style="font:400 9px 'JetBrains Mono',monospace;color:#6B655A;margin-top:4px">131110 · 191715 · 211D1A · volt D6F94B</div>
+        </div>
+        <div>
+          <div style="font:500 9px 'JetBrains Mono',monospace;color:#6B655A;letter-spacing:.12em;margin-bottom:5px">DECK A WARM / B COOL — EQ TRIADS</div>
+          <div style="display:flex;gap:4px">
+            <div style="width:22px;height:34px;background:#F26749;border-radius:3px"></div>
+            <div style="width:22px;height:34px;background:#F2A93B;border-radius:3px"></div>
+            <div style="width:22px;height:34px;background:#F7D98B;border-radius:3px"></div>
+            <div style="width:10px"></div>
+            <div style="width:22px;height:34px;background:#45C9BA;border-radius:3px"></div>
+            <div style="width:22px;height:34px;background:#6FAFFF;border-radius:3px"></div>
+            <div style="width:22px;height:34px;background:#BE96FF;border-radius:3px"></div>
+          </div>
+          <div style="font:400 9px 'JetBrains Mono',monospace;color:#6B655A;margin-top:4px">A low/mid/high · B low/mid/high · faders F5F2EA</div>
+        </div>
+        <div>
+          <div style="font:500 9px 'JetBrains Mono',monospace;color:#6B655A;letter-spacing:.12em;margin-bottom:5px">QUALITY / ENERGY / SEGMENTS</div>
+          <div style="display:flex;gap:4px;align-items:center">
+            <div style="width:22px;height:34px;background:#3DDC97;border-radius:3px"></div>
+            <div style="width:22px;height:34px;background:#F2B84B;border-radius:3px"></div>
+            <div style="width:22px;height:34px;background:#FF5C68;border-radius:3px"></div>
+            <div style="width:10px"></div>
+            <div style="width:66px;height:34px;background:linear-gradient(90deg,#5CC8FF,#45D39B,#FFB454);border-radius:3px"></div>
+            <div style="width:10px"></div>
+            <div style="width:14px;height:34px;background:#4A5E80"></div>
+            <div style="width:14px;height:34px;background:#A67F36"></div>
+            <div style="width:14px;height:34px;background:#B34E44"></div>
+            <div style="width:14px;height:34px;background:#75568F"></div>
+            <div style="width:14px;height:34px;background:#55743C"></div>
+            <div style="width:14px;height:34px;background:#41787C"></div>
+          </div>
+          <div style="font:400 9px 'JetBrains Mono',monospace;color:#6B655A;margin-top:4px">quality · energy ramp · intro→outro segment family</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:26px;margin-top:16px;align-items:baseline;flex-wrap:wrap">
+        <div style="font:700 15px 'Space Grotesk',sans-serif;color:#F0EDE6">Space Grotesk <span style="color:#6B655A;font-weight:400;font-size:10px">UI · titles · verbs</span></div>
+        <div style="font:500 13px 'JetBrains Mono',monospace;color:#F0EDE6">JetBrains Mono <span style="color:#6B655A;font-weight:400;font-size:10px">every number on screen</span></div>
+        <div style="font:400 10px 'JetBrains Mono',monospace;color:#6B655A">GRID 8px · blocks 2px border when active · radius 3px max · icons 1.5px stroke round joins</div><div style="font:400 10px 'JetBrains Mono',monospace;color:#6B655A;width:100%">MOTION — hover 120ms ease-out · press 60ms · curves morph 450ms on model change only · playhead &amp; previews instant, no easing · analysis shows honest progress, never spinners · <span style="color:#D6F94B">press play (or space) to run the playhead</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="max-width:1440px;margin:0 0 28px;background:#191715;border:1px solid #2E2A25;border-radius:8px;padding:22px 26px;color:#A39C8D;font:400 12.5px/1.65 'IBM Plex Sans',sans-serif">
+  <div style="font:700 11px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#F0EDE6;margin-bottom:12px">THE WIZARD BECOMES AN INSTRUMENT</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 40px">
+    <div style="display:flex;gap:10px;align-items:baseline"><span style="font:500 10px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through;width:170px;flex:none">Step 1 — Import Tracks</span><span style="color:#6B655A">→</span><span>drop files anywhere, any time — <a class="dv-oid" href="#2a">2a</a> LIBRARY. Analysis is a background process with honest per-stage progress.</span></div>
+    <div style="display:flex;gap:10px;align-items:baseline"><span style="font:500 10px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through;width:170px;flex:none">Step 2 — Initial Check</span><span style="color:#6B655A">→</span><span>not a step. Problems become badges on tracks (failed, low grid confidence, DSP fallback) — they never gate navigation.</span></div>
+    <div style="display:flex;gap:10px;align-items:baseline"><span style="font:500 10px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through;width:170px;flex:none">Step 3 — Generate Set</span><span style="color:#6B655A">→</span><span>a SET BRIEF panel over the terrain — <a class="dv-oid" href="#2b">2b</a>. “Grow terrain” ranks and lays the set; every pick keeps its reasons; regenerate = variation.</span></div>
+    <div style="display:flex;gap:10px;align-items:baseline"><span style="font:500 10px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through;width:170px;flex:none">Step 4 — Review Transitions</span><span style="color:#6B655A">→</span><span>the SEAM level — already designed in <a class="dv-oid" href="#1b">1b</a>. Click any joint in the dock.</span></div>
+    <div style="display:flex;gap:10px;align-items:baseline"><span style="font:500 10px 'JetBrains Mono',monospace;color:#6B655A;text-decoration:line-through;width:170px;flex:none">Step 5 — Export</span><span style="color:#6B655A">→</span><span>the EXPORT GATE — <a class="dv-oid" href="#2c">2c</a>. The one legitimate modal: an irreversible file write, shown as a diff with blockers.</span></div>
+  </div>
+  <div style="margin-top:14px;padding-top:12px;border-top:1px solid #2E2A25;display:flex;gap:30px;flex-wrap:wrap;align-items:baseline">
+    <span style="font:500 10.5px 'JetBrains Mono',monospace;color:#F0EDE6">LIBRARY › SET › SEAM › TRACK</span>
+    <span>one zoom line (⌘±), one window. The terrain dock never leaves the bottom — your set is always in view, in every state, including empty.</span>
+    <span style="color:#F0EDE6">Readiness, not sequence:</span><span>statuses unlock verbs (“Grow terrain”, “Write XML”), they never lock doors.</span>
+  </div>
+</div>
+
+<div class="dv-opts">
+
+<!-- ============ 2a LIBRARY ============ -->
+<div class="dv-opt" id="2a" style="max-width:1444px">
+
+
+</div>
+
+<div class="dv-opt" id="2d" style="max-width:1444px">
+<div class="dv-olabel"><a class="dv-oid" href="#2d">2d</a>J1 DROP · NIGHT ZERO — first launch: library as a drawer, analysis honest, the brief refuses politely</div>
+
+<!-- ============ SCREEN 1 · NIGHT START ============ -->
+<div class="dv-card" style="width:1440px;background:#131110">
+<div data-screen-label="2d Night zero — library drawer + honest analysis" style="width:1440px;height:900px;background:#131110;color:#F0EDE6;display:flex;flex-direction:column;overflow:hidden;font-family:'IBM Plex Sans',sans-serif">
+  <div style="height:46px;flex:none;display:flex;align-items:center;border-bottom:1px solid #2E2A25;background:#191715;padding:0 18px;gap:18px">
+    <div style="font:700 13px 'Space Grotesk',sans-serif;letter-spacing:.06em;color:#F0EDE6">DanceLab</div>
+    <div style="display:flex;align-items:center;gap:2px;font:500 10.5px 'JetBrains Mono',monospace">
+      <span style="color:#6B655A;padding:5px 10px;border:1px solid #2E2A25;border-radius:3px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">LIBRARY</span>
+      <span style="color:#6B655A;padding:0 2px">›</span>
+      <span style="color:#131110;background:#D6F94B;padding:6px 10px;border-radius:3px">SET</span>
+      <span style="color:#6B655A;padding:0 2px">›</span>
+      <span style="color:#453F35;padding:5px 10px;border:1px solid #211D1A;border-radius:3px" title="open a seam by clicking a joint">SEAM</span>
+      <span style="color:#453F35;padding:0 2px">›</span>
+      <span style="color:#453F35;padding:5px 10px;border:1px solid #211D1A;border-radius:3px">TRACK</span>
+    </div>
+    <span style="font:400 10px 'JetBrains Mono',monospace;color:#A39C8D">Saturday Closing <span style="color:#6B655A">— saved 18:02</span></span>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
+      <span style="font:400 10px 'JetBrains Mono',monospace;color:#6B655A">library 14 · analyzed 3 · running 3</span>
+      <span style="font:600 11px 'Space Grotesk',sans-serif;color:#6B655A;border:1px solid #2E2A25;border-radius:3px;padding:5px 12px" title="opens when a set exists — nothing to write yet">Export gate <span style="font-family:'JetBrains Mono',monospace;font-size:9px">· empty</span></span>
+    </div>
+  </div>
+
+  <div style="flex:1;min-height:0;display:flex">
+    <!-- CRATE drawer -->
+    <div style="width: 273px; flex: none; border-right: 1px solid #2E2A25; background: #191715; display: flex; flex-direction: column; height: 853px">
+      <div style="padding:12px 16px 10px;display:flex;align-items:baseline;gap:8px;border-bottom:1px solid #2E2A25">
+        <span style="font:700 11px 'Space Grotesk',sans-serif;letter-spacing:.1em;color:#F0EDE6">LIBRARY</span>
+        <span style="font:400 10px 'JetBrains Mono',monospace;color:#6B655A">14 tracks</span>
+        <span style="margin-left:auto;font:400 9px 'JetBrains Mono',monospace;color:#6B655A;border:1px solid #2E2A25;border-radius:3px;padding:2px 6px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">sort: added ▾</span>
+      </div>
+      <div style="margin:12px 14px 4px;border:1px dashed #3F3931;border-radius:3px;padding:14px;text-align:center;cursor:pointer;transition:border-color .12s ease-out,background .12s ease-out" style-hover="border-color:#D6F94B;background:#1C1A17">
+        <div style="font:600 11px 'Space Grotesk',sans-serif;color:#F0EDE6">Drop audio or a folder</div>
+        <div style="font:400 9.5px 'JetBrains Mono',monospace;color:#6B655A;margin-top:3px">WAV · AIFF · FLAC · MP3 · analysis starts on drop</div>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:6px 0">
+        <sc-for list="{{ crateRows }}" as="r" hint-placeholder-count="9">
+          <div style="padding:8px 16px 7px;display:flex;flex-direction:column;gap:3px;cursor:pointer;border-left:2px solid transparent;transition:background .12s ease-out" style-hover="background:#1C1A17">
+            <div style="display:flex;align-items:baseline;gap:8px">
+              <span style="width:7px;height:7px;border-radius:50%;background:{{ r.dot }};flex:none;align-self:center"></span>
+              <span style="font:500 11.5px 'IBM Plex Sans',sans-serif;color:{{ r.titleCol }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.title }}</span>
+              <span style="font:400 9.5px 'JetBrains Mono',monospace;color:#6B655A;white-space:nowrap;margin-left:auto">{{ r.artist }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding-left:15px">
+              <span style="font:500 9.5px 'JetBrains Mono',monospace;color:{{ r.rightCol }}">{{ r.right }}</span>
+              <span style="flex:1;height:2px;background:#211D1A;border-radius:1px;position:relative;overflow:hidden"><span style="position:absolute;inset:0;right:auto;width:{{ r.barW }};background:{{ r.barCol }}"></span></span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding: 10px 16px; border-top: 1px solid #2E2A25; display: flex; flex-direction: column; gap: 4px; width: 247px; height: 32px">
+        <div style="font:400 9.5px 'JetBrains Mono',monospace;color:#A39C8D">3 running · 7 queued · ≈9 min left</div>
+        <div style="font:400 9px 'JetBrains Mono',monospace;color:#6B655A">estimate from your last 12 tracks · decode › beatgrid › key › structure › stems</div>
+      </div>
+    </div>
+
+    <!-- SET canvas, empty state -->
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;position:relative">
+      <div style="flex:1;position:relative;margin:18px 22px 0">
+        <svg width="100%" height="100%" viewBox="0 0 1000 560" preserveAspectRatio="none" style="display:block;position:absolute;inset:0">
+          <line x1="0" y1="420" x2="1000" y2="420" stroke="#2E2A25" stroke-width="1.4" vector-effect="non-scaling-stroke"></line>
+          <line x1="0" y1="140" x2="1000" y2="140" stroke="#2E2A25" stroke-width="1" stroke-dasharray="2 6" vector-effect="non-scaling-stroke"></line>
+        </svg>
+        <sc-for list="{{ emptyTicks }}" as="k" hint-placeholder-count="7">
+          <div style="position:absolute;left:{{ k.x }};top:76.5%;width:1px;height:8px;background:#3F3931"></div>
+          <span style="position:absolute;left:{{ k.x }};top:79%;transform:translateX(-50%);font:400 9px 'JetBrains Mono',monospace;color:#6B655A">{{ k.label }}</span>
+        </sc-for>
+        <span style="position:absolute;left:0;top:21%;font:400 9px 'JetBrains Mono',monospace;color:#453F35">peak ceiling · from brief</span>
+        <div style="position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center">
+          <div style="font:700 20px 'Space Grotesk',sans-serif;color:#F0EDE6">No set yet.</div>
+          <div style="font:400 12px/1.6 'IBM Plex Sans',sans-serif;color:#A39C8D;max-width:400px">Write the brief and DanceLab will draw the night onto this line — or drag tracks straight from the library to place them yourself.</div>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <span style="font:600 11px 'Space Grotesk',sans-serif;color:#131110;background:#D6F94B;border-radius:3px;padding:8px 16px;cursor:pointer;transition:filter .12s ease-out,transform .06s" style-hover="filter:brightness(1.1)" style-active="transform:translateY(1px)">Write the brief <span style="opacity:.55;font-family:'JetBrains Mono',monospace;font-size:9px">B</span></span>
+            <span style="font:600 11px 'Space Grotesk',sans-serif;color:#A39C8D;border:1px solid #2E2A25;border-radius:3px;padding:7px 14px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">Start from a track…</span>
+          </div>
+          <div style="font:400 9.5px 'JetBrains Mono',monospace;color:#6B655A;margin-top:2px">nothing is generated until you ask · 3 of 14 tracks analyzed so far</div>
+        </div>
+      </div>
+      <div style="flex:none;display:flex;align-items:center;gap:14px;padding:10px 22px 14px">
+        <span style="font:400 9px 'JetBrains Mono',monospace;color:#6B655A">B brief · I import · E export gate · ⌘± zoom · click a joint to open its seam</span>
+      </div>
+    </div>
+
+    <!-- BRIEF panel -->
+    <div style="width:300px;flex:none;border-left:1px solid #2E2A25;background:#191715;display:flex;flex-direction:column">
+      <div style="padding:12px 16px 10px;border-bottom:1px solid #2E2A25;display:flex;align-items:baseline;gap:8px">
+        <span style="font:700 11px 'Space Grotesk',sans-serif;letter-spacing:.1em;color:#F0EDE6">BRIEF</span>
+        <span style="font:400 9.5px 'JetBrains Mono',monospace;color:#6B655A">what the engine will aim for</span>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:12px 16px;display:flex;flex-direction:column;gap:13px">
+        <div>
+          <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em;color:#6B655A;margin-bottom:6px">LENGTH</div>
+          <div style="display:flex;gap:3px">
+            <span style="font:500 9.5px 'JetBrains Mono',monospace;color:#131110;background:#D6F94B;border-radius:3px;padding:4px 9px;cursor:pointer">10 tracks</span>
+            <span style="font:500 9.5px 'JetBrains Mono',monospace;color:#A39C8D;border:1px solid #2E2A25;border-radius:3px;padding:4px 9px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">≈ 1 h 00</span>
+          </div>
+        </div>
+        <div>
+          <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em;color:#6B655A;margin-bottom:6px">ARC</div>
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <span style="font:500 10px 'Space Grotesk',sans-serif;color:#131110;background:#D6F94B;border-radius:3px;padding:5px 9px;cursor:pointer">Rolling → peak late → land soft</span>
+            <span style="font:500 10px 'Space Grotesk',sans-serif;color:#A39C8D;border:1px solid #2E2A25;border-radius:3px;padding:4px 9px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">Steady groove, no peak</span>
+            <span style="font:500 10px 'Space Grotesk',sans-serif;color:#A39C8D;border:1px solid #2E2A25;border-radius:3px;padding:4px 9px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">Descending / cool-down</span>
+          </div>
+        </div>
+        <div>
+          <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em;color:#6B655A;margin-bottom:6px">TEMPO WINDOW</div>
+          <div style="display:flex;align-items:center;gap:6px;font:500 10px 'JetBrains Mono',monospace;color:#F0EDE6">
+            <span style="border:1px solid #2E2A25;border-radius:3px;padding:4px 8px;background:#131110">170</span><span style="color:#6B655A">to</span><span style="border:1px solid #2E2A25;border-radius:3px;padding:4px 8px;background:#131110">176</span>
+            <span style="font:400 9px 'JetBrains Mono',monospace;color:#6B655A">BPM · library 128–178</span>
+          </div>
+        </div>
+        <div>
+          <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em;color:#6B655A;margin-bottom:6px">STYLE FOCUS <span style="color:#453F35">optional</span></div>
+          <div style="display:flex;gap:3px;flex-wrap:wrap">
+            <span style="font:500 9.5px 'JetBrains Mono',monospace;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:3px 8px">jungle</span>
+            <span style="font:500 9.5px 'JetBrains Mono',monospace;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:3px 8px">liquid</span>
+            <span style="font:400 9.5px 'JetBrains Mono',monospace;color:#6B655A;border:1px dashed #2E2A25;border-radius:3px;padding:3px 8px;cursor:pointer" title="tags come from source metadata only" style-hover="color:#F0EDE6">+ tag</span>
+          </div>
+        </div>
+        <div>
+          <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em;color:#6B655A;margin-bottom:6px">MUST HAVE</div>
+          <div style="font:400 10px/1.5 'IBM Plex Sans',sans-serif;color:#6B655A">None pinned. Pin tracks in the library <span style="font-family:'JetBrains Mono',monospace">P</span> and they are guaranteed a slot.</div>
+        </div>
+      </div>
+      <div style="padding:14px 16px;border-top:1px solid #2E2A25;display:flex;flex-direction:column;gap:7px">
+        <span style="font:600 12px 'Space Grotesk',sans-serif;color:#5A5245;background:#211D1A;border-radius:3px;padding:10px 0;text-align:center;cursor:not-allowed" title="needs at least 8 analyzed tracks in the tempo window">Draw the terrain</span>
+        <div style="font:400 9.5px/1.5 'JetBrains Mono',monospace;color:#F2B84B">needs ≥8 analyzed tracks in window · 3 of 14 ready · ≈9 min</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+</div>
+
+<!-- ============ 2b SET & INTENT ============ -->
+<div class="dv-opt" id="2b" style="max-width:1444px">
+<div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a>J2 BRIEF · SET — step 3 becomes a brief beside the terrain; generate = the set materializes in place</div>
+<div class="dv-card" style="width:1440px;background:#131110">
+  <div data-screen-label="2b Set &amp; Intent — TERRAIN" style="width:1440px;height:900px;background:#131110;color:#F0EDE6;display:flex;flex-direction:column;overflow:hidden;font-family:'IBM Plex Sans',sans-serif">
+    <div style="height:46px;flex:none;display:flex;align-items:center;border-bottom:1px solid #2E2A25;background:#191715;padding:0 18px;gap:18px">
+      <div style="font:700 13px 'Space Grotesk',sans-serif;letter-spacing:.06em;color:#F0EDE6">DanceLab</div>
+      <div style="display:flex;align-items:center;gap:2px;font:500 10.5px 'JetBrains Mono',monospace">
+        <span style="color:#6B655A;padding:5px 10px;border:1px solid #2E2A25;border-radius:3px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">LIBRARY</span>
+        <span style="color:#6B655A;padding:0 2px">›</span>
+        <span style="color:#131110;background:#D6F94B;padding:6px 10px;border-radius:3px">SET</span>
+        <span style="color:#6B655A;padding:0 2px">›</span>
+        <span style="color:#6B655A;padding:5px 10px;border:1px solid #2E2A25;border-radius:3px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">SEAM</span>
+        <span style="color:#6B655A;padding:0 2px">›</span>
+        <span style="color:#6B655A;padding:5px 10px;border:1px solid #2E2A25;border-radius:3px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">TRACK</span>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
+        <span style="font:400 10px 'JetBrains Mono',monospace;color:#A39C8D">Saturday Closing · 10 tracks · 47:12 · 2 seams need review</span>
+        <span style="font:600 11px 'Space Grotesk',sans-serif;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:5px 12px;cursor:pointer;transition:background .12s ease-out,border-color .12s ease-out" style-hover="background:#211D1A;border-color:#5A5245">Export gate…</span>
+      </div>
+    </div>
+
+    <div style="flex:1;min-height:0;display:flex;padding:14px 18px 14px;gap:12px">
+      <!-- intent brief -->
+      <div style="width: 225px; flex: none; background: #191715; border: 1px solid #2E2A25; border-radius: 3px; padding: 14px 16px; display: flex; flex-direction: column; gap: 13px; overflow: hidden; height: 794px">
+        <div>
+          <div style="font:700 11px 'Space Grotesk',sans-serif;letter-spacing:.06em;color:#F0EDE6">Set brief</div>
+          <div style="font:400 10px/1.55 'IBM Plex Sans',sans-serif;color:#6B655A;margin-top:3px">guides ranking &amp; order — every pick keeps its reasons, nothing is locked</div>
+        </div>
+        <div>
+          <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#6B655A;margin-bottom:5px">LENGTH</div>
+          <div style="display:flex;gap:4px">
+            <span style="font:500 10px 'JetBrains Mono',monospace;color:#131110;background:#D6F94B;border-radius:3px;padding:5px 10px;cursor:pointer">10 tracks</span>
+            <span style="font:500 10px 'JetBrains Mono',monospace;color:#A39C8D;border:1px solid #2E2A25;border-radius:3px;padding:4px 10px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">60 min</span>
+          </div>
+        </div>
+        <div>
+          <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#6B655A;margin-bottom:5px">STYLE FOCUS</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <span style="font:500 10px 'JetBrains Mono',monospace;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:4px 9px">dnb ×</span>
+            <span style="font:500 10px 'JetBrains Mono',monospace;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:4px 9px">jungle ×</span>
+            <span style="font:500 10px 'JetBrains Mono',monospace;color:#6B655A;border:1px dashed #2E2A25;border-radius:3px;padding:4px 9px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">+ tag</span>
+          </div>
+          <div style="font:400 9px 'IBM Plex Sans',sans-serif;color:#6B655A;margin-top:4px">source-backed genre tags only — 2 tags cover 388 tracks</div>
+        </div>
+        <div>
+          <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#6B655A;margin-bottom:5px">TEMPO WINDOW</div>
+          <div style="font:500 11px 'JetBrains Mono',monospace;color:#F0EDE6">168 – 178 <span style="color:#6B655A;font-size:9px">BPM · open = full library</span></div>
+        </div>
+        <div>
+          <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#6B655A;margin-bottom:5px">ROLE · CROWD</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <span style="font:500 9.5px 'JetBrains Mono',monospace;color:#A39C8D;border:1px solid #2E2A25;border-radius:3px;padding:4px 8px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">opener</span>
+            <span style="font:500 9.5px 'JetBrains Mono',monospace;color:#A39C8D;border:1px solid #2E2A25;border-radius:3px;padding:4px 8px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">regular</span>
+            <span style="font:500 9.5px 'JetBrains Mono',monospace;color:#131110;background:#D6F94B;border-radius:3px;padding:5px 8px;cursor:pointer">closing</span>
+            <span style="width:8px"></span>
+            <span style="font:500 9.5px 'JetBrains Mono',monospace;color:#A39C8D;border:1px solid #2E2A25;border-radius:3px;padding:4px 8px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">low</span>
+            <span style="font:500 9.5px 'JetBrains Mono',monospace;color:#131110;background:#D6F94B;border-radius:3px;padding:5px 8px;cursor:pointer">medium</span>
+            <span style="font:500 9.5px 'JetBrains Mono',monospace;color:#A39C8D;border:1px solid #2E2A25;border-radius:3px;padding:4px 8px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">high</span>
+          </div>
+        </div>
+        <div>
+          <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#6B655A;margin-bottom:5px">ENERGY ARC</div>
+          <div style="display:flex;gap:4px">
+            <span style="border:1px solid #2E2A25;border-radius:3px;padding:4px 6px;cursor:pointer;transition:border-color .12s ease-out" style-hover="border-color:#4A443B" title="steady"><svg width="46" height="20" viewBox="0 0 54 24"><path d="M2 14 L52 12" stroke="#A39C8D" stroke-width="1.6" fill="none"></path></svg></span>
+            <span style="border:2px solid #D6F94B;border-radius:3px;padding:3px 5px;cursor:pointer" title="build to late peak — selected"><svg width="46" height="20" viewBox="0 0 54 24"><path d="M2 20 C20 18 34 14 44 5 L52 8" stroke="#F0EDE6" stroke-width="1.6" fill="none"></path></svg></span>
+            <span style="border:1px solid #2E2A25;border-radius:3px;padding:4px 6px;cursor:pointer;transition:border-color .12s ease-out" style-hover="border-color:#4A443B" title="wave"><svg width="46" height="20" viewBox="0 0 54 24"><path d="M2 16 C12 6 22 20 32 8 S48 16 52 10" stroke="#A39C8D" stroke-width="1.6" fill="none"></path></svg></span>
+            <span style="border:1px solid #2E2A25;border-radius:3px;padding:4px 6px;cursor:pointer;transition:border-color .12s ease-out" style-hover="border-color:#4A443B" title="land soft"><svg width="46" height="20" viewBox="0 0 54 24"><path d="M2 8 C18 6 30 10 52 20" stroke="#A39C8D" stroke-width="1.6" fill="none"></path></svg></span>
+          </div>
+        </div>
+        <div>
+          <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#6B655A;margin-bottom:5px">VARIATION · SEED</div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="font:500 10px 'JetBrains Mono',monospace;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:4px 9px">balanced · ≤3 carryover</span>
+            <span style="font:500 10px 'JetBrains Mono',monospace;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:4px 9px">seed 0</span>
+          </div>
+        </div>
+        <div style="margin-top:auto">
+          <span style="display:block;text-align:center;font:600 12px 'Space Grotesk',sans-serif;color:#131110;background:#D6F94B;border-radius:3px;padding:10px 14px;cursor:pointer;transition:filter .12s ease-out,transform .06s" style-hover="filter:brightness(1.1)" style-active="transform:translateY(1px)">Grow terrain</span>
+          <div style="font:400 9px/1.5 'IBM Plex Sans',sans-serif;color:#6B655A;margin-top:6px;text-align:center">ranked from 412 analyzed · reasons attached to every pick · regenerate = variation, pinned P tracks stay</div>
+        </div>
+      </div>
+
+      <!-- terrain over map column -->
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:12px">
+      <div style="flex:1.15;min-height:0;background:#191715;border:1px solid #2E2A25;border-radius:3px;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:12px;padding:9px 14px 4px">
+          <span style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#6B655A">SET TERRAIN — SATURDAY CLOSING · 10 TRACKS · 47:12</span>
+          <span style="margin-left:auto;font:400 9px 'JetBrains Mono',monospace;color:#A39C8D">intent: closing · build to late peak · land soft</span>
+        </div>
+        <div style="flex:1;position:relative;margin:6px 14px 4px">
+          <svg width="100%" height="100%" viewBox="0 0 1000 430" preserveAspectRatio="none" style="display:block;position:absolute;inset:0">
+            <line x1="0" y1="63" x2="1000" y2="63" stroke="#2E2A25" stroke-width="1" stroke-dasharray="2 6" vector-effect="non-scaling-stroke"></line>
+            <line x1="0" y1="146" x2="1000" y2="146" stroke="#2E2A25" stroke-width="1" stroke-dasharray="2 6" vector-effect="non-scaling-stroke"></line>
+            <line x1="0" y1="228" x2="1000" y2="228" stroke="#2E2A25" stroke-width="1" stroke-dasharray="2 6" vector-effect="non-scaling-stroke"></line>
+            <line x1="0" y1="311" x2="1000" y2="311" stroke="#2E2A25" stroke-width="1" stroke-dasharray="2 6" vector-effect="non-scaling-stroke"></line>
+            <line x1="0" y1="394" x2="1000" y2="394" stroke="#3F3931" stroke-width="1.2" vector-effect="non-scaling-stroke"></line>
+            <path d="{{ set2b.area }}" fill="#22201B"></path>
+            <path d="{{ set2b.line }}" stroke="#8A8578" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke"></path>
+            <rect x="{{ terrain.selX }}" y="0" width="{{ terrain.selW }}" height="430" fill="#D6F94B" opacity="0.07"></rect>
+            <line x1="{{ terrain.selX }}" y1="0" x2="{{ terrain.selX }}" y2="430" stroke="#D6F94B" stroke-width="1" vector-effect="non-scaling-stroke" opacity="0.6"></line>
+            <line x1="{{ terrain.selX2 }}" y1="0" x2="{{ terrain.selX2 }}" y2="430" stroke="#D6F94B" stroke-width="1" vector-effect="non-scaling-stroke" opacity="0.6"></line>
+          </svg>
+          <span style="position:absolute;left:4px;top:13.4%;font:400 8px 'JetBrains Mono',monospace;color:#453F35">e 1.0</span>
+          <span style="position:absolute;left:4px;top:32.7%;font:400 8px 'JetBrains Mono',monospace;color:#453F35">0.75</span>
+          <span style="position:absolute;left:4px;top:51.8%;font:400 8px 'JetBrains Mono',monospace;color:#453F35">0.50</span>
+          <span style="position:absolute;left:4px;top:71.1%;font:400 8px 'JetBrains Mono',monospace;color:#453F35">0.25</span>
+          <sc-for list="{{ terrain.pts }}" as="p" hint-placeholder-count="10">
+            <div title="{{ p.tip }}" style="position:absolute;left:{{ p.x }};top:{{ p.y }};transform:translate(-50%,-50%);width:{{ p.size }};height:{{ p.size }};border-radius:50%;background:{{ p.col }};border:{{ p.ring }};cursor:grab;z-index:2;transition:transform .12s ease-out,box-shadow .12s ease-out" style-hover="transform:translate(-50%,-50%) scale(1.5);z-index:3;box-shadow:0 0 0 3px rgba(214,249,75,.25)"></div>
+          </sc-for>
+          <sc-for list="{{ terrain.badges }}" as="b" hint-placeholder-count="4">
+            <span style="position:absolute;left:{{ b.x }};top:{{ b.y }};transform:translateX(-50%);font:600 8px 'JetBrains Mono',monospace;color:{{ b.fg }};background:{{ b.bg }};border-radius:2px;padding:1px 4px;z-index:2">{{ b.label }}</span>
+          </sc-for>
+        </div>
+        <div style="height:20px;display:flex;align-items:center;gap:3px;padding:0 14px 4px">
+          <sc-for list="{{ terrain.quality }}" as="t" hint-placeholder-count="9">
+            <div title="{{ t.tip }}" style="flex:1;height:5px;border-radius:2px;background:{{ t.col }};opacity:{{ t.op }};cursor:pointer;transition:height .12s ease-out,opacity .12s ease-out" style-hover="height:10px;opacity:1"></div>
+          </sc-for>
+        </div>
+        <div style="flex:none;padding:6px 14px 10px;font:400 9.5px 'JetBrains Mono',monospace;color:#6B655A">click a joint → SEAM · click a dot → TRACK · drag a dot to reorder — seams re-score live · P pinned · L locked · dot hue = energy</div>
+      </div>
+
+      <!-- mixability map -->
+      <div style="flex:1;min-height:0;background:#191715;border:1px solid #2E2A25;border-radius:3px;display:flex;flex-direction:column">
+        <div style="padding:9px 14px 4px;display:flex;align-items:baseline;gap:8px">
+          <span style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#6B655A">MIXABILITY MAP</span>
+          <span style="font:400 9px 'JetBrains Mono',monospace;color:#6B655A">BPM × key</span>
+        </div>
+        <div style="flex:1;position:relative;margin:6px 14px 2px;background:#141210;border:1px solid #262320;border-radius:2px">
+          <span style="position:absolute;left:6px;top:6px;font:400 8px 'JetBrains Mono',monospace;color:#6B655A">178</span>
+          <span style="position:absolute;left:6px;top:46%;font:400 8px 'JetBrains Mono',monospace;color:#6B655A">173</span>
+          <span style="position:absolute;left:6px;bottom:6px;font:400 8px 'JetBrains Mono',monospace;color:#6B655A">168</span>
+          <sc-for list="{{ mixmap }}" as="p" hint-placeholder-count="36">
+            <span title="{{ p.tip }}" style="position:absolute;left:{{ p.x }};top:{{ p.y }};transform:translate(-50%,-50%);width:{{ p.size }};height:{{ p.size }};border-radius:50%;background:{{ p.col }};border:{{ p.ring }};cursor:pointer;transition:transform .12s ease-out" style-hover="transform:translate(-50%,-50%) scale(1.5)"></span>
+          </sc-for>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:0 16px;font:400 8px 'JetBrains Mono',monospace;color:#6B655A"><span>1A</span><span>4A</span><span>8A</span><span>12A</span></div>
+        <div style="padding:8px 14px 12px;font:400 9px/1.6 'IBM Plex Sans',sans-serif;color:#6B655A">hue = Camelot neighborhood · <span style="color:#D6F94B">volt ring</span> = current track · white ring = top candidate · open from any seam: “find next from map”</div>
+      </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="2e" style="max-width:1444px">
+<div class="dv-olabel"><a class="dv-oid" href="#2e">2e</a>J3 GROW · DRAWING — the brief runs: slots fill left to right against the dashed target arc, reasons in a live log · click a dot: track info + replacement suggestions from the library</div>
+<div class="dv-card" style="width:1440px;background:#131110">
+<div data-screen-label="2e Drawing — terrain draws itself" style="width:1440px;height:900px;background:#131110;color:#F0EDE6;display:flex;flex-direction:column;overflow:hidden;font-family:'IBM Plex Sans',sans-serif">
+  <div style="height:46px;flex:none;display:flex;align-items:center;border-bottom:1px solid #2E2A25;background:#191715;padding:0 18px;gap:18px">
+    <div style="font:700 13px 'Space Grotesk',sans-serif;letter-spacing:.06em;color:#F0EDE6">DanceLab</div>
+    <div style="display:flex;align-items:center;gap:2px;font:500 10.5px 'JetBrains Mono',monospace">
+      <span style="color:#6B655A;padding:5px 10px;border:1px solid #2E2A25;border-radius:3px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">LIBRARY</span>
+      <span style="color:#6B655A;padding:0 2px">›</span>
+      <span style="color:#131110;background:#D6F94B;padding:6px 10px;border-radius:3px">SET</span>
+      <span style="color:#6B655A;padding:0 2px">›</span>
+      <span style="color:#6B655A;padding:5px 10px;border:1px solid #2E2A25;border-radius:3px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">SEAM</span>
+      <span style="color:#453F35;padding:0 2px">›</span>
+      <span style="color:#453F35;padding:5px 10px;border:1px solid #211D1A;border-radius:3px">TRACK</span>
+    </div>
+    <span style="font:400 10px 'JetBrains Mono',monospace;color:#A39C8D">Saturday Closing <span style="color:#6B655A">— drawing…</span></span>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
+      <span style="font:400 10px 'JetBrains Mono',monospace;color:#6B655A">library 14 · analyzed 11 · running 1</span>
+      <span style="font:600 11px 'Space Grotesk',sans-serif;color:#6B655A;border:1px solid #2E2A25;border-radius:3px;padding:5px 12px" title="finish drawing first">Export gate <span style="font-family:'JetBrains Mono',monospace;font-size:9px">· drawing</span></span>
+    </div>
+  </div>
+
+  <div style="flex:1;min-height:0;display:flex">
+    <!-- library as suggestions for the selected dot -->
+    <div style="width:272px;flex:none;border-right:1px solid #2E2A25;background:#191715;display:flex;flex-direction:column">
+      <div style="padding:12px 14px 9px;border-bottom:1px solid #2E2A25;display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;align-items:baseline;gap:7px">
+          <span style="font:700 11px 'Space Grotesk',sans-serif;letter-spacing:.1em;color:#F0EDE6">LIBRARY</span>
+          <span style="font:400 9px 'JetBrains Mono',monospace;color:#6B655A">14 · I</span>
+          <span style="margin-left:auto;font:600 8.5px 'JetBrains Mono',monospace;color:#131110;background:#D6F94B;border-radius:2px;padding:2px 6px">REPLACE #5</span>
+        </div>
+        <div style="font:400 9px/1.5 'IBM Plex Sans',sans-serif;color:#6B655A">suggestions for slot 5 — must fit 4→5 and 5→6 · ranked live, reasons attached</div>
+      </div>
+      <div style="padding:8px 12px 8px 10px;border-bottom:1px solid #2E2A25;border-left:2px solid #D6F94B;background:#1C1A17;display:flex;flex-direction:column;gap:3px">
+        <div style="display:flex;align-items:baseline;gap:7px">
+          <span style="width:7px;height:7px;border-radius:50%;background:#45D39B;flex:none;align-self:center"></span>
+          <span style="font:500 11px 'IBM Plex Sans',sans-serif;color:#F0EDE6">Redline Garden</span>
+          <span style="font:400 9px 'JetBrains Mono',monospace;color:#6B655A;margin-left:auto;white-space:nowrap">172.0 · 8A · e66</span>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:7px;padding-left:14px">
+          <span style="font:500 9px 'JetBrains Mono',monospace;color:#F2B84B">in 0.58</span>
+          <span style="font:500 9px 'JetBrains Mono',monospace;color:#3DDC97">out 0.71</span>
+          <span style="font:400 8.5px 'JetBrains Mono',monospace;color:#6B655A;margin-left:auto">current</span>
+        </div>
+      </div>
+      <div style="flex:1;overflow:hidden;padding:3px 0">
+        <sc-for list="{{ sugg2e }}" as="g" hint-placeholder-count="5">
+          <div style="padding:7px 12px 6px 10px;display:flex;flex-direction:column;gap:3px;cursor:pointer;border-left:2px solid transparent;transition:background .12s ease-out,border-color .12s ease-out" style-hover="background:#1C1A17;border-left-color:#D6F94B">
+            <div style="display:flex;align-items:baseline;gap:7px">
+              <span style="width:7px;height:7px;border-radius:50%;background:{{ g.dot }};flex:none;align-self:center"></span>
+              <span style="font:500 11px 'IBM Plex Sans',sans-serif;color:#F0EDE6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ g.title }}</span>
+              <span style="font:400 9px 'JetBrains Mono',monospace;color:#6B655A;margin-left:auto;white-space:nowrap">{{ g.meta }}</span>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:7px;padding-left:14px">
+              <span style="font:500 9px 'JetBrains Mono',monospace;color:{{ g.inCol }}">in {{ g.in }}</span>
+              <span style="font:500 9px 'JetBrains Mono',monospace;color:{{ g.outCol }}">out {{ g.out }}</span>
+              <span style="font:600 8.5px 'JetBrains Mono',monospace;color:{{ g.deltaCol }};margin-left:auto">{{ g.delta }}</span>
+            </div>
+            <div style="font:400 8.5px/1.4 'IBM Plex Sans',sans-serif;color:{{ g.noteCol }};padding-left:14px">{{ g.note }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding:9px 14px;border-top:1px solid #2E2A25;font:400 8.5px/1.6 'JetBrains Mono',monospace;color:#6B655A">click to swap — both seams re-score · drag onto any dot · Esc keeps Redline Garden</div>
+    </div>
+
+    <!-- terrain canvas: drawing -->
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div style="flex:1;position:relative;margin:18px 22px 0">
+        <svg width="100%" height="100%" viewBox="0 0 1000 560" preserveAspectRatio="none" style="display:block;position:absolute;inset:0">
+          <path d="{{ grow.target }}" stroke="#3F3931" stroke-width="1.2" stroke-dasharray="4 5" fill="none" vector-effect="non-scaling-stroke"></path>
+          <path d="{{ grow.area }}" fill="#22201B"></path>
+          <path d="{{ grow.line }}" stroke="#8A8578" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke"></path>
+          <line x1="0" y1="480" x2="1000" y2="480" stroke="#2E2A25" stroke-width="1.2" vector-effect="non-scaling-stroke"></line>
+        </svg><div style="position: absolute; left: 237px; top: 83px; width: 240px; background: #191715; border: 1px solid #3F3931; border-radius: 3px; box-shadow: 0 12px 34px rgba(0,0,0,.55); z-index: 4; padding: 11px 13px; display: flex; flex-direction: column; gap: 7px">
+          <div style="display:flex;align-items:baseline;gap:7px">
+            <span style="font:600 9px 'JetBrains Mono',monospace;color:#131110;background:#D6F94B;border-radius:2px;padding:1px 5px">#5</span>
+            <span style="font:600 12px 'Space Grotesk',sans-serif;color:#F0EDE6">Redline Garden</span>
+            <span style="font:400 9.5px 'IBM Plex Sans',sans-serif;color:#6B655A">Oath</span>
+            <span style="margin-left:auto;font:400 9px 'JetBrains Mono',monospace;color:#6B655A;cursor:pointer" title="close — Esc">×</span>
+          </div>
+          <div style="font:500 9.5px 'JetBrains Mono',monospace;color:#A39C8D">172.0 BPM · 8A 0.90 · e 66 · demucs v4 · 5:12</div>
+          <div style="display:flex;gap:5px">
+            <span style="font:500 9px 'JetBrains Mono',monospace;color:#F2B84B;background:#2A2317;border-radius:2px;padding:2px 6px">in 4→5 · 0.58</span>
+            <span style="font:500 9px 'JetBrains Mono',monospace;color:#3DDC97;background:#1B2A22;border-radius:2px;padding:2px 6px">out 5→6 · 0.71</span>
+          </div>
+          <div style="font:400 9px/1.5 'IBM Plex Sans',sans-serif;color:#6B655A">picked as the only fit — 41 candidates rejected on key distance; better options exist now that analysis finished → ranked left</div>
+          <div style="display:flex;gap:5px;margin-top:2px">
+            <span style="flex:1;text-align:center;font:600 9.5px 'Space Grotesk',sans-serif;color:#131110;background:#D6F94B;border-radius:3px;padding:5px 0;cursor:pointer;transition:filter .12s ease-out" style-hover="filter:brightness(1.1)">Replace…</span>
+            <span style="flex:1;text-align:center;font:600 9.5px 'Space Grotesk',sans-serif;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:4px 0;cursor:pointer;transition:background .12s ease-out" style-hover="background:#211D1A">Open TRACK</span>
+            <span style="width:26px;text-align:center;font:600 9.5px 'JetBrains Mono',monospace;color:#A39C8D;border:1px solid #2E2A25;border-radius:3px;padding:4px 0;cursor:pointer;transition:color .12s ease-out" title="pin — guaranteed a slot" style-hover="color:#F0EDE6">P</span>
+          </div>
+        </div>
+        <sc-for list="{{ grow.pts }}" as="p" hint-placeholder-count="7">
+          <div title="{{ p.tip }}" style="position:absolute;left:{{ p.x }};top:{{ p.y }};transform:translate(-50%,-50%);width:{{ p.size }};height:{{ p.size }};border-radius:50%;background:{{ p.col }};border:{{ p.ring }};cursor:pointer;z-index:2;transition:transform .12s ease-out,box-shadow .12s ease-out" style-hover="transform:translate(-50%,-50%) scale(1.5);box-shadow:0 0 0 3px rgba(214,249,75,.25)"></div>
+          <span style="position:absolute;left:{{ p.x }};top:{{ p.ly }};transform:translateX(-50%);font:500 8.5px 'JetBrains Mono',monospace;color:#6B655A;z-index:2">{{ p.n }}</span>
+        </sc-for>
+        <sc-for list="{{ grow.ghosts }}" as="g" hint-placeholder-count="3">
+          <div title="{{ g.tip }}" style="position:absolute;left:{{ g.x }};top:{{ g.y }};transform:translate(-50%,-50%);width:12px;height:12px;border-radius:50%;border:1.4px dashed #5A5245;z-index:2"></div>
+        </sc-for>
+        <!-- track popover on the selected dot -->
+        
+        <div style="position:absolute;left:{{ grow.cursorX }};top:16%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:4px;z-index:3">
+          <span style="font:500 9px 'JetBrains Mono',monospace;color:#131110;background:#D6F94B;border-radius:2px;padding:2px 6px">slot 8</span>
+          <span style="width:1px;height:38px;background:#D6F94B;opacity:.5"></span>
+        </div>
+        <span style="position:absolute;right:0;top:6%;font:400 9px 'JetBrains Mono',monospace;color:#453F35">dashed grey = brief target arc · solid = placed tracks</span>
+      </div>
+      <!-- seam quality bars -->
+      <div style="height:16px;display:flex;align-items:center;gap:3px;margin:2px 22px 0">
+        <sc-for list="{{ grow.quality }}" as="t" hint-placeholder-count="6">
+          <div title="{{ t.tip }}" style="width:{{ t.w }};height:5px;border-radius:2px;background:{{ t.col }};cursor:pointer;transition:height .12s ease-out" style-hover="height:10px"></div>
+        </sc-for>
+      </div>
+      <!-- honest generation progress -->
+      <div style="flex:none;margin:12px 22px 16px;background:#191715;border:1px solid #2E2A25;border-radius:3px;padding:10px 14px;display:flex;align-items:center;gap:14px">
+        <span style="font:700 9.5px 'Space Grotesk',sans-serif;letter-spacing:.12em;color:#F0EDE6">DRAWING</span>
+        <span style="flex:none;width:170px;height:4px;background:#211D1A;border-radius:2px;position:relative;overflow:hidden"><span style="position:absolute;inset:0;right:auto;width:70%;background:#D6F94B"></span></span>
+        <span style="font:400 10px 'JetBrains Mono',monospace;color:#A39C8D">7 of 10 placed · slot 8: scoring 412 candidates · best so far 0.71 · 41 rejected on key distance</span>
+        <span style="margin-left:auto;font:600 10px 'Space Grotesk',sans-serif;color:#A39C8D;border:1px solid #2E2A25;border-radius:3px;padding:5px 12px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">Stop here — keep 7</span>
+      </div>
+    </div>
+
+    <!-- brief panel, running -->
+    <div style="width:300px;flex:none;border-left:1px solid #2E2A25;background:#191715;display:flex;flex-direction:column">
+      <div style="padding:12px 16px 10px;border-bottom:1px solid #2E2A25;display:flex;align-items:baseline;gap:8px">
+        <span style="font:700 11px 'Space Grotesk',sans-serif;letter-spacing:.1em;color:#F0EDE6">BRIEF</span>
+        <span style="font:400 9.5px 'JetBrains Mono',monospace;color:#D6F94B">running · seed 42</span>
+      </div>
+      <div style="flex:1;padding:12px 16px;display:flex;flex-direction:column;gap:10px;font:400 10.5px 'IBM Plex Sans',sans-serif;color:#A39C8D">
+        <div style="display:flex;justify-content:space-between;gap:8px"><span style="color:#6B655A;font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em">LENGTH</span><span style="font:500 10px 'JetBrains Mono',monospace;color:#F0EDE6">10 tracks</span></div>
+        <div style="display:flex;justify-content:space-between;gap:8px"><span style="color:#6B655A;font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em">ARC</span><span style="font:500 10px 'Space Grotesk',sans-serif;color:#F0EDE6">rolling → peak late → soft</span></div>
+        <div style="display:flex;justify-content:space-between;gap:8px"><span style="color:#6B655A;font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em">TEMPO</span><span style="font:500 10px 'JetBrains Mono',monospace;color:#F0EDE6">170–176</span></div>
+        <div style="display:flex;justify-content:space-between;gap:8px"><span style="color:#6B655A;font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em">STYLE</span><span style="font:500 10px 'JetBrains Mono',monospace;color:#F0EDE6">jungle · liquid</span></div>
+        <div style="display:flex;justify-content:space-between;gap:8px"><span style="color:#6B655A;font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em">MUST HAVE</span><span style="font:500 10px 'JetBrains Mono',monospace;color:#F0EDE6">Signal Path <span style="color:#131110;background:#F0EDE6;border-radius:2px;padding:0 3px;font-size:8px">P</span></span></div>
+        <div style="margin-top:6px;border-top:1px solid #2E2A25;padding-top:10px">
+          <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em;color:#6B655A;margin-bottom:6px">LIVE LOG</div>
+          <div style="font:400 9.5px/1.7 'JetBrains Mono',monospace;color:#6B655A">
+            <div><span style="color:#3DDC97">7</span> Undertow · 0.74 · bass swap</div>
+            <div><span style="color:#3DDC97">6</span> Signal Path · pinned</div>
+            <div><span style="color:#F2B84B">5</span> Redline Garden · 0.58 · only fit</div>
+            <div><span style="color:#3DDC97">4</span> Cold Axis · 0.71 · tops swap</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:14px 16px;border-top:1px solid #2E2A25;display:flex;gap:7px">
+        <span style="flex:1;font:600 11px 'Space Grotesk',sans-serif;color:#A39C8D;border:1px solid #2E2A25;border-radius:3px;padding:8px 0;text-align:center;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">Edit brief</span>
+        <span style="flex:1;font:600 11px 'Space Grotesk',sans-serif;color:#FF5C68;border:1px solid #4A2A2E;border-radius:3px;padding:8px 0;text-align:center;cursor:pointer;transition:background .12s ease-out" style-hover="background:#231518">Abort</span>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+</div>
+
+<!-- ======================= 1b TERRAIN ======================= -->
+<div class="dv-opt" id="1b" style="max-width:1444px">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>J4 WALK THE SEAMS · TERRAIN — the set is the world. Warm graphite instrument, Space Grotesk, volt selection</div>
+
+<div class="dv-card" style="width:1440px;background:#131110">
+  <!-- 1b HERO -->
+  <div data-screen-label="1b Transition Lab — TERRAIN" style="width:1440px;height:900px;background:#131110;color:#F0EDE6;display:flex;flex-direction:column;overflow:hidden;font-family:'IBM Plex Sans',sans-serif">
+    <!-- top bar -->
+    <div style="height:46px;flex:none;display:flex;align-items:center;border-bottom:1px solid #2E2A25;background:#191715;padding:0 18px;gap:18px">
+      <div style="font:700 13px 'Space Grotesk',sans-serif;letter-spacing:.06em;color:#F0EDE6">DanceLab</div>
+      <div style="display:flex;align-items:center;gap:2px;font:500 10.5px 'JetBrains Mono',monospace">
+        <span style="color:#6B655A;padding:5px 10px;border:1px solid #2E2A25;border-radius:3px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">LIBRARY</span>
+        <span style="color:#6B655A;padding:0 2px">›</span>
+        <span style="color:#6B655A;padding:5px 10px;border:1px solid #2E2A25;border-radius:3px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">SET</span>
+        <span style="color:#6B655A;padding:0 2px">›</span>
+        <span style="color:#131110;background:#D6F94B;padding:6px 10px;border-radius:3px">SEAM 6→7</span>
+        <span style="color:#6B655A;padding:0 2px">›</span>
+        <span style="color:#6B655A;padding:5px 10px;border:1px solid #2E2A25;border-radius:3px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">TRACK</span>
+        <span style="color:#6B655A;font-size:9px;margin-left:8px">⌘ ± to zoom</span>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
+        <span style="font:400 10px 'JetBrains Mono',monospace;color:#6B655A">library 412 · running 3</span>
+        <span style="font:400 10px 'JetBrains Mono',monospace;color:#A39C8D">set 24:31 · peak at 7</span>
+        <span style="font:600 11px 'Space Grotesk',sans-serif;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:5px 12px;cursor:pointer;transition:background .12s ease-out,border-color .12s ease-out,transform .06s" style-hover="background:#211D1A;border-color:#5A5245" style-active="transform:translateY(1px)">Export gate…</span>
+      </div>
+    </div>
+
+    <div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:14px 18px 0;gap:12px">
+      <!-- deck cards row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:none">
+        <div style="background:#191715;border:1px solid #2E2A25;border-top:2px solid #F26749;border-radius:3px;padding:10px 14px 12px;transition:border-color .15s ease-out,background .15s ease-out" style-hover="border-color:#4A443B;border-top-color:#F26749;background:#1C1A17">
+          <div style="display:flex;align-items:baseline;gap:10px">
+            <span style="font:700 11px 'Space Grotesk',sans-serif;color:#F26749">A OUTGOING</span>
+            <span style="font:600 13px 'Space Grotesk',sans-serif;color:#F0EDE6">Signal Path — Kelrin</span>
+            <span style="margin-left:auto;font:500 10px 'JetBrains Mono',monospace;color:#A39C8D">174.0 · 8A 0.93 · e 0.71 · <span style="color:#7CF7D4">demucs v4</span></span>
+          </div>
+          <svg width="100%" height="46" viewBox="0 0 1000 46" preserveAspectRatio="none" style="display:block;margin-top:8px">
+            <path d="{{ deckA1b.low }}" stroke="#F26749" stroke-width="1" opacity="0.8" vector-effect="non-scaling-stroke"></path>
+            <path d="{{ deckA1b.mid }}" stroke="#F2A93B" stroke-width="1" opacity="0.55" vector-effect="non-scaling-stroke"></path>
+            <path d="{{ deckA1b.high }}" stroke="#F7D98B" stroke-width="1" opacity="0.4" vector-effect="non-scaling-stroke"></path>
+            <rect x="{{ deckA1b.winX }}" y="0" width="{{ deckA1b.winW }}" height="46" fill="#E2A856" opacity="0.15"></rect>
+            <line x1="{{ deckA1b.cueX }}" y1="0" x2="{{ deckA1b.cueX }}" y2="46" stroke="#F5F2EA" stroke-width="1.5" vector-effect="non-scaling-stroke"></line>
+          </svg>
+          <div style="display:flex;height:8px;margin-top:3px;border-radius:2px;overflow:hidden">
+            <sc-for list="{{ segsA1b }}" as="s" hint-placeholder-count="8"><div style="width:{{ s.w }};background:{{ s.col }}" title="{{ s.name }}"></div></sc-for>
+          </div>
+          <div style="display:flex;gap:10px;font:400 9px 'JetBrains Mono',monospace;color:#6B655A;margin-top:5px"><span>grid 0.97 quantize on</span><span style="margin-left:auto">cue E · 4:42 · phrase 63</span></div>
+        </div>
+        <div style="background:#191715;border:1px solid #2E2A25;border-top:2px solid #6FAFFF;border-radius:3px;padding:10px 14px 12px;transition:border-color .15s ease-out,background .15s ease-out" style-hover="border-color:#4A443B;border-top-color:#6FAFFF;background:#1C1A17">
+          <div style="display:flex;align-items:baseline;gap:10px">
+            <span style="font:700 11px 'Space Grotesk',sans-serif;color:#6FAFFF">B INCOMING</span>
+            <span style="font:600 13px 'Space Grotesk',sans-serif;color:#F0EDE6">Undertow — Mara VX</span>
+            <span style="margin-left:auto;font:500 10px 'JetBrains Mono',monospace;color:#A39C8D">174.0 · 9A 0.88 · e 0.77 · <span style="color:#F2B84B;border-bottom:1px dashed #7A5425">DSP fallback</span></span>
+          </div>
+          <svg width="100%" height="46" viewBox="0 0 1000 46" preserveAspectRatio="none" style="display:block;margin-top:8px">
+            <path d="{{ deckB1b.low }}" stroke="#45C9BA" stroke-width="1" opacity="0.8" vector-effect="non-scaling-stroke"></path>
+            <path d="{{ deckB1b.mid }}" stroke="#6FAFFF" stroke-width="1" opacity="0.55" vector-effect="non-scaling-stroke"></path>
+            <path d="{{ deckB1b.high }}" stroke="#BE96FF" stroke-width="1" opacity="0.4" vector-effect="non-scaling-stroke"></path>
+            <rect x="{{ deckB1b.winX }}" y="0" width="{{ deckB1b.winW }}" height="46" fill="#7CB96B" opacity="0.15"></rect>
+            <line x1="{{ deckB1b.cueX }}" y1="0" x2="{{ deckB1b.cueX }}" y2="46" stroke="#F5F2EA" stroke-width="1.5" vector-effect="non-scaling-stroke"></line>
+          </svg>
+          <div style="display:flex;height:8px;margin-top:3px;border-radius:2px;overflow:hidden">
+            <sc-for list="{{ segsB1b }}" as="s" hint-placeholder-count="7"><div style="width:{{ s.w }};background:{{ s.col }}" title="{{ s.name }}"></div></sc-for>
+          </div>
+          <div style="display:flex;gap:10px;font:400 9px 'JetBrains Mono',monospace;color:#6B655A;margin-top:5px"><span>grid 0.88 quantize on</span><span style="margin-left:auto">cue A · 0:11 · phrase 2</span></div>
+        </div>
+      </div>
+
+      <!-- simulation -->
+      <div style="flex:1;min-height:0;background:#191715;border:1px solid #3F3931;border-radius:3px;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid #2E2A25">
+          <span style="font:700 11px 'Space Grotesk',sans-serif;letter-spacing:.04em;color:#F0EDE6">Transition simulation</span>
+          <span style="font:400 9.5px 'JetBrains Mono',monospace;color:#6B655A">24-bit · phrase-locked · −0.8 dB · follow outgoing 174.0</span>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+            <span onClick="{{ toggle1b }}" style="cursor:pointer;display:inline-flex;width:28px;height:22px;background:#D6F94B;border-radius:3px;align-items:center;justify-content:center;transition:filter .12s ease-out,transform .06s" style-hover="filter:brightness(1.14)" style-active="transform:scale(.92)" title="play/pause — space"><sc-if value="{{ playing1b }}" hint-placeholder-val="{{ false }}"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 1 H4 V9 H2 Z M6 1 H8 V9 H6 Z" fill="#131110"></path></svg></sc-if><sc-if value="{{ notPlaying1b }}" hint-placeholder-val="{{ true }}"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 1 L9 5 L2 9 Z" fill="#131110"></path></svg></sc-if></span>
+            <span style="display:inline-flex;width:28px;height:22px;border:1px solid #3F3931;border-radius:3px;align-items:center;justify-content:center;cursor:pointer;transition:background .12s ease-out,border-color .12s ease-out" style-hover="background:#211D1A;border-color:#5A5245" title="jump to cue window"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 1 V9 M4 5 L9 1 V9 Z" stroke="#A39C8D" stroke-width="1.2" fill="none" stroke-linejoin="round"></path></svg></span>
+            <span style="font:500 9px 'JetBrains Mono',monospace;color:#7CF7D4;border:1px solid #2B6B5D;border-radius:3px;padding:3px 7px">Q·LOCK</span>
+            <span style="font:500 11px 'JetBrains Mono',monospace;color:#6B655A;border:1px solid #2E2A25;border-radius:3px;width:22px;height:20px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">+</span>
+            <span style="font:500 11px 'JetBrains Mono',monospace;color:#6B655A;border:1px solid #2E2A25;border-radius:3px;width:22px;height:20px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">−</span>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;min-height:0">
+          <div style="flex:1;min-width:0;padding:10px 0 4px 14px;display:flex;flex-direction:column;gap:5px">
+            <div style="flex:1;position:relative;background:#141210;border:1px solid #262320;border-radius:2px">
+              <span style="position:absolute;top:3px;left:8px;font:700 8.5px 'Space Grotesk',sans-serif;letter-spacing:.1em;color:#F26749;z-index:2">OUTGOING A</span>
+              <svg width="100%" height="100%" viewBox="0 0 1000 66" preserveAspectRatio="none" style="display:block;position:absolute;inset:0">
+                <path d="{{ sim1b.laneA }}" stroke="#6E4433" stroke-width="1" vector-effect="non-scaling-stroke"></path>
+                <path stroke="#F26749" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" style="d:path('{{ sim1b.lowA }}');transition:d 450ms cubic-bezier(.4,0,.2,1)"></path>
+                <path stroke="#F2A93B" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" style="d:path('{{ sim1b.midA }}');transition:d 450ms cubic-bezier(.4,0,.2,1)"></path>
+                <path stroke="#F7D98B" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" style="d:path('{{ sim1b.highA }}');transition:d 450ms cubic-bezier(.4,0,.2,1)"></path>
+                <line x1="{{ sim1b.ph }}" y1="0" x2="{{ sim1b.ph }}" y2="66" stroke="#D6F94B" stroke-width="1.5" vector-effect="non-scaling-stroke"></line>
+              </svg>
+            </div>
+            <div style="flex:1;position:relative;background:#17140f;border:1px solid #33302B;border-radius:2px">
+              <span style="position:absolute;top:3px;left:8px;font:700 8.5px 'Space Grotesk',sans-serif;letter-spacing:.1em;color:#F0EDE6;z-index:2">MIXED RESULT</span>
+              <svg width="100%" height="100%" viewBox="0 0 1000 66" preserveAspectRatio="none" style="display:block;position:absolute;inset:0">
+                <path d="{{ sim1b.laneMix }}" stroke="#6B655A" stroke-width="1" vector-effect="non-scaling-stroke"></path>
+                <path stroke="#F26749" stroke-width="1.4" fill="none" stroke-dasharray="5 4" vector-effect="non-scaling-stroke" style="d:path('{{ sim1b.fadA }}');transition:d 450ms cubic-bezier(.4,0,.2,1)"></path>
+                <path stroke="#6FAFFF" stroke-width="1.4" fill="none" stroke-dasharray="5 4" vector-effect="non-scaling-stroke" style="d:path('{{ sim1b.fadB }}');transition:d 450ms cubic-bezier(.4,0,.2,1)"></path>
+                <line x1="{{ sim1b.ph }}" y1="0" x2="{{ sim1b.ph }}" y2="66" stroke="#D6F94B" stroke-width="1.5" vector-effect="non-scaling-stroke"></line>
+              </svg>
+            </div>
+            <div style="flex:1;position:relative;background:#141210;border:1px solid #262320;border-radius:2px">
+              <span style="position:absolute;top:3px;left:8px;font:700 8.5px 'Space Grotesk',sans-serif;letter-spacing:.1em;color:#6FAFFF;z-index:2">INCOMING B</span>
+              <svg width="100%" height="100%" viewBox="0 0 1000 66" preserveAspectRatio="none" style="display:block;position:absolute;inset:0">
+                <path d="{{ sim1b.laneB }}" stroke="#33566B" stroke-width="1" vector-effect="non-scaling-stroke"></path>
+                <path stroke="#45C9BA" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" style="d:path('{{ sim1b.lowB }}');transition:d 450ms cubic-bezier(.4,0,.2,1)"></path>
+                <path stroke="#6FAFFF" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" style="d:path('{{ sim1b.midB }}');transition:d 450ms cubic-bezier(.4,0,.2,1)"></path>
+                <path stroke="#BE96FF" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" style="d:path('{{ sim1b.highB }}');transition:d 450ms cubic-bezier(.4,0,.2,1)"></path>
+                <line x1="{{ sim1b.ph }}" y1="0" x2="{{ sim1b.ph }}" y2="66" stroke="#D6F94B" stroke-width="1.5" vector-effect="non-scaling-stroke"></line>
+              </svg>
+            </div>
+            <div style="height:15px;position:relative">
+              <sc-for list="{{ sim1b.grid }}" as="g" hint-placeholder-count="17">
+                <span style="position:absolute;left:{{ g.x }};transform:translateX(-50%);font:400 8.5px 'JetBrains Mono',monospace;color:{{ g.col }}">{{ g.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+          <div style="width:300px;flex:none;border-left:1px solid #262320;margin-left:14px;padding:10px 14px;display:flex;flex-direction:column;gap:9px;overflow:hidden">
+            <div>
+              <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em;color:#6B655A;margin-bottom:5px">MIXER @ BEAT {{ sim1b.phBeat }}</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 10px">
+                <sc-for list="{{ sim1b.readout }}" as="r" hint-placeholder-count="6">
+                  <div style="display:flex;align-items:center;gap:7px">
+                    <span style="width:30px;font:500 8.5px 'JetBrains Mono',monospace;color:{{ r.col }}">{{ r.label }}</span>
+                    <svg width="24" height="24" viewBox="0 0 24 24" style="flex:none">
+                      <circle cx="12" cy="12" r="10.5" fill="#141210" stroke="#262320" stroke-width="1"></circle>
+                      <path d="M5.64 18.36 A9 9 0 1 1 18.36 18.36" stroke="#2E2A25" stroke-width="2" fill="none" stroke-linecap="round"></path>
+                      <path d="{{ r.arc }}" stroke="{{ r.col }}" stroke-width="2" fill="none" stroke-linecap="round"></path>
+                      <line x1="12" y1="12" x2="12" y2="5.2" stroke="#F0EDE6" stroke-width="1.6" stroke-linecap="round" style="transform:rotate({{ r.deg }}deg);transform-origin:12px 12px;transition:transform .2s linear"></line>
+                      <circle cx="12" cy="12" r="2" fill="#26231F"></circle>
+                    </svg>
+                    <span style="flex:1;text-align:right;font:500 9px 'JetBrains Mono',monospace;color:#F0EDE6">{{ r.val }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;margin-top:7px">
+                <sc-for list="{{ sim1b.faders }}" as="f" hint-placeholder-count="2">
+                  <div style="display:flex;align-items:center;gap:7px">
+                    <span style="width:30px;font:500 8.5px 'JetBrains Mono',monospace;color:{{ f.col }}">{{ f.label }}</span>
+                    <span style="flex:1;height:3px;background:#262320;border-radius:2px;position:relative">
+                      <span style="position:absolute;left:0;top:0;bottom:0;width:{{ f.pct }};background:{{ f.col }};opacity:.45;border-radius:2px;transition:width .2s linear"></span>
+                      <span style="position:absolute;left:{{ f.pct }};top:50%;transform:translate(-50%,-50%);width:7px;height:11px;background:#F0EDE6;border:1px solid #131110;border-radius:2px;transition:left .2s linear"></span>
+                    </span>
+                    <span style="width:26px;text-align:right;font:500 9px 'JetBrains Mono',monospace;color:#F0EDE6">{{ f.val }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div>
+              <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em;color:#6B655A;margin-bottom:5px">MIX MODEL</div>
+              <div style="display:flex;gap:3px;flex-wrap:wrap">
+                <sc-for list="{{ models1b }}" as="m" hint-placeholder-count="5">
+                  <span onClick="{{ m.on }}" title="{{ m.desc }}" style="cursor:pointer;font:600 9.5px 'Space Grotesk',sans-serif;color:{{ m.fg }};background:{{ m.bg }};border:1px solid {{ m.bd }};border-radius:3px;padding:5px 9px;transition:filter .12s ease-out,transform .06s" style-hover="filter:brightness(1.18)" style-active="transform:translateY(1px)">{{ m.label }}</span>
+                </sc-for>
+              </div>
+              <div style="font:400 9px/1.5 'IBM Plex Sans',sans-serif;color:#A39C8D;margin-top:5px">{{ sim1b.modelDesc }}</div>
+            </div>
+            <div>
+              <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em;color:#6B655A;margin-bottom:5px">LENGTH · BEATS</div>
+              <div style="display:flex;gap:3px;flex-wrap:wrap">
+                <sc-for list="{{ durs1b }}" as="d" hint-placeholder-count="8">
+                  <span onClick="{{ d.on }}" title="{{ d.tip }}" style="cursor:{{ d.cur }};font:500 9.5px 'JetBrains Mono',monospace;color:{{ d.fg }};background:{{ d.bg }};border:1px solid {{ d.bd }};border-radius:3px;padding:4px 7px;transition:filter .12s ease-out,transform .06s" style-hover="filter:brightness(1.18)" style-active="transform:translateY(1px)">{{ d.label }}</span>
+                </sc-for>
+              </div>
+              <div style="font:400 9px/1.5 'IBM Plex Sans',sans-serif;color:{{ sim1b.guardCol }};margin-top:5px">{{ sim1b.guard }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- verdict -->
+      <div style="flex:none;display:flex;align-items:center;gap:14px;padding:2px 2px">
+        <span style="font:700 20px 'JetBrains Mono',monospace;color:#3DDC97">0.74</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0">
+          <span style="font:400 9.5px 'IBM Plex Sans',sans-serif;color:#3DDC97;background:#1B2A22;border-radius:3px;padding:3px 8px">96-beat runway both sides</span>
+          <span style="font:400 9.5px 'IBM Plex Sans',sans-serif;color:#3DDC97;background:#1B2A22;border-radius:3px;padding:3px 8px">8A→9A neighbor</span>
+          <span style="font:400 9.5px 'IBM Plex Sans',sans-serif;color:#3DDC97;background:#1B2A22;border-radius:3px;padding:3px 8px">energy +0.06</span>
+          <span style="font:400 9.5px 'IBM Plex Sans',sans-serif;color:#F2B84B;background:#2A2317;border-radius:3px;padding:3px 8px">⚠ bass overlap 32–48 → bass swap</span>
+          <span style="font:400 9.5px 'IBM Plex Sans',sans-serif;color:#F2B84B;background:#2A2317;border-radius:3px;padding:3px 8px">⚠ vocal chop at 24</span>
+        </div>
+        <div style="display:flex;gap:6px;flex:none">
+          <span style="font:600 11px 'Space Grotesk',sans-serif;color:#131110;background:#D6F94B;border-radius:3px;padding:8px 16px;cursor:pointer;transition:filter .12s ease-out,transform .06s" style-hover="filter:brightness(1.1)" style-active="transform:translateY(1px)">Keep &nbsp;<span style="opacity:.55;font-family:'JetBrains Mono',monospace;font-size:9px">A</span></span>
+          <span style="font:600 11px 'Space Grotesk',sans-serif;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:7px 14px;cursor:pointer;transition:border-color .12s ease-out,background .12s ease-out,transform .06s" style-hover="border-color:#5A5245;background:#211D1A" style-active="transform:translateY(1px)">Keep w/ strategy <span style="color:#6B655A;font-family:'JetBrains Mono',monospace;font-size:9px">S</span></span>
+          <span style="font:600 11px 'Space Grotesk',sans-serif;color:#A39C8D;border:1px solid #2E2A25;border-radius:3px;padding:7px 14px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out,transform .06s" style-hover="color:#F0EDE6;border-color:#4A443B" style-active="transform:translateY(1px)">Skip tonight <span style="color:#6B655A;font-family:'JetBrains Mono',monospace;font-size:9px">R</span></span>
+          <span style="font:600 11px 'Space Grotesk',sans-serif;color:#A39C8D;border:1px solid #2E2A25;border-radius:3px;padding:7px 14px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out,transform .06s" style-hover="color:#F0EDE6;border-color:#4A443B" style-active="transform:translateY(1px)">Needs listen <span style="color:#6B655A;font-family:'JetBrains Mono',monospace;font-size:9px">L</span></span>
+        </div>
+      </div>
+
+      <!-- TERRAIN DOCK -->
+      <div style="flex:none;height:172px;background:#191715;border:1px solid #2E2A25;border-radius:3px 3px 0 0;border-bottom:none;display:flex;flex-direction:column;margin:0 -2px">
+        <div style="display:flex;align-items:center;gap:12px;padding:7px 14px 4px">
+          <span style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#6B655A">SET TERRAIN — SATURDAY CLOSING · 10 TRACKS · 47:12</span>
+          <span style="font:400 9px 'JetBrains Mono',monospace;color:#6B655A">click a joint to open its seam</span>
+          <span style="margin-left:auto;font:400 9px 'JetBrains Mono',monospace;color:#A39C8D">intent: rolling → peak at 7 → land soft</span>
+        </div>
+        <div style="flex:1;position:relative;margin:2px 14px 4px">
+          <svg width="100%" height="100%" viewBox="0 0 1000 96" preserveAspectRatio="none" style="display:block;position:absolute;inset:0">
+            <path d="{{ terrain.area }}" fill="#22201B"></path>
+            <path d="{{ terrain.line }}" stroke="#8A8578" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke"></path>
+            <rect x="{{ terrain.selX }}" y="0" width="{{ terrain.selW }}" height="96" fill="#D6F94B" opacity="0.07"></rect>
+            <line x1="{{ terrain.selX }}" y1="0" x2="{{ terrain.selX }}" y2="96" stroke="#D6F94B" stroke-width="1" vector-effect="non-scaling-stroke" opacity="0.6"></line>
+            <line x1="{{ terrain.selX2 }}" y1="0" x2="{{ terrain.selX2 }}" y2="96" stroke="#D6F94B" stroke-width="1" vector-effect="non-scaling-stroke" opacity="0.6"></line>
+          </svg>
+          <sc-for list="{{ terrain.pts }}" as="p" hint-placeholder-count="10">
+            <div title="{{ p.tip }}" style="position:absolute;left:{{ p.x }};top:{{ p.y }};transform:translate(-50%,-50%);width:{{ p.size }};height:{{ p.size }};border-radius:50%;background:{{ p.col }};border:{{ p.ring }};cursor:pointer;z-index:2;transition:transform .12s ease-out,box-shadow .12s ease-out" style-hover="transform:translate(-50%,-50%) scale(1.5);z-index:3;box-shadow:0 0 0 3px rgba(214,249,75,.25)"></div>
+          </sc-for>
+          <sc-for list="{{ terrain.badges }}" as="b" hint-placeholder-count="4">
+            <span style="position:absolute;left:{{ b.x }};top:{{ b.y }};transform:translateX(-50%);font:600 8px 'JetBrains Mono',monospace;color:{{ b.fg }};background:{{ b.bg }};border-radius:2px;padding:1px 4px;z-index:2">{{ b.label }}</span>
+          </sc-for>
+        </div>
+        <div style="height:20px;display:flex;align-items:center;gap:3px;padding:0 14px 8px">
+          <sc-for list="{{ terrain.quality }}" as="t" hint-placeholder-count="9">
+            <div title="{{ t.tip }}" style="flex:1;height:5px;border-radius:2px;background:{{ t.col }};opacity:{{ t.op }};cursor:pointer;transition:height .12s ease-out,opacity .12s ease-out" style-hover="height:10px;opacity:1"></div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ============ 2c EXPORT GATE ============ -->
+<div class="dv-opt" id="2c" style="max-width:1444px">
+<div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a>J5 GATE · EXPORT GATE — step 5 becomes the app’s one legitimate modal: a diff with blockers, never a page</div>
+<div class="dv-card" style="width:1440px;background:#131110">
+  <div data-screen-label="2c Export Gate — TERRAIN" style="width:1440px;height:900px;background:#131110;position:relative;overflow:hidden;font-family:'IBM Plex Sans',sans-serif;color:#F0EDE6">
+    <!-- ghosted SET behind -->
+    
+    <div class="dv-opt" id="1b" style="max-width:1444px">
+
+
+<div class="dv-card" style="width:1440px;background:#131110">
+  <!-- 1b HERO -->
+  <div data-screen-label="1b Transition Lab — TERRAIN" style="width:1440px;height:900px;background:#131110;color:#F0EDE6;display:flex;flex-direction:column;overflow:hidden;font-family:'IBM Plex Sans',sans-serif">
+    <!-- top bar -->
+    <div style="height:46px;flex:none;display:flex;align-items:center;border-bottom:1px solid #2E2A25;background:#191715;padding:0 18px;gap:18px">
+      <div style="font:700 13px 'Space Grotesk',sans-serif;letter-spacing:.06em;color:#F0EDE6">DanceLab</div>
+      <div style="display:flex;align-items:center;gap:2px;font:500 10.5px 'JetBrains Mono',monospace">
+        <span style="color:#6B655A;padding:5px 10px;border:1px solid #2E2A25;border-radius:3px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">LIBRARY</span>
+        <span style="color:#6B655A;padding:0 2px">›</span>
+        <span style="color:#6B655A;padding:5px 10px;border:1px solid #2E2A25;border-radius:3px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">SET</span>
+        <span style="color:#6B655A;padding:0 2px">›</span>
+        <span style="color:#131110;background:#D6F94B;padding:6px 10px;border-radius:3px">SEAM 6→7</span>
+        <span style="color:#6B655A;padding:0 2px">›</span>
+        <span style="color:#6B655A;padding:5px 10px;border:1px solid #2E2A25;border-radius:3px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">TRACK</span>
+        <span style="color:#6B655A;font-size:9px;margin-left:8px">⌘ ± to zoom</span>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:16px">
+        <span style="font:400 10px 'JetBrains Mono',monospace;color:#6B655A">library 412 · running 3</span>
+        <span style="font:400 10px 'JetBrains Mono',monospace;color:#A39C8D">set 24:31 · peak at 7</span>
+        <span style="font:600 11px 'Space Grotesk',sans-serif;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:5px 12px;cursor:pointer;transition:background .12s ease-out,border-color .12s ease-out,transform .06s" style-hover="background:#211D1A;border-color:#5A5245" style-active="transform:translateY(1px)">Export gate…</span>
+      </div>
+    </div>
+
+    <div style="flex:1;min-height:0;display:flex;flex-direction:column;padding:14px 18px 0;gap:12px">
+      <!-- deck cards row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:none">
+        <div style="background:#191715;border:1px solid #2E2A25;border-top:2px solid #F26749;border-radius:3px;padding:10px 14px 12px;transition:border-color .15s ease-out,background .15s ease-out" style-hover="border-color:#4A443B;border-top-color:#F26749;background:#1C1A17">
+          <div style="display:flex;align-items:baseline;gap:10px">
+            <span style="font:700 11px 'Space Grotesk',sans-serif;color:#F26749">A OUTGOING</span>
+            <span style="font:600 13px 'Space Grotesk',sans-serif;color:#F0EDE6">Signal Path — Kelrin</span>
+            <span style="margin-left:auto;font:500 10px 'JetBrains Mono',monospace;color:#A39C8D">174.0 · 8A 0.93 · e 0.71 · <span style="color:#7CF7D4">demucs v4</span></span>
+          </div>
+          <svg width="100%" height="46" viewBox="0 0 1000 46" preserveAspectRatio="none" style="display:block;margin-top:8px">
+            <path d="{{ deckA1b.low }}" stroke="#F26749" stroke-width="1" opacity="0.8" vector-effect="non-scaling-stroke"></path>
+            <path d="{{ deckA1b.mid }}" stroke="#F2A93B" stroke-width="1" opacity="0.55" vector-effect="non-scaling-stroke"></path>
+            <path d="{{ deckA1b.high }}" stroke="#F7D98B" stroke-width="1" opacity="0.4" vector-effect="non-scaling-stroke"></path>
+            <rect x="{{ deckA1b.winX }}" y="0" width="{{ deckA1b.winW }}" height="46" fill="#E2A856" opacity="0.15"></rect>
+            <line x1="{{ deckA1b.cueX }}" y1="0" x2="{{ deckA1b.cueX }}" y2="46" stroke="#F5F2EA" stroke-width="1.5" vector-effect="non-scaling-stroke"></line>
+          </svg>
+          <div style="display:flex;height:8px;margin-top:3px;border-radius:2px;overflow:hidden">
+            <sc-for list="{{ segsA1b }}" as="s" hint-placeholder-count="8"><div style="width:{{ s.w }};background:{{ s.col }}" title="{{ s.name }}"></div></sc-for>
+          </div>
+          <div style="display:flex;gap:10px;font:400 9px 'JetBrains Mono',monospace;color:#6B655A;margin-top:5px"><span>grid 0.97 quantize on</span><span style="margin-left:auto">cue E · 4:42 · phrase 63</span></div>
+        </div>
+        <div style="background:#191715;border:1px solid #2E2A25;border-top:2px solid #6FAFFF;border-radius:3px;padding:10px 14px 12px;transition:border-color .15s ease-out,background .15s ease-out" style-hover="border-color:#4A443B;border-top-color:#6FAFFF;background:#1C1A17">
+          <div style="display:flex;align-items:baseline;gap:10px">
+            <span style="font:700 11px 'Space Grotesk',sans-serif;color:#6FAFFF">B INCOMING</span>
+            <span style="font:600 13px 'Space Grotesk',sans-serif;color:#F0EDE6">Undertow — Mara VX</span>
+            <span style="margin-left:auto;font:500 10px 'JetBrains Mono',monospace;color:#A39C8D">174.0 · 9A 0.88 · e 0.77 · <span style="color:#F2B84B;border-bottom:1px dashed #7A5425">DSP fallback</span></span>
+          </div>
+          <svg width="100%" height="46" viewBox="0 0 1000 46" preserveAspectRatio="none" style="display:block;margin-top:8px">
+            <path d="{{ deckB1b.low }}" stroke="#45C9BA" stroke-width="1" opacity="0.8" vector-effect="non-scaling-stroke"></path>
+            <path d="{{ deckB1b.mid }}" stroke="#6FAFFF" stroke-width="1" opacity="0.55" vector-effect="non-scaling-stroke"></path>
+            <path d="{{ deckB1b.high }}" stroke="#BE96FF" stroke-width="1" opacity="0.4" vector-effect="non-scaling-stroke"></path>
+            <rect x="{{ deckB1b.winX }}" y="0" width="{{ deckB1b.winW }}" height="46" fill="#7CB96B" opacity="0.15"></rect>
+            <line x1="{{ deckB1b.cueX }}" y1="0" x2="{{ deckB1b.cueX }}" y2="46" stroke="#F5F2EA" stroke-width="1.5" vector-effect="non-scaling-stroke"></line>
+          </svg>
+          <div style="display:flex;height:8px;margin-top:3px;border-radius:2px;overflow:hidden">
+            <sc-for list="{{ segsB1b }}" as="s" hint-placeholder-count="7"><div style="width:{{ s.w }};background:{{ s.col }}" title="{{ s.name }}"></div></sc-for>
+          </div>
+          <div style="display:flex;gap:10px;font:400 9px 'JetBrains Mono',monospace;color:#6B655A;margin-top:5px"><span>grid 0.88 quantize on</span><span style="margin-left:auto">cue A · 0:11 · phrase 2</span></div>
+        </div>
+      </div>
+
+      <!-- simulation -->
+      <div style="flex:1;min-height:0;background:#191715;border:1px solid #3F3931;border-radius:3px;display:flex;flex-direction:column">
+        <div style="display:flex;align-items:center;gap:12px;padding:8px 14px;border-bottom:1px solid #2E2A25">
+          <span style="font:700 11px 'Space Grotesk',sans-serif;letter-spacing:.04em;color:#F0EDE6">Transition simulation</span>
+          <span style="font:400 9.5px 'JetBrains Mono',monospace;color:#6B655A">24-bit · phrase-locked · −0.8 dB · follow outgoing 174.0</span>
+          <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+            <span onClick="{{ toggle1b }}" style="cursor:pointer;display:inline-flex;width:28px;height:22px;background:#D6F94B;border-radius:3px;align-items:center;justify-content:center;transition:filter .12s ease-out,transform .06s" style-hover="filter:brightness(1.14)" style-active="transform:scale(.92)" title="play/pause — space"><sc-if value="{{ playing1b }}" hint-placeholder-val="{{ false }}"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 1 H4 V9 H2 Z M6 1 H8 V9 H6 Z" fill="#131110"></path></svg></sc-if><sc-if value="{{ notPlaying1b }}" hint-placeholder-val="{{ true }}"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 1 L9 5 L2 9 Z" fill="#131110"></path></svg></sc-if></span>
+            <span style="display:inline-flex;width:28px;height:22px;border:1px solid #3F3931;border-radius:3px;align-items:center;justify-content:center;cursor:pointer;transition:background .12s ease-out,border-color .12s ease-out" style-hover="background:#211D1A;border-color:#5A5245" title="jump to cue window"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 1 V9 M4 5 L9 1 V9 Z" stroke="#A39C8D" stroke-width="1.2" fill="none" stroke-linejoin="round"></path></svg></span>
+            <span style="font:500 9px 'JetBrains Mono',monospace;color:#7CF7D4;border:1px solid #2B6B5D;border-radius:3px;padding:3px 7px">Q·LOCK</span>
+            <span style="font:500 11px 'JetBrains Mono',monospace;color:#6B655A;border:1px solid #2E2A25;border-radius:3px;width:22px;height:20px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">+</span>
+            <span style="font:500 11px 'JetBrains Mono',monospace;color:#6B655A;border:1px solid #2E2A25;border-radius:3px;width:22px;height:20px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">−</span>
+          </div>
+        </div>
+        <div style="flex:1;display:flex;min-height:0">
+          <div style="flex:1;min-width:0;padding:10px 0 4px 14px;display:flex;flex-direction:column;gap:5px">
+            <div style="flex:1;position:relative;background:#141210;border:1px solid #262320;border-radius:2px">
+              <span style="position:absolute;top:3px;left:8px;font:700 8.5px 'Space Grotesk',sans-serif;letter-spacing:.1em;color:#F26749;z-index:2">OUTGOING A</span>
+              <svg width="100%" height="100%" viewBox="0 0 1000 66" preserveAspectRatio="none" style="display:block;position:absolute;inset:0">
+                <path d="{{ sim1b.laneA }}" stroke="#6E4433" stroke-width="1" vector-effect="non-scaling-stroke"></path>
+                <path stroke="#F26749" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" style="d:path('{{ sim1b.lowA }}');transition:d 450ms cubic-bezier(.4,0,.2,1)"></path>
+                <path stroke="#F2A93B" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" style="d:path('{{ sim1b.midA }}');transition:d 450ms cubic-bezier(.4,0,.2,1)"></path>
+                <path stroke="#F7D98B" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" style="d:path('{{ sim1b.highA }}');transition:d 450ms cubic-bezier(.4,0,.2,1)"></path>
+                <line x1="{{ sim1b.ph }}" y1="0" x2="{{ sim1b.ph }}" y2="66" stroke="#D6F94B" stroke-width="1.5" vector-effect="non-scaling-stroke"></line>
+              </svg>
+            </div>
+            <div style="flex:1;position:relative;background:#17140f;border:1px solid #33302B;border-radius:2px">
+              <span style="position:absolute;top:3px;left:8px;font:700 8.5px 'Space Grotesk',sans-serif;letter-spacing:.1em;color:#F0EDE6;z-index:2">MIXED RESULT</span>
+              <svg width="100%" height="100%" viewBox="0 0 1000 66" preserveAspectRatio="none" style="display:block;position:absolute;inset:0">
+                <path d="{{ sim1b.laneMix }}" stroke="#6B655A" stroke-width="1" vector-effect="non-scaling-stroke"></path>
+                <path stroke="#F26749" stroke-width="1.4" fill="none" stroke-dasharray="5 4" vector-effect="non-scaling-stroke" style="d:path('{{ sim1b.fadA }}');transition:d 450ms cubic-bezier(.4,0,.2,1)"></path>
+                <path stroke="#6FAFFF" stroke-width="1.4" fill="none" stroke-dasharray="5 4" vector-effect="non-scaling-stroke" style="d:path('{{ sim1b.fadB }}');transition:d 450ms cubic-bezier(.4,0,.2,1)"></path>
+                <line x1="{{ sim1b.ph }}" y1="0" x2="{{ sim1b.ph }}" y2="66" stroke="#D6F94B" stroke-width="1.5" vector-effect="non-scaling-stroke"></line>
+              </svg>
+            </div>
+            <div style="flex:1;position:relative;background:#141210;border:1px solid #262320;border-radius:2px">
+              <span style="position:absolute;top:3px;left:8px;font:700 8.5px 'Space Grotesk',sans-serif;letter-spacing:.1em;color:#6FAFFF;z-index:2">INCOMING B</span>
+              <svg width="100%" height="100%" viewBox="0 0 1000 66" preserveAspectRatio="none" style="display:block;position:absolute;inset:0">
+                <path d="{{ sim1b.laneB }}" stroke="#33566B" stroke-width="1" vector-effect="non-scaling-stroke"></path>
+                <path stroke="#45C9BA" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" style="d:path('{{ sim1b.lowB }}');transition:d 450ms cubic-bezier(.4,0,.2,1)"></path>
+                <path stroke="#6FAFFF" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" style="d:path('{{ sim1b.midB }}');transition:d 450ms cubic-bezier(.4,0,.2,1)"></path>
+                <path stroke="#BE96FF" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" style="d:path('{{ sim1b.highB }}');transition:d 450ms cubic-bezier(.4,0,.2,1)"></path>
+                <line x1="{{ sim1b.ph }}" y1="0" x2="{{ sim1b.ph }}" y2="66" stroke="#D6F94B" stroke-width="1.5" vector-effect="non-scaling-stroke"></line>
+              </svg>
+            </div>
+            <div style="height:15px;position:relative">
+              <sc-for list="{{ sim1b.grid }}" as="g" hint-placeholder-count="17">
+                <span style="position:absolute;left:{{ g.x }};transform:translateX(-50%);font:400 8.5px 'JetBrains Mono',monospace;color:{{ g.col }}">{{ g.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+          <div style="width:300px;flex:none;border-left:1px solid #262320;margin-left:14px;padding:10px 14px;display:flex;flex-direction:column;gap:9px;overflow:hidden">
+            <div>
+              <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em;color:#6B655A;margin-bottom:5px">MIXER @ BEAT {{ sim1b.phBeat }}</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 10px">
+                <sc-for list="{{ sim1b.readout }}" as="r" hint-placeholder-count="6">
+                  <div style="display:flex;align-items:center;gap:7px">
+                    <span style="width:30px;font:500 8.5px 'JetBrains Mono',monospace;color:{{ r.col }}">{{ r.label }}</span>
+                    <svg width="24" height="24" viewBox="0 0 24 24" style="flex:none">
+                      <circle cx="12" cy="12" r="10.5" fill="#141210" stroke="#262320" stroke-width="1"></circle>
+                      <path d="M5.64 18.36 A9 9 0 1 1 18.36 18.36" stroke="#2E2A25" stroke-width="2" fill="none" stroke-linecap="round"></path>
+                      <path d="{{ r.arc }}" stroke="{{ r.col }}" stroke-width="2" fill="none" stroke-linecap="round"></path>
+                      <line x1="12" y1="12" x2="12" y2="5.2" stroke="#F0EDE6" stroke-width="1.6" stroke-linecap="round" style="transform:rotate({{ r.deg }}deg);transform-origin:12px 12px;transition:transform .2s linear"></line>
+                      <circle cx="12" cy="12" r="2" fill="#26231F"></circle>
+                    </svg>
+                    <span style="flex:1;text-align:right;font:500 9px 'JetBrains Mono',monospace;color:#F0EDE6">{{ r.val }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;margin-top:7px">
+                <sc-for list="{{ sim1b.faders }}" as="f" hint-placeholder-count="2">
+                  <div style="display:flex;align-items:center;gap:7px">
+                    <span style="width:30px;font:500 8.5px 'JetBrains Mono',monospace;color:{{ f.col }}">{{ f.label }}</span>
+                    <span style="flex:1;height:3px;background:#262320;border-radius:2px;position:relative">
+                      <span style="position:absolute;left:0;top:0;bottom:0;width:{{ f.pct }};background:{{ f.col }};opacity:.45;border-radius:2px;transition:width .2s linear"></span>
+                      <span style="position:absolute;left:{{ f.pct }};top:50%;transform:translate(-50%,-50%);width:7px;height:11px;background:#F0EDE6;border:1px solid #131110;border-radius:2px;transition:left .2s linear"></span>
+                    </span>
+                    <span style="width:26px;text-align:right;font:500 9px 'JetBrains Mono',monospace;color:#F0EDE6">{{ f.val }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div>
+              <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em;color:#6B655A;margin-bottom:5px">MIX MODEL</div>
+              <div style="display:flex;gap:3px;flex-wrap:wrap">
+                <sc-for list="{{ models1b }}" as="m" hint-placeholder-count="5">
+                  <span onClick="{{ m.on }}" title="{{ m.desc }}" style="cursor:pointer;font:600 9.5px 'Space Grotesk',sans-serif;color:{{ m.fg }};background:{{ m.bg }};border:1px solid {{ m.bd }};border-radius:3px;padding:5px 9px;transition:filter .12s ease-out,transform .06s" style-hover="filter:brightness(1.18)" style-active="transform:translateY(1px)">{{ m.label }}</span>
+                </sc-for>
+              </div>
+              <div style="font:400 9px/1.5 'IBM Plex Sans',sans-serif;color:#A39C8D;margin-top:5px">{{ sim1b.modelDesc }}</div>
+            </div>
+            <div>
+              <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.12em;color:#6B655A;margin-bottom:5px">LENGTH · BEATS</div>
+              <div style="display:flex;gap:3px;flex-wrap:wrap">
+                <sc-for list="{{ durs1b }}" as="d" hint-placeholder-count="8">
+                  <span onClick="{{ d.on }}" title="{{ d.tip }}" style="cursor:{{ d.cur }};font:500 9.5px 'JetBrains Mono',monospace;color:{{ d.fg }};background:{{ d.bg }};border:1px solid {{ d.bd }};border-radius:3px;padding:4px 7px;transition:filter .12s ease-out,transform .06s" style-hover="filter:brightness(1.18)" style-active="transform:translateY(1px)">{{ d.label }}</span>
+                </sc-for>
+              </div>
+              <div style="font:400 9px/1.5 'IBM Plex Sans',sans-serif;color:{{ sim1b.guardCol }};margin-top:5px">{{ sim1b.guard }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- verdict -->
+      <div style="flex:none;display:flex;align-items:center;gap:14px;padding:2px 2px">
+        <span style="font:700 20px 'JetBrains Mono',monospace;color:#3DDC97">0.74</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0">
+          <span style="font:400 9.5px 'IBM Plex Sans',sans-serif;color:#3DDC97;background:#1B2A22;border-radius:3px;padding:3px 8px">96-beat runway both sides</span>
+          <span style="font:400 9.5px 'IBM Plex Sans',sans-serif;color:#3DDC97;background:#1B2A22;border-radius:3px;padding:3px 8px">8A→9A neighbor</span>
+          <span style="font:400 9.5px 'IBM Plex Sans',sans-serif;color:#3DDC97;background:#1B2A22;border-radius:3px;padding:3px 8px">energy +0.06</span>
+          <span style="font:400 9.5px 'IBM Plex Sans',sans-serif;color:#F2B84B;background:#2A2317;border-radius:3px;padding:3px 8px">⚠ bass overlap 32–48 → bass swap</span>
+          <span style="font:400 9.5px 'IBM Plex Sans',sans-serif;color:#F2B84B;background:#2A2317;border-radius:3px;padding:3px 8px">⚠ vocal chop at 24</span>
+        </div>
+        <div style="display:flex;gap:6px;flex:none">
+          <span style="font:600 11px 'Space Grotesk',sans-serif;color:#131110;background:#D6F94B;border-radius:3px;padding:8px 16px;cursor:pointer;transition:filter .12s ease-out,transform .06s" style-hover="filter:brightness(1.1)" style-active="transform:translateY(1px)">Keep &nbsp;<span style="opacity:.55;font-family:'JetBrains Mono',monospace;font-size:9px">A</span></span>
+          <span style="font:600 11px 'Space Grotesk',sans-serif;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:7px 14px;cursor:pointer;transition:border-color .12s ease-out,background .12s ease-out,transform .06s" style-hover="border-color:#5A5245;background:#211D1A" style-active="transform:translateY(1px)">Keep w/ strategy <span style="color:#6B655A;font-family:'JetBrains Mono',monospace;font-size:9px">S</span></span>
+          <span style="font:600 11px 'Space Grotesk',sans-serif;color:#A39C8D;border:1px solid #2E2A25;border-radius:3px;padding:7px 14px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out,transform .06s" style-hover="color:#F0EDE6;border-color:#4A443B" style-active="transform:translateY(1px)">Skip tonight <span style="color:#6B655A;font-family:'JetBrains Mono',monospace;font-size:9px">R</span></span>
+          <span style="font:600 11px 'Space Grotesk',sans-serif;color:#A39C8D;border:1px solid #2E2A25;border-radius:3px;padding:7px 14px;cursor:pointer;transition:color .12s ease-out,border-color .12s ease-out,transform .06s" style-hover="color:#F0EDE6;border-color:#4A443B" style-active="transform:translateY(1px)">Needs listen <span style="color:#6B655A;font-family:'JetBrains Mono',monospace;font-size:9px">L</span></span>
+        </div>
+      </div>
+
+      <!-- TERRAIN DOCK -->
+      <div style="flex:none;height:172px;background:#191715;border:1px solid #2E2A25;border-radius:3px 3px 0 0;border-bottom:none;display:flex;flex-direction:column;margin:0 -2px">
+        <div style="display:flex;align-items:center;gap:12px;padding:7px 14px 4px">
+          <span style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#6B655A">SET TERRAIN — SATURDAY CLOSING · 10 TRACKS · 47:12</span>
+          <span style="font:400 9px 'JetBrains Mono',monospace;color:#6B655A">click a joint to open its seam</span>
+          <span style="margin-left:auto;font:400 9px 'JetBrains Mono',monospace;color:#A39C8D">intent: rolling → peak at 7 → land soft</span>
+        </div>
+        <div style="flex:1;position:relative;margin:2px 14px 4px">
+          <svg width="100%" height="100%" viewBox="0 0 1000 96" preserveAspectRatio="none" style="display:block;position:absolute;inset:0">
+            <path d="{{ terrain.area }}" fill="#22201B"></path>
+            <path d="{{ terrain.line }}" stroke="#8A8578" stroke-width="1.4" fill="none" vector-effect="non-scaling-stroke"></path>
+            <rect x="{{ terrain.selX }}" y="0" width="{{ terrain.selW }}" height="96" fill="#D6F94B" opacity="0.07"></rect>
+            <line x1="{{ terrain.selX }}" y1="0" x2="{{ terrain.selX }}" y2="96" stroke="#D6F94B" stroke-width="1" vector-effect="non-scaling-stroke" opacity="0.6"></line>
+            <line x1="{{ terrain.selX2 }}" y1="0" x2="{{ terrain.selX2 }}" y2="96" stroke="#D6F94B" stroke-width="1" vector-effect="non-scaling-stroke" opacity="0.6"></line>
+          </svg>
+          <sc-for list="{{ terrain.pts }}" as="p" hint-placeholder-count="10">
+            <div title="{{ p.tip }}" style="position:absolute;left:{{ p.x }};top:{{ p.y }};transform:translate(-50%,-50%);width:{{ p.size }};height:{{ p.size }};border-radius:50%;background:{{ p.col }};border:{{ p.ring }};cursor:pointer;z-index:2;transition:transform .12s ease-out,box-shadow .12s ease-out" style-hover="transform:translate(-50%,-50%) scale(1.5);z-index:3;box-shadow:0 0 0 3px rgba(214,249,75,.25)"></div>
+          </sc-for>
+          <sc-for list="{{ terrain.badges }}" as="b" hint-placeholder-count="4">
+            <span style="position:absolute;left:{{ b.x }};top:{{ b.y }};transform:translateX(-50%);font:600 8px 'JetBrains Mono',monospace;color:{{ b.fg }};background:{{ b.bg }};border-radius:2px;padding:1px 4px;z-index:2">{{ b.label }}</span>
+          </sc-for>
+        </div>
+        <div style="height:20px;display:flex;align-items:center;gap:3px;padding:0 14px 8px">
+          <sc-for list="{{ terrain.quality }}" as="t" hint-placeholder-count="9">
+            <div title="{{ t.tip }}" style="flex:1;height:5px;border-radius:2px;background:{{ t.col }};opacity:{{ t.op }};cursor:pointer;transition:height .12s ease-out,opacity .12s ease-out" style-hover="height:10px;opacity:1"></div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  <div style="position: absolute; inset: 0; background: rgba(11,10,9,.62); left: -4px; top: -6px"></div></div>
+</div>
+</div>
+
+    <!-- modal -->
+    <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:680px;background:#191715;border:1px solid #3F3931;border-radius:3px;box-shadow:0 18px 60px rgba(0,0,0,.6)">
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid #2E2A25">
+        <span style="font:700 13px 'Space Grotesk',sans-serif;color:#F0EDE6">Export gate — Rekordbox XML</span>
+        <span style="font:400 9px 'JetBrains Mono',monospace;color:#6B655A">irreversible file write · the only modal in the app</span>
+        <span style="margin-left:auto;font:400 9px 'JetBrains Mono',monospace;color:#6B655A">Esc</span>
+        <span style="width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #2E2A25;border-radius:3px;color:#A39C8D;cursor:pointer;font:500 11px 'JetBrains Mono',monospace;transition:color .12s ease-out,border-color .12s ease-out" style-hover="color:#F0EDE6;border-color:#4A443B">×</span>
+      </div>
+      <div style="padding:14px 18px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font:500 10.5px 'JetBrains Mono',monospace;color:#F0EDE6;background:#141210;border:1px solid #2E2A25;border-radius:3px;padding:7px 10px;flex:1">/Users/jan/sets/saturday_closing.xml</span>
+          <span style="font:600 10.5px 'Space Grotesk',sans-serif;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:7px 12px;cursor:pointer;transition:background .12s ease-out,border-color .12s ease-out" style-hover="background:#211D1A;border-color:#5A5245">Browse…</span>
+        </div>
+        <div style="font:500 10.5px 'JetBrains Mono',monospace;color:#A39C8D">playlist “Saturday Closing” · 10 tracks · 47:12</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="background:#141210;border:1px solid #262320;border-radius:3px;padding:10px 12px">
+            <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#3DDC97;margin-bottom:6px">WILL WRITE</div>
+            <div style="font:400 10px/1.8 'IBM Plex Sans',sans-serif;color:#A39C8D">
+              <span style="color:#3DDC97">+</span> playlist order — 10 tracks<br>
+              <span style="color:#3DDC97">+</span> 38 hot cues A–H (engine + your moves)<br>
+              <span style="color:#3DDC97">+</span> memory cues at 9 seam points<br>
+              <span style="color:#3DDC97">+</span> MyTag “DL verified” on 8 tracks
+            </div>
+          </div>
+          <div style="background:#141210;border:1px solid #262320;border-radius:3px;padding:10px 12px">
+            <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#6B655A;margin-bottom:6px">NEVER TOUCHED</div>
+            <div style="font:400 10px/1.8 'IBM Plex Sans',sans-serif;color:#6B655A">
+              ⊘ native BPM &amp; beatgrid — Rekordbox analyzes; DanceLab never overwrites<br>
+              ⊘ your existing cues — merged, not replaced<br>
+              ⊘ audio files — read-only, always
+            </div>
+          </div>
+        </div>
+        <div style="background:#1D1412;border:1px solid #4A2A2E;border-radius:3px;padding:10px 12px">
+          <div style="font:700 9px 'Space Grotesk',sans-serif;letter-spacing:.14em;color:#FF5C68;margin-bottom:6px">BLOCKERS — 2</div>
+          <div style="display:flex;flex-direction:column;gap:6px;font:400 10px/1.5 'IBM Plex Sans',sans-serif;color:#A39C8D">
+            <div style="display:flex;gap:8px;align-items:baseline"><span style="color:#FF5C68">⚠</span><span style="flex:1">seam 7→8 — B-start cue is an engine estimate, unverified</span><span style="font:500 9.5px 'JetBrains Mono',monospace;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:2px 8px;cursor:pointer;transition:border-color .12s ease-out" style-hover="border-color:#5A5245">Listen now ↗</span><span style="font:500 9.5px 'JetBrains Mono',monospace;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:2px 8px;cursor:pointer;transition:border-color .12s ease-out" style-hover="border-color:#5A5245">Mark verified</span></div>
+            <div style="display:flex;gap:8px;align-items:baseline"><span style="color:#FF5C68">⚠</span><span style="flex:1">“After Rain” — grid confidence 0.41 → quantized cues disabled</span><span style="font:500 9.5px 'JetBrains Mono',monospace;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:2px 8px;cursor:pointer;transition:border-color .12s ease-out" style-hover="border-color:#5A5245">Review track ↗</span></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:baseline;font:400 10px 'IBM Plex Sans',sans-serif;color:#F2B84B"><span>⚠</span><span>2 tracks use DSP-fallback stems — stem-based cues are approximate (they export, marked)</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:14px 18px;border-top:1px solid #2E2A25">
+        <span title="blocked: 2 items above" style="font:600 12px 'Space Grotesk',sans-serif;color:#5A5245;background:#211D1A;border-radius:3px;padding:9px 16px;cursor:not-allowed">Write XML — blocked by 2 items</span>
+        <span style="font:600 11px 'Space Grotesk',sans-serif;color:#F0EDE6;border:1px solid #3F3931;border-radius:3px;padding:8px 14px;cursor:pointer;transition:background .12s ease-out,border-color .12s ease-out" style-hover="background:#211D1A;border-color:#5A5245">Export without seam 7→8</span>
+        <span style="margin-left:auto;font:400 9px/1.5 'IBM Plex Sans',sans-serif;color:#6B655A;max-width:220px">clear exits: Esc closes, nothing written · the gate re-opens exactly here</span>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Try next: “TRACK anatomy zoom level” · “blind-mode lab skin” · “gate in cleared/green state” · “light variant of <a class="dv-oid" href="#2b">2b</a>” · “animate <a class="dv-oid" href="#2e">2e</a> drawing live”</p>
+</section>
+
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { m1b: "contour_blend", d1b: 128, ph1b: 0.458, playing1b: false };
+
+  componentDidMount() {
+    this._onKey = e => {
+      if (e.code === "Space" && (e.target === document.body || e.target.tagName === "BODY")) { e.preventDefault(); this.togglePlay(); }
+    };
+    window.addEventListener("keydown", this._onKey);
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener("keydown", this._onKey);
+    cancelAnimationFrame(this._raf);
+  }
+
+  togglePlay() {
+    if (this.state.playing1b) { cancelAnimationFrame(this._raf); this.setState({ playing1b: false }); return; }
+    this._p = this.state.ph1b;
+    this._lastT = performance.now();
+    this._lastSet = 0;
+    const step = t => {
+      const durSec = this.state.d1b * 60 / 174;
+      this._p += (t - this._lastT) / 1000 / durSec;
+      this._lastT = t;
+      if (this._p >= 1) this._p -= 1;
+      if (t - this._lastSet > 33) { this._lastSet = t; this.setState({ ph1b: this._p }); }
+      if (this.state.playing1b) this._raf = requestAnimationFrame(step);
+    };
+    this.setState({ playing1b: true });
+    this._raf = requestAnimationFrame(step);
+  }
+
+  // ---------- exact envelope math from transition_simulation.py ----------
+  profiles() {
+    const ones9 = [1,1,1,1,1,1,1,1,1];
+    return {
+      linear:       { label: "Linear", desc: "Reference crossfade with no EQ movement. Useful as a neutral baseline.", eq: null, fader: "linear" },
+      plain_blend:  { label: "Balanced blend", desc: "Equal-power crossfade; all three frequency bands remain open.", eq: null, fader: "equal" },
+      bass_swap:    { label: "Bass swap", desc: "Low bands hand over at the central 8-beat boundary; mids and highs overlap.", fader: "equal", eq: {
+        low_a:[1,1,1,.92,.05,.03,0,0,0], low_b:[0,0,.03,.08,1,1,1,1,1],
+        mid_a:[1,1,.96,.88,.72,.52,.30,.12,0], mid_b:[0,.12,.30,.52,.72,.88,.96,1,1],
+        high_a:[1,1,.96,.88,.72,.52,.30,.12,0], high_b:[0,.12,.30,.52,.72,.88,.96,1,1] } },
+      tops_swap:    { label: "Tops swap", desc: "Incoming hats and upper detail arrive first; bass hands over later.", fader: "equal", eq: {
+        high_a:[1,1,.42,.08,.03,0,0,0,0], high_b:[0,.18,.82,1,1,1,1,1,1],
+        mid_a:[1,1,.94,.82,.64,.44,.24,.10,0], mid_b:[0,.10,.24,.44,.64,.82,.94,1,1],
+        low_a:[1,1,1,1,.86,.58,.30,.10,0], low_b:[0,.03,.08,.18,.52,.82,1,1,1] } },
+      contour_blend:{ label: "Contour blend", desc: "Staggered low, mid and high handovers reduce full-spectrum overlap.", fader: "equal", eq: {
+        low_a:[1,1,.94,.68,.24,.08,0,0,0], low_b:[0,0,.06,.24,.76,.94,1,1,1],
+        mid_a:[1,1,1,.94,.72,.42,.20,.06,0], mid_b:[0,.08,.22,.48,.74,.92,1,1,1],
+        high_a:[1,.96,.82,.64,.48,.28,.12,.04,0], high_b:[0,.16,.38,.62,.82,.94,1,1,1] } },
+    };
+  }
+
+  resample(arr, count) { // np.interp equivalent
+    const out = [];
+    for (let i = 0; i < count; i++) {
+      const t = (i / (count - 1)) * (arr.length - 1);
+      const j = Math.min(Math.floor(t), arr.length - 2);
+      out.push(arr[j] + (arr[j + 1] - arr[j]) * (t - j));
+    }
+    return out;
+  }
+
+  buildEnvelope(profileId, durBeats) { // knots every 8 beats, faders + eq
+    const p = this.profiles()[profileId];
+    const count = durBeats / 8 + 1;
+    const knots = [], fa = [], fb = [];
+    for (let i = 0; i < count; i++) {
+      const prog = i / (count - 1);
+      knots.push(i * 8);
+      if (p.fader === "linear") { fa.push(1 - prog); fb.push(prog); }
+      else { fa.push(Math.cos(prog * Math.PI / 2)); fb.push(Math.sin(prog * Math.PI / 2)); }
+    }
+    const ones = knots.map(() => 1);
+    const env = { knots, fader_a: fa, fader_b: fb };
+    for (const k of ["low_a","mid_a","high_a","low_b","mid_b","high_b"]) {
+      env[k] = p.eq ? this.resample(p.eq[k], count) : ones;
+    }
+    return env;
+  }
+
+  sampleCurve(knots, values, x) { // _smooth_interpolate: per-span smoothstep
+    if (x <= knots[0]) return values[0];
+    if (x >= knots[knots.length - 1]) return values[values.length - 1];
+    let i = 0;
+    while (i < knots.length - 2 && knots[i + 1] <= x) i++;
+    const span = Math.max(knots[i + 1] - knots[i], 1e-12);
+    let ph = Math.min(Math.max((x - knots[i]) / span, 0), 1);
+    ph = ph * ph * (3 - 2 * ph);
+    return values[i] + (values[i + 1] - values[i]) * ph;
+  }
+
+  curvePath(env, key, W, H, pad) {
+    const knots = env.knots, dur = knots[knots.length - 1];
+    const n = 120, pts = [];
+    for (let i = 0; i <= n; i++) {
+      const x = (i / n) * dur;
+      const v = this.sampleCurve(knots, env[key], x);
+      pts.push(((i / n) * W).toFixed(1) + " " + (H - pad - v * (H - 2 * pad)).toFixed(1));
+    }
+    return "M" + pts.join(" L");
+  }
+
+  // ---------- deterministic 3-band track synthesis ----------
+  rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+  segProfile(name) {
+    return {
+      intro:     { low: .22, mid: .42, high: .30 },
+      build:     { low: .34, mid: .58, high: .72, rise: 1 },
+      drop:      { low: .95, mid: .68, high: .62 },
+      groove:    { low: .84, mid: .58, high: .54 },
+      breakdown: { low: .12, mid: .48, high: .34 },
+      outro:     { low: .44, mid: .38, high: .28, fall: 1 },
+    }[name];
+  }
+
+  genBins(seed, segs, nBins) { // segs: [{name, beats}]
+    this._gb = this._gb || {};
+    const ck = seed + ":" + nBins + ":" + segs.length;
+    if (this._gb[ck]) return this._gb[ck];
+    const total = segs.reduce((s, g) => s + g.beats, 0);
+    const rnd = this.rng(seed), bins = [];
+    for (let i = 0; i < nBins; i++) {
+      const beat = (i / nBins) * total;
+      let acc = 0, seg = segs[0], into = 0;
+      for (const g of segs) { if (beat < acc + g.beats) { seg = g; into = (beat - acc) / g.beats; break; } acc += g.beats; }
+      const p = this.segProfile(seg.name);
+      let m = 1;
+      if (p.rise) m = 0.5 + 0.5 * into;
+      if (p.fall) m = 1 - 0.55 * into;
+      const pulse = 0.82 + 0.18 * Math.abs(Math.sin(beat * Math.PI / 4));
+      const jitter = () => 0.72 + 0.28 * rnd();
+      bins.push({
+        low:  Math.min(1, p.low  * m * pulse * jitter()),
+        mid:  Math.min(1, p.mid  * m * jitter()),
+        high: Math.min(1, p.high * m * (0.8 + 0.2 * Math.abs(Math.sin(beat * Math.PI / 2))) * jitter()),
+      });
+    }
+    return (this._gb[ck] = bins);
+  }
+
+  barsPath(bins, key, W, H, gain) { // mirrored min/max columns
+    const n = bins.length, bw = W / n;
+    let d = "";
+    for (let i = 0; i < n; i++) {
+      const g = gain ? gain(i / (n - 1)) : 1;
+      const a = bins[i][key] * g * (H / 2 - 2);
+      const x = (i * bw + bw / 2).toFixed(1);
+      d += "M" + x + " " + (H / 2 - a).toFixed(1) + " L" + x + " " + (H / 2 + a).toFixed(1) + " ";
+    }
+    return d;
+  }
+
+  // ---------- shared mock data ----------
+  trackData() {
+    const segsA = [
+      { name: "intro", beats: 64 }, { name: "build", beats: 32 }, { name: "drop", beats: 96 },
+      { name: "groove", beats: 64 }, { name: "breakdown", beats: 48 }, { name: "build", beats: 32 },
+      { name: "drop", beats: 96 }, { name: "outro", beats: 80 },
+    ];
+    const segsB = [
+      { name: "intro", beats: 96 }, { name: "build", beats: 32 }, { name: "drop", beats: 96 },
+      { name: "breakdown", beats: 64 }, { name: "build", beats: 32 }, { name: "drop", beats: 96 }, { name: "outro", beats: 96 },
+    ];
+    return { segsA, segsB, totalA: 512, totalB: 512 };
+  }
+
+  segRow(segs, total, palette) {
+    return segs.map(g => ({ name: g.name + " · " + g.beats + " beats", w: (g.beats / total * 100).toFixed(2) + "%", col: palette[g.name] }));
+  }
+
+  deckStrip(seed, segs, total, cueBeat, winStart, winBeats, W) {
+    this._ds = this._ds || {};
+    const ck = seed + ":" + cueBeat + ":" + W;
+    if (this._ds[ck]) return this._ds[ck];
+    const bins = this.genBins(seed, segs, 340);
+    return (this._ds[ck] = {
+      low: this.barsPath(bins, "low", 1000, W), mid: this.barsPath(bins, "mid", 1000, W), high: this.barsPath(bins, "high", 1000, W),
+      cueX: (cueBeat / total * 1000).toFixed(1),
+      winX: (winStart / total * 1000).toFixed(1), winW: (winBeats / total * 1000).toFixed(1),
+    });
+  }
+
+  simFor(which) {
+    const st = this.state;
+    const profId = which === "a" ? st.m1a : st.m1b;
+    const dur = which === "a" ? st.d1a : st.d1b;
+    const H = which === "a" ? 78 : 66;
+    const env = this.buildEnvelope(profId, dur);
+    const { segsA, segsB } = this.trackData();
+    // windows: A tail (drop2 end -> outro), B head (intro from cue)
+    const nb = 220;
+    const binsA = this.genBins(11, segsA, 340).slice(340 - Math.round(340 * dur / 512) - 40, 340).slice(0, nb + 999);
+    const binsB = this.genBins(23, segsB, 340).slice(6, 6 + Math.round(340 * dur / 512) + 40);
+    const winA = this.resampleBins(binsA, nb), winB = this.resampleBins(binsB, nb);
+    const dr = t => this.sampleCurve(env.knots, env.fader_a, t * dur);
+    const db = t => this.sampleCurve(env.knots, env.fader_b, t * dur);
+    const bandGain = (t, deck, band) => this.sampleCurve(env.knots, env[band + "_" + deck], t * dur) * (deck === "a" ? dr(t) : db(t));
+    const mixBins = winA.map((b, i) => {
+      const t = i / (nb - 1), o = winB[i];
+      return {
+        low:  Math.min(1, b.low * bandGain(t, "a", "low") + o.low * bandGain(t, "b", "low")),
+        mid:  Math.min(1, b.mid * bandGain(t, "a", "mid") + o.mid * bandGain(t, "b", "mid")),
+        high: Math.min(1, b.high * bandGain(t, "a", "high") + o.high * bandGain(t, "b", "high")),
+      };
+    });
+    const amp = bins => bins.map(b => ({ low: 0, mid: 0, high: Math.min(1, b.low * .5 + b.mid * .3 + b.high * .2) }));
+    const phT = which === "a" ? 0.458 : (st.ph1b ?? 0.458);
+    const beatF = phT * dur;
+    const phBeat = Math.floor(beatF);
+    const rd = (label, key, col) => {
+      const v = this.sampleCurve(env.knots, env[key], beatF);
+      const rad = d => d * Math.PI / 180;
+      const px = d => (12 + 9 * Math.sin(rad(d))).toFixed(2);
+      const py = d => (12 - 9 * Math.cos(rad(d))).toFixed(2);
+      const a1 = -135 + v * 270;
+      const arc = "M" + px(-135) + " " + py(-135) + " A9 9 0 " + (a1 + 135 > 180 ? 1 : 0) + " 1 " + px(a1) + " " + py(a1);
+      return { label, col, val: v.toFixed(2), pct: (v * 100).toFixed(0) + "%", deg: a1.toFixed(1), arc };
+    };
+    const pal = which === "a"
+      ? { la: "#FF6B4A", ma: "#FFB454", ha: "#FFE08A", lb: "#3ECFC0", mb: "#5EA7FF", hb: "#B48CFF", fa: "#FF8A5C", fb: "#5FB6FF", dim: "#55677C", lit: "#93A3B5" }
+      : { la: "#F26749", ma: "#F2A93B", ha: "#F7D98B", lb: "#45C9BA", mb: "#6FAFFF", hb: "#BE96FF", fa: "#F26749", fb: "#6FAFFF", dim: "#6B655A", lit: "#A39C8D" };
+    const grid = [];
+    for (let b = 0; b <= dur; b += 8) grid.push({ x: (b / dur * 100).toFixed(1) + "%", label: b, col: b % 32 === 0 ? pal.lit : pal.dim });
+    const P = this.profiles()[profId];
+    this._sf = this._sf || {};
+    const sk = which + ":" + profId + ":" + dur;
+    const statics = this._sf[sk] || (this._sf[sk] = {
+      laneA: this.barsPath(amp(winA), "high", 1000, H, t => 0.55 + 0.45 * dr(t)),
+      laneB: this.barsPath(amp(winB), "high", 1000, H, t => 0.55 + 0.45 * db(t)),
+      laneMix: this.barsPath(amp(mixBins), "high", 1000, H),
+      lowA: this.curvePath(env, "low_a", 1000, H, 10), midA: this.curvePath(env, "mid_a", 1000, H, 10), highA: this.curvePath(env, "high_a", 1000, H, 10),
+      lowB: this.curvePath(env, "low_b", 1000, H, 10), midB: this.curvePath(env, "mid_b", 1000, H, 10), highB: this.curvePath(env, "high_b", 1000, H, 10),
+      fadA: this.curvePath(env, "fader_a", 1000, H, 10), fadB: this.curvePath(env, "fader_b", 1000, H, 10),
+    });
+    return {
+      ...statics,
+      ph: (phT * 1000).toFixed(1), phBeat, grid, modelDesc: P.desc,
+      readout: [
+        rd("A LOW", "low_a", pal.la), rd("B LOW", "low_b", pal.lb),
+        rd("A MID", "mid_a", pal.ma), rd("B MID", "mid_b", pal.mb),
+        rd("A HI", "high_a", pal.ha), rd("B HI", "high_b", pal.hb),
+      ],
+      faders: [rd("A FDR", "fader_a", pal.fa), rd("B FDR", "fader_b", pal.fb)],
+    };
+  }
+
+  resampleBins(bins, n) {
+    const out = [];
+    for (let i = 0; i < n; i++) out.push(bins[Math.min(bins.length - 1, Math.floor(i / n * bins.length))]);
+    return out;
+  }
+
+  pickers(which) {
+    const st = this.state, isA = which === "a";
+    const profId = isA ? st.m1a : st.m1b, dur = isA ? st.d1a : st.d1b;
+    const maxFeasible = isA ? 128 : 192, runway = isA ? 136 : 198;
+    const P = this.profiles();
+    const setM = id => () => this.setState(isA ? { m1a: id } : { m1b: id });
+    const setD = v => () => { if (v <= maxFeasible) this.setState(isA ? { d1a: v } : { d1b: v }); };
+    const on1a = { bg: "#F2F7FC", bd: "#F2F7FC", fg: "#0A0E14" }, off1a = { bg: "transparent", bd: "#1E2A3A", fg: "#93A3B5" };
+    const on1b = { bg: "#D6F94B", bd: "#D6F94B", fg: "#131110" }, off1b = { bg: "transparent", bd: "#2E2A25", fg: "#A39C8D" };
+    const models = Object.keys(P).map(id => {
+      const on = id === profId, sty = isA ? (on ? on1a : off1a) : (on ? on1b : off1b);
+      return { label: P[id].label, desc: P[id].desc, on: setM(id), ...sty };
+    });
+    const durs = [32,64,96,128,160,192,224,256].map(v => {
+      const feasible = v <= maxFeasible, on = v === dur;
+      const sty = isA ? (on ? on1a : off1a) : (on ? on1b : off1b);
+      return { label: v, on: setD(v), cur: feasible ? "pointer" : "not-allowed",
+        bg: sty.bg, bd: feasible ? sty.bd : "transparent", fg: feasible ? sty.fg : (isA ? "#33414F" : "#453F35"),
+        tip: feasible ? v + " beats · " + (v * 60 / 174).toFixed(1) + "s at 174.0" : "source too short after cue — pick an earlier cue or a shorter transition" };
+    });
+    const guardHit = dur >= maxFeasible;
+    return { models, durs,
+      guard: "max " + maxFeasible + " beats — runway after cue A: " + runway + " beats, guard 8. " + (guardHit ? "At limit." : (dur * 60 / 174).toFixed(1) + " s at 174.0 BPM."),
+      guardCol: guardHit ? "#F2B84B" : (isA ? "#55677C" : "#6B655A") };
+  }
+
+  terrain() {
+    const energies = [0.42, 0.5, 0.58, 0.55, 0.66, 0.71, 0.77, 0.88, 0.72, 0.55];
+    const quality =  [0.81, 0.74, 0.62, 0.77, 0.55, 0.74, 0.68, 0.49, 0.7];
+    const titles = ["Opening Theory","Low Ceiling","Glasswing","Cold Axis","Redline Garden","Signal Path","Undertow","Peak Warrant","After Rain","Last Orders"];
+    const n = energies.length;
+    const X = i => 20 + i * (960 / (n - 1));
+    const Y = e => 88 - e * 74;
+    const eCol = e => e < 0.55 ? "#5CC8FF" : e < 0.72 ? "#45D39B" : "#FFB454";
+    let line = "M", area = "M" + X(0).toFixed(0) + " 96 L";
+    energies.forEach((e, i) => { const seg = X(i).toFixed(0) + " " + Y(e).toFixed(0); line += (i ? " L" : "") + seg; area += seg + " L"; });
+    area += X(n - 1).toFixed(0) + " 96 Z";
+    const qCol = q => q >= 0.72 ? "#3DDC97" : q >= 0.52 ? "#F2B84B" : "#FF5C68";
+    return {
+      line, area,
+      selX: (X(5) / 10).toFixed(1) + "%", selX2: (X(6) / 10).toFixed(1) + "%",
+      selW: ((X(6) - X(5)) / 10).toFixed(1) + "%",
+      pts: energies.map((e, i) => ({
+        x: (X(i) / 10).toFixed(1) + "%", y: (Y(e) / 96 * 100).toFixed(1) + "%",
+        size: (i === 5 || i === 6) ? "13px" : "9px", col: eCol(e),
+        ring: (i === 5 || i === 6) ? "2px solid #D6F94B" : "1px solid #131110",
+        tip: "#" + (i + 1) + " · " + titles[i] + " · 174.0 · energy " + Math.round(e * 100) + "%",
+      })),
+      badges: [
+        { x: "22.6%", y: "8%", label: "P", fg: "#131110", bg: "#F0EDE6" },
+        { x: "51.4%", y: "8%", label: "L", fg: "#F0EDE6", bg: "#3F3931" },
+        { x: "70.5%", y: "8%", label: "PEAK #8", fg: "#131110", bg: "#FFB454" },
+      ],
+      quality: quality.map((q, i) => ({ col: qCol(q), op: q < 0.52 ? "0.9" : "0.8", tip: "seam " + (i + 1) + "→" + (i + 2) + " · " + q.toFixed(2) })),
+    };
+  }
+
+  _strip(pairs) {
+    const pal = { intro: "#4A5E80", build: "#A67F36", drop: "#B34E44", breakdown: "#75568F", groove: "#55743C", outro: "#41787C" };
+    const total = pairs.reduce((s, p) => s + p[1], 0);
+    return pairs.map(p => ({ w: (p[1] / total * 100).toFixed(1) + "%", col: pal[p[0]] }));
+  }
+
+  libRows() {
+    const strip1 = this._strip([["intro",64],["build",32],["drop",96],["groove",64],["breakdown",48],["build",32],["drop",96],["outro",80]]);
+    const strip2 = this._strip([["intro",96],["build",32],["drop",96],["breakdown",64],["build",32],["drop",96],["outro",96]]);
+    const strip3 = this._strip([["intro",32],["build",64],["drop",128],["breakdown",32],["drop",96],["outro",64]]);
+    const strip4 = this._strip([["intro",64],["groove",128],["breakdown",64],["groove",96],["outro",64]]);
+    const ok = { stemsCol: "#7CF7D4", stemsBd: "#2B6B5D" }, fb = { stemsCol: "#F2B84B", stemsBd: "#7A5425" };
+    return [
+      { title: "Signal Path", artist: "Kelrin", bpm: "174.0", key: "8A", conf: "0.93", en: "0.71", stems: "demucs v4", ...ok, strip: strip1, status: "analyzed", statusCol: "#3DDC97", note: "12 stages · 41 s", prog: "0%", barBg: "transparent" },
+      { title: "Undertow", artist: "Mara VX", bpm: "174.0", key: "9A", conf: "0.88", en: "0.77", stems: "DSP fallback", ...fb, strip: strip2, status: "analyzed", statusCol: "#3DDC97", note: "demucs failed → band-split", prog: "0%", barBg: "transparent" },
+      { title: "Peak Warrant", artist: "Ferric", bpm: "176.0", key: "9B", conf: "0.91", en: "0.88", stems: "demucs v4", ...ok, strip: strip3, status: "analyzed", statusCol: "#3DDC97", note: "12 stages · 38 s", prog: "0%", barBg: "transparent" },
+      { title: "Opening Theory", artist: "Petra Line", bpm: "172.0", key: "7A", conf: "0.95", en: "0.42", stems: "demucs v4", ...ok, strip: strip4, status: "analyzed", statusCol: "#3DDC97", note: "12 stages · 44 s", prog: "0%", barBg: "transparent" },
+      { title: "Redline Garden", artist: "Oath", bpm: "172.0", key: "8A", conf: "0.90", en: "0.66", stems: "demucs v4", ...ok, strip: strip1, status: "analyzed", statusCol: "#3DDC97", note: "12 stages · 40 s", prog: "0%", barBg: "transparent" },
+      { title: "Night Geometry", artist: "Kelrin", bpm: "173.8", key: "—", conf: "", en: "—", stems: "queued", stemsCol: "#6B655A", stemsBd: "#2E2A25", strip: [], status: "running · structure 64%", statusCol: "#F0EDE6", note: "decode ✓ · beatgrid ✓ · key ✓ · ~0:48 left", prog: "64%", barBg: "#262320" },
+      { title: "Mirror Traffic", artist: "Homura", bpm: "—", key: "—", conf: "", en: "—", stems: "demucs 31%", stemsCol: "#F0EDE6", stemsBd: "#3F3931", strip: [], status: "running · stems 31%", statusCol: "#F0EDE6", note: "on worker 2 · ~2:10 left, measured on last 12 tracks", prog: "31%", barBg: "#262320" },
+      { title: "Tall Grass VIP", artist: "Oath", bpm: "—", key: "—", conf: "", en: "—", stems: "—", stemsCol: "#6B655A", stemsBd: "transparent", strip: [], status: "queued", statusCol: "#6B655A", note: "waiting for a worker", prog: "0%", barBg: "transparent" },
+      { title: "old_rip_1998.mp3", artist: "unknown", bpm: "—", key: "—", conf: "", en: "—", stems: "—", stemsCol: "#6B655A", stemsBd: "transparent", strip: [], status: "failed", statusCol: "#FF5C68", note: "unreadable: corrupt frame header at 0:42 · re-import or remove", prog: "0%", barBg: "transparent" },
+    ];
+  }
+
+  mixmap() {
+    const pal = ["#4CC9F0","#4895EF","#4361EE","#5E60CE","#7B2CBF","#B14AED","#E454B5","#F15B64","#F28E3B","#E9C46A","#73C66A","#2EC4A6"];
+    const rnd = this.rng(77);
+    const pts = [];
+    for (let i = 0; i < 34; i++) {
+      const k = Math.floor(rnd() * 12);
+      const bpm = 168 + rnd() * 10;
+      const x = 7 + (k / 11) * 86 + (rnd() - 0.5) * 4;
+      const y = 88 - ((bpm - 168) / 10) * 76;
+      pts.push({ x: x.toFixed(1) + "%", y: y.toFixed(1) + "%", col: pal[k], size: "7px", ring: "1px solid #131110", tip: "174 BPM range library track · " + (k + 1) + "A" });
+    }
+    pts.push({ x: "62.5%", y: "40%", col: pal[7], size: "12px", ring: "2px solid #D6F94B", tip: "Signal Path · 174.0 · 8A · current" });
+    pts.push({ x: "70.4%", y: "38%", col: pal[8], size: "9px", ring: "2px solid #F0EDE6", tip: "Undertow · 174.0 · 9A · 0.74 strong candidate" });
+    return pts;
+  }
+
+  crateRows() {
+    const eCol = e => e < 0.55 ? "#5CC8FF" : e < 0.72 ? "#45D39B" : "#FFB454";
+    const done = (title, artist, bpm, key, e, stems) => ({
+      title, artist, titleCol: "#F0EDE6", dot: eCol(e),
+      right: bpm + " · " + key + " · e" + Math.round(e * 100) + (stems === "dsp" ? " · DSP stems" : ""),
+      rightCol: "#A39C8D", barW: "0%", barCol: "transparent",
+    });
+    const running = (title, artist, stage, pct) => ({
+      title, artist, titleCol: "#F0EDE6", dot: "#211D1A",
+      right: stage + " · " + pct + "%", rightCol: "#F2B84B", barW: pct + "%", barCol: "#F2B84B",
+    });
+    const queued = (title, artist) => ({
+      title, artist, titleCol: "#A39C8D", dot: "#211D1A",
+      right: "queued", rightCol: "#6B655A", barW: "0%", barCol: "transparent",
+    });
+    return [
+      done("Signal Path", "Kelrin", "174.0", "8A", 0.71),
+      done("Undertow", "Mara VX", "174.0", "9A", 0.77, "dsp"),
+      done("Cold Axis", "Ferric", "174.0", "8B", 0.66),
+      running("Redline Garden", "Oath", "structure", 62),
+      running("Peak Warrant", "Homura", "beatgrid", 31),
+      running("After Rain", "Petra Line", "decode", 8),
+      { title: "Vantablack Dub", artist: "Homura", titleCol: "#FF5C68", dot: "#FF5C68",
+        right: "decode failed — unsupported codec · retry", rightCol: "#FF5C68", barW: "0%", barCol: "transparent" },
+      queued("Glasswing", "Petra Line"),
+      queued("Low Ceiling", "Bexa"),
+      queued("Opening Theory", "Nadir"),
+      queued("Last Orders", "T. Ines"),
+      queued("Borealis VIP", "Kelrin"),
+    ];
+  }
+
+  growTerrain() {
+    const target = [0.42, 0.5, 0.58, 0.55, 0.66, 0.71, 0.77, 0.88, 0.72, 0.55];
+    const placed = 7;
+    const titles = ["Opening Theory","Low Ceiling","Glasswing","Cold Axis","Redline Garden","Signal Path","Undertow"];
+    const scores = [null, 0.81, 0.74, 0.71, 0.58, null, 0.74];
+    const n = target.length;
+    const X = i => 20 + i * (960 / (n - 1));
+    const Y = e => 480 - e * 400;
+    const eCol = e => e < 0.55 ? "#5CC8FF" : e < 0.72 ? "#45D39B" : "#FFB454";
+    let tLine = "M", line = "M", area = "M" + X(0).toFixed(0) + " 480 L";
+    target.forEach((e, i) => { tLine += (i ? " L" : "") + X(i).toFixed(0) + " " + Y(e).toFixed(0); });
+    for (let i = 0; i < placed; i++) {
+      const seg = X(i).toFixed(0) + " " + Y(target[i]).toFixed(0);
+      line += (i ? " L" : "") + seg; area += seg + " L";
+    }
+    area += X(placed - 1).toFixed(0) + " 480 Z";
+    const qCol = q => q >= 0.72 ? "#3DDC97" : q >= 0.52 ? "#F2B84B" : "#FF5C68";
+    return {
+      target: tLine, line, area,
+      cursorX: (X(7) / 10).toFixed(1) + "%",
+      pts: target.slice(0, placed).map((e, i) => ({
+        x: (X(i) / 10).toFixed(1) + "%", y: (Y(e) / 560 * 100).toFixed(1) + "%",
+        ly: (Y(e) / 560 * 100 - 6.5).toFixed(1) + "%", n: i + 1, col: eCol(e),
+        size: i === 4 ? "16px" : "12px", ring: i === 4 ? "2px solid #D6F94B" : "1px solid #131110",
+        tip: "#" + (i + 1) + " · " + titles[i] + " · 174.0 · energy " + Math.round(e * 100) + "%" + (scores[i] ? " · seam in " + scores[i].toFixed(2) : ""),
+      })),
+      ghosts: target.slice(placed).map((e, j) => ({
+        x: (X(placed + j) / 10).toFixed(1) + "%", y: (Y(e) / 560 * 100).toFixed(1) + "%",
+        tip: "slot " + (placed + j + 1) + " · target energy " + Math.round(e * 100) + "% · not placed yet",
+      })),
+      quality: [0.81, 0.74, 0.71, 0.58, 0.74, 0.74].map((q, i) => ({
+        col: qCol(q), w: (96 / (n - 1)).toFixed(1) + "%", tip: "seam " + (i + 1) + "→" + (i + 2) + " · " + q.toFixed(2),
+      })),
+    };
+  }
+
+  sugg2e() {
+    const g = c => c >= 0.72 ? "#3DDC97" : c >= 0.52 ? "#F2B84B" : "#FF5C68";
+    const eCol = e => e < 0.55 ? "#5CC8FF" : e < 0.72 ? "#45D39B" : "#FFB454";
+    const row = (title, artist, bpm, key, e, sin, sout, delta, note, warn) => ({
+      title, artist, dot: eCol(e), meta: bpm + " · " + key + " · e" + Math.round(e * 100),
+      in: sin.toFixed(2), inCol: g(sin), out: sout.toFixed(2), outCol: g(sout),
+      delta: "+" + delta.toFixed(2), deltaCol: delta >= 0.1 ? "#3DDC97" : "#A39C8D",
+      note, noteCol: warn ? "#F2B84B" : "#6B655A",
+    });
+    return [
+      row("Glasswing", "Petra Line", "173.0", "8A", 0.64, 0.74, 0.72, 0.14, "long intro pads — clean bass swap in", false),
+      row("Night Geometry", "Kelrin", "173.8", "8B", 0.62, 0.71, 0.69, 0.11, "same artist as #6 Signal Path", true),
+      row("Tall Grass VIP", "Oath", "174.0", "9A", 0.70, 0.62, 0.74, 0.04, "key stretch 8A→9A on the way in", true),
+      row("Low Ceiling", "Bexa", "171.5", "7A", 0.50, 0.66, 0.61, 0.03, "energy dips under the target arc", true),
+      { title: "Last Orders", artist: "T. Ines", dot: "#211D1A", meta: "analyzing · 64%", in: "—", inCol: "#6B655A", out: "—", outCol: "#6B655A", delta: "", deltaCol: "#6B655A", note: "joins the list when analysis lands", noteCol: "#6B655A" },
+    ];
+  }
+
+  tallTerrain(H) {
+    const energies = [0.42, 0.5, 0.58, 0.55, 0.66, 0.71, 0.77, 0.88, 0.72, 0.55];
+    const n = energies.length;
+    const X = i => 20 + i * (960 / (n - 1));
+    const Y = e => (88 - e * 74) / 96 * H;
+    let line = "M", area = "M" + X(0).toFixed(0) + " " + H + " L";
+    energies.forEach((e, i) => { const seg = X(i).toFixed(0) + " " + Y(e).toFixed(0); line += (i ? " L" : "") + seg; area += seg + " L"; });
+    area += X(n - 1).toFixed(0) + " " + H + " Z";
+    return { line, area };
+  }
+
+  gateTerrain() {
+    const energies = [0.42, 0.5, 0.58, 0.55, 0.66, 0.71, 0.77, 0.88, 0.72, 0.55];
+    const n = energies.length;
+    const X = i => 20 + i * (960 / (n - 1));
+    const Y = e => 280 - e * 230;
+    const eCol = e => e < 0.55 ? "#5CC8FF" : e < 0.72 ? "#45D39B" : "#FFB454";
+    let line = "M", area = "M" + X(0).toFixed(0) + " 300 L";
+    energies.forEach((e, i) => { const seg = X(i).toFixed(0) + " " + Y(e).toFixed(0); line += (i ? " L" : "") + seg; area += seg + " L"; });
+    area += X(n - 1).toFixed(0) + " 300 Z";
+    return {
+      line, area,
+      pts: energies.map((e, i) => ({ x: (X(i) / 10).toFixed(1) + "%", y: (Y(e) / 300 * 100).toFixed(1) + "%", col: eCol(e) })),
+    };
+  }
+
+  renderVals() {
+    const segPal1b = { intro: "#4A5E80", build: "#A67F36", drop: "#B34E44", breakdown: "#75568F", groove: "#55743C", outro: "#41787C" };
+    const { segsA, segsB, totalA, totalB } = this.trackData();
+    const p1b = this.pickers("b");
+    return {
+      // 1b
+      deckA1b: this.deckStrip(11, segsA, totalA, 424, 400, 112, 46),
+      deckB1b: this.deckStrip(23, segsB, totalB, 16, 0, 128, 46),
+      segsA1b: this.segRow(segsA, totalA, segPal1b), segsB1b: this.segRow(segsB, totalB, segPal1b),
+      sim1b: { ...this.simFor("b"), guard: p1b.guard, guardCol: p1b.guardCol },
+      models1b: p1b.models, durs1b: p1b.durs,
+      terrain: (this._terrain = this._terrain || this.terrain()),
+      crateRows: this.crateRows(),
+      emptyTicks: [0,1,2,3,4,5,6].map(i => ({ x: (2 + i * 16).toFixed(0) + "%", label: i === 6 ? "1:00" : "0:" + (i === 0 ? "00" : i * 10) })),
+      grow: (this._grow = this._grow || this.growTerrain()),
+      sugg2e: (this._sg = this._sg || this.sugg2e()),
+      set2b: (this._s2b = this._s2b || this.tallTerrain(430)),
+      lib2a: (this._lib = this._lib || this.libRows()),
+      mixmap: (this._mm = this._mm || this.mixmap()),
+      playing1b: this.state.playing1b,
+      notPlaying1b: !this.state.playing1b,
+      toggle1b: () => this.togglePlay(),
+    };
+  }
+}
+</script>
+<script>
+(async () => {
+  if (!document.title || !document.title.trim()) document.title = "DanceLab Pro Concept";
+  // rAF raced with a short timeout: inside a cross-origin iframe (PrintMode),
+  // rAF can be throttled or paused even while the tab is focused, which would
+  // hang the scroll loop and never reach print(). Same pattern as
+  // buildExportSettleScript (export/shared.ts).
+  var raf = function () {
+    return Promise.race([
+      new Promise(function (r) { requestAnimationFrame(r); }),
+      new Promise(function (r) { setTimeout(r, 50); }),
+    ]);
+  };
+  var t0 = performance.now();
+  var mark = function (phase) {
+    var ms = Math.round(performance.now() - t0);
+    console.info('[autoprint]', phase, ms + 'ms');
+    try { parent.postMessage({ __omelette_autoprint: { phase: phase, ms: ms } }, '*'); } catch (e) {}
+  };
+  mark('start');
+  // Prepend so page-supplied @page / break rules (deck-stage's margin:0,
+  // author CSS) keep source-order precedence over the baseline.
+  const baseCss = document.createElement('style');
+  baseCss.textContent = "@media print {\n  figure, table { break-inside: avoid; }\n  *, *::before, *::after {\n    print-color-adjust: exact; -webkit-print-color-adjust: exact;\n    backdrop-filter: none !important; -webkit-backdrop-filter: none !important;\n    animation-delay: -99s !important; animation-duration: .001s !important;\n    animation-iteration-count: 1 !important; animation-fill-mode: both !important;\n    animation-play-state: running !important; transition-duration: 0s !important;\n  }\n}";
+  document.head.prepend(baseCss);
+  if (document.readyState === 'loading') {
+    await new Promise((r) => document.addEventListener('DOMContentLoaded', r, { once: true }));
+  }
+  let ds = document.querySelector('deck-stage');
+  // whenDefined never resolves when nothing registers the element, so only
+  // await it when a <deck-stage> tag exists (and race a timeout regardless).
+  if (ds && !customElements.get('deck-stage')) {
+    try {
+      await Promise.race([
+        customElements.whenDefined('deck-stage'),
+        new Promise((r) => setTimeout(r, 3000)),
+      ]);
+    } catch (e) {}
+    ds = document.querySelector('deck-stage');
+  }
+  // dc-runtime assigns window.DCLogic at init and mounts into #dc-root on
+  // DOMContentLoaded; settle on that subtree so React has rendered before
+  // print(). Non-DC pages fall through to weighing body.
+  const isDc = !ds && 'DCLogic' in window;
+  const settleRoot = ds || (isDc ? document.getElementById('dc-root') : null) || document.body;
+  if (settleRoot) {
+    // Weigh only content children — skip script/style/template so inline
+    // Babel/CSS doesn't register as stable "content" before the framework
+    // has mounted anything.
+    const MEDIA = 'img,svg,canvas,video,picture,iframe,embed,object';
+    const weigh = () => {
+      let text = 0, media = 0;
+      for (const c of settleRoot.children) {
+        const t = c.tagName;
+        if (t === 'SCRIPT' || t === 'STYLE' || t === 'TEMPLATE') continue;
+        text += (c.textContent || '').trim().length;
+        media += c.querySelectorAll(MEDIA).length + (c.matches(MEDIA) ? 1 : 0);
+      }
+      return text + media * 100;
+    };
+    // "Non-zero and stable" alone is not sufficient to mean rendered: generic
+    // body can carry a static shell while async main content is pending, and
+    // #dc-root can carry the root DC's static text while child refs are still
+    // .sc-placeholder boxes. Gate generic on readyState 'complete', and never
+    // accept stability while a dc-runtime placeholder is present.
+    const isGeneric = settleRoot === document.body;
+    // A placeholder whose fetch failed (.sc-placeholder-error inside) keeps
+    // .sc-placeholder forever — don't wait on it. JS loop, not :has(), so an
+    // engine without :has() support can't throw out of the while and skip
+    // print() entirely.
+    var pendingPlaceholders = function () {
+      var all = settleRoot.querySelectorAll('.sc-placeholder'), n = 0;
+      for (var i = 0; i < all.length; i++)
+        if (!all[i].querySelector('.sc-placeholder-error')) n++;
+      return n;
+    };
+    const deadline = Date.now() + 15000;
+    let last = -1, stable = 0;
+    while (Date.now() < deadline) {
+      const n = weigh();
+      const ready =
+        (!isGeneric || document.readyState === 'complete') &&
+        pendingPlaceholders() === 0;
+      if (n > 0 && n === last && ready) { if (++stable >= 2) break; } else { stable = 0; }
+      last = n;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+  }
+  mark('settle-done' + (settleRoot ? ' (errs=' + settleRoot.querySelectorAll('.sc-placeholder-error').length + ' pending=' + pendingPlaceholders() + ')' : ''));
+  // Project support.js may predate runtime default-seeding; push via bridge.
+  if (isDc && window.__dcSetProps && window.__dcRootName) {
+    try {
+      const dpEl = document.querySelector('script[data-dc-script]');
+      const meta = JSON.parse((dpEl && dpEl.getAttribute('data-props')) || '{}');
+      const bag = {};
+      for (const k in meta)
+        if (k[0] !== '$' && meta[k] && meta[k].default !== undefined)
+          bag[k] = meta[k].default;
+      if (Object.keys(bag).length) {
+        window.__dcSetProps(window.__dcRootName(), bag);
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    } catch (e) {}
+  }
+  // Reveal content gated on scroll or visibility before printing. Lazy <img>,
+  // IntersectionObserver fade-ins, and collapsed <details> don't render while
+  // off-screen, so a long page would print with them blank or closed. Open
+  // every <details>, force native-lazy images eager, and scroll the document
+  // through its full height to trip lazy-load + IO; then wait (bounded) for the
+  // newly-triggered images. Inert for deck-stage (slides aren't scroll-gated).
+  try {
+    for (const d of document.querySelectorAll('details')) d.open = true;
+    for (const img of document.querySelectorAll('img[loading="lazy"]'))
+      img.loading = 'eager';
+    const scroller = document.scrollingElement || document.documentElement;
+    const full = Math.max(scroller.scrollHeight, document.body.scrollHeight);
+    const step = window.innerHeight || 800;
+    var scrollDeadline = Date.now() + 4000;
+    for (let y = 0; y <= full && Date.now() < scrollDeadline; y += step) {
+      window.scrollTo(0, y);
+      await raf();
+    }
+    window.scrollTo(0, 0);
+    await Promise.race([
+      Promise.all(
+        [...document.images].map((img) =>
+          img.complete
+            ? null
+            : new Promise((res) => {
+                img.addEventListener('load', res, { once: true });
+                img.addEventListener('error', res, { once: true });
+              })
+        )
+      ),
+      new Promise((r) => setTimeout(r, 4000)),
+    ]);
+  } catch (e) {}
+  mark('scroll-done');
+  try { await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 3000))]); } catch (e) {}
+  mark('fonts-done');
+  // Jump every animation to its end state so print() never captures a slide
+  // mid-entrance. Ordering matters: the 0s-transition style must be live
+  // BEFORE data-deck-active is set so attribute-keyed transitions don't
+  // start a (now-0s) run from the pre-active base.
+  const st = document.createElement('style');
+  st.textContent = '*,*::before,*::after{animation-delay:-99s !important;animation-duration:.001s !important;animation-iteration-count:1 !important;animation-fill-mode:both !important;animation-play-state:running !important;transition-duration:0s !important}';
+  document.head.appendChild(st);
+  for (const d of document.querySelectorAll('deck-stage')) {
+    for (const c of d.children) {
+      const t = c.tagName;
+      if (t === 'SCRIPT' || t === 'STYLE' || t === 'TEMPLATE') continue;
+      c.setAttribute('data-deck-active', '');
+    }
+  }
+  // Re-append deck-stage's @page last so no author @page can add a margin and
+  // spill each full-bleed slide onto two sheets. Backstop for old copies.
+  if (ds) {
+    let pg = document.getElementById('deck-stage-print-page');
+    if (!pg) {
+      pg = document.createElement('style');
+      pg.textContent = '@page{size:' + (+ds.getAttribute('width') || 1920) +
+        'px ' + (+ds.getAttribute('height') || 1080) + 'px;margin:0}';
+    }
+    document.body.appendChild(pg);
+  }
+  try {
+    const sweep = () => {
+      for (const a of document.getAnimations()) {
+        try { a.finish(); } catch (e) {
+          try { a.currentTime = (a.effect && a.effect.getComputedTiming().duration) || 0; a.pause(); } catch (e2) {}
+        }
+      }
+    };
+    sweep();
+    await raf();
+    sweep();
+    await raf();
+  } catch (e) {}
+  // A document that owns its print CSS (the doc-page starter injects the
+  // meta at runtime; hand-rolled print designs author it) gets no automatic
+  // page geometry and keeps its forced breaks: strip the injected default
+  // @page — write time cannot see a runtime-injected meta — skip the frame
+  // override below, and skip the fakepage-flattening further down. What
+  // still applies: the print baseline and break-hygiene defaults (no @page
+  // in either; low specificity, so the document's own print CSS wins) and
+  // the break-inside relaxation on >page elements (avoid on those cannot
+  // be honored whoever authored it).
+  var ownsPrint = !!document.querySelector('meta[name="omelette-owns-print" i]');
+  if (ownsPrint) {
+    var dst = document.querySelector('style[data-omelette-print-defaults]');
+    if (dst && dst.textContent) {
+      dst.textContent = dst.textContent.replace(/@page\b[^{}]*\{[^}]*\}/, '');
+    }
+  }
+  // Size the PDF page to the rendered design unless the file opted into
+  // standard paper via @page{size:letter|A4|…} or declared print ownership
+  // via the meta above. Decks own their own @page.
+  // Wrappers (body, …) lose padding+margin so the frame sits at (0,0); the
+  // frame itself loses only margin — its padding is INSIDE the measured
+  // rect and must stay, or content shifts and leaves a gap at bottom/right.
+  var __m = null;
+  try { __m = (() => {
+  var STAMP = true;
+  var docEl = document.documentElement;
+  var doc = { width: docEl.scrollWidth, height: docEl.scrollHeight };
+  // Name-presence check, case-insensitive — the same contract as the
+  // instant-PDF path's runtime check in deck-stage-export.ts. The name is
+  // a string literal here because that file interpolates this script into
+  // its print script, so importing a shared constant from it would be a
+  // cycle; measure.test.ts pins the literal so the two cannot drift apart
+  // silently.
+  var ownsPrint = !!document.querySelector('meta[name="omelette-owns-print" i]');
+
+  var ds = document.querySelector('deck-stage');
+  if (ds) {
+    var dw = Number(ds.getAttribute('width')) || 1920;
+    var dh = Number(ds.getAttribute('height')) || 1080;
+    var n = typeof ds.length === 'number' ? ds.length : ds.children.length;
+    var idx = typeof ds.index === 'number' ? ds.index : 0;
+    var frames = [];
+    for (var i = 0; i < n; i++) frames.push({ left: 0, top: 0, width: dw, height: dh });
+    return { kind: 'deck', source: 'declared', doc: doc, frames: frames,
+      authored: frames.map(function(){return{width:true,height:true}}),
+      deck: { width: dw, height: dh, slideCount: n, index: idx },
+      signals: { paperPage: false, pxPage: false, ownsPrint: ownsPrint } };
+  }
+
+  // Declared kind: a doc-page tag names the kind outright, so no signal
+  // heuristics run (like the deck branch above, signals report false —
+  // they describe inferred classifications only). The tag alone is not
+  // trusted: the element must have upgraded (shadowRoot present), so a
+  // leftover tag whose script was deleted falls through to the heuristics
+  // that handle plain markup.
+  var stageSx = window.scrollX || 0, stageSy = window.scrollY || 0;
+  var dp = document.querySelector('doc-page');
+  if (dp && dp.shadowRoot) {
+    // Crop to the sheet, not the host — the desk around it is screen-only
+    // chrome that must not land in PNG exports.
+    var sheet = dp.shadowRoot.querySelector('.sheet');
+    var sr = (sheet || dp).getBoundingClientRect();
+    return { kind: 'paper-doc', source: 'declared', doc: doc,
+      frames: [{ left: sr.left + stageSx, top: sr.top + stageSy,
+        width: sr.width, height: sr.height }],
+      authored: [{ width: false, height: false }],
+      signals: { paperPage: false, pxPage: false, ownsPrint: ownsPrint } };
+  }
+  var paperPage = false, pxPage = false;
+  var eachRule = function (fn) {
+    for (var s = 0; s < document.styleSheets.length; s++) {
+      var rs; try { rs = document.styleSheets[s].cssRules; } catch (e) { continue; }
+      for (var r = 0; r < rs.length; r++) {
+        fn(rs[r]);
+        if (rs[r].cssRules) for (var n = 0; n < rs[r].cssRules.length; n++) fn(rs[r].cssRules[n]);
+      }
+    }
+  };
+  eachRule(function (r) {
+    if (r.type !== 6) return;
+    var m = /\bsize\s*:\s*([^;}]+)/i.exec(r.cssText || '');
+    if (!m) return;
+    if (/\b(letter|a[3-5]|legal|ledger)\b/i.test(m[1])) paperPage = true;
+    if (/\d+(?:\.\d+)?px\b/i.test(m[1])) pxPage = true;
+  });
+  var signals = { paperPage: paperPage, pxPage: pxPage, ownsPrint: ownsPrint };
+
+  var pxVal = function (v) {
+    var m = /^(\d+(?:\.\d+)?)px$/.exec(v || ''); return m ? +m[1] : 0;
+  };
+  var authoredPx = function (el, prop) {
+    if (pxVal(el.style[prop])) return true;
+    var attr = el.getAttribute(prop);
+    if (attr && /^\d+$/.test(attr)) return true;
+    var hit = false;
+    eachRule(function (r) {
+      if (hit || r.type !== 1 || !r.style) return;
+      try { if (el.matches(r.selectorText) && pxVal(r.style[prop])) hit = true; } catch (e) {}
+    });
+    return hit;
+  };
+
+  var el = document.body, rootPxW = false;
+  for (;;) {
+    var kids = [];
+    for (var c = 0; c < el.children.length; c++) {
+      var t = el.children[c].tagName;
+      if (t !== 'SCRIPT' && t !== 'STYLE' && t !== 'TEMPLATE') kids.push(el.children[c]);
+    }
+    if (kids.length !== 1 || !(kids[0] instanceof HTMLElement)) break;
+    if (STAMP) el.setAttribute('data-om-frame-wrap', '');
+    el = kids[0];
+    rootPxW = authoredPx(el, 'width');
+    if (rootPxW) break;
+  }
+  if (!rootPxW) rootPxW = authoredPx(el, 'width');
+
+  // @page{size:letter} alone is a flowing doc; with a px-width root it's a
+  // fixed sheet pretending to be paper — fall through and size to render.
+  if (paperPage && !rootPxW) {
+    return { kind: 'paper-doc', source: 'inferred', doc: doc, signals: signals,
+      frames: [{ left: 0, top: 0, width: doc.width, height: doc.height }],
+      authored: [{ width: false, height: false }] };
+  }
+
+  var sx = window.scrollX || 0, sy = window.scrollY || 0;
+  var rectOf = function (e) {
+    var r = e.getBoundingClientRect();
+    var oy; try { oy = getComputedStyle(e).overflowY; } catch (err) {}
+    var h = oy === 'visible' ? Math.max(r.height, e.scrollHeight || 0) : r.height;
+    return { left: r.left + sx, top: r.top + sy, width: r.width, height: h };
+  };
+
+  // Multi-frame: off unless the page opts in via data-om-multi-frame on the
+  // stop element — the explicit opt-in is what guards against card grids
+  // and pricing tables that match the geometry but aren't separate
+  // canvases. Two ways to name the frames, explicit first:
+  // 1. Descendants marked data-om-frame-export (the social-frames starter
+  //    marks each asset frame; shells/panels around them are presentation,
+  //    so nesting is expected). Document order.
+  // 2. Fallback, no marked descendants: direct children with an authored px
+  //    width AND height (the original geometry heuristic).
+  // Frames may be different sizes (a gallery mixes 1080×1920 stories with
+  // 728×90 banners); data-om-frame-label rides along for export filenames.
+  if (el.hasAttribute('data-om-multi-frame')) {
+    var visOk = function (e) {
+      var cs; try { cs = getComputedStyle(e); } catch (err) { return false; }
+      return cs.display !== 'none' && cs.visibility !== 'hidden' && cs.position !== 'fixed';
+    };
+    // A frame's crop is its VISUAL box — never the scrollHeight-inflated
+    // rect that rectOf computes for page roots. Shadow-DOM hover controls
+    // (image-slot's Replace bar parks 29px below its host) and similar
+    // escaping UI contribute scrollable overflow to the frame, and the
+    // inflated height both squashes the nominal-size resize and drags
+    // content below the frame into the crop. Zoom-independent; bit every
+    // slot-bearing frame.
+    var frameRectOf = function (e) {
+      var r = e.getBoundingClientRect();
+      return { left: r.left + sx, top: r.top + sy, width: r.width, height: r.height };
+    };
+    var pushCand = function (list, e) {
+      if (!visOk(e)) return;
+      var rc = frameRectOf(e);
+      if (rc.width < 2 || rc.height < 2) return;
+      var lbl = e.getAttribute('data-om-frame-label');
+      if (lbl) rc.label = lbl;
+      list.push(rc);
+    };
+    var cands = [];
+    var marked = el.querySelectorAll('[data-om-frame-export]');
+    if (marked.length) {
+      for (var mk = 0; mk < marked.length; mk++) pushCand(cands, marked[mk]);
+    } else {
+      for (var k = 0; k < el.children.length; k++) {
+        var ch = el.children[k];
+        if (!authoredPx(ch, 'width') || !authoredPx(ch, 'height')) continue;
+        pushCand(cands, ch);
+      }
+    }
+    if (cands.length >= 2) {
+      return { kind: 'multi-frame', source: 'inferred', doc: doc, signals: signals,
+        frames: cands, authored: cands.map(function(){return{width:true,height:true}}) };
+    }
+  }
+
+  if (STAMP) el.setAttribute('data-om-frame', '');
+  return { kind: 'single-canvas', source: 'inferred', doc: doc, signals: signals,
+    frames: [rectOf(el)],
+    authored: [{ width: rootPxW, height: authoredPx(el, 'height') }] };
+})(); } catch (e) {}
+  var frame = null;
+  if (!ownsPrint && __m && __m.kind === 'single-canvas') {
+    var f = __m.frames && __m.frames[0];
+    if (f && f.width >= 200 && f.height >= 200) {
+      frame = f;
+      var fst = document.createElement('style');
+      fst.textContent = '@media print{@page{size:' + Math.ceil(f.width) + 'px ' +
+        Math.ceil(f.height) + 'px;margin:0}' +
+        'html,body,[data-om-frame-wrap]{padding:0!important;margin:0!important;background:none!important}' +
+        '[data-om-frame]{margin:0!important}}';
+      document.body.appendChild(fst);
+    }
+  }
+  // Relax break-inside on oversized elements. An element taller than a
+  // printable page can't honor break-inside: avoid — browsers either overflow
+  // it or push it whole to the next page, leaving a blank gap, then break it
+  // anyway at an arbitrary point. After the final layout (content revealed,
+  // animations jumped), find elements taller than a page that still compute
+  // break-inside: avoid and reset them to auto, so the browser breaks them at
+  // their children's boundaries instead (children keep their own avoid). PAGE_PX
+  // is a conservative portrait estimate at 96 CSS px/in — Letter/A4 usable
+  // height minus our 0.5in margins — so only clearly-oversized elements are
+  // touched and under-page elements still stay whole. Skipped for decks (slides
+  // are sized to the page) and for fixed-size canvases (frame set, or an author
+  // px-based @page) — runs as before for flowing docs on letter/A4.
+  try {
+    if (!ds && !frame && !(__m && __m.signals && __m.signals.pxPage)) {
+      const PAGE_PX = 1024;
+      // Our print defaults add a real @page margin only when the source has
+      // no @page of its own; computed style can't tell us (it reports screen
+      // media), so read the injected rule directly.
+      const defaults = document.querySelector('style[data-omelette-print-defaults]');
+      const pageInset = /@page\s*\{[^}]*margin/.test(defaults ? defaults.textContent || '' : '');
+      const SEL = 'section,article,figure,table,pre,blockquote,[class~="card" i],[class~="page" i],[class~="sheet" i]';
+      for (const el of document.body.querySelectorAll(SEL)) {
+        if (el instanceof HTMLElement && el.offsetHeight > PAGE_PX) {
+          el.setAttribute('data-om-oversized', '');
+          // Fake-paged docs simulate sheets with over-tall break-after:page
+          // boxes; honoring the break spills half-blank pages and ends a
+          // colored box mid-sheet. Flow them, and (only when we own the page
+          // inset) drop the redundant padding/background via the rule below.
+          const cs = getComputedStyle(el);
+          // An owns-print doc's forced breaks are intentional sheet
+          // boundaries, never fake-paged simulation — don't strip them.
+          // The break-inside relaxation above still applies: avoid on a
+          // >page element is impossible to honor whoever authored it.
+          if (
+            !ownsPrint &&
+            (cs.breakAfter === 'page' || cs.pageBreakAfter === 'always')
+          ) {
+            el.setAttribute('data-om-fakepage', '');
+          }
+        }
+      }
+      const ost = document.createElement('style');
+      ost.textContent = '@media print{' +
+        '[data-om-oversized]{break-inside:auto !important;page-break-inside:auto !important}' +
+        '[data-om-fakepage]{break-after:auto !important;page-break-after:auto !important}' +
+        (pageInset ? '[data-om-fakepage]{padding:0 !important;background:none !important}' : '') +
+        '}';
+      document.head.appendChild(ost);
+    }
+  } catch (e) {}
+  // macOS Preview renders Skia-PDF Luminosity soft-masks as opaque grey boxes;
+  // swap the CSS that triggers them for Preview-safe forms.
+  try {
+    for (const el of document.body.querySelectorAll('*')) {
+      const cs = getComputedStyle(el);
+
+      if (cs.boxShadow !== 'none' && cs.filter === 'none') {
+        const outs = [], kept = [];
+        for (const s of cs.boxShadow.split(/,(?![^(]*[)])/)) {
+          const t = s.trim();
+          const m = t.match(/^(rgba?[(][^)]+[)]) (-?[0-9.]+px) (-?[0-9.]+px) ([0-9.]+px) -?[0-9.]+px$/);
+          if (m && parseFloat(m[4]) > 0) outs.push('drop-shadow(' + m[2] + ' ' + m[3] + ' ' + m[4] + ' ' + m[1] + ')');
+          else kept.push(t);
+        }
+        if (outs.length) {
+          el.style.setProperty('filter', outs.join(' '), 'important');
+          el.style.setProperty('box-shadow', kept.join(', ') || 'none', 'important');
+        }
+      }
+
+      const mask = cs.maskImage && cs.maskImage !== 'none' ? cs.maskImage : cs.webkitMaskImage;
+      if (mask && mask !== 'none' && cs.filter === 'none') el.style.setProperty('filter', 'opacity(1)', 'important');
+    }
+  } catch (e) {}
+  mark('print-calling');
+  setTimeout(() => { try { window.print(); } catch (e) {} }, 200);
+})();
+</script>
+</body>
+</html>
