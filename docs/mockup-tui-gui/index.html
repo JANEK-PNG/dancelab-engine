@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DanceLab — pozorna apka: TUI w GUI, pełna klawiszologia</title>
+<style>
+:root{
+  --ink:#f2f1e9; --ink-soft:#aaa99f; --ink-dim:#8a897f;
+  --ground:#11120f; --ground-deep:#0a0b09;
+  --surface:#181a16; --surface-2:#20231d; --surface-3:#292d25;
+  --line:#373a32; --line-soft:#282b25;
+  --volt:#d9ff43; --volt-ink:#101208;
+  --deck-a:#65d8ff; --deck-b:#ffbd5d; --green:#69db98; --red:#ff6c66;
+  --fast:140ms; --base:220ms;
+  --r:8px; --mono:"IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+  --sans:"Manrope","Avenir Next","Segoe UI",sans-serif;
+}
+*{box-sizing:border-box} html,body{margin:0;height:100%}
+body{background:var(--ground-deep);color:var(--ink);font-family:var(--sans);font-size:13.5px;display:flex;flex-direction:column;overflow:hidden}
+.banner{background:var(--surface-3);color:var(--ink-soft);font-family:var(--mono);font-size:10.5px;text-align:center;padding:3px;letter-spacing:.06em}
+.banner b{color:var(--volt)}
+.tabs{display:flex;gap:2px;padding:0 14px;background:var(--ground);border-bottom:1px solid var(--line)}
+.tab{padding:8px 16px;font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;color:var(--ink-dim);cursor:pointer;border-bottom:2px solid transparent}
+.tab.active{color:var(--ink);border-color:var(--volt)}
+.layout{flex:1;display:flex;min-height:0;position:relative}
+.ws{flex:1;display:flex;flex-direction:column;min-width:0}
+.panel{width:320px;border-left:1px solid var(--line);background:var(--ground);display:none;flex-direction:column;min-height:0}
+.panel.open{display:flex}
+.panel h3{margin:0;padding:10px 14px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink-dim);border-bottom:1px solid var(--line-soft);white-space:pre-line}
+.panel .list{flex:1;overflow:auto;padding:6px 0}
+.pop{padding:4px 14px;font-size:12.5px;color:var(--ink-soft);cursor:pointer;white-space:pre-wrap}
+.pop.hdr{font-family:var(--mono);font-size:10px;color:var(--ink-dim);letter-spacing:.09em;margin-top:6px;cursor:default}
+.pop.cur{background:var(--surface-2);color:var(--ink);border-left:2px solid var(--volt)}
+.pop .chk{color:var(--volt);display:inline-block;width:14px}
+table{border-collapse:collapse;width:100%}
+th{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;color:var(--ink-soft);text-align:left;padding:4px 8px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--ground-deep)}
+td{padding:5px 8px;border-bottom:1px solid var(--line-soft);font-size:12.5px;white-space:nowrap}
+tr.cur td{background:var(--surface-2)}
+tr.cur td:first-child{box-shadow:inset 2px 0 0 var(--volt)}
+.bpm{font-family:var(--mono);font-weight:700}.key{font-family:var(--mono)}
+.fav{color:var(--red)}.flag{color:var(--volt)}
+.tbl{flex:1;overflow:auto;padding:0 14px}
+.filters{display:flex;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line-soft);align-items:center}
+.filters input{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);color:var(--ink);font:inherit;font-size:12px;padding:4px 8px}
+.szuk{flex:1;min-width:60px}.waski{width:64px}
+.side{width:168px;border-right:1px solid var(--line-soft);padding:10px 0;flex:0 0 auto}
+.side .opt{padding:4px 14px;font-size:12.5px;color:var(--ink-soft);cursor:pointer}
+.side .opt.active{color:var(--ink);background:var(--surface-2);border-left:2px solid var(--volt)}
+.side .opt.dis{color:var(--ink-dim)}
+.row2{display:flex;flex:1;min-height:0}
+.licznik{font-family:var(--mono);font-size:10.5px;color:var(--ink-dim);padding:4px 14px;border-top:1px solid var(--line-soft)}
+.player{display:flex;align-items:center;gap:12px;padding:8px 14px;border-top:1px solid var(--line-soft);background:var(--ground)}
+.pbtn{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.pbtn.on{background:var(--volt);color:var(--volt-ink);border-color:var(--volt)}
+.cover{width:32px;height:32px;border-radius:4px;background:linear-gradient(135deg,var(--surface-3),var(--surface))}
+.pt{font-size:12px;line-height:1.3}.pt .dim{font-size:11px}
+.axis{flex:1;height:8px;border-radius:4px;background:var(--surface-2);position:relative}
+.axis .head{position:absolute;top:-3px;width:2px;height:14px;background:var(--volt);transition:left .2s linear}
+.ptime{font-family:var(--mono);font-size:10.5px;color:var(--ink-dim);min-width:76px;text-align:right}
+.brief{display:flex;flex-wrap:wrap;gap:6px;padding:8px 14px;border-bottom:1px solid var(--line-soft)}
+.chip{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:3px 9px;font-size:11.5px;color:var(--ink-soft)}
+.chip b{color:var(--ink)} .chip .k{font-family:var(--mono);font-size:9.5px;color:var(--ink-dim);margin-left:4px}
+.compare{margin:8px 14px 0;border:1px solid var(--line-soft);border-left:3px solid var(--deck-a);border-radius:var(--r);background:var(--surface);padding:7px 10px;font-family:var(--mono);font-size:11px;color:var(--ink-soft)}
+.warnlog{margin:8px 14px 0;border:1px solid var(--line-soft);border-radius:var(--r);background:var(--surface);padding:7px 10px;font-size:12px;color:var(--deck-b);max-height:110px;overflow:auto}
+.dim{color:var(--ink-dim)} .soft{color:var(--ink-soft)} .mono{font-family:var(--mono)}
+.footer{display:flex;gap:12px;padding:5px 14px;background:var(--ground);border-top:1px solid var(--line-soft);font-family:var(--mono);font-size:10px;color:var(--ink-dim);flex-wrap:wrap}
+.footer b{color:var(--ink-soft)}
+.status{margin-left:auto}.ok{color:var(--green)}
+.toast{position:fixed;left:50%;bottom:64px;transform:translateX(-50%) translateY(8px);background:var(--surface-3);border:1px solid var(--line);border-radius:var(--r);padding:10px 14px;max-width:520px;opacity:0;pointer-events:none;transition:all var(--base);font-size:13px;z-index:20}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.toast b{color:var(--volt)}
+.modal-back{position:fixed;inset:0;background:rgba(6,7,5,.7);display:none;align-items:center;justify-content:center;z-index:15}
+.modal-back.open{display:flex}
+.modal{width:380px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px}
+.modal h2{margin:0 0 10px;font-size:15px}
+.modal input{width:100%;background:var(--ground);border:1px solid var(--line);border-radius:var(--r);color:var(--ink);font:inherit;padding:8px}
+.modal .hint{font-size:11px;color:var(--ink-dim);margin-top:8px}
+/* cue */
+.cuelist{width:44%;border-right:1px solid var(--line-soft);overflow:auto;padding:0 10px}
+.cuecard{flex:1;overflow:auto;padding:14px}
+.cue-row{padding:7px 4px;border-bottom:1px solid var(--line-soft);cursor:pointer}
+.cue-row.cur{background:var(--surface-2);box-shadow:inset 2px 0 0 var(--volt)}
+.spark{height:15px;margin-top:3px;background:var(--surface);border-radius:3px;position:relative;overflow:hidden}
+.spark i{position:absolute;bottom:0;width:3px;background:var(--surface-3)}
+.spark b{position:absolute;top:0;font-family:var(--mono);font-size:9px;color:var(--volt)}
+.timeline{height:72px;background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r);position:relative;overflow:hidden;margin:10px 0 6px}
+.timeline canvas{width:100%;height:100%;display:block}
+.padmark{position:absolute;top:0;bottom:0;width:2px;background:var(--volt);transition:left var(--fast)}
+.padmark.selp{box-shadow:0 0 0 1px var(--volt)}
+.padmark.cudzy{background:var(--red)}
+.padmark span{position:absolute;top:2px;left:4px;font-family:var(--mono);font-size:10px;background:var(--ground);padding:0 3px;border-radius:3px}
+.padmark.cudzy span{color:var(--red)}
+.padmark .eng{position:absolute;bottom:3px;left:-2px;width:6px;height:6px;border-radius:50%;background:var(--ink-dim)}
+.sekcje{display:flex;height:9px;border-radius:3px;overflow:hidden;margin-bottom:6px}
+.sekcje i{height:100%}
+.wbtn{width:100%;border-radius:10px;border:none;padding:11px;font:inherit;font-weight:800;cursor:pointer;margin-top:10px}
+.wbtn.s2{background:var(--volt);color:var(--volt-ink)}
+.wbtn.s3{background:var(--deck-b);color:#221500}
+.infocard{margin:8px 14px 0;border:1px solid var(--line-soft);border-radius:var(--r);background:var(--surface);padding:8px 12px;font-size:12.5px}
+</style>
+</head>
+<body tabindex="0">
+<div class="banner">POZORNA APKA · TUI 1:1 w GUI · nic nie jest wpięte · <b>klawisze działają jak w TUI</b> · Ctrl+Tab zakładki · Esc zamyka</div>
+<div class="tabs" id="tabs">
+  <div class="tab active" data-t="lib">BIBLIOTEKA</div>
+  <div class="tab" data-t="set">SET</div>
+  <div class="tab" data-t="cue">EKSPORT / CUE</div>
+</div>
+<div class="layout">
+  <div class="ws" id="ws"></div>
+  <div class="panel" id="panel"><h3 id="ptitle"></h3><div class="list" id="plist"></div></div>
+</div>
+<div class="footer" id="footer"></div>
+<div class="toast" id="toast"></div>
+<div class="modal-back" id="modal"><div class="modal">
+  <h2>Nazwa planu</h2><input id="planname" placeholder="np. piątek klub v2">
+  <div class="hint">Enter zapisuje · Esc anuluje</div></div></div>
+
+<script>
+/* ── dane pozorne ── */
+const TR=[
+ ["Balearic Breeze","Sault",122.0,"8A","RB",62,"Organic House",6.4],
+ ["Rivermouth","O'Flynn",121.0,"7A","RB",58,"Breaks / UK Bass",5.9],
+ ["Warm Static","Kelly Lee Owens",120.0,"8B",0.62,44,"Electronica",6.8],
+ ["Glass Court","Jayda G",124.0,"9B","RB",71,"House",6.1],
+ ["Sunday Slow","HAAi",126.0,"10A","ręka",66,"Breaks / UK Bass",7.2],
+ ["Tin Lake","Bicep",128.0,"9A","RB",77,"Electronica",6.6],
+ ["Night Mover","Overmono",134.0,"9A","RB",83,"Breaks / UK Bass",5.8],
+ ["Neon Polny","Catz 'N Dogz",125.0,"8A","RB",69,"House",7.0],
+ ["Cegła","Zamilska",132.0,"4A",0.44,88,"Techno (Raw / Deep / Hypnotic)",5.5],
+ ["Ostra","VTSS",138.0,"5A","RB",92,"Techno (Peak Time / Driving)",6.3],
+ ["Kair","Eltron",127.0,"9A","RB",73,"House",6.9],
+ ["Mgła","Olivia","-",  "—",0.31,51,"Electronica",8.1]];
+const JAK=[0.97,0.93,0.91,0.88,0.95,0.90,0.86,0.92,0.74];
+const S={
+ tab:'lib',
+ lib:{cur:0, fav:new Set([0,1,5]), fil:new Set([0,4,8]), okladki:false, sekcja:'Cała'},
+ set:{built:false, order:[], cur:0, compare:false, info:false, notki:false, edits:0, plany:[["piątek klub",10],["chill open",8]]},
+ cue:{cur:0, pads:{}, sel:null, w:1, undo:[]},
+ play:{on:false, poz:131, dl:384, kto:null},
+ panel:null, pcur:0, gatWybrane:new Set(["Breaks / UK Bass"]), kotwica:"★ moje ulubione", modal:false};
+TR.forEach((_,i)=>S.cue.pads[i]=[{l:'A',t:.12,cudzy:true},{l:'E',t:.64,eng:true}]);
+const ws=document.getElementById('ws');
+
+/* ── narzedzia ── */
+function toast(h,ms=3600){const t=document.getElementById('toast');t.innerHTML=h;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),ms)}
+function czas(s){s=Math.max(0,Math.round(s));return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`}
+function pew(v){return v==="RB"?`<span class="key" style="color:var(--green)">RB</span>`:v==="ręka"?`<span class="key" style="color:var(--deck-a)">ręka</span>`:`<span class="key ${v<0.5?'dim':''}">${typeof v==='number'?v.toFixed(2):v}</span>`}
+
+/* ── stopka kontekstowa (jak Footer TUI) ── */
+const FOOT={
+ lib:`<span><b>P/Spacja</b> odsłuch</span><span><b>↑↓</b> kursor · next/prev gdy gra</span><span><b>←→</b> skok ±8 (⇧±32, PgUp±128)</span><span><b>U</b> ♥</span><span><b>F</b> filar</span><span><b>G</b> z filarów</span><span><b>K</b> okładki</span><span><b>I</b> info</span><span><b>^G</b> gatunki</span><span><b>^D</b> graj jak</span><span><b>Q</b> wyjdź</span>`,
+ set:`<span><b>B</b> buduj</span><span><b>Z</b> zamień</span><span><b>A</b> dopisz</span><span><b>X</b> wytnij</span><span><b>⇧↑↓</b> przesuń</span><span><b>S</b> zapisz plan</span><span><b>O</b> wczytaj</span><span><b>C</b> porównaj</span><span><b>I</b> info</span><span><b>L</b> notki</span><span><b>V</b> werdykt</span><span><b>W</b> playlista→RB</span>`,
+ cue:`<span><b>A–H</b> pad</span><span><b>←→</b> pad o TAKT (⇧±8)</span><span><b>X</b> zdejmij</span><span><b>Z</b> cofnij</span><span><b>S</b> szew od padów</span><span><b>P/Spacja</b> od pada</span><span><b>W</b> wyślij (2×)</span><span><b>Esc</b> odznacz</span>`};
+function footer(){document.getElementById('footer').innerHTML=FOOT[S.tab]+`<span class="status">Rekordbox: <span class="ok">zamknięty</span> · kopie: 3 · notki: 7 (L)</span>`}
+
+/* ── BIBLIOTEKA ── */
+function rLib(){
+ const rows=TR.map((t,i)=>`<tr class="${i===S.lib.cur?'cur':''}" data-i="${i}">
+  <td class="fav">${S.lib.fav.has(i)?'♥':''}</td><td class="flag">${S.lib.fil.has(i)?'⚑':''}</td>
+  ${S.lib.okladki?'<td><div class="cover" style="width:22px;height:22px"></div></td>':''}
+  <td class="bpm">${typeof t[2]==='number'?t[2].toFixed(1):'—'}</td><td class="key">${t[3]}</td><td>${pew(t[4])}</td>
+  <td class="mono dim">${t[5]}</td><td class="dim">${t[6]}</td><td class="mono dim">${t[7].toFixed(1)}</td>
+  <td>${t[1]}</td><td>${t[0]}</td></tr>`).join('');
+ ws.innerHTML=`<div class="row2">
+  <div class="side">
+   <div class="opt ${S.lib.sekcja==='Cała'?'active':''}" data-s="Cała">Cała biblioteka</div>
+   <div class="opt ${S.lib.sekcja==='♥'?'active':''}" data-s="♥">♥ Ulubione utwory</div>
+   <div class="opt ${S.lib.sekcja==='⚑'?'active':''}" data-s="⚑">⚑ Filary</div>
+   <div class="opt dis">♥ playlisty — wkrótce</div></div>
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+   <div class="filters"><input class="szuk" placeholder="szukaj: nazwa albo gatunek"><input class="waski" placeholder="ton 8A"><input class="waski" placeholder="120-130"></div>
+   <div class="tbl"><table><thead><tr><th>♥</th><th>F</th>${S.lib.okladki?'<th>ART</th>':''}<th>BPM</th><th>TON</th><th>PEW.</th><th>ENERGIA</th><th>GATUNEK</th><th>MIN</th><th>WYKONAWCA</th><th>UTWÓR</th></tr></thead><tbody>${rows}</tbody></table></div>
+   ${S.set.info?infoCard():''}
+   <div class="licznik">${TR.length} utworów · sekcja: ${S.lib.sekcja} · legenda: U=♥ · F=⚑ filar · G=szkic z filarów · K=okładki ${S.lib.okladki?'ON':'off'}</div>
+   ${playerBar()}
+  </div></div>`;
+ ws.querySelectorAll('tr[data-i]').forEach(r=>r.onclick=()=>{S.lib.cur=+r.dataset.i;rLib()});
+ ws.querySelectorAll('.opt[data-s]').forEach(o=>o.onclick=()=>{S.lib.sekcja=o.dataset.s;rLib()});
+}
+function infoCard(){const t=TR[S.tab==='lib'?S.lib.cur:S.set.order[S.set.cur]??0];
+ return `<div class="infocard"><b>${t[0]}</b> — ${t[1]} <span class="dim">· karta INFO (I zamyka)</span><br>
+ <span class="mono">BPM ${typeof t[2]==='number'?t[2].toFixed(1):'—'} · ${t[3]} · pew. ${t[4]==='RB'?'RB (sędzia)':t[4]} · ${t[7].toFixed(1)} min</span><br>
+ <span class="dim">ścieżka: ~/Music/…/${t[0].replaceAll(' ','_')}.aiff · w kolekcji RB: tak · playlisty RB: 2</span></div>`}
+function playerBar(){const p=S.play;const t=p.kto!==null?TR[p.kto]:null;
+ return `<div class="player"><button class="pbtn ${p.on?'on':''}" id="pb">${p.on?'❚❚':'▶'}</button><div class="cover"></div>
+ <div class="pt">${t?t[0]:'—'}<br><span class="dim">${t?t[1]:'Spacja/P gra zaznaczony'}</span></div>
+ <div class="axis"><div class="head" style="left:${(p.poz/p.dl*100).toFixed(1)}%"></div></div>
+ <div class="ptime">${czas(p.poz)} / ${czas(p.dl)}</div></div>`}
+
+/* ── SET ── */
+function rSet(){
+ const o=S.set;
+ const rows=o.built?o.order.map((ti,i)=>{const t=TR[ti];const j=i<o.order.length-1?(JAK[i]??0.9):null;
+  return `<tr class="${i===o.cur?'cur':''}" data-i="${i}"><td class="mono">${i+1}${S.lib.fil.has(ti)?' <span class=flag>⚑</span>':''}</td>
+  <td class="bpm">${typeof t[2]==='number'?t[2].toFixed(1):'—'}</td><td class="key">${t[3]}</td><td>${pew(t[4])}</td>
+  <td class="dim">${t[6]}</td><td class="mono dim">${Math.round((i+1)*6.2)}</td><td>${t[1]} – ${t[0]}</td>
+  <td class="mono" style="color:${j!==null&&j<0.8?'var(--deck-b)':'var(--ink-dim)'}">${j!==null?j.toFixed(2):'—'}</td></tr>`}).join(''):'';
+ ws.innerHTML=`<div style="display:flex;flex-direction:column;flex:1;min-height:0">
+  <div class="brief">
+   <span class="chip">minuty <b>62</b></span>
+   <span class="chip">gatunki <b>${[...S.gatWybrane].join(', ')||'— bez filtra'}</b><span class="k">^G</span></span>
+   <span class="chip">BPM <b>118–140</b></span>
+   <span class="chip" style="border-color:var(--volt)">łuk <b>bez łuku</b><span class="k">zmierzone</span></span>
+   <span class="chip">tempo <b>staircase</b></span><span class="chip">tryb <b>smart</b></span>
+   <span class="chip">świeżość <b>balanced</b> · seed <b class="mono">4711</b></span>
+   <span class="chip">kotwica <b>${S.kotwica}</b><span class="k">^D</span></span><span class="chip">kontur <b>off</b></span></div>
+  ${o.compare&&o.built?`<div class="compare">SZEW ${o.cur+1}→${o.cur+2} · ${TR[o.order[o.cur]][2]}→${TR[o.order[Math.min(o.cur+1,o.order.length-1)]][2]} · 8A→7A sąsiednia · okno 32/16 t · ocena ${(JAK[o.cur]??0.9).toFixed(2)} <span class="dim">(C chowa · odsłuch w Eksport/Cue)</span></div>`:''}
+  ${o.notki?`<div class="warnlog">⚠ sito brzmienia: 1 913 → 383 (kotwica ★)<br>⚠ 1 szew &lt; 0,80 (styk 9→10)<br>⚠ filar „Cegła" w odległym tempie — kosztuje szew<br><span class="dim">notki 4–7 … (L chowa)</span></div>`:''}
+  ${o.info&&o.built?infoCard():''}
+  <div class="tbl" style="padding:0 14px;margin-top:8px">${o.built?`<table><thead><tr><th>#</th><th>BPM</th><th>TON</th><th>PEW.</th><th>GATUNEK</th><th>Σ MIN</th><th>UTWÓR</th><th>SZEW→</th></tr></thead><tbody>${rows}</tbody></table>`:`<div style="max-width:460px;margin:8vh auto;text-align:center"><h2 style="margin:0 0 8px">Setu jeszcze nie ma.</h2><p class="soft">Naciśnij <b class="mono">B</b>, żeby zbudować z briefu — jak w TUI.</p></div>`}</div>
+  <div class="licznik">${o.built?`set: ${o.order.length} utworów · edycje DJ-a: ${o.edits} (→ tui_edycje.jsonl) · plany: ${o.plany.length}`:'brief gotowy · B buduje'}</div>
+  ${playerBar()}</div>`;
+ ws.querySelectorAll('tr[data-i]').forEach(r=>r.onclick=()=>{o.cur=+r.dataset.i;rSet()});
+}
+
+/* ── EKSPORT/CUE ── */
+function rCue(){
+ const c=S.cue;const bity=64;
+ const list=TR.map((t,i)=>{let bars='';let s=i*31+7;
+  for(let b=0;b<40;b++){s=(s*16807)%2147483647;bars+=`<i style="left:${b*2.5}%;height:${(s/2147483647)*75+15}%"></i>`}
+  const pads=(c.pads[i]||[]).map(p=>`<b style="left:${p.t*100}%">${p.l}</b>`).join('');
+  return `<div class="cue-row ${i===c.cur?'cur':''}" data-i="${i}"><div><span class="mono dim">${i+1}</span> ${t[1]} – ${t[0]} <span class="mono dim">pady: ${(c.pads[i]||[]).length}</span></div><div class="spark">${bars}${pads}</div></div>`}).join('');
+ const t=TR[c.cur];const pads=c.pads[c.cur]||[];
+ const marks=pads.map((p,pi)=>`<div class="padmark ${p.cudzy?'cudzy':''} ${pi===c.sel?'selp':''}" style="left:${p.t*100}%"><span>${p.l}</span>${p.eng?'<span class="eng" title="silnik proponował"></span>':''}</div>`).join('');
+ const selP=c.sel!==null&&pads[c.sel]?pads[c.sel]:null;
+ const wl={1:'Wyślij cue do RB [W]',2:`POTWIERDŹ zapis ${Object.values(c.pads).flat().filter(p=>!p.cudzy).length} padów [W]`}[c.w];
+ ws.innerHTML=`<div class="row2">
+  <div class="cuelist">${list}</div>
+  <div class="cuecard">
+   <div class="mono dim" style="font-size:10.5px;letter-spacing:.09em">KARTA CUE · ${t[1]} – ${t[0]} · ${typeof t[2]==='number'?t[2].toFixed(1):'—'} BPM · ${t[3]} · litery A–H stawiają/wybierają pad</div>
+   <div class="timeline" id="tlwrap"><canvas id="tl"></canvas>${marks}</div>
+   <div class="sekcje"><i style="width:14%;background:#2c3e50"></i><i style="width:22%;background:#3a5f4b"></i><i style="width:18%;background:#6b5b2a"></i><i style="width:26%;background:#3a5f4b"></i><i style="width:20%;background:#2c3e50"></i></div>
+   <div class="mono dim" style="font-size:10px">INTRO ▮ UP ▮ CHORUS ▮ UP ▮ OUTRO · pady na TAKTACH RB — ${selP?`wybrany: <b style="color:${selP.cudzy?'var(--red)':'var(--volt)'}">${selP.l}</b> @ takt ${Math.round(selP.t*bity)+1}.1${selP.cudzy?' · CUDZY — nietykalny (skip)':' · ←→ przesuwa o takt'}`:'żaden pad nie wybrany (litera wybiera)'}</div>
+   ${S.play.on&&S.play.kto===c.cur?`<div class="mono" style="font-size:11px;color:var(--deck-a);margin-top:6px">▶ gra od pada · ${czas(S.play.poz)}</div>`:''}
+   <button class="wbtn ${c.w===1?'s2':'s3'}" id="wb">${wl}</button>
+   <div class="dim" style="font-size:11px;margin-top:4px">${c.w===1?'pierwsze W liczy plan i pokazuje — nic nie zapisuje':'drugie W „zapisuje" (pozornie) · kopia przed zapisem · tylko nasze pady (rejestr UUID) · cudze: skip'}</div>
+  </div></div>`;
+ ws.querySelectorAll('.cue-row').forEach(r=>r.onclick=()=>{c.cur=+r.dataset.i;c.sel=null;c.w=1;rCue()});
+ document.getElementById('wb').onclick=()=>klawiszW();
+ requestAnimationFrame(()=>{const cv=document.getElementById('tl');if(!cv)return;const w=cv.width=cv.offsetWidth,h=cv.height=cv.offsetHeight,x=cv.getContext('2d');x.fillStyle='#65d8ff';let s=c.cur*13+5;for(let i=0;i<w;i+=3){s=(s*16807)%2147483647;const v=(s/2147483647)*.7+.15;const bar=v*h*(.4+.6*Math.abs(Math.sin(i/w*Math.PI*1.2)));x.globalAlpha=.55;x.fillRect(i,(h-bar)/2,2,bar)}});
+}
+
+/* ── panel #suggest: 5 trybów ── */
+function openPanel(mode){S.panel=mode;S.pcur=0;drawPanel();document.getElementById('panel').classList.add('open')}
+function closePanel(){S.panel=null;document.getElementById('panel').classList.remove('open')}
+function panelOpts(){
+ if(S.panel==='gatunki'){const g=[["— BEATPORT —",null],["Breaks / UK Bass (212)","Breaks / UK Bass"],["House (391)","House"],["Techno (Peak Time / Driving) (167)","Techno (Peak Time / Driving)"],["Organic House (98)","Organic House"],["Electronica (244)","Electronica"],["— POZA TAKSONOMIĄ —",null],["Dance (61)","Dance"],["Electronic (204)","Electronic"]];return g}
+ if(S.panel==='dj')return [["— TWOJE BRZMIENIE —",null],["★ moje ulubione (23 utwory)","★ moje ulubione"],["— LEFTFIELD / UK (klaster brzmienia) —",null],["Four Tet · 96 wektorów · skok ±6,2","Four Tet"],["Ben UFO · 74 · ±8,1","Ben UFO"],["Jamie xx · 51 · ±5,4","Jamie xx"],["— TECHNO HIPNOTYCZNE —",null],["Donato Dozzy · 44 · ±3,9","Donato Dozzy"]];
+ if(S.panel==='slot')return [["kandydaci do slotu "+(S.set.cur+1)+" (wejście+wyjście, triplet α=1)",null],["O'Flynn – Rivermouth · 0,97 (we 0,96 · wy 0,98)","1"],["Jayda G – Glass Court · 0,91 (we 0,93 · wy 0,89)","3"],["Bicep – Tin Lake · 0,88 · bez pliku — odsłuch odmówi","5"],["Eltron – Kair · 0,85","10"]];
+ if(S.panel==='plany')return [["klik + O = wczytaj · X = usuń (kosz)",null],...S.set.plany.map(p=>[`${p[0]} · ${p[1]} utworów · smart · ★`,p[0]])];
+ if(S.panel==='filary')return [["tryb filarów: klik + F wybiera",null],["PODPORY — pomiar wstawia w najsłabsze",'podpory'],["RÓWNY ROZSTAW",'rozstaw'],["RAMA (pierwszy/ostatni)",'rama']];
+ return []}
+function drawPanel(){
+ const tytuly={gatunki:`GATUNKI — masz 21 z 46 Beatportu · 214 bez tagu\nEnter dodaje/zdejmuje · ^G/Esc zamyka`,
+  dj:`KSIĘGA KOTWIC — 285 DJ-ów zmierzonych z setów\nkogo tu nie ma, tego nie mierzyliśmy · Enter ustawia i zamyka`,
+  slot:`PODPOWIEDŹ SLOTU (Z podmienia · A dopisuje)`,plany:`WCZYTAJ PLAN`,filary:`TRYB FILARÓW`};
+ document.getElementById('ptitle').textContent=tytuly[S.panel]||'';
+ const opts=panelOpts();
+ document.getElementById('plist').innerHTML=opts.map((o,i)=>{
+  const hdr=o[1]===null;const cur=i===S.pcur&&!hdr;
+  const chk=S.panel==='gatunki'&&o[1]?`<span class="chk">${S.gatWybrane.has(o[1])?'✓':' '}</span>`:'';
+  const star=S.panel==='dj'&&o[1]===S.kotwica?' ✓':'';
+  return `<div class="pop ${hdr?'hdr':''} ${cur?'cur':''}" data-i="${i}">${chk}${o[0]}${star}</div>`}).join('');
+ document.getElementById('plist').querySelectorAll('.pop:not(.hdr)').forEach(p=>p.onclick=()=>{S.pcur=+p.dataset.i;panelEnter()});
+}
+function panelMove(d){const opts=panelOpts();let i=S.pcur;do{i=Math.min(Math.max(i+d,0),opts.length-1)}while(opts[i]&&opts[i][1]===null&&i>0&&i<opts.length-1);S.pcur=i;drawPanel()}
+function panelEnter(){const o=panelOpts()[S.pcur];if(!o||o[1]===null)return;
+ if(S.panel==='gatunki'){S.gatWybrane.has(o[1])?S.gatWybrane.delete(o[1]):S.gatWybrane.add(o[1]);drawPanel();if(S.tab==='set')rSet();toast(`gatunki: <b>${[...S.gatWybrane].join(', ')||'(puste)'}</b> — lista zostaje otwarta`)}
+ else if(S.panel==='dj'){S.kotwica=o[1];closePanel();if(S.tab==='set')rSet();toast(`kotwica: <b>${o[1]}</b> — Enter ustawia i zamyka (jak w TUI)`)}
+ else if(S.panel==='slot'){toast(`Z podmienia slot ${S.set.cur+1} na: <b>${o[0].split('·')[0]}</b> (pozornie)`);S.set.edits++;closePanel();rSet()}
+ else if(S.panel==='plany'){toast(`plan „<b>${o[1]}</b>" wczytany (pozornie) — bez budowy, pula i parametry z planu`);S.set.built=true;S.set.order=[0,1,2,3,4,5,6,7,8,9];closePanel();rSet()}
+ else if(S.panel==='filary'){toast(`tryb filarów: <b>${o[1]}</b> (F wybiera)`);closePanel()}}
+
+/* ── akcje klawiszy ── */
+function buduj(){S.set.built=true;S.set.order=[0,1,2,3,4,5,6,7,8,9];S.set.cur=0;
+ toast(`<b>set zbudowany</b> (pozornie): 10 utworów · 62 min · sito ★: 1 913→383 · najsłabszy szew 0,74`);if(S.tab!=='set'){setTab('set')}else rSet()}
+function klawiszW(){
+ if(S.tab==='cue'){const c=S.cue;
+  if(c.w===1){c.w=2;toast('policzone: <b>12 padów</b> do zapisu · 2 cudze ustąpią (skip) · 1 utwór poza kolekcją — pominięty imiennie');rCue()}
+  else{c.w=1;toast('<b>zapisane (pozornie)</b> · kopia utworzona · rejestr UUID uzupełniony — w prawdziwej apce: master.db');rCue()}}
+ else if(S.tab==='set'&&S.set.built){toast('<b>playlista wysłana do RB (pozornie)</b> · backup → dopasowanie → weryfikacja odczytem')}}
+function ruszPad(d){const c=S.cue;const pads=c.pads[c.cur];if(c.sel===null||!pads[c.sel])return false;
+ const p=pads[c.sel];if(p.cudzy){toast('pad <b style="color:var(--red)">cudzy</b> — nietykalny (konflikt: skip)');return true}
+ c.undo.push({i:c.cur,sel:c.sel,t:p.t});p.t=Math.min(.98,Math.max(.01,p.t+d/64));rCue();return true}
+
+document.body.addEventListener('keydown',e=>{
+ const k=e.key, K=k.toLowerCase();
+ if(S.modal){if(k==='Enter'){const n=document.getElementById('planname').value||'bez nazwy';S.set.plany.unshift([n,S.set.order.length]);S.modal=false;document.getElementById('modal').classList.remove('open');toast(`plan „<b>${n}</b>" zapisany (pozornie) · odcisk → historia świeżości`);rSet()}
+  if(k==='Escape'){S.modal=false;document.getElementById('modal').classList.remove('open')}return}
+ /* Ctrl+Tab zakładki */
+ if(e.ctrlKey&&k==='Tab'){e.preventDefault();const t=['lib','set','cue'];const i=t.indexOf(S.tab);setTab(t[(i+(e.shiftKey?2:1))%3]);return}
+ if(e.ctrlKey&&K==='g'){e.preventDefault();S.panel==='gatunki'?closePanel():openPanel('gatunki');return}
+ if(e.ctrlKey&&K==='d'){e.preventDefault();S.panel==='dj'?closePanel():openPanel('dj');return}
+ if(S.panel){ // nawigacja paneli
+  if(k==='ArrowDown'){e.preventDefault();panelMove(1);return}
+  if(k==='ArrowUp'){e.preventDefault();panelMove(-1);return}
+  if(k==='Enter'){e.preventDefault();panelEnter();return}
+  if(k==='Escape'){closePanel();return}
+  if(S.panel==='plany'&&K==='o'){panelEnter();return}
+  if(S.panel==='plany'&&K==='x'){toast('plan usunięty do kosza (pozornie)');S.set.plany.splice(Math.max(0,S.pcur-1),1);drawPanel();return}
+  if(S.panel==='filary'&&K==='f'){panelEnter();return}
+  if(S.panel==='slot'&&K==='z'){panelEnter();return}
+ }
+ if(k==='Escape'){if(S.tab==='cue'&&S.cue.sel!==null){S.cue.sel=null;rCue();return}}
+ if(k===' '||K==='p'){e.preventDefault();const kto=S.tab==='lib'?S.lib.cur:(S.tab==='set'&&S.set.built?S.set.order[S.set.cur]:S.tab==='cue'?S.cue.cur:null);
+  if(kto===null)return;
+  if(S.play.on&&S.play.kto===kto){S.play.on=false;toast('pauza (pozycja zapamiętana — jak ffplay w TUI)')}
+  else{S.play.on=true;S.play.kto=kto;if(S.tab==='cue'){const p=(S.cue.pads[kto]||[])[S.cue.sel];S.play.poz=p?p.t*S.play.dl:0;toast(`▶ gra od ${p?('pada '+p.l):'zera'} — dźwięk tylko z jawnego klawisza`)}else toast(`▶ ${TR[kto][0]} (pozornie, bez dźwięku)`)}
+  rerender();return}
+ /* strzalki */
+ if(k==='ArrowLeft'||k==='ArrowRight'){const d=(k==='ArrowRight'?1:-1);
+  if(S.tab==='cue'&&ruszPad(d*(e.shiftKey?8:1))){e.preventDefault();return}
+  if(S.play.on){e.preventDefault();const skok=e.shiftKey?32:8;S.play.poz=Math.min(S.play.dl,Math.max(0,S.play.poz+d*skok*(60/126)));toast(`skok ${d>0?'+':'−'}${skok} uderzeń`);rerender();return}}
+ if(k==='PageDown'||k==='PageUp'){if(S.play.on){e.preventDefault();S.play.poz=Math.min(S.play.dl,Math.max(0,S.play.poz+(k==='PageDown'?1:-1)*128*(60/126)));toast('skok ±128 uderzeń');rerender();return}}
+ if(k==='ArrowDown'||k==='ArrowUp'){e.preventDefault();const d=k==='ArrowDown'?1:-1;
+  if(e.shiftKey&&S.tab==='set'&&S.set.built){const o=S.set,i=o.cur,j=i+d;if(j>=0&&j<o.order.length){[o.order[i],o.order[j]]=[o.order[j],o.order[i]];o.cur=j;o.edits++;toast('przesunięte (⇧↑↓) — edycja zapisana do dziennika');rSet()}return}
+  if(S.tab==='lib'){S.lib.cur=Math.min(Math.max(S.lib.cur+d,0),TR.length-1);if(S.play.on){S.play.kto=S.lib.cur;S.play.poz=0;toast(`${d>0?'next':'previous'}: ${TR[S.lib.cur][0]}`)}rLib()}
+  if(S.tab==='set'&&S.set.built){S.set.cur=Math.min(Math.max(S.set.cur+d,0),S.set.order.length-1);rSet()}
+  if(S.tab==='cue'){S.cue.cur=Math.min(Math.max(S.cue.cur+d,0),TR.length-1);S.cue.sel=null;S.cue.w=1;rCue()}
+  return}
+ /* pady literami w cue — A–H w całości, jak w TUI (on_key w tab-export) */
+ if(S.tab==='cue'&&/^[a-h]$/.test(K)&&!e.ctrlKey&&!e.metaKey){
+  const c=S.cue;const pads=c.pads[c.cur];const L=K.toUpperCase();
+  const idx=pads.findIndex(p=>p.l===L);
+  if(idx>=0){c.sel=idx;toast(`pad <b>${L}</b> wybrany${pads[idx].cudzy?' — <b style="color:var(--red)">cudzy, nietykalny</b>':' · ←→ przesuwa o takt'}`)}
+  else{const t=S.play.on&&S.play.kto===c.cur?S.play.poz/S.play.dl:0.5;pads.push({l:L,t});c.sel=pads.length-1;toast(`nowy pad <b>${L}</b> @ ${S.play.on?'pozycja odtwarzacza':'środek'} · snap do taktu`)}
+  rCue();return}
+ /* litery wspolne */
+ if(K==='b'&&S.tab==='set'){buduj();return}
+ if(K==='b'&&S.tab!=='set'){setTab('set');buduj();return}
+ if(K==='w'){klawiszW();return}
+ if(K==='u'){const i=S.tab==='lib'?S.lib.cur:null;if(i!==null){S.lib.fav.has(i)?S.lib.fav.delete(i):S.lib.fav.add(i);toast(S.lib.fav.has(i)?'♥ dodany do ulubionych (karmi kotwicę ★)':'♥ zdjęty');rLib()}return}
+ if(K==='f'&&S.tab==='lib'){const i=S.lib.cur;S.lib.fil.has(i)?S.lib.fil.delete(i):S.lib.fil.add(i);toast(S.lib.fil.has(i)?'⚑ FILAR — musi zagrać':'⚑ zdjęty');rLib();return}
+ if(K==='g'&&S.tab==='lib'){toast('<b>szkic z filarów</b> w Secie (złote flagi, BEZ budowy — brief zostaje w grze)');openPanel('filary');return}
+ if(K==='k'&&S.tab==='lib'){S.lib.okladki=!S.lib.okladki;toast(`okładki ${S.lib.okladki?'ON — wiersze ×3, mniej utworów w kadrze (kompromis nazwany)':'off'}`);rLib();return}
+ if(K==='i'){S.set.info=!S.set.info;rerender();return}
+ if(K==='l'&&S.tab==='set'){S.set.notki=!S.set.notki;rSet();return}
+ if(K==='c'&&S.tab==='set'){S.set.compare=!S.set.compare;rSet();return}
+ if(K==='s'&&S.tab==='set'){if(!S.set.built){toast('najpierw zbuduj (B)');return}S.modal=true;document.getElementById('modal').classList.add('open');setTimeout(()=>document.getElementById('planname').focus(),50);return}
+ if(K==='s'&&S.tab==='cue'){toast('▶ <b>szew od padów</b> (pozornie): render z efektywnych padów — silnik + Twoje edycje');return}
+ if(K==='o'&&S.tab==='set'){openPanel('plany');return}
+ if(K==='z'&&S.tab==='set'){if(S.set.built)openPanel('slot');return}
+ if(K==='z'&&S.tab==='cue'){const u=S.cue.undo.pop();if(u){S.cue.pads[u.i][u.sel].t=u.t;toast('cofnięte (migawka)');rCue()}else toast('nie ma czego cofać');return}
+ if(K==='a'&&S.tab==='set'){if(S.set.built)openPanel('slot');toast('A: dopisz ZA zaznaczonym — ten sam panel co Z');return}
+ if(K==='x'&&S.tab==='set'){if(S.set.built&&S.set.order.length>2){S.set.order.splice(S.set.cur,1);S.set.cur=Math.min(S.set.cur,S.set.order.length-1);S.set.edits++;toast('wycięte (X) — edycja w dzienniku; filar? X zdejmuje pin');rSet()}return}
+ if(K==='x'&&S.tab==='cue'){const c=S.cue;if(c.sel!==null&&!c.pads[c.cur][c.sel].cudzy){c.undo.push({i:c.cur,sel:c.sel,t:c.pads[c.cur][c.sel].t});c.pads[c.cur].splice(c.sel,1);c.sel=null;toast('pad zdjęty (X) · Z cofa');rCue()}else if(c.sel!==null)toast('pad cudzy — nietykalny');return}
+ if(K==='v'&&S.tab==='set'){toast('<b>werdykt zapisany</b> (pozornie): plan silnika vs stan DJ-a + dziennik edycji → tui_werdykt_*.json');return}
+ if(K==='q'){toast('Q: w prawdziwej apce wyjście — makieta zostaje ;)');return}
+});
+/* ticker odtwarzacza */
+setInterval(()=>{if(S.play.on){S.play.poz+=1;if(S.play.poz>=S.play.dl){S.play.on=false;S.play.poz=0;toast('koniec utworu — auto-next tylko spod kursora (jak w TUI)')}
+ const h=document.querySelector('.axis .head');if(h)h.style.left=(S.play.poz/S.play.dl*100).toFixed(1)+'%';
+ const pt=document.querySelector('.ptime');if(pt)pt.textContent=`${czas(S.play.poz)} / ${czas(S.play.dl)}`}},1000);
+
+function setTab(t){S.tab=t;document.querySelectorAll('#tabs .tab').forEach(x=>x.classList.toggle('active',x.dataset.t===t));rerender();footer()}
+function rerender(){({lib:rLib,set:rSet,cue:rCue})[S.tab]()}
+document.querySelectorAll('#tabs .tab').forEach(t=>t.onclick=()=>setTab(t.dataset.t));
+setTab('lib');document.body.focus();
+</script>
+</body>
+</html>
