@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DanceLab — mockup: pierwszy bieg (TERRAIN)</title>
+<style>
+:root{
+  --ink:#f2f1e9; --ink-soft:#aaa99f; --ink-dim:#8a897f; /* audyt: podniesiony z #73736c do ~5:1 */
+  --ground:#11120f; --ground-deep:#0a0b09;
+  --surface:#181a16; --surface-2:#20231d; --surface-3:#292d25;
+  --line:#373a32; --line-soft:#282b25;
+  --volt:#d9ff43; --volt-ink:#101208;
+  --deck-a:#65d8ff; --deck-b:#ffbd5d; /* audyt: semantyzacja cyan/amber */
+  --green:#69db98; --red:#ff6c66;
+  --instant:90ms; --fast:140ms; --base:220ms; --spatial:320ms; --emphasis:420ms;
+  --r-sm:8px; --r-md:14px; --r-lg:22px;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; /* audyt: skala odstępów */
+  --mono:"IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+  --sans:"Manrope","Avenir Next","Segoe UI",sans-serif;
+}
+*{box-sizing:border-box} html,body{margin:0;height:100%}
+body{background:var(--ground-deep);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55;display:flex;flex-direction:column}
+.mock-banner{background:var(--surface-3);color:var(--ink-soft);font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-align:center;padding:4px}
+.mock-banner b{color:var(--volt)}
+/* ── shell ── */
+.projectbar{display:flex;align-items:center;gap:var(--s4);padding:var(--s2) var(--s4);background:var(--ground);border-bottom:1px solid var(--line-soft)}
+.logo{font-weight:800;letter-spacing:.04em}
+.logo i{color:var(--volt);font-style:normal}
+.autosave{font-family:var(--mono);font-size:11px;color:var(--ink-dim)}
+.jobslot{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-soft);display:flex;align-items:center;gap:var(--s2)}
+.jobslot .dot{width:8px;height:8px;border-radius:50%;background:var(--ink-dim)}
+.jobslot.running .dot{background:var(--deck-a);animation:puls 1.2s infinite}
+@keyframes puls{50%{opacity:.35}}
+.gatebtn{border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);border-radius:var(--r-sm);padding:var(--s1) var(--s3);font:inherit;font-size:12px;cursor:pointer;transition:all var(--fast)}
+.gatebtn.volt{background:var(--volt);color:var(--volt-ink);border-color:var(--volt);font-weight:700}
+.tabs{display:flex;gap:var(--s1);padding:0 var(--s4);background:var(--ground);border-bottom:1px solid var(--line)}
+.tab{padding:var(--s2) var(--s4);font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--ink-dim);cursor:pointer;border-bottom:2px solid transparent;transition:color var(--fast),border-color var(--base)}
+.tab:hover{color:var(--ink-soft)}
+.tab.active{color:var(--ink);border-color:var(--volt)}
+.tab .nb{display:inline-block;min-width:8px;height:8px;border-radius:50%;background:var(--volt);margin-left:6px;vertical-align:2px;opacity:0;transition:opacity var(--fast)}
+.tab.haslight .nb{opacity:1}
+.layout{flex:1;display:flex;min-height:0}
+.workspace{flex:1;overflow:auto;padding:var(--s5)}
+.inspector{width:280px;border-left:1px solid var(--line-soft);background:var(--ground);padding:var(--s4);overflow:auto}
+.inspector h3{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--ink-dim);margin:0 0 var(--s3)}
+.dock{height:0;overflow:hidden;background:var(--ground);border-top:1px solid transparent;transition:height var(--emphasis),border-color var(--emphasis)}
+.dock.open{height:92px;border-color:var(--line)}
+.dock.hello{box-shadow:0 0 0 2px var(--volt) inset;animation:dockhello var(--emphasis) 2}
+@keyframes dockhello{50%{box-shadow:0 0 0 5px var(--volt) inset}}
+/* ── wspolne ── */
+.volt-btn{background:var(--volt);color:var(--volt-ink);border:none;border-radius:var(--r-md);padding:var(--s3) var(--s5);font:inherit;font-weight:800;font-size:15px;cursor:pointer;transition:transform var(--instant)}
+.volt-btn:active{transform:scale(.98)}
+.ghost-btn{background:var(--surface-2);color:var(--ink-soft);border:1px solid var(--line);border-radius:var(--r-sm);padding:var(--s2) var(--s4);font:inherit;cursor:pointer}
+.ghost-btn[disabled]{opacity:.5;cursor:not-allowed}
+.reason{font-size:12px;color:var(--ink-dim);margin-top:var(--s1)}
+.empty{max-width:520px;margin:9vh auto 0;text-align:center}
+.empty h2{font-size:22px;margin:0 0 var(--s3)}
+.empty p{color:var(--ink-soft);margin:0 0 var(--s5)}
+.card{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r-md);padding:var(--s4)}
+.mono{font-family:var(--mono)}
+.warnrow{display:flex;gap:var(--s2);align-items:center;font-size:12px;color:var(--deck-b);margin-top:var(--s3)}
+table{border-collapse:collapse;width:100%}
+th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink-dim);text-align:left;padding:var(--s1) var(--s3);border-bottom:1px solid var(--line)}
+td{padding:var(--s2) var(--s3);border-bottom:1px solid var(--line-soft);font-size:13px}
+tr.row-in{animation:rowin var(--base) both}
+@keyframes rowin{from{opacity:0;transform:translateY(4px)}}
+.bpm{font-family:var(--mono);font-weight:700}
+.key{font-family:var(--mono);color:var(--ink-soft)}
+.toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%) translateY(8px);background:var(--surface-3);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--s3) var(--s4);max-width:460px;opacity:0;pointer-events:none;transition:all var(--base);font-size:13px}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.toast b{color:var(--volt)}
+/* ── seam ── */
+.deck{margin-bottom:var(--s4)}
+.deck h4{margin:0 0 var(--s1);font-family:var(--mono);font-size:11px;letter-spacing:.1em}
+.deck.a h4{color:var(--deck-a)} .deck.b h4{color:var(--deck-b)}
+.wave{position:relative;height:64px;border-radius:var(--r-sm);background:var(--surface);border:1px solid var(--line-soft);overflow:hidden}
+.wave canvas{width:100%;height:100%;display:block}
+.pad{position:absolute;top:0;bottom:0;width:2px}
+.deck.a .pad{background:var(--deck-a)} .deck.b .pad{background:var(--deck-b)}
+.pad .lbl{position:absolute;top:2px;left:4px;font-family:var(--mono);font-size:10px;background:var(--ground);padding:0 3px;border-radius:3px}
+.pad .dot{position:absolute;bottom:3px;left:-2px;width:6px;height:6px;border-radius:50%;background:var(--ink-dim)}
+.window-band{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--volt) 12%,transparent);border-inline:1px dashed color-mix(in srgb,var(--volt) 45%,transparent)}
+.refusal{border:1px solid var(--line);border-left:3px solid var(--deck-b);background:var(--surface);border-radius:var(--r-sm);padding:var(--s3) var(--s4);font-size:12.5px;color:var(--ink-soft);margin-top:var(--s4)}
+/* ── gate ── */
+.gate-back{position:fixed;inset:0;background:rgba(6,7,5,.7);opacity:0;pointer-events:none;transition:opacity var(--base);display:flex;align-items:center;justify-content:center}
+.gate-back.open{opacity:1;pointer-events:auto}
+.gate{width:520px;max-width:92vw;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--s5);transform:translateY(10px);transition:transform var(--spatial)}
+.gate-back.open .gate{transform:none}
+.gate h2{margin:0 0 var(--s4);font-size:18px}
+.man-row{display:flex;justify-content:space-between;font-size:13px;padding:var(--s2) 0;border-bottom:1px solid var(--line-soft)}
+.man-row .v{font-family:var(--mono)}
+.ok{color:var(--green)} .warn{color:var(--deck-b)}
+/* dock content */
+.dockrow{display:flex;gap:3px;align-items:flex-end;height:52px;padding:var(--s3) var(--s4) 0}
+.dockcell{flex:1;background:var(--surface-3);border-radius:3px 3px 0 0;position:relative;cursor:pointer}
+.dockcell:hover{background:var(--surface-2)}
+.dockcell .joint{position:absolute;right:-2.5px;bottom:0;width:4px;height:100%;border-radius:2px}
+.dockcaption{font-family:var(--mono);font-size:10px;color:var(--ink-dim);padding:2px var(--s4)}
+.hide{display:none!important}
+.scenenav{position:fixed;right:12px;bottom:12px;font-family:var(--mono);font-size:10px;color:var(--ink-dim);background:var(--ground);border:1px solid var(--line-soft);border-radius:var(--r-sm);padding:4px 8px}
+</style>
+</head>
+<body>
+<div class="mock-banner">MAKIETA · dane poglądowe, zero silnika · choreografia pierwszego biegu wg <b>TERRAIN_PIERWSZY_BIEG_2026-08-11</b> · kliknij żółty volt, żeby iść naprzód</div>
+
+<div class="projectbar">
+  <div class="logo">Dance<i>Lab</i></div>
+  <div class="autosave" id="autosave">nowa sesja</div>
+  <div class="jobslot" id="jobslot"><span class="dot"></span><span id="jobtext">bez zadań</span></div>
+  <button class="gatebtn" id="gatebtn">EXPORT GATE</button>
+</div>
+<div class="tabs">
+  <div class="tab active" data-v="library">LIBRARY<span class="nb"></span></div>
+  <div class="tab" data-v="set">SET<span class="nb"></span></div>
+  <div class="tab" data-v="seam">SEAM / CUE<span class="nb"></span></div>
+  <div class="tab" data-v="track">TRACK<span class="nb"></span></div>
+</div>
+
+<div class="layout">
+  <div class="workspace" id="ws"></div>
+  <div class="inspector" id="insp"></div>
+</div>
+
+<div class="dock" id="dock">
+  <div class="dockrow" id="dockrow"></div>
+  <div class="dockcaption">TEREN SETU · energia = dane o utworach (bez celu) · słupki-łączniki = jakość szwu</div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="gate-back" id="gateback">
+  <div class="gate">
+    <h2>Export Gate — manifest zapisu</h2>
+    <div class="man-row"><span>Cel</span><span class="v">master.db (Rekordbox)</span></div>
+    <div class="man-row"><span>Pady do zapisania</span><span class="v">12</span></div>
+    <div class="man-row"><span>Ustępują padom DJ-a (nietykalne)</span><span class="v warn">2</span></div>
+    <div class="man-row"><span>Kopia bezpieczeństwa</span><span class="v ok">tak, przed zapisem</span></div>
+    <div class="man-row"><span>Rekordbox</span><span class="v ok" id="rbstate">zamknięty</span></div>
+    <div style="margin-top:var(--s5);display:flex;gap:var(--s3);justify-content:flex-end">
+      <button class="ghost-btn" onclick="closeGate()">Zostaw</button>
+      <button class="volt-btn" id="gateconfirm" style="font-size:13px;padding:var(--s2) var(--s4)">POTWIERDŹ: zapisz 12 padów</button>
+    </div>
+  </div>
+</div>
+<div class="scenenav" id="scenenav">scena 1/5 · pusta aplikacja</div>
+
+<script>
+/* ── makieta stanu gotowości: czysta funkcja sceny ── */
+const S = { scena:1, analizowane:0, cel:230, setJest:false, padyJest:false, dockHello:false, widok:'library' };
+const TRACKS = [
+  ["Balearic Breeze","Sault", 122.0,"8A"],["Night Mover","Overmono",134.0,"9A"],
+  ["Glass Court","Jayda G",124.0,"9B"],["Ostra","VTSS",138.0,"5A"],
+  ["Warm Static","Kelly Lee Owens",120.0,"8B"],["Tin Lake","Bicep",128.0,"9A"],
+  ["Cegła","Zamilska",132.0,"4A"],["Sunday Slow","HAAi",126.0,"10A"],
+  ["Rivermouth","O'Flynn",121.0,"7A"],["Neon Polny","Catz 'N Dogz",125.0,"8A"]
+];
+const SET_ORDER=[0,8,4,2,7,5,1,9,6,3];
+const JAKOSC=[0.97,0.93,0.91,0.88,0.95,0.90,0.86,0.92,0.74];
+const ws=document.getElementById('ws'), insp=document.getElementById('insp');
+
+function volt(tab,on){document.querySelector(`.tab[data-v="${tab}"]`).classList.toggle('haslight',on)}
+function toast(html,ms=8000){const t=document.getElementById('toast');t.innerHTML=html;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),ms)}
+function nav(n,txt){document.getElementById('scenenav').textContent=`scena ${n}/5 · ${txt}`}
+
+/* ── widoki ── */
+function renderLibrary(){
+  if(S.scena===1){
+    ws.innerHTML=`<div class="empty">
+      <h2>Tu zamieszka Twoja muzyka.</h2>
+      <p>Wskaż folder z plikami albo podepnij Rekordboxa. Analiza policzy każdemu utworowi tempo, tonację i energię — od tego zaczyna się wszystko.</p>
+      <button class="volt-btn" onclick="startAnaliza()">Dodaj muzykę</button>
+      <div class="reason">folder z plikami · kolekcja Rekordboxa</div></div>`;
+    insp.innerHTML=`<h3>KONTEKST</h3><div class="card" style="font-size:12.5px;color:var(--ink-soft)">Nic nie jest jeszcze zaznaczone. Ten panel będzie pokazywał szczegóły utworu, szwu albo zadania.</div>`;
+    return;
+  }
+  const rows = TRACKS.slice(0,S.analizowane).map((t,i)=>`<tr class="row-in" style="animation-delay:${i*24}ms"><td>♥</td><td>${t[0]}</td><td>${t[1]}</td><td class="bpm">${t[2].toFixed(1)}</td><td class="key">${t[3]}</td></tr>`).join('');
+  ws.innerHTML=`<table><thead><tr><th></th><th>UTWÓR</th><th>WYKONAWCA</th><th>BPM</th><th>TON</th></tr></thead><tbody>${rows}</tbody></table>
+  ${S.analizowane<S.cel?`<div class="warnrow">⚠ 3 pliki odłożone: uszkodzone albo bez audio. <a style="color:var(--deck-b)" href="#">Pokaż które</a></div>`:''}`;
+  insp.innerHTML=`<h3>ZADANIE</h3><div class="card"><div class="mono" style="font-size:13px">Analizuję <b>${S.analizowane} z ${S.cel}</b></div><div class="reason">„${TRACKS[Math.min(S.analizowane,9)%10][0]}" · ~${Math.max(1,4-Math.round(S.analizowane/60))} min</div></div>
+  ${S.analizowane>=58&&!S.setJest?`<div class="card" style="margin-top:var(--s3);border-color:var(--volt)"><div style="font-size:12.5px;color:var(--ink-soft)">Nie musisz czekać na komplet.</div><button class="volt-btn" style="font-size:13px;margin-top:var(--s2)" onclick="go('set')">Zbuduj set z tego, co już policzone (58)</button></div>`:''}`;
+}
+function renderSet(){
+  if(!S.setJest){
+    if(S.scena<2){ws.innerHTML=`<div class="empty"><h2>Setu jeszcze nie ma.</h2><p>Set buduje się z przeanalizowanej biblioteki — a ona jest jeszcze pusta. Zacznij od dodania muzyki.</p><button class="ghost-btn" onclick="go('library')">Do Biblioteki</button></div>`;}
+    else{ws.innerHTML=`<div class="empty"><h2>Pierwszy set.</h2><p>Brief ma uczciwe wartości domyślne — wszystko widać i wszystko można zmienić. Niczego nie chowamy „dla uproszczenia".</p><button class="volt-btn" onclick="buildSet()">Zbuduj pierwszy set</button></div>`;}
+    insp.innerHTML=`<h3>BRIEF</h3><div class="card mono" style="font-size:12.5px;line-height:2">
+      minuty <b>30</b><br>gatunek <span style="color:var(--ink-dim)">— bez filtra</span><br>
+      BPM <span style="color:var(--ink-dim)">— bez widełek</span><br>
+      łuk <b>bez łuku</b> <span style="color:var(--ink-dim)">(zmierzone)</span><br>
+      kotwica <span style="color:var(--ink-dim)">— brak</span></div>`;
+    return;
+  }
+  const rows=SET_ORDER.map((ti,i)=>{const t=TRACKS[ti];return `<tr class="row-in" style="animation-delay:${i*24}ms"><td class="mono">${i+1}</td><td>${t[0]}</td><td>${t[1]}</td><td class="bpm">${t[2].toFixed(1)}</td><td class="key">${t[3]}</td><td class="mono" style="color:${i<SET_ORDER.length-1?(JAKOSC[i]<0.8?'var(--deck-b)':'var(--ink-dim)'):'var(--ink-dim)'}">${i<JAKOSC.length?JAKOSC[i].toFixed(2):'—'}</td></tr>`}).join('');
+  ws.innerHTML=`<table><thead><tr><th>#</th><th>UTWÓR</th><th>WYKONAWCA</th><th>BPM</th><th>TON</th><th>SZEW→</th></tr></thead><tbody>${rows}</tbody></table>
+  <div class="warnrow">⚠ 1 szew poniżej 0,80 (styk 9→10). Ostrzeżenia niczego nie wyciszamy — także w pierwszym biegu.</div>`;
+  insp.innerHTML=`<h3>BRIEF</h3><div class="card mono" style="font-size:12.5px;line-height:2">30 min · bez gatunku<br>łuk: <b>bez łuku</b> (zmierzone)<br>kotwica: —</div>
+  ${!S.padyJest?`<div class="card" style="margin-top:var(--s3);border-color:var(--volt)"><div style="font-size:12.5px;color:var(--ink-soft)">Każde połączenie w secie to szew.</div><button class="volt-btn" style="font-size:13px;margin-top:var(--s2)" onclick="go('seam')">Obejrzyj pierwszy szew</button><div class="reason">pokażemy najlepszy styk: 1→2 (0,97)</div></div>`:''}`;
+}
+function renderSeam(){
+  if(!S.setJest){ws.innerHTML=`<div class="empty"><h2>Szew powstaje między utworami setu.</h2><p>A setu jeszcze nie ma.</p><button class="ghost-btn" onclick="go('set')">Zbuduj set</button></div>`;insp.innerHTML='';return;}
+  S.padyJest=true; volt('seam',false);
+  document.getElementById('gatebtn').classList.add('volt');
+  ws.innerHTML=`
+  <div style="font-family:var(--mono);font-size:11px;color:var(--ink-dim);letter-spacing:.1em;margin-bottom:var(--s3)">SZEW 1→2 · „Balearic Breeze" → „Rivermouth" · ocena 0,97 · harmonia 8A→7A sąsiednia</div>
+  <div class="deck a"><h4>DECK A · Balearic Breeze · wychodzi</h4>
+    <div class="wave"><canvas id="wa"></canvas><div class="window-band" style="left:62%;width:22%"></div>
+      <div class="pad" style="left:66%"><span class="lbl">E</span><span class="dot" title="silnik proponował"></span></div></div></div>
+  <div class="deck b"><h4>DECK B · Rivermouth · wchodzi</h4>
+    <div class="wave"><canvas id="wb"></canvas><div class="window-band" style="left:4%;width:18%"></div>
+      <div class="pad" style="left:8%"><span class="lbl">A</span><span class="dot" title="silnik proponował"></span></div></div></div>
+  <div style="display:flex;gap:var(--s3);margin-top:var(--s2)">
+    <button class="volt-btn" style="font-size:13px" onclick="toast('▶ makieta: tu zagrałby render szwu z padów (dźwięk tylko z Twojej ręki)')">Posłuchaj szwu od padów</button>
+    <button class="ghost-btn">Przesuń pad o takt ←→</button></div>
+  <div class="refusal"><b>Nie zagram odsłuchu „Night Mover":</b> ten utwór to strumień, nie mam jego pliku. Plan, pady i wysyłka do Rekordboxa działają normalnie — odsłuch obudzi się przy utworach z plikami.</div>`;
+  insp.innerHTML=`<h3>SZEW</h3><div class="card mono" style="font-size:12px;line-height:1.9">okno wyjścia: 32 takty<br>okno wejścia: 16 taktów<br>pady: <b>na taktach RB</b><br>kropka = propozycja silnika<br><span style="color:var(--ink-dim)">Twoje pady w Rekordboksie są nietykalne</span></div>
+  <div class="card" style="margin-top:var(--s3);border-color:var(--volt)"><div style="font-size:12.5px;color:var(--ink-soft)">Pady gotowe do wysyłki.</div><button class="volt-btn" style="font-size:13px;margin-top:var(--s2)" onclick="openGate()">Wyślij pady do Rekordboxa</button></div>`;
+  requestAnimationFrame(()=>{fala('wa','#65d8ff');fala('wb','#ffbd5d')});
+}
+function renderTrack(){
+  ws.innerHTML=`<div class="empty"><h2>Biografia utworu.</h2><p>Wybierz utwór w bibliotece albo secie — tu zobaczysz jego wnętrze: przebieg, sekcje, pady i precedensy („kto już to grał i dokąd poszedł"). W makiecie ten widok jest pusty celowo.</p></div>`;insp.innerHTML='';
+}
+function fala(id,color){const c=document.getElementById(id);if(!c)return;const w=c.width=c.offsetWidth,h=c.height=c.offsetHeight,x=c.getContext('2d');x.fillStyle=color;let seed=id==='wa'?7:13;for(let i=0;i<w;i+=3){seed=(seed*16807)%2147483647;const v=(seed/2147483647)*.7+.15;const bar=v*h*(0.4+0.6*Math.abs(Math.sin(i/w*Math.PI*(id==='wa'?1.1:1.4))));x.globalAlpha=.65;x.fillRect(i,(h-bar)/2,2,bar)}}
+
+/* ── choreografia: przejścia scen ── */
+function startAnaliza(){
+  S.scena=2; nav(2,'analiza w toku'); render();
+  const slot=document.getElementById('jobslot');slot.classList.add('running');
+  let n=0;const t=setInterval(()=>{n+=Math.floor(Math.random()*9)+4;S.analizowane=Math.min(n,S.cel);
+    document.getElementById('jobtext').textContent=`analiza ${S.analizowane}/${S.cel}`;
+    if(S.widok==='library')renderLibrary();
+    if(S.analizowane>=58&&!S._voltSet){S._voltSet=true;volt('set',true)}
+    if(S.analizowane>=S.cel){clearInterval(t);slot.classList.remove('running');document.getElementById('jobtext').textContent='bez zadań';}
+  },600);
+  document.getElementById('autosave').textContent='sesja · autozapis';
+}
+function buildSet(){
+  S.setJest=true;S.scena=4;nav(4,'pierwszy szew czeka');volt('set',false);volt('seam',true);
+  renderSet();
+  const dock=document.getElementById('dock');dock.classList.add('open');
+  if(!S.dockHello){S.dockHello=true;dock.classList.add('hello');setTimeout(()=>dock.classList.remove('hello'),900);
+    toast('<b>To jest teren Twojego setu</b> — kolejność, energia i jakość każdego połączenia. Będzie z Tobą w każdym widoku.')}
+  const dr=document.getElementById('dockrow');
+  dr.innerHTML=SET_ORDER.map((ti,i)=>{const en=[.35,.42,.38,.55,.61,.5,.72,.58,.44,.66][i];
+    const j=i<JAKOSC.length?`<span class="joint" style="background:${JAKOSC[i]<0.8?'var(--deck-b)':'var(--green)'};opacity:.8"></span>`:'';
+    return `<div class="dockcell" style="height:${Math.round(en*100)}%" title="${TRACKS[ti][0]}">${j}</div>`}).join('');
+}
+function openGate(){S.scena=5;nav(5,'brama eksportu');document.getElementById('gateback').classList.add('open')}
+function closeGate(){document.getElementById('gateback').classList.remove('open')}
+document.getElementById('gateconfirm').onclick=()=>{closeGate();document.getElementById('gatebtn').classList.remove('volt');
+  toast('<b>Pady są w Rekordboksie.</b> Od teraz to jest pętla: biblioteka → set → szwy → pady. Twoja.',10000);
+  nav(5,'choreografia rozpuszczona');};
+document.getElementById('gatebtn').onclick=()=>{ if(S.padyJest) openGate(); else toast('Gate uczciwie: <b>nie ma jeszcze padów do wysłania.</b> Zbuduj set i obejrzyj szew — pady powstaną tam.') };
+
+/* ── nawigacja ── */
+function go(v){S.widok=v;document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.v===v));render();
+  if(v==='set'&&!S.setJest&&S.scena>=2){S.scena=3;nav(3,'pierwszy set')}}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>go(t.dataset.v));
+function render(){({library:renderLibrary,set:renderSet,seam:renderSeam,track:renderTrack})[S.widok]()}
+render();nav(1,'pusta aplikacja');
+</script>
+</body>
+</html>
