@@ -120,18 +120,28 @@ kbd{font-family:var(--mono);font-size:10px;background:var(--sur2);border:1px sol
 .padlet.selp{background:var(--deck-b);color:#221500}
 .padlet.cudzy{color:var(--red)}
 .hotcue{width:320px;flex:0 0 auto;border-left:1px solid var(--line2);padding-left:14px}
-.padgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
-.padb{height:52px;border-radius:9px;border:1px solid var(--line);background:var(--sur2);color:var(--dim);font-family:var(--mono);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all .09s}
-.padb b{font-size:14px}
-.padb .t{font-size:9px}
-.padb.set{border-color:var(--deck-b);color:var(--deck-b);background:color-mix(in srgb,var(--deck-b) 8%,var(--sur2))}
-.padb.selp{outline:2px solid var(--deck-b)}
-.padb.cudzy{border-color:var(--red);color:var(--red)}
-.padb:active{transform:scale(.96)}
+.padgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.padb{height:58px;border-radius:6px;border:1px solid #000;position:relative;cursor:pointer;
+ background:linear-gradient(180deg,#232520,#191b17);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 1px 2px rgba(0,0,0,.5);
+ font-family:var(--mono);transition:all .09s;overflow:hidden}
+.padb:active{transform:translateY(1px);box-shadow:inset 0 1px 3px rgba(0,0,0,.6)}
+.padb .L{position:absolute;top:5px;left:7px;font-size:11px;font-weight:700;color:var(--dim)}
+.padb .t{position:absolute;bottom:5px;right:7px;font-size:10px;color:var(--dim)}
+.padb .tag{position:absolute;top:5px;right:7px;font-size:8px;letter-spacing:.08em;color:var(--red);border:1px solid var(--red);border-radius:3px;padding:0 3px;opacity:.9}
+.padb .lit{position:absolute;left:0;right:0;bottom:0;height:3px;background:transparent}
+.padb.set{background:linear-gradient(180deg,#2d2a1d,#211f15)}
+.padb.set .L{color:var(--deck-b)} .padb.set .t{color:var(--deck-b)}
+.padb.set .lit{background:var(--deck-b);box-shadow:0 -2px 8px color-mix(in srgb,var(--deck-b) 55%,transparent)}
+.padb.cudzy{background:linear-gradient(180deg,#2d1d1d,#211515)}
+.padb.cudzy .L{color:var(--red)} .padb.cudzy .t{color:var(--red)}
+.padb.cudzy .lit{background:var(--red);box-shadow:0 -2px 8px color-mix(in srgb,var(--red) 45%,transparent)}
+.padb.selp{border-color:var(--deck-b);box-shadow:0 0 0 1px var(--deck-b),inset 0 1px 0 rgba(255,255,255,.05)}
+.padb.selp.cudzy{border-color:var(--red);box-shadow:0 0 0 1px var(--red)}
 .helpline{font-size:11px;color:var(--dim);padding:8px 16px;border-top:1px solid var(--line2);margin-top:8px}
-.spark{height:15px;background:var(--sur);border-radius:3px;position:relative;overflow:hidden;min-width:260px}
-.spark i{position:absolute;bottom:0;width:3px;background:var(--sur3)}
-.spark b{position:absolute;top:0;font-family:var(--mono);font-size:9px;color:var(--deck-b);font-weight:400}
+.spark{height:20px;background:#0d0e0c;border-radius:3px;position:relative;overflow:hidden;min-width:260px}
+.spark canvas{position:absolute;inset:0;width:100%;height:100%}
+.spark b{position:absolute;top:0;font-family:var(--mono);font-size:9px;color:var(--deck-b);font-weight:400;text-shadow:0 0 3px #000}
 .sendrow{display:flex;gap:10px;justify-content:flex-end;padding:6px 16px 12px}
 .cta.inline{margin:0;width:auto;padding:11px 20px;font-size:13px}
 .cta.amber{background:var(--deck-b);color:#221500}
@@ -302,7 +312,9 @@ function rCue(){
  const padgrid=['A','B','C','D','E','F','G','H'].map(L=>{
   const pi=pads.findIndex(p=>p.l===L);const p=pi>=0?pads[pi]:null;
   return `<button class="padb ${p?'set':''} ${pi===c.sel&&pi>=0?'selp':''} ${p&&p.cudzy?'cudzy':''}" data-pad="${L}">
-   <b>${L}</b><span class="t">${p?czas(p.t*S.play.dl)+(p.cudzy?' DJ':p.eng?'':' ?'):'—'}</span></button>`}).join('');
+   <span class="L">${L}</span>${p&&p.cudzy?'<span class="tag">DJ</span>':''}
+   ${p?`<span class="t">${czas(p.t*S.play.dl)}${!p.cudzy&&!p.eng?' ?':''}</span>`:''}
+   <span class="lit"></span></button>`}).join('');
  const picker=c.tp?`
   <div class="dim" style="margin-top:8px;font-size:11px">wpisz czas albo wybierz frazę (↑↓):</div>
   <div class="mono" style="background:var(--sur);border:1px solid var(--line);border-radius:6px;padding:3px 8px;margin:4px 0;display:inline-block">${c.tpVal||'<span class="dim">m:ss.d</span>'}<span style="background:var(--deck-b);color:#000">&nbsp;</span></div>
@@ -312,12 +324,11 @@ function rCue(){
  const sekstrip=sek.map(s=>`<i style="width:${s[1]}%;background:${s[2]}">${s[0]}</i>`).join('');
  const padyOs=pads.map((p,pi)=>`<span class="padlet ${pi===c.sel?'selp':''} ${p.cudzy?'cudzy':''}" style="left:${(p.t*100).toFixed(1)}%">${p.l}</span>`).join('');
  const czasOs=[0,60,120,180,240,300].map(s=>`<span style="position:absolute;left:${(s/S.play.dl*100).toFixed(1)}%">${czas(s)}</span>`).join('');
- const list=TR.map((tt,i)=>{let bars='';let s=i*31+7;
-  for(let b=0;b<46;b++){s=(s*16807)%2147483647;bars+=`<i style="left:${b*2.2}%;height:${(s/2147483647)*75+15}%"></i>`}
+ const list=TR.map((tt,i)=>{
   const ll=(c.pads[i]||[]).map(p=>`<b style="left:${p.t*100}%">${p.l}</b>`).join('');
   const pw=(c.pads[i]||[]).filter(p=>p.eng).length,pq=(c.pads[i]||[]).length-pw;
   return `<tr class="${i===c.cur?'cur':''}" data-i="${i}"><td class="mono">${i+1}</td><td>${tt[1]} – ${tt[0]}</td>
-  <td><div class="spark">${bars}${ll}</div></td><td class="mono">${(c.pads[i]||[]).length}</td><td class="mono soft">${pw}✓ ${pq}?</td></tr>`}).join('');
+  <td><div class="spark"><canvas class="oscv" data-seed="${i*31+7}"></canvas>${ll}</div></td><td class="mono">${(c.pads[i]||[]).length}</td><td class="mono soft">${pw}✓ ${pq}?</td></tr>`}).join('');
  ws.innerHTML=`<div class="right">
   <div class="rhead">Pady bieżącego setu: <b>${razem} cue na ${TR.length} utworów</b> <span class="badge num">✓ pewne: ${pewneN}</span> <span class="dim">— TYLKO PODGLĄD, nic nie zapisuję</span></div>
   <div class="cardtop">
@@ -325,7 +336,7 @@ function rCue(){
     <div><b>${t[1]} – ${t[0]}</b> <span class="soft mono" style="font-size:11.5px">${t[2].toFixed(1)} BPM · ${t[3]}</span>
      ${selP?`<span class="mono" style="font-size:10.5px;color:var(--deck-b)"> · pad ${selP.l}: ta sama litera = pod głowicę · <kbd>T</kbd> czas · <kbd>←→</kbd> ±1 takt · <kbd>X</kbd> zdejmij</span>`:''}</div>
     <div class="osgrid">
-     <span>energia</span><span class="osrow" style="height:26px"><canvas id="ka" style="position:absolute;inset:0;width:100%;height:100%"></canvas></span>
+     <span>energia</span><span class="osrow" style="height:46px;background:#0d0e0c;border-radius:4px"><canvas id="ka" style="position:absolute;inset:0;width:100%;height:100%"></canvas></span>
      <span>sekcje</span><span class="osrow"><span class="sekstrip">${sekstrip}</span></span>
      <span>pady</span><span class="osrow">${padyOs}</span>
      <span>czas</span><span class="osrow">${czasOs}</span>
@@ -347,7 +358,29 @@ function rCue(){
  ws.querySelectorAll('tr[data-i]').forEach(r=>r.onclick=()=>{c.cur=+r.dataset.i;c.sel=null;c.w=1;c.tp=false;rCue()});
  ws.querySelectorAll('.padb').forEach(b=>b.onclick=()=>klawiszPad(b.dataset.pad.toLowerCase()));
  document.getElementById('wb').onclick=()=>klawiszW();
- requestAnimationFrame(()=>{const cv=document.getElementById('ka');if(!cv)return;const w=cv.width=cv.offsetWidth,h=cv.height=cv.offsetHeight,x=cv.getContext('2d');x.fillStyle='#65d8ff';let s=c.cur*13+5;for(let i=0;i<w;i+=3){s=(s*16807)%2147483647;const v=(s/2147483647)*.8+.1;const bar=v*h*(.35+.65*Math.abs(Math.sin(i/w*Math.PI*1.3)));x.globalAlpha=.5;x.fillRect(i,h-bar,2,bar)}});
+ requestAnimationFrame(()=>{
+  const cv=document.getElementById('ka');if(cv)rysujFale(cv,c.cur*13+5);
+  ws.querySelectorAll('.oscv').forEach(m=>rysujFale(m,+m.dataset.seed));
+ });
+}
+
+/* Waveform po rekordboxowemu: STEREO (lustro względem osi) + trzy pasma —
+   dół granatowy, środek bursztynowy, góra jasna. Rysowane od najniższego
+   pasma (najwyższa amplituda) do najwyższego, jak w RB. Dane poglądowe. */
+function rysujFale(cv,seed){
+ const w=cv.width=cv.offsetWidth||300,h=cv.height=cv.offsetHeight||20,x=cv.getContext('2d');
+ const mid=h/2;let s=seed||7;
+ const rnd=()=>{s=(s*16807)%2147483647;return s/2147483647};
+ x.clearRect(0,0,w,h);
+ for(let i=0;i<w;i+=2){
+  const t=i/w;
+  const env=.30+.70*Math.abs(Math.sin(t*Math.PI*1.25+(seed%7)*.7))*(t<.06?t/.06:(t>.94?(1-t)/.06:1));
+  const lo=(rnd()*.45+.55)*env, md=(rnd()*.55+.35)*env*.72, hi=(rnd()*.6+.25)*env*.45;
+  x.fillStyle='#2f5d9e';x.globalAlpha=.95;x.fillRect(i,mid-lo*mid,1.6,lo*h);
+  x.fillStyle='#d9a53d';x.globalAlpha=.9;x.fillRect(i,mid-md*mid,1.6,md*h);
+  x.fillStyle='#ece9dc';x.globalAlpha=.95;x.fillRect(i,mid-hi*mid,1.6,hi*h);
+ }
+ x.globalAlpha=.5;x.fillStyle='#000';x.fillRect(0,mid-.5,w,1);
 }
 
 /* ── panel ── */
