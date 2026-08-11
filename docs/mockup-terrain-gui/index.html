@@ -202,7 +202,9 @@ const S={tab:'set',
  set:{built:false,order:[],cur:0,compare:false,info:false,notki:false,edits:0,plany:[["piątek klub",10],["chill open",8]]},
  cue:{cur:0,pads:{},sel:null,w:1,undo:[],tp:false,tpCur:0,tpVal:''},
  play:{on:false,poz:0,dl:384,kto:null},
- panel:null,pcur:0,gatWybrane:new Set(),kotwica:"— bez kotwicy —",kontur:false,modal:false};
+ panel:null,pcur:0,gatWybrane:new Set(),kotwica:"— bez kotwicy —",kontur:false,modal:false,modalTyp:'plan',
+ playlisty:[{nazwa:"Piątek · 130–135 · jak Ben UFO",kotwica:"Ben UFO",filary:new Set([5,9])}],
+ aktywna:null, przypiszKotwice:false};
 TR.forEach((_,i)=>S.cue.pads[i]=[{l:'A',t:.12,cudzy:true},{l:'E',t:.64,eng:true}]);
 const FRAZY=[["INTRO",0],["UP",28.2],["BREAK",56.5],["GROOVE",84.7],["GROOVE",141.2],["BREAK",169.4],["GROOVE",220.0],["OUTRO",290.0]];
 const ws=document.getElementById('ws');
@@ -235,7 +237,7 @@ function playerRow(){const p=S.play;const t=p.kto!==null?TR[p.kto]:null;const pr
 function rSet(){
  const o=S.set;
  const rows=o.built?o.order.map((ti,i)=>{const t=TR[ti];const j=i<o.order.length-1?(JAK[i]??0.9):null;
-  return `<tr class="${i===o.cur?'cur':''}" data-i="${i}"><td class="mono">${i+1}${S.lib.fil.has(ti)?' '+I.flag(true):''}</td>
+  return `<tr class="${i===o.cur?'cur':''}" data-i="${i}"><td class="mono">${i+1}${filarySet().has(ti)?' '+I.flag(true):''}</td>
   <td class="bpm">${t[2].toFixed(1)}</td><td class="key">${t[3]}</td><td>${pew(t[4])}</td><td class="soft">${t[6]}</td>
   <td class="mono dim">${Math.round((i+1)*6.2)}</td><td>${t[1]} – ${t[0]}</td>
   <td class="mono" style="color:${j!==null&&j<0.8?'var(--deck-b)':'var(--dim)'}">${j!==null?j.toFixed(2):''}</td></tr>`}).join(''):'';
@@ -274,17 +276,18 @@ function infoCard(t){return `<div class="infocard"><b style="color:var(--ink)">$
 function rLib(){
  const rows=TR.map((t,i)=>`<tr class="${i===S.lib.cur?'cur':''}" data-i="${i}">
   <td class="ico-t" data-fav="${i}">${I.heart(S.lib.fav.has(i))}</td>
-  <td class="ico-t" data-fil="${i}">${I.flag(S.lib.fil.has(i))}</td>
+  <td class="ico-t" data-fil="${i}">${I.flag(filarySet().has(i))}</td>
   ${S.lib.okladki?'<td><span class="cover" style="width:22px;height:22px;display:inline-block"></span></td>':''}
   <td class="bpm">${t[2].toFixed(1)}</td><td class="key">${t[3]}</td><td>${pew(t[4])}</td>
   <td class="mono dim">${t[5]}</td><td class="dim">${t[6]}</td><td class="mono dim">${t[7].toFixed(1)}</td>
   <td>${t[1]}</td><td>${t[0]}</td></tr>`).join('');
  ws.innerHTML=`
  <div class="side">
-  <div class="opt ${S.lib.sekcja==='Cała'?'active':''}" data-s="Cała">${I.lib} Cała biblioteka</div>
+  <div class="opt ${S.lib.sekcja==='Cała'&&S.aktywna===null?'active':''}" data-s="Cała">${I.lib} Cała biblioteka</div>
   <div class="opt ${S.lib.sekcja==='♥'?'active':''}" data-s="♥">${I.heart(true)} Ulubione utwory</div>
-  <div class="opt ${S.lib.sekcja==='⚑'?'active':''}" data-s="⚑">${I.flag(true)} Filary</div>
-  <div class="opt dis">${I.disc} playlisty — wkrótce</div></div>
+  <div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--dim);padding:10px 14px 3px">PLAYLISTY <span style="float:right">filary + kotwica per playlista</span></div>
+  ${S.playlisty.map((p,i)=>`<div class="opt ${S.aktywna===i?'active':''}" data-pl="${i}" title="kotwica: ${p.kotwica} · filary: ${p.filary.size}">${I.disc} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nazwa}</span></div>`).join('')}
+  <div class="opt" id="plplus" style="color:var(--volt)">＋ Nowa playlista</div></div>
  <div class="right">
   <div class="filters">
    <div class="search">${I.search}<input placeholder="szukaj: nazwa albo gatunek"></div>
@@ -293,16 +296,40 @@ function rLib(){
   </div>
   ${S.set.info?infoCard(TR[S.lib.cur]):''}
   <div class="tblwrap"><table><thead><tr><th></th><th></th>${S.lib.okladki?'<th>ART</th>':''}<th>BPM</th><th>TON</th><th>PEW.</th><th>ENERGIA</th><th>GATUNEK</th><th>MIN</th><th>WYKONAWCA</th><th>UTWÓR</th></tr></thead><tbody>${rows}</tbody></table></div>
-  <div class="licznik">${TR.length} utworów · sekcja: ${S.lib.sekcja} · <kbd>U</kbd>=♥ · <kbd>F</kbd>=filar · <kbd>G</kbd>=szkic z filarów</div>
+  <div class="licznik">${TR.length} utworów · ${S.aktywna!==null?`playlista: <b>${S.playlisty[S.aktywna].nazwa}</b> · kotwica: ${S.playlisty[S.aktywna].kotwica} · ⚑ ${S.playlisty[S.aktywna].filary.size} (tej playlisty)`:`sekcja: ${S.lib.sekcja} · filary żyją w playlistach`} · <kbd>U</kbd>=♥ · <kbd>F</kbd>=filar · <kbd>G</kbd>=szkic z filarów</div>
   ${playerRow()}
  </div>`;
  ws.querySelectorAll('tr[data-i]').forEach(r=>r.onclick=e=>{
   if(e.target.closest('[data-fav]')){const i=+e.target.closest('[data-fav]').dataset.fav;S.lib.fav.has(i)?S.lib.fav.delete(i):S.lib.fav.add(i);rLib();return}
-  if(e.target.closest('[data-fil]')){const i=+e.target.closest('[data-fil]').dataset.fil;S.lib.fil.has(i)?S.lib.fil.delete(i):S.lib.fil.add(i);rLib();return}
+  if(e.target.closest('[data-fil]')){const i=+e.target.closest('[data-fil]').dataset.fil;toggleFilar(i);return}
   S.lib.cur=+r.dataset.i;rLib()});
- ws.querySelectorAll('.opt[data-s]').forEach(o=>o.onclick=()=>{S.lib.sekcja=o.dataset.s;rLib()});
+ ws.querySelectorAll('.opt[data-s]').forEach(o=>o.onclick=()=>{S.lib.sekcja=o.dataset.s;S.aktywna=null;rLib()});
+ ws.querySelectorAll('.opt[data-pl]').forEach(o=>o.onclick=()=>{S.aktywna=+o.dataset.pl;S.lib.sekcja='playlista';
+  const p=S.playlisty[S.aktywna];S.kotwica=p.kotwica;
+  toast(`playlista <b>${p.nazwa}</b> · kotwica: ${p.kotwica} · filary: ${p.filary.size} — F dodaje filar TEJ playlisty`);rLib()});
+ const pp=document.getElementById('plplus');if(pp)pp.onclick=()=>nowaPlaylista();
  const sw=document.getElementById('oklsw');if(sw)sw.onclick=()=>{S.lib.okladki=!S.lib.okladki;rLib()};
 }
+function filarySet(){return S.aktywna!==null?S.playlisty[S.aktywna].filary:S.lib.fil}
+function toggleFilar(i){
+ if(S.aktywna===null){toast('filary żyją W PLAYLISTACH — wybierz playlistę albo utwórz nową (＋)');return}
+ const f=S.playlisty[S.aktywna].filary;
+ f.has(i)?f.delete(i):f.add(i);
+ toast(f.has(i)?`⚑ filar playlisty „${S.playlisty[S.aktywna].nazwa.slice(0,24)}…"`:'⚑ filar zdjęty z playlisty');rLib()}
+function nazwaZMetadanych(){
+ const dni=['Niedziela','Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota'];
+ const bpmy=TR.map(t=>t[2]).filter(b=>typeof b==='number');
+ const lo=Math.round(Math.min(...bpmy)),hi=Math.round(Math.max(...bpmy));
+ const gat={};TR.forEach(t=>gat[t[6]]=(gat[t[6]]||0)+1);
+ const top=Object.entries(gat).sort((a,b)=>b[1]-a[1])[0][0];
+ return `${dni[new Date().getDay()]} · ${lo}–${hi} · ${top}`}
+function nowaPlaylista(){
+ S.modal=true;S.modalTyp='playlista';
+ document.getElementById('modal').classList.add('open');
+ const inp=document.getElementById('planname');
+ document.querySelector('#modal h2').textContent='Nazwa playlisty (z metadanych — popraw, jeśli chcesz)';
+ inp.value=nazwaZMetadanych();
+ setTimeout(()=>{inp.focus();inp.select()},50)}
 
 /* ── EKSPORT / CUE ── */
 function rCue(){
@@ -410,7 +437,10 @@ function drawPanel(){
 function panelMove(d){const opts=panelOpts();let i=S.pcur;do{i=Math.min(Math.max(i+d,0),opts.length-1)}while(opts[i]&&opts[i][1]===null&&i>0&&i<opts.length-1);S.pcur=i;drawPanel()}
 function panelEnter(){const o=panelOpts()[S.pcur];if(!o||o[1]===null)return;
  if(S.panel==='gatunki'){S.gatWybrane.has(o[1])?S.gatWybrane.delete(o[1]):S.gatWybrane.add(o[1]);drawPanel();if(S.tab==='set')rSet();toast(`gatunki: <b>${[...S.gatWybrane].join(', ')||'(puste — bez filtra)'}</b> — lista zostaje otwarta`)}
- else if(S.panel==='dj'){S.kotwica=o[1];closePanel();if(S.tab==='set')rSet();toast(`kotwica: <b>${o[1]}</b> — Enter ustawia i zamyka`)}
+ else if(S.panel==='dj'){S.kotwica=o[1];closePanel();
+  if(S.przypiszKotwice&&S.aktywna!==null){S.playlisty[S.aktywna].kotwica=o[1];S.przypiszKotwice=false;
+   toast(`playlista „<b>${S.playlisty[S.aktywna].nazwa.slice(0,28)}</b>" dostała kotwicę: <b>${o[1]}</b>`);rLib()}
+  else{if(S.tab==='set')rSet();toast(`kotwica: <b>${o[1]}</b> — Enter ustawia i zamyka`)}}
  else if(S.panel==='slot'){toast(`Z podmienia slot ${S.set.cur+1} na: <b>${o[0].split('·')[0]}</b> (pozornie)`);S.set.edits++;closePanel();rSet()}
  else if(S.panel==='plany'){toast(`plan „<b>${o[1]}</b>" wczytany (pozornie)`);S.set.built=true;S.set.order=[0,1,2,3,4,5,6,7,8,9];closePanel();rSet()}
  else if(S.panel==='filary'){toast(`tryb filarów: <b>${o[1]}</b>`);closePanel()}}
@@ -449,7 +479,15 @@ function prevNext(d){if(!S.play.on){toast('next/prev działa, gdy gra (wzorzec Q
 
 document.body.addEventListener('keydown',e=>{
  const k=e.key,K=k.toLowerCase();
- if(S.modal){if(k==='Enter'){const n=document.getElementById('planname').value||'bez nazwy';S.set.plany.unshift([n,S.set.order.length]);S.modal=false;document.getElementById('modal').classList.remove('open');toast(`plan „<b>${n}</b>" zapisany (pozornie)`);rSet()}
+ if(S.modal){if(k==='Enter'){const n=document.getElementById('planname').value||'bez nazwy';
+   S.modal=false;document.getElementById('modal').classList.remove('open');
+   if(S.modalTyp==='playlista'){
+    S.playlisty.push({nazwa:n,kotwica:'— bez kotwicy —',filary:new Set()});
+    S.aktywna=S.playlisty.length-1;S.przypiszKotwice=true;
+    toast(`playlista „<b>${n}</b>" utworzona — teraz wybierz jej KOTWICĘ`);
+    if(S.tab!=='lib')setTab('lib');else rLib();
+    openPanel('dj')}
+   else{S.set.plany.unshift([n,S.set.order.length]);toast(`plan „<b>${n}</b>" zapisany (pozornie)`);rSet()}}
   if(k==='Escape'){S.modal=false;document.getElementById('modal').classList.remove('open')}return}
  if(e.target.tagName==='INPUT'&&k!=='Escape'&&!(e.ctrlKey&&(K==='g'||K==='d'))&&k!=='Tab')return;
  if(S.tab==='cue'&&S.cue.tp){const c=S.cue;e.preventDefault();
@@ -497,7 +535,7 @@ document.body.addEventListener('keydown',e=>{
  if(K==='b'){if(S.tab!=='set')setTab('set');buduj();return}
  if(K==='w'){klawiszW();return}
  if(K==='u'&&S.tab==='lib'){const i=S.lib.cur;S.lib.fav.has(i)?S.lib.fav.delete(i):S.lib.fav.add(i);toast(S.lib.fav.has(i)?'♥ dodany (karmi kotwicę ★)':'♥ zdjęty');rLib();return}
- if(K==='f'&&S.tab==='lib'){const i=S.lib.cur;S.lib.fil.has(i)?S.lib.fil.delete(i):S.lib.fil.add(i);toast(S.lib.fil.has(i)?'FILAR — musi zagrać':'filar zdjęty');rLib();return}
+ if(K==='f'&&S.tab==='lib'){toggleFilar(S.lib.cur);return}
  if(K==='g'&&S.tab==='lib'){toast('<b>szkic z filarów</b> w Secie (złote flagi, BEZ budowy)');openPanel('filary');return}
  if(K==='k'&&S.tab==='lib'){S.lib.okladki=!S.lib.okladki;toast(`okładki ${S.lib.okladki?'ON — wiersze wyżej, mniej w kadrze (kompromis nazwany)':'off'}`);rLib();return}
  if(K==='i'){S.set.info=!S.set.info;rerender();return}
