@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DanceLab — mockup: TUI 1:1 w skórze TERRAIN</title>
+<style>
+:root{
+  --ink:#f2f1e9; --ink-soft:#aaa99f; --ink-dim:#8a897f;
+  --ground:#11120f; --ground-deep:#0a0b09;
+  --surface:#181a16; --surface-2:#20231d; --surface-3:#292d25;
+  --line:#373a32; --line-soft:#282b25;
+  --volt:#d9ff43; --volt-ink:#101208;
+  --deck-a:#65d8ff; --deck-b:#ffbd5d;
+  --green:#69db98; --red:#ff6c66; --violet:#b59aff;
+  --instant:90ms; --fast:140ms; --base:220ms; --spatial:320ms; --emphasis:420ms;
+  --r-sm:8px; --r-md:14px; --r-lg:22px;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px;
+  --mono:"IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+  --sans:"Manrope","Avenir Next","Segoe UI",sans-serif;
+}
+*{box-sizing:border-box} html,body{margin:0;height:100%}
+body{background:var(--ground-deep);color:var(--ink);font-family:var(--sans);font-size:13.5px;line-height:1.5;display:flex;flex-direction:column}
+.mock-banner{background:var(--surface-3);color:var(--ink-soft);font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-align:center;padding:3px}
+.mock-banner b{color:var(--volt)}
+.projectbar{display:flex;align-items:center;gap:var(--s4);padding:var(--s2) var(--s4);background:var(--ground);border-bottom:1px solid var(--line-soft)}
+.logo{font-weight:800}.logo i{color:var(--volt);font-style:normal}
+.sesja{font-family:var(--mono);font-size:11px;color:var(--ink-dim)}
+.jobbtn{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-soft);background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:3px 10px;cursor:pointer}
+.jobbtn .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--deck-a);margin-right:6px;animation:puls 1.2s infinite}
+@keyframes puls{50%{opacity:.3}}
+.gatebtn{border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);border-radius:var(--r-sm);padding:4px 12px;font:inherit;font-size:12px;cursor:pointer}
+.gatebtn.volt{background:var(--volt);color:var(--volt-ink);border-color:var(--volt);font-weight:700}
+.tabs{display:flex;gap:2px;padding:0 var(--s4);background:var(--ground);border-bottom:1px solid var(--line)}
+.tab{padding:var(--s2) var(--s4);font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;color:var(--ink-dim);cursor:pointer;border-bottom:2px solid transparent;transition:color var(--fast)}
+.tab.active{color:var(--ink);border-color:var(--volt)}
+.layout{flex:1;display:flex;min-height:0}
+.workspace{flex:1;overflow:auto;display:flex;min-height:0}
+.inspector{width:300px;border-left:1px solid var(--line-soft);background:var(--ground);overflow:auto}
+.insp-tabs{display:flex;border-bottom:1px solid var(--line-soft)}
+.insp-tab{flex:1;text-align:center;font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--ink-dim);padding:var(--s2) 0;cursor:pointer}
+.insp-tab.active{color:var(--volt);border-bottom:1px solid var(--volt)}
+.insp-body{padding:var(--s3) var(--s4)}
+.card{background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r-sm);padding:var(--s3);margin-bottom:var(--s3);font-size:12.5px}
+.mono{font-family:var(--mono)}
+.dim{color:var(--ink-dim)} .soft{color:var(--ink-soft)}
+/* biblioteka */
+.side{width:170px;border-right:1px solid var(--line-soft);background:var(--ground);padding:var(--s3) 0;flex:0 0 auto}
+.side .opt{padding:var(--s1) var(--s4);font-size:12.5px;color:var(--ink-soft);cursor:pointer}
+.side .opt.active{color:var(--ink);background:var(--surface-2);border-left:2px solid var(--volt)}
+.side .opt.dis{color:var(--ink-dim);cursor:default}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.filters{display:flex;gap:var(--s2);padding:var(--s2) var(--s4);border-bottom:1px solid var(--line-soft);align-items:center}
+.filters input{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);color:var(--ink);font:inherit;font-size:12px;padding:4px 8px}
+.filters .szuk{flex:1;min-width:80px}.filters .waski{width:64px}
+.sw{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-dim)}
+.sw .pill{width:26px;height:14px;border-radius:7px;background:var(--surface-3);position:relative;cursor:pointer}
+.sw .pill i{position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;background:var(--ink-dim);transition:left var(--fast)}
+.sw.on .pill i{left:14px;background:var(--volt)}
+.tbl{flex:1;overflow:auto;padding:0 var(--s4)}
+table{border-collapse:collapse;width:100%}
+th{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;color:var(--ink-soft);text-align:left;padding:var(--s1) var(--s2);border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--ground-deep);cursor:pointer;font-weight:700}
+th.sorted{color:var(--volt)}
+td{padding:5px var(--s2);border-bottom:1px solid var(--line-soft);font-size:12.5px;white-space:nowrap}
+tr.sel td{background:var(--surface-2)}
+.bpm{font-family:var(--mono);font-weight:700}.key{font-family:var(--mono)}
+.pew-low{color:var(--ink-dim)}
+.flag{color:var(--volt)} .fav{color:var(--red)}
+.licznik{font-family:var(--mono);font-size:10.5px;color:var(--ink-dim);padding:var(--s1) var(--s4);border-top:1px solid var(--line-soft)}
+.player{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) var(--s4);border-top:1px solid var(--line-soft);background:var(--ground)}
+.pbtn{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;font-size:12px}
+.cover{width:34px;height:34px;border-radius:4px;background:linear-gradient(135deg,var(--surface-3),var(--surface))}
+.ptitle{font-size:12px;line-height:1.3}.ptitle .dim{font-size:11px}
+.axis{flex:1;height:8px;border-radius:4px;background:var(--surface-2);position:relative;cursor:pointer}
+.axis .head{position:absolute;top:-3px;width:2px;height:14px;background:var(--volt);left:34%}
+.ptime{font-family:var(--mono);font-size:10.5px;color:var(--ink-dim)}
+/* set */
+.brief{display:flex;flex-wrap:wrap;gap:var(--s2);padding:var(--s2) var(--s4);border-bottom:1px solid var(--line-soft);align-items:center}
+.chip{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:3px 9px;font-size:11.5px;color:var(--ink-soft);cursor:pointer}
+.chip b{color:var(--ink)} .chip .k{font-family:var(--mono);font-size:9.5px;color:var(--ink-dim);margin-left:5px}
+.chip.voltish{border-color:var(--volt);color:var(--ink)}
+.compare{margin:0 var(--s4);margin-top:var(--s2);border:1px solid var(--line-soft);border-left:3px solid var(--deck-a);border-radius:var(--r-sm);background:var(--surface);padding:var(--s2) var(--s3);font-family:var(--mono);font-size:11px;color:var(--ink-soft)}
+.warnbar{margin:var(--s2) var(--s4) 0;font-size:12px;color:var(--deck-b)}
+/* cue */
+.cuelist{width:46%;border-right:1px solid var(--line-soft);overflow:auto;padding:0 var(--s3)}
+.cuecard{flex:1;overflow:auto;padding:var(--s4)}
+.cue-row{padding:var(--s2) var(--s1);border-bottom:1px solid var(--line-soft);cursor:pointer}
+.cue-row.sel{background:var(--surface-2)}
+.cue-row .nm{font-size:12.5px}
+.spark{height:16px;margin-top:3px;background:var(--surface);border-radius:3px;position:relative;overflow:hidden}
+.spark i{position:absolute;bottom:0;width:3px;background:var(--surface-3)}
+.spark b{position:absolute;top:0;font-family:var(--mono);font-size:9px;color:var(--volt)}
+.timeline{height:70px;background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r-sm);position:relative;overflow:hidden;margin:var(--s3) 0}
+.timeline canvas{width:100%;height:100%;display:block}
+.sekcje{display:flex;height:10px;border-radius:3px;overflow:hidden;margin-bottom:var(--s2)}
+.sekcje i{height:100%}
+.padbtns{display:flex;gap:var(--s2);flex-wrap:wrap;margin:var(--s3) 0}
+.padb{width:44px;height:34px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-family:var(--mono);font-weight:700;cursor:pointer;position:relative}
+.padb.set{border-color:var(--volt);color:var(--volt)}
+.padb.cudzy{border-color:var(--red);color:var(--red);cursor:not-allowed}
+.padb .eng{position:absolute;bottom:2px;right:4px;width:5px;height:5px;border-radius:50%;background:var(--ink-dim)}
+.wbtn{width:100%;border-radius:var(--r-md);border:none;padding:var(--s3);font:inherit;font-weight:800;cursor:pointer;transition:all var(--fast)}
+.wbtn.s1{background:var(--surface-3);color:var(--ink-dim)}
+.wbtn.s2{background:var(--volt);color:var(--volt-ink)}
+.wbtn.s3{background:var(--deck-b);color:#221500}
+/* track */
+.bio{padding:var(--s4);max-width:760px}
+.bio h2{margin:0 0 2px}.bio .sub{color:var(--ink-soft);margin-bottom:var(--s4)}
+.biogrid{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)}
+.prec{border-left:3px solid var(--violet)}
+.prec .kto{font-family:var(--mono);font-size:10.5px;color:var(--ink-dim)}
+/* dock + footer + gate + jobs */
+.dock{height:84px;background:var(--ground);border-top:1px solid var(--line)}
+.dockrow{display:flex;gap:3px;align-items:flex-end;height:46px;padding:var(--s2) var(--s4) 0}
+.dockcell{flex:1;background:var(--surface-3);border-radius:3px 3px 0 0;position:relative;cursor:pointer}
+.dockcell.cur{background:var(--surface-2);outline:1px solid var(--volt)}
+.dockcell .joint{position:absolute;right:-2.5px;bottom:0;width:4px;height:100%;border-radius:2px}
+.dockcaption{font-family:var(--mono);font-size:9.5px;color:var(--ink-dim);padding:2px var(--s4)}
+.footer{display:flex;gap:var(--s3);padding:4px var(--s4);background:var(--ground);border-top:1px solid var(--line-soft);font-family:var(--mono);font-size:10px;color:var(--ink-dim);flex-wrap:wrap}
+.footer b{color:var(--ink-soft);font-weight:600}
+.status{margin-left:auto}
+.status .ok{color:var(--green)}
+.overlay{position:fixed;inset:0;background:rgba(6,7,5,.7);display:none;align-items:center;justify-content:center;z-index:9}
+.overlay.open{display:flex}
+.sheet{width:540px;max-width:94vw;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--s5)}
+.sheet h2{margin:0 0 var(--s4);font-size:17px}
+.man-row{display:flex;justify-content:space-between;font-size:13px;padding:var(--s2) 0;border-bottom:1px solid var(--line-soft)}
+.jobrow{display:flex;align-items:center;gap:var(--s3);padding:var(--s2) 0;border-bottom:1px solid var(--line-soft);font-size:12.5px}
+.jobrow .go{margin-left:auto}
+.ghost-btn{background:var(--surface-2);color:var(--ink-soft);border:1px solid var(--line);border-radius:var(--r-sm);padding:var(--s1) var(--s3);font:inherit;font-size:12px;cursor:pointer}
+.volt-mini{background:var(--volt);color:var(--volt-ink);border:none;border-radius:var(--r-sm);padding:var(--s1) var(--s3);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.opt-line{padding:3px 0;font-size:12.5px;color:var(--ink-soft);cursor:pointer}
+.opt-line.hdr{font-family:var(--mono);font-size:10px;color:var(--ink-dim);letter-spacing:.09em;margin-top:var(--s2)}
+.opt-line .chk{color:var(--volt);width:14px;display:inline-block}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<div class="mock-banner">MAKIETA · TUI 1:1 w skórze TERRAIN · dane poglądowe, zero silnika · elementy z TERRAIN: pasek projektu · dock · TRACK · Gate · Job Center · inspector</div>
+
+<div class="projectbar">
+  <div class="logo">Dance<i>Lab</i></div>
+  <div class="sesja">sesja „piątek klub" · autozapis · pula: 1 913 utworów</div>
+  <button class="jobbtn" onclick="ov('jobs')"><span class="dot"></span>zadania: żniwa wektorów 84%</button>
+  <button class="gatebtn volt" onclick="ov('gate')">EXPORT GATE</button>
+</div>
+<div class="tabs" id="tabs">
+  <div class="tab active" data-v="library">LIBRARY</div>
+  <div class="tab" data-v="set">SET</div>
+  <div class="tab" data-v="seam">SEAM / CUE</div>
+  <div class="tab" data-v="track">TRACK</div>
+</div>
+
+<div class="layout">
+  <div class="workspace" id="ws"></div>
+  <div class="inspector">
+    <div class="insp-tabs" id="itabs">
+      <div class="insp-tab active" data-m="ctx">KONTEKST</div>
+      <div class="insp-tab" data-m="gat">GATUNKI ^G</div>
+      <div class="insp-tab" data-m="dj">GRAJ JAK ^D</div>
+      <div class="insp-tab" data-m="slot">SLOT Z/A</div>
+    </div>
+    <div class="insp-body" id="ibody"></div>
+  </div>
+</div>
+
+<div class="dock">
+  <div class="dockrow" id="dockrow"></div>
+  <div class="dockcaption">TEREN SETU · 10 utworów · 62 min · energia = dane (bez celu) · najsłabszy szew 0,74 (styk 9→10)</div>
+</div>
+<div class="footer" id="footer"></div>
+
+<div class="overlay" id="ov-gate"><div class="sheet">
+  <h2>Export Gate — manifest zapisu</h2>
+  <div class="man-row"><span>Cel</span><span class="mono">master.db (Rekordbox)</span></div>
+  <div class="man-row"><span>Pady do zapisania</span><span class="mono">12</span></div>
+  <div class="man-row"><span>Ustępują padom DJ-a (nietykalne)</span><span class="mono" style="color:var(--deck-b)">2</span></div>
+  <div class="man-row"><span>Poza kolekcją RB (pominięte imiennie)</span><span class="mono" style="color:var(--deck-b)">1 · „Tin Lake"</span></div>
+  <div class="man-row"><span>Kopia bezpieczeństwa</span><span class="mono" style="color:var(--green)">tak, przed zapisem</span></div>
+  <div class="man-row"><span>Rekordbox</span><span class="mono" style="color:var(--green)">zamknięty</span></div>
+  <div style="margin-top:var(--s4);display:flex;gap:var(--s3);justify-content:flex-end">
+    <button class="ghost-btn" onclick="ov()">Zostaw</button>
+    <button class="volt-mini" style="padding:var(--s2) var(--s4)" onclick="ov()">POTWIERDŹ: zapisz 12 padów [W]</button>
+  </div></div></div>
+
+<div class="overlay" id="ov-jobs"><div class="sheet">
+  <h2>Job Center</h2>
+  <div class="jobrow"><span class="mono" style="color:var(--deck-a)">●</span> Żniwa wektorów brzmienia <span class="dim mono">1 604/1 913</span><span class="go dim mono">84% · ~12 min</span></div>
+  <div class="jobrow"><span class="mono dim">○</span> Import z Rekordboxa <span class="dim">ostatni: dziś 14:02 · 1 896 utworów</span><button class="volt-mini go">Odśwież teraz</button></div>
+  <div class="jobrow"><span class="mono dim">○</span> Analiza folderu <span class="dim">bramkarz ffprobe odrzuca uszkodzone imiennie</span><button class="ghost-btn go">Wybierz folder…</button></div>
+  <div class="jobrow"><span class="mono dim">○</span> Synchronizacja okładek <span class="dim">iTunes, tylko pewne dopasowania</span><button class="ghost-btn go">Start</button></div>
+  <div class="dim" style="font-size:11.5px;margin-top:var(--s3)">To jest odpowiedź na P0 z audytu: koniec z terminalem operatora.</div>
+  <div style="margin-top:var(--s3);text-align:right"><button class="ghost-btn" onclick="ov()">Zamknij</button></div>
+</div></div>
+
+<script>
+const TR=[
+ ["Balearic Breeze","Sault",122.0,"8A","RB",62,"Organic House",-9.8,6.4,1,1],
+ ["Rivermouth","O'Flynn",121.0,"7A","RB",58,"Breaks / UK Bass",-8.9,5.9,1,0],
+ ["Warm Static","Kelly Lee Owens",120.0,"8B",0.62,44,"Electronica",-11.2,6.8,0,0],
+ ["Glass Court","Jayda G",124.0,"9B","RB",71,"House",-8.1,6.1,0,0],
+ ["Sunday Slow","HAAi",126.0,"10A","ręka",66,"Breaks / UK Bass",-7.9,7.2,0,1],
+ ["Tin Lake","Bicep",128.0,"9A","RB",77,"Electronica",-7.4,6.6,1,0],
+ ["Night Mover","Overmono",134.0,"9A","RB",83,"Breaks / UK Bass",-6.8,5.8,0,0],
+ ["Neon Polny","Catz 'N Dogz",125.0,"8A","RB",69,"House",-8.5,7.0,0,0],
+ ["Cegła","Zamilska",132.0,"4A",0.44,88,"Techno (Raw / Deep / Hypnotic)",-6.2,5.5,0,1],
+ ["Ostra","VTSS",138.0,"5A","RB",92,"Techno (Peak Time / Driving)",-5.9,6.3,0,0]];
+const SET_ORDER=[0,1,2,3,4,5,6,7,8,9];
+const JAKOSC=[0.97,0.93,0.91,0.88,0.95,0.90,0.86,0.92,0.74];
+let widok='library', cueSel=0, wState=1;
+const ws=document.getElementById('ws'), ibody=document.getElementById('ibody');
+
+const FOOT={
+ library:`<span><b>P/Spacja</b> odsłuch</span><span><b>↓↑</b> next/prev gdy gra</span><span><b>U</b> ♥</span><span><b>F</b> filar</span><span><b>G</b> z filarów</span><span><b>K</b> okładki</span><span><b>I</b> info</span><span><b>^G ^D</b> panele</span>`,
+ set:`<span><b>B</b> buduj</span><span><b>Z</b> zamień</span><span><b>X</b> wytnij</span><span><b>A</b> dopisz</span><span><b>⇧↑↓</b> przesuń</span><span><b>S</b> zapisz plan</span><span><b>O</b> wczytaj</span><span><b>C</b> porównaj</span><span><b>L</b> notki</span><span><b>V</b> werdykt</span>`,
+ seam:`<span><b>A–H</b> pad</span><span><b>←→</b> pad o takt</span><span><b>⇧←→</b> ±8</span><span><b>X</b> zdejmij</span><span><b>Z</b> cofnij</span><span><b>S</b> szew od padów</span><span><b>P</b> utwór od pada</span><span><b>W</b> wyślij</span>`,
+ track:`<span><b>I</b> zamknij</span><span><b>P</b> odsłuch</span><span><b>U</b> ♥</span><span><b>F</b> filar</span>`};
+function footer(){document.getElementById('footer').innerHTML=FOOT[widok]+`<span class="status">Rekordbox: <span class="ok">zamknięty</span> · kopie: 3 · notki: <b>7 (L)</b></span>`}
+
+function pew(v){return v==="RB"?`<span class="key" style="color:var(--green)">RB</span>`:v==="ręka"?`<span class="key" style="color:var(--deck-a)">ręka</span>`:`<span class="key ${v<0.5?'pew-low':''}">${v.toFixed(2)}</span>`}
+
+function renderLibrary(){
+ const rows=TR.map((t,i)=>`<tr class="${i===0?'sel':''}" onclick="go('track')">
+  <td class="fav">${t[9]?'♥':''}</td><td class="flag">${t[10]?'⚑':''}</td>
+  <td class="bpm">${t[2].toFixed(1)}</td><td class="key">${t[3]}</td><td>${pew(t[4])}</td>
+  <td class="mono dim">${t[5]}</td><td class="dim">${t[6]}</td><td class="mono dim">${t[7].toFixed(1)}</td>
+  <td class="mono dim">${t[8].toFixed(1)}</td><td>${t[1]}</td><td>${t[0]}</td></tr>`).join('');
+ ws.innerHTML=`
+ <div class="side">
+   <div class="opt active">Cała biblioteka</div><div class="opt">♥ Ulubione utwory</div>
+   <div class="opt">⚑ Filary</div><div class="opt dis">♥ playlisty — wkrótce</div>
+ </div>
+ <div class="main">
+   <div class="filters">
+     <input class="szuk" placeholder="szukaj: nazwa albo gatunek">
+     <input class="waski" placeholder="ton 8A"><input class="waski" placeholder="120-130">
+     <span class="sw" onclick="this.classList.toggle('on')"><span class="pill"><i></i></span>okładki <span class="mono">K</span></span>
+   </div>
+   <div class="tbl"><table><thead><tr>
+     <th>♥</th><th>F</th><th class="sorted">BPM ↓</th><th>TON</th><th>PEW.</th><th>ENERGIA</th><th>GATUNEK</th><th>LUFS</th><th>MIN</th><th>WYKONAWCA</th><th>UTWÓR</th>
+   </tr></thead><tbody>${rows}</tbody></table></div>
+   <div class="licznik">1 913 utworów · sekcja: Cała · sort: BPM rosnąco · legenda: U=♥ · F=⚑ filar · G=szkic z filarów</div>
+   <div class="player">
+     <button class="pbtn">▶</button><div class="cover"></div>
+     <div class="ptitle">Balearic Breeze<br><span class="dim">Sault · 1 z 1913</span></div>
+     <div class="axis"><div class="head"></div></div><div class="ptime">2:11 / 6:24</div>
+   </div>
+ </div>`;
+ insp('ctx');
+}
+function renderSet(){
+ const rows=SET_ORDER.map((ti,i)=>{const t=TR[ti];const j=i<JAKOSC.length?JAKOSC[i]:null;
+  return `<tr class="${i===0?'sel':''}"><td class="mono">${i+1}${t[10]?' <span class=flag>⚑</span>':''}</td>
+  <td class="bpm">${t[2].toFixed(1)}</td><td class="key">${t[3]}</td><td>${pew(t[4])}</td>
+  <td class="dim">${t[6]}</td><td class="mono dim">${Math.round((i+1)*6.2)}</td><td>${t[1]} – ${t[0]}</td>
+  <td class="mono" style="color:${j!==null&&j<0.8?'var(--deck-b)':'var(--ink-dim)'}">${j!==null?j.toFixed(2):'—'}</td></tr>`}).join('');
+ ws.innerHTML=`<div class="main">
+  <div class="brief">
+    <span class="chip">pula: <b>cache analiz</b></span>
+    <span class="chip">minuty <b>62</b></span>
+    <span class="chip">gatunki <b>Breaks / UK Bass</b> +1 <span class="k">^G</span></span>
+    <span class="chip">BPM <b>118–140</b></span>
+    <span class="chip voltish">łuk <b>bez łuku</b> <span class="k">zmierzone</span></span>
+    <span class="chip">tempo <b>staircase</b></span>
+    <span class="chip">tryb <b>smart</b></span>
+    <span class="chip">świeżość <b>balanced</b> · seed <b class="mono">4711</b></span>
+    <span class="chip">kotwica <b>★ moje ulubione</b> <span class="k">^D</span></span>
+    <span class="chip">kontur <b>off</b></span>
+  </div>
+  <div class="compare">SZEW 1→2 · 122,0→121,0 (−0,8%) · 8A→7A sąsiednia · okno wyjścia 32 t · wejścia 16 t · ocena 0,97 <span class="dim">— pasek faktów (C), bez odsłuchu; słuchanie w SEAM/CUE</span></div>
+  <div class="warnbar">⚠ notki: 7 (L pokazuje) · najważniejsza dymkiem: „sito brzmienia: pula 1 913 → 383 przy kotwicy ★"</div>
+  <div class="tbl" style="padding:0 var(--s4)"><table><thead><tr>
+   <th>#</th><th>BPM</th><th>TON</th><th>PEW.</th><th>GATUNEK</th><th>Σ MIN</th><th>UTWÓR</th><th>SZEW→</th>
+  </tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="player"><button class="pbtn">▶</button><div class="cover"></div>
+   <div class="ptitle">odsłuch wg standardu graczy<br><span class="dim">Spacja graj/pauza · ↓↑ next/prev gdy gra · skoki 8/32/128</span></div>
+   <div class="axis"><div class="head" style="left:12%"></div></div><div class="ptime">0:44</div></div>
+ </div>`;
+ insp('ctx');
+}
+function fala(id,color,seed){const c=document.getElementById(id);if(!c)return;const w=c.width=c.offsetWidth,h=c.height=c.offsetHeight,x=c.getContext('2d');x.fillStyle=color;for(let i=0;i<w;i+=3){seed=(seed*16807)%2147483647;const v=(seed/2147483647)*.7+.15;const bar=v*h*(.4+.6*Math.abs(Math.sin(i/w*Math.PI*1.2)));x.globalAlpha=.6;x.fillRect(i,(h-bar)/2,2,bar)}}
+function renderSeam(){
+ const listRows=SET_ORDER.map((ti,i)=>{const t=TR[ti];
+  const pads=i===cueSel?`<b style="left:64%">E</b><b style="left:12%">A</b>`:(i%3===0?`<b style="left:30%">A</b>`:'');
+  let bars='';let s=ti*31+7;for(let b=0;b<40;b++){s=(s*16807)%2147483647;bars+=`<i style="left:${b*2.5}%;height:${(s/2147483647)*80+15}%"></i>`}
+  return `<div class="cue-row ${i===cueSel?'sel':''}" onclick="cueSel=${i};renderSeam()">
+   <div class="nm"><span class="mono dim">${i+1}</span> ${t[1]} – ${t[0]} <span class="mono dim">${i<JAKOSC.length?('szew '+JAKOSC[i].toFixed(2)):''}</span></div>
+   <div class="spark">${bars}${pads}</div></div>`}).join('');
+ const t=TR[SET_ORDER[cueSel]];
+ const wLbl=['','Zamknij Rekordbox, by wysłać cue','Wyślij cue do RB [W]','POTWIERDŹ zapis 12 padów [W]'][wState===1?2:3];
+ ws.innerHTML=`
+ <div class="cuelist">${listRows}</div>
+ <div class="cuecard">
+   <div class="mono dim" style="font-size:10.5px;letter-spacing:.09em">KARTA CUE · ${t[1]} – ${t[0]} · ${t[2].toFixed(1)} BPM · ${t[3]} · P/Spacja gra od wybranego pada</div>
+   <div class="timeline"><canvas id="tl"></canvas>
+     <div style="position:absolute;top:0;bottom:0;left:64%;width:2px;background:var(--volt)"><span style="position:absolute;top:2px;left:4px;font-family:var(--mono);font-size:10px;background:var(--ground);padding:0 3px;border-radius:3px">E</span><span style="position:absolute;bottom:3px;left:-2px;width:6px;height:6px;border-radius:50%;background:var(--ink-dim)" title="silnik proponował"></span></div>
+     <div style="position:absolute;top:0;bottom:0;left:12%;width:2px;background:var(--red)"><span style="position:absolute;top:2px;left:4px;font-family:var(--mono);font-size:10px;background:var(--ground);padding:0 3px;border-radius:3px;color:var(--red)">A</span></div>
+   </div>
+   <div class="sekcje">
+     <i style="width:14%;background:#2c3e50"></i><i style="width:22%;background:#3a5f4b"></i>
+     <i style="width:18%;background:#6b5b2a"></i><i style="width:26%;background:#3a5f4b"></i>
+     <i style="width:20%;background:#2c3e50"></i></div>
+   <div class="mono dim" style="font-size:10px">INTRO ▮ UP ▮ CHORUS ▮ UP ▮ OUTRO · oś: energia z klatek RMS · pady na TAKTACH RB (68.1, nie 68.2)</div>
+   <div class="padbtns">
+     <button class="padb cudzy" title="pad DJ-a — NIETYKALNY (konflikt: skip)">A</button>
+     <button class="padb">B</button><button class="padb">C</button><button class="padb">D</button>
+     <button class="padb set">E<span class="eng" title="silnik proponował"></span></button>
+     <button class="padb">F</button><button class="padb">G</button><button class="padb">H</button>
+   </div>
+   <div class="mono dim" style="font-size:11px;margin-bottom:var(--s3)">wybrany: E · 4:12.0 → takt 68.1 · ←→ przesuwa o TAKT · ręczny czas kwantyzowany do najbliższego taktu</div>
+   <div style="display:flex;gap:var(--s2);margin-bottom:var(--s3)">
+     <button class="ghost-btn">Posłuchaj szwu od padów [S]</button>
+     <button class="ghost-btn">Graj od pada [P]</button></div>
+   <button class="wbtn ${wState===1?'s2':'s3'}" onclick="wState=wState===1?2:1;renderSeam()">${wLbl}</button>
+   <div class="dim" style="font-size:11px;margin-top:var(--s1)">${wState===1?'pierwsze W liczy i pokazuje plan — nic nie zapisuje':'drugie W zapisuje do master.db · kopia przed zapisem · tylko NASZE pady (rejestr UUID)'}</div>
+ </div>`;
+ requestAnimationFrame(()=>fala('tl','#65d8ff',SET_ORDER[cueSel]*13+5));
+ insp('slot');
+}
+function renderTrack(){
+ ws.innerHTML=`<div class="bio">
+  <h2>Balearic Breeze</h2><div class="sub">Sault · Organic House · 6:24 · plik AIFF</div>
+  <div class="biogrid">
+   <div class="card mono" style="line-height:2">BPM <b>122,0</b> <span class="dim">(siatka sztywna, wiarygodna)</span><br>tonacja <b>8A</b> <span style="color:var(--green)">źródło: RB</span><br>energia 62/100 <span class="dim">(relatywna w bibliotece)</span><br>LUFS −9,8 · bas 71 · groove 58</div>
+   <div class="card"><div class="mono dim" style="font-size:10px;letter-spacing:.09em;margin-bottom:6px">PADY W REKORDBOKSIE</div>
+     <span class="mono">A 0:31.1</span> <span class="dim">(DJ — nietykalny)</span><br><span class="mono" style="color:var(--volt)">E 4:12.0</span> <span class="dim">(nasz, rejestr UUID)</span></div>
+   <div class="card prec"><div class="kto">PRECEDENSY Z MAPY · funkcja: KAMELEON</div>
+     Grało go 4 DJ-ów i poszli w 4 światy:<br>
+     → David Bowie <span class="dim">(Rude Audio, 2021)</span><br>
+     → Hot Since 82 <span class="dim">(Adam Port @ Boiler Room)</span><br>
+     → Psyk <span class="dim">(Jimi Jules @ Boiler Room)</span><br>
+     <span class="dim">To fakty z setów, nie predykcja.</span></div>
+   <div class="card"><div class="mono dim" style="font-size:10px;letter-spacing:.09em;margin-bottom:6px">WYSTĘPOWANIE</div>
+     w 3 Twoich planach · ♥ ulubiony · otwierał set 2×<br><span class="dim">historia grania: 7× (Rekordbox)</span></div>
+  </div></div>`;
+ insp('ctx');
+}
+/* inspector modes = dorosla wersja nakladki #suggest (5 trybow TUI) */
+function insp(m){
+ document.querySelectorAll('.insp-tab').forEach(t=>t.classList.toggle('active',t.dataset.m===m));
+ if(m==='ctx'){ibody.innerHTML=`<div class="card"><b>Balearic Breeze</b><br><span class="soft">Sault · 122,0 · 8A (RB)</span><br><span class="dim" style="font-size:11.5px">I = pełna karta · U = ♥ · F = filar</span></div>
+  <div class="card"><div class="mono dim" style="font-size:10px;letter-spacing:.09em;margin-bottom:4px">OSTRZEŻENIA (7)</div>
+  <div style="font-size:12px" class="soft">sito brzmienia: 1 913 → 383 (kotwica ★)<br>1 szew &lt; 0,80 (styk 9→10)<br>filar „Cegła" w odległym tempie<br><span class="dim">…pełna lista pod L</span></div></div>`}
+ if(m==='gat'){ibody.innerHTML=`<div class="mono dim" style="font-size:10px;letter-spacing:.09em">GATUNKI — masz 21 z 46 Beatportu · 214 bez tagu<br>Enter dodaje/zdejmuje · ^G/Esc zamyka</div>
+  <div class="opt-line hdr">— BEATPORT —</div>
+  <div class="opt-line"><span class="chk">✓</span>Breaks / UK Bass (212)</div>
+  <div class="opt-line"><span class="chk">✓</span>House (391)</div>
+  <div class="opt-line"><span class="chk"> </span>Techno (Peak Time / Driving) (167)</div>
+  <div class="opt-line"><span class="chk"> </span>Organic House (98)</div>
+  <div class="opt-line"><span class="chk"> </span>Electronica (244)</div>
+  <div class="opt-line hdr">— POZA TAKSONOMIĄ —</div>
+  <div class="opt-line"><span class="chk"> </span>Dance (61) · Electronic (204)</div>`}
+ if(m==='dj'){ibody.innerHTML=`<div class="mono dim" style="font-size:10px;letter-spacing:.09em">KSIĘGA KOTWIC — 285 DJ-ów zmierzonych z setów<br>kogo tu nie ma, tego nie mierzyliśmy · Enter ustawia i zamyka</div>
+  <div class="opt-line hdr">— TWOJE BRZMIENIE —</div>
+  <div class="opt-line" style="color:var(--volt)">★ moje ulubione (23 utwory)</div>
+  <div class="opt-line hdr">— GRUPA: LEFTFIELD / UK (klaster brzmienia) —</div>
+  <div class="opt-line">Four Tet · 96 wektorów · skok ±6,2</div>
+  <div class="opt-line">Ben UFO · 74 · ±8,1</div>
+  <div class="opt-line">Jamie xx · 51 · ±5,4</div>
+  <div class="opt-line hdr">— GRUPA: TECHNO HIPNOTYCZNE —</div>
+  <div class="opt-line">Donato Dozzy · 44 · ±3,9</div>`}
+ if(m==='slot'){ibody.innerHTML=`<div class="mono dim" style="font-size:10px;letter-spacing:.09em">SLOT 2 — kandydat oceniany WZGLĘDEM OBU SĄSIADÓW<br>(triplet, α=1) · klik + Z podmienia · A dopisuje</div>
+  <div class="card" style="border-color:var(--volt)"><b>O'Flynn – Rivermouth</b> <span class="mono">0,97</span><br><span class="dim" style="font-size:11px">wejście 0,96 · wyjście 0,98 · 8A→7A</span></div>
+  <div class="card"><b>Jayda G – Glass Court</b> <span class="mono">0,91</span><br><span class="dim" style="font-size:11px">wejście 0,93 · wyjście 0,89</span></div>
+  <div class="card"><b>Bicep – Tin Lake</b> <span class="mono">0,88</span><br><span class="dim" style="font-size:11px">wejście 0,90 · wyjście 0,86 · <span style="color:var(--deck-b)">bez pliku — odsłuch odmówi z powodem</span></span></div>
+  <div class="dim" style="font-size:11px">tryb oceny: smart · zmiana trybu przelicza na żywo</div>`}
+}
+/* dock */
+(function(){const dr=document.getElementById('dockrow');
+ dr.innerHTML=SET_ORDER.map((ti,i)=>{const en=[.35,.42,.38,.55,.61,.5,.72,.58,.44,.66][i];
+  const j=i<JAKOSC.length?`<span class="joint" style="background:${JAKOSC[i]<0.8?'var(--deck-b)':'var(--green)'};opacity:.85"></span>`:'';
+  return `<div class="dockcell ${i===0?'cur':''}" style="height:${Math.round(en*100)}%" title="${TR[ti][1]} – ${TR[ti][0]}" onclick="go('seam')">${j}</div>`}).join('')})();
+/* nawigacja */
+function go(v){widok=v;document.querySelectorAll('#tabs .tab').forEach(t=>t.classList.toggle('active',t.dataset.v===v));
+ ({library:renderLibrary,set:renderSet,seam:renderSeam,track:renderTrack})[v]();footer()}
+document.querySelectorAll('#tabs .tab').forEach(t=>t.onclick=()=>go(t.dataset.v));
+document.querySelectorAll('.insp-tab').forEach(t=>t.onclick=()=>insp(t.dataset.m));
+function ov(which){document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('open'));if(which)document.getElementById('ov-'+which).classList.add('open')}
+go('library');
+</script>
+</body>
+</html>
