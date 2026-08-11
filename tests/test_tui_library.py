@@ -65,7 +65,18 @@ def test_filtry_skladaja_sie():
 
 
 def _state(*filary):
-    return {"filary": [{"track_id": t, "path": f"/m/{t}.mp3"} for t in filary]}
+    """Stan w NOWYM kształcie: filary żyją w aktywnej playliście (11.08)."""
+    return {"filary": [], "aktywna_playlista": 0, "playlisty": [{
+        "nazwa": "Test", "kotwica": None,
+        "filary": [{"track_id": t, "path": f"/m/{t}.mp3", "rola": ""}
+                   for t in filary]}]}
+
+
+def _playlista_testowa(app, *filary):
+    import dancelab.tui.user_store as store
+    store.nowa_playlista(app._user_state, "Test")
+    app._user_state["playlisty"][-1]["filary"] = [
+        {"track_id": t, "path": f"/m/{t}.mp3", "rola": ""} for t in filary]
 
 
 def _by_id():
@@ -73,7 +84,7 @@ def _by_id():
 
 
 def test_filary_przechodza_do_budowy_z_notka():
-    ids, notes = _filary_for_build(_state("a", "b", "e"), _by_id(), None, None, 10)
+    ids, notes, _rola = _filary_for_build(_state("a", "b", "e"), _by_id(), None, None, 10)
     assert ids == ["a", "b", "e"]
     assert any("filary w budowie: 3" in n for n in notes)
 
@@ -85,14 +96,14 @@ def test_mniej_niz_trzy_filary_odmawia():
 
 
 def test_filar_poza_oknem_tempa_pominiety_imiennie():
-    ids, notes = _filary_for_build(_state("a", "b", "e", "c"),
+    ids, notes, _rola = _filary_for_build(_state("a", "b", "e", "c"),
                                    _by_id(), 129, 133, 10)
     assert ids == ["a", "b", "e"], "c ma 135 — poza oknem"
     assert any("poza oknem tempa" in n and "Hodge" in n for n in notes)
 
 
 def test_filar_spoza_puli_pominiety_imiennie():
-    ids, notes = _filary_for_build(_state("nie_ma"), _by_id(), None, None, 10)
+    ids, notes, _rola = _filary_for_build(_state("nie_ma"), _by_id(), None, None, 10)
     assert ids == []
     assert any("nieobecny w puli" in n and "nie_ma" in n for n in notes)
 
@@ -144,19 +155,27 @@ def test_u_i_f_pinuja_z_biblioteki(tmp_path, monkeypatch):
             table.focus()
             await pilot.press("u")
             await pilot.pause()
-            await pilot.press("f")
+            import dancelab.tui.user_store as store2
+            _playlista_testowa(app)           # F wymaga aktywnej playlisty
+            app._render_side_list()
+            await pilot.press("f")            # otwiera wybór ROLI (11.08)
+            await pilot.pause()
+            assert app._panel_mode == "rola_filaru"
+            await pilot.press("enter")        # pierwsza rola = otwarcie
             await pilot.pause()
             assert len(app._user_state["ulubione_utwory"]) == 1
-            assert len(app._user_state["filary"]) == 1
+            wpisy = store2.filary_wpisy(app._user_state)
+            assert len(wpisy) == 1 and wpisy[0]["rola"] == "otwarcie"
             from textual.coordinate import Coordinate
             assert str(table.get_cell_at(Coordinate(0, 1))) == "♥"
-            assert str(table.get_cell_at(Coordinate(0, 2))) == "F"
+            assert str(table.get_cell_at(Coordinate(0, 2))) == "F·O"
             count_line = str(app.query_one("#lib-count", Static).render())
             assert "filary: 1 (min 3, max 10)" in count_line
             assert "F=filar" in count_line          # legenda widoczna na ekranie
-            await pilot.press("f")            # drugi raz zdejmuje
+            app._filar_kandydat = (wpisy[0]["track_id"], wpisy[0]["path"])
+            app._apply_rola_filaru("__zdejmij")
             await pilot.pause()
-            assert app._user_state["filary"] == []
+            assert store2.filary_wpisy(app._user_state) == []
     asyncio.run(go())
     # stan przeżywa zamknięcie — i należy do TEJ biblioteki, nie do programu
     # (od 09.08 plik jest osobny dla każdej puli; wcześniej filary jednego
@@ -199,14 +218,12 @@ def test_g_wstawia_szkic_filarow_bez_budowy(tmp_path, monkeypatch):
             tc = app.query_one("#tabs", TabbedContent)
             app._set_library(list(LIB))
             await pilot.pause()
-            app._user_state["filary"] = [
-                {"track_id": "a", "path": "/m/a.mp3"},
-                {"track_id": "b", "path": "/m/b.mp3"}]
+            _playlista_testowa(app, "a", "b")
             app.action_build_from_filary()
             await pilot.pause()
             assert tc.active == "tab-lib", "2 filary = odmowa, zostajemy"
-            app._user_state["filary"].append(
-                {"track_id": "e", "path": "/m/e.mp3"})
+            app._user_state["playlisty"][-1]["filary"].append(
+                {"track_id": "e", "path": "/m/e.mp3", "rola": ""})
             app.action_build_from_filary()
             await pilot.pause()
             assert tc.active == "tab-set"
@@ -287,9 +304,7 @@ def test_sekcje_po_lewej_filtruja_widok(tmp_path, monkeypatch):
             await pilot.pause()
             app._user_state["ulubione_utwory"] = [
                 {"track_id": "b", "path": "/m/b.mp3"}]
-            app._user_state["filary"] = [
-                {"track_id": "a", "path": "/m/a.mp3"},
-                {"track_id": "e", "path": "/m/e.mp3"}]
+            _playlista_testowa(app, "a", "e")
             table = app.query_one("#lib-table", DataTable)
             app._set_lib_section("fav")
             await pilot.pause()
@@ -431,7 +446,7 @@ def test_wyciecie_filaru_zdejmuje_pin(tmp_path, monkeypatch):
             app._ctx = dict(by_id=by_id, weights=None, arc="build",
                             planner="smart", bpm_min=None, bpm_max=None,
                             anchor=None, params={}, filary=["b"])
-            app._user_state["filary"] = [{"track_id": "b", "path": "/m/b.mp3"}]
+            _playlista_testowa(app, "b")
             app._order = ["a", "b", "c"]
             app._engine_order = ["a", "b", "c"]
             app._render_order(by_id)
@@ -442,7 +457,9 @@ def test_wyciecie_filaru_zdejmuje_pin(tmp_path, monkeypatch):
             await pilot.press("x")
             await pilot.pause()
             assert app._order == ["a", "c"]
-            assert app._user_state["filary"] == [], "pin zdjęty razem z cięciem"
+            import dancelab.tui.user_store as store3
+            assert store3.filary_wpisy(app._user_state) == [], \
+                "pin zdjęty razem z cięciem"
             assert app._edits[-1]["filar"] is True
     asyncio.run(go())
 

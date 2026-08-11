@@ -179,13 +179,23 @@ def _rozstaw_filary(filary: list[str], by_id: dict, count: int,
 
 def _filary_for_build(state: dict, by_id: dict, bpm_min: float | None,
                       bpm_max: float | None, count: int | None
-                      ) -> tuple[list[str], list[str]]:
-    """Filary z Biblioteki → `pinned_track_ids` silnika, z jawnym losem
+                      ) -> tuple[list[str], list[str], dict[str, str]]:
+    """Filary AKTYWNEJ PLAYLISTY → `pinned_track_ids` silnika + ROLE, z jawnym losem
     każdego konfliktu: filar spoza puli i filar poza oknem tempa są POMIJANE
     z imienną notką (okno ustawił użytkownik — konflikt ma być widoczny, nie
     rozstrzygany po cichu); więcej filarów niż miejsc = odmowa z liczbami."""
-    from dancelab.tui.user_store import MIN_FILARY, resolve_tracks
-    ids, missing = resolve_tracks(state.get("filary", []), by_id)
+    from dancelab.tui.user_store import (MIN_FILARY, filary_wpisy,
+                                         resolve_tracks)
+    wpisy = filary_wpisy(state)
+    ids, missing = resolve_tracks(wpisy, by_id)
+    by_path = {a.track.source_path: tid for tid, a in by_id.items()}
+    role: dict[str, str] = {}
+    for e in wpisy:
+        tid = e.get("track_id")
+        if tid not in by_id:
+            tid = by_path.get(e.get("path", ""))
+        if tid and e.get("rola"):
+            role[tid] = e["rola"]
     notes = [f"FILAR nieobecny w puli (pominięty): {m}" for m in missing]
     wyciete = [f"{m} (spoza puli)" for m in missing]
     kept: list[str] = []
@@ -216,7 +226,37 @@ def _filary_for_build(state: dict, by_id: dict, bpm_min: float | None,
                          f"({count}) — wydłuż set albo zdejmij filary")
     if kept:
         notes.append(f"filary w budowie: {len(kept)} (każdy MUSI zagrać)")
-    return kept, notes
+    role = {tid: r for tid, r in role.items() if tid in set(kept)}
+    if role:
+        notes.append("role filarów: " + ", ".join(
+            f"{r}" for r in sorted(set(role.values()))))
+    return kept, notes, role
+
+
+def _zastosuj_role_krancowe(rozstaw: dict[int, str], role: dict[str, str],
+                            count: int) -> tuple[dict[int, str], list[str]]:
+    """Role OTWARCIE i ZAMKNIĘCIE wymuszają krańce setu (Janek 11.08).
+
+    Nadpisują rozstawienie z trybu filarów: deklaracja DJ-a jest mocniejsza
+    niż sortowanie po tempie. Oddech i buildup na razie NIE celują miejscem —
+    silnik gwarantuje obecność i most do filara; celowanie rolą w środku setu
+    to następny krok i mówimy to wprost zamiast udawać (ADR-005)."""
+    nowe = dict(rozstaw)
+    notes: list[str] = []
+    cele = {"otwarcie": 1, "zamkniecie": count}
+    for rola, pozycja in cele.items():
+        tid = next((t for t, r in role.items() if r == rola), None)
+        if tid is None:
+            continue
+        nowe = {p: t for p, t in nowe.items() if t != tid and p != pozycja}
+        nowe[pozycja] = tid
+        notes.append(f"rola {rola}: pozycja #{pozycja} (deklaracja DJ-a "
+                     f"nadpisuje rozstawienie trybu)")
+    if any(r in ("oddech", "buildup") for r in role.values()):
+        notes.append("role oddech/buildup: zapisane — silnik gwarantuje "
+                     "obecność i most; celowanie miejscem wg roli to "
+                     "następny krok")
+    return nowe, notes
 
 
 # Poświata „influence" ŻYŁA JEDEN DZIEŃ: pomysł Janka 04.08, jego własne weto
@@ -465,6 +505,20 @@ class NazwaPlanuScreen(ModalScreen):
 
     def action_anuluj(self) -> None:
         self.dismiss(None)
+
+
+class NazwaPlaylistyScreen(NazwaPlanuScreen):
+    """＋ nowa playlista: NAJPIERW nazwa (zaproponowana z metadanych puli —
+    wzór z praktyki Janka: „Piątek · 130–135 · jak Ben UFO"), POTEM kotwica.
+    Kolejność z jego decyzji 11.08."""
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="nazwa-box"):
+            yield Label("Nazwa playlisty (z metadanych — popraw, jeśli chcesz):")
+            yield Input(value=self._domyslna, id="plan-name")
+            with Horizontal(id="nazwa-przyciski"):
+                yield Button("Dalej: kotwica", id="nazwa-ok", variant="primary")
+                yield Button("Anuluj", id="nazwa-cancel")
 
 
 class DanceLabTUI(App):
@@ -775,20 +829,17 @@ class DanceLabTUI(App):
                        ("pady", 6), ("pewność", None)):
             cue.add_column(lbl, width=w)
         cue.cursor_type = "row"
-        side = self.query_one("#lib-side-list", OptionList)
-        side.add_option(Option("Cała biblioteka", id="all"))
-        side.add_option(Option("♥ Ulubione utwory", id="fav"))
-        side.add_option(Option("⚑ Filary", id="filary"))
-        side.add_option(Option("♥ playlisty — wkrótce", id="pl", disabled=True))
-        side.highlighted = 0
         self._lib_section = "all"
+        self._przypisz_kotwice = False
         try:
             from dancelab.tui.user_store import load_state
             self._user_state = load_state(self.processed_dir)
         except Exception as exc:  # noqa: BLE001 — zepsuty plik stanu ≠ martwa apka
             self._note(f"stan ulubionych/filarów nieodczytany: {exc}")
             self._user_state = {"ulubione_utwory": [], "ulubione_playlisty": [],
-                                "filary": []}
+                                "filary": [], "playlisty": [],
+                                "aktywna_playlista": None}
+        self._render_side_list()
         # lustro zapisanego stanu okładek na przełączniku — bez uruchamiania
         # synchronizacji (ta rusza wyłącznie z ręki użytkownika)
         if bool(self._user_state.get("okladki_w_liscie")):
@@ -1774,6 +1825,9 @@ class DanceLabTUI(App):
         if self._panel_mode == "gatunki":
             event.stop()
             self._gatunek_enterem(wybor)
+        elif self._panel_mode == "rola_filaru":
+            event.stop()
+            self._apply_rola_filaru(wybor)
         elif self._panel_mode == "dj":
             event.stop()
             pole = self.query_one("#dj", Select)
@@ -1787,10 +1841,82 @@ class DanceLabTUI(App):
                                   *((e, w) for e, w in (pole._options or []))])
             pole.value = wybor
             self._close_panel()
+            if getattr(self, "_przypisz_kotwice", False):
+                from dancelab.tui.user_store import (aktywna_playlista,
+                                                     save_state,
+                                                     ustaw_kotwice_playlisty)
+                if ustaw_kotwice_playlisty(self._user_state, wybor):
+                    save_state(self._user_state, self.processed_dir)
+                    pl = aktywna_playlista(self._user_state)
+                    s_ = pl["nazwa"]; self._note(f"kotwica playlisty „{s_}” to teraz: {wybor}")
+                    self.notify(f"„{pl['nazwa']}” · kotwica: {wybor}",
+                                timeout=5)
+                self._przypisz_kotwice = False
+                self.query_one("#lib-table", DataTable).focus()
+                return
             self.query_one("#set", DataTable).focus()
             self._note(f"kotwica: {wybor}")
 
+    def _render_side_list(self) -> None:
+        """Sekcje + PLAYLISTY (decyzja Janka 11.08: playlista = projekt —
+        własna nazwa z metadanych, własna kotwica, własne filary z rolami)."""
+        from dancelab.tui.user_store import aktywna_playlista
+        side = self.query_one("#lib-side-list", OptionList)
+        side.clear_options()
+        side.add_option(Option("Cała biblioteka", id="all"))
+        side.add_option(Option("♥ Ulubione utwory", id="fav"))
+        side.add_option(Option("⚑ Filary (playlisty)", id="filary"))
+        for i, pl in enumerate(self._user_state.get("playlisty", [])):
+            znak = "▸ " if aktywna_playlista(self._user_state) is pl else "  "
+            side.add_option(Option(f"{znak}{pl['nazwa'][:24]}", id=f"pl:{i}"))
+        side.add_option(Option("＋ nowa playlista", id="pl-new"))
+        side.highlighted = 0
+
     def _set_lib_section(self, section: str) -> None:
+        from dancelab.tui.user_store import (aktywna_playlista,
+                                             nazwa_z_metadanych,
+                                             nowa_playlista, save_state)
+        if section == "pl-new":
+            by_id = {a.track.track_id: a for a in self._lib}
+            propozycja = nazwa_z_metadanych(by_id) if by_id else "Nowa playlista"
+
+            def po_nazwie(nazwa: str | None) -> None:
+                if not nazwa:
+                    return
+                nowa_playlista(self._user_state, nazwa)
+                save_state(self._user_state, self.processed_dir)
+                self._render_side_list()
+                self._note(f"playlista „{nazwa}” utworzona — teraz wybierz "
+                           f"jej kotwicę (lista otwarta)")
+                self.notify(f"Playlista „{nazwa}” — wybierz kotwicę",
+                            timeout=6)
+                self._przypisz_kotwice = True
+                self.action_grupy_dj()
+
+            self.push_screen(NazwaPlaylistyScreen(propozycja), po_nazwie)
+            return
+        if section.startswith("pl:"):
+            idx = int(section.split(":", 1)[1])
+            self._user_state["aktywna_playlista"] = idx
+            from dancelab.tui.user_store import save_state as _zapisz
+            _zapisz(self._user_state, self.processed_dir)
+            pl = aktywna_playlista(self._user_state)
+            if pl and pl.get("kotwica"):
+                pole = self.query_one("#dj", Select)
+                dostepne = {w for _e, w in (pole._options or [])}
+                if pl["kotwica"] not in dostepne:
+                    pole.set_options([(pl["kotwica"], pl["kotwica"]),
+                                      *((e, w)
+                                        for e, w in (pole._options or []))])
+                pole.value = pl["kotwica"]
+            self._render_side_list()
+            self._lib_section = "filary"
+            self._render_library()
+            self._note(f"playlista aktywna: {pl['nazwa']} · kotwica: "
+                       f"{pl.get('kotwica') or '—'} · filary: "
+                       f"{len(pl['filary'])} — F przypina filar TEJ playlisty")
+            self.query_one("#lib-table", DataTable).focus()
+            return
         self._lib_section = section
         self._render_library()
         self.query_one("#lib-table", DataTable).focus()
@@ -1807,10 +1933,18 @@ class DanceLabTUI(App):
         search, key, lo, hi, err = self._lib_filters()
         rows = filter_library(self._lib, search=search, key=key,
                               bpm_lo=lo, bpm_hi=hi)
+        from dancelab.tui.user_store import filary_wpisy
         by_id = {a.track.track_id: a for a in self._lib}
         favs, _ = resolve_tracks(self._user_state["ulubione_utwory"], by_id)
-        filary, _ = resolve_tracks(self._user_state["filary"], by_id)
-        favs, filary = set(favs), set(filary)
+        by_path = {a.track.source_path: a.track.track_id for a in self._lib}
+        role_f: dict[str, str] = {}
+        for e in filary_wpisy(self._user_state):
+            tid = e.get("track_id")
+            if tid not in by_id:
+                tid = by_path.get(e.get("path", ""))
+            if tid:
+                role_f[tid] = e.get("rola", "")
+        favs, filary = set(favs), set(role_f)
         col, rev = self._lib_sort if self._lib_sort is not None else (3, False)
         znane = [a for a in rows if not _lib_sort_missing(
             col, a, self._lib_energy, self._lib_lufs)]
@@ -1838,7 +1972,9 @@ class DanceLabTUI(App):
             table.add_row(
                 art_cell,
                 "♥" if t.track_id in favs else "",
-                "F" if t.track_id in filary else "",
+                ({"otwarcie": "F·O", "buildup": "F·B", "oddech": "F·~",
+                  "zamkniecie": "F·Z"}.get(role_f.get(t.track_id, ""), "F")
+                 if t.track_id in filary else ""),
                 _bpm_cell(t), _key_cell(t),
                 _conf_cell(t),
                 f"{en:3d}" if en is not None else "—",
@@ -1851,10 +1987,15 @@ class DanceLabTUI(App):
                 height=3 if galeria else 1,
             )
         self._lib_view = rows
+        from dancelab.tui.user_store import aktywna_playlista
         sekcja = {"fav": "♥ Ulubione", "filary": "⚑ Filary"}.get(
             section, "Cała biblioteka")
+        pl_akt = aktywna_playlista(self._user_state)
+        filary_info = (f"playlista: {pl_akt['nazwa'][:22]} · filary: "
+                       f"{len(pl_akt['filary'])} (min 3, max 10)"
+                       if pl_akt else "filary: brak playlisty (＋ po lewej)")
         info = (f"{sekcja}: {len(rows)} z {len(self._lib)} utworów   ·   "
-                f"filary: {len(self._user_state['filary'])} (min 3, max 10)"
+                f"{filary_info}"
                 f"   ·   ♥ {len(self._user_state['ulubione_utwory'])}"
                 f"   ·   U=♥  F=filar  G=filary do Set  K=okładki  ·  "
                 + (f"sort: {self._SORT_NAMES[self._lib_sort[0]]}"
@@ -1927,8 +2068,10 @@ class DanceLabTUI(App):
         self._lib_toggle("ulubione_utwory", "♥")
 
     def action_toggle_filar(self) -> None:
-        """F: w Bibliotece przypina/odpina filar; w zakładce Set otwiera
-        TRYB FILARÓW (krok konfiguracji z wizji — wzorzec dwóch naciśnięć)."""
+        """F: w Bibliotece otwiera wybór ROLI filara (otwarcie / buildup /
+        oddech / zamknięcie / bez roli — decyzja Janka 11.08: filar niesie
+        deklarację miejsca w secie); w zakładce Set otwiera TRYB FILARÓW.
+        Wzorzec dwóch naciśnięć w obu przypadkach."""
         if self.query_one("#tabs", TabbedContent).active == "tab-set":
             choice = self._panel_choice("pillar_mode")
             if choice is not None:
@@ -1937,7 +2080,74 @@ class DanceLabTUI(App):
             self._close_panel()
             self._open_pillar_mode_panel()
             return
-        self._lib_toggle("filary", "filar")
+        choice = self._panel_choice("rola_filaru")
+        if choice is not None:
+            self._apply_rola_filaru(choice)
+            return
+        self._close_panel()
+        self._open_rola_filaru_panel()
+
+    def _wybrany_utwor_biblioteki(self):
+        table = self.query_one("#lib-table", DataTable)
+        row = table.cursor_row
+        widok = getattr(self, "_lib_view", [])
+        if row is None or not (0 <= row < len(widok)):
+            return None
+        return widok[row]
+
+    def _open_rola_filaru_panel(self) -> None:
+        from dancelab.tui.user_store import (ROLE_FILARA, aktywna_playlista,
+                                             rola_filara)
+        if self.query_one("#tabs", TabbedContent).active != "tab-lib":
+            self._note("filar: zaznacz utwór w zakładce Biblioteka")
+            return
+        pl = aktywna_playlista(self._user_state)
+        if pl is None:
+            self._note("filary żyją W PLAYLISTACH — wybierz playlistę na "
+                       "liście po lewej albo utwórz nową (＋)")
+            self.notify("Najpierw playlista: filary żyją w playlistach (＋)",
+                        severity="warning", timeout=6)
+            return
+        a = self._wybrany_utwor_biblioteki()
+        if a is None:
+            return
+        self._filar_kandydat = (a.track.track_id, str(a.track.source_path))
+        obecna = rola_filara(self._user_state, *self._filar_kandydat)
+        znaki = {"otwarcie": "O", "buildup": "B", "oddech": "~",
+                 "zamkniecie": "Z", "": "⚑"}
+        options = [(f"{znaki[r]} · {r or 'bez roli'} — {opis}"
+                    + ("   ✓" if obecna == r else ""), r or "__bez")
+                   for r, opis in ROLE_FILARA.items()]
+        if obecna is not None:
+            options.append(("✕ · zdejmij filar", "__zdejmij"))
+        nazwa = _wykonawca_tytul(a.track)[1][:34]
+        self._open_suggest_panel(
+            None, f"FILAR Z ROLĄ — {nazwa}\nplaylista: {pl['nazwa'][:30]}\n"
+                  f"Enter/klik+F przypisuje · Esc anuluje",
+            options, "rola_filaru")
+
+    def _apply_rola_filaru(self, wybor: str) -> None:
+        from dancelab.tui.user_store import (ROLE_FILARA, save_state,
+                                             ustaw_filar, zdejmij_filar)
+        kandydat = getattr(self, "_filar_kandydat", None)
+        self._close_panel()
+        if kandydat is None:
+            return
+        tid, sciezka = kandydat
+        if wybor == "__zdejmij":
+            if zdejmij_filar(self._user_state, tid, sciezka):
+                self._note("filar zdjęty z playlisty")
+        else:
+            rola = "" if wybor == "__bez" else wybor
+            ok, powod = ustaw_filar(self._user_state, tid, sciezka, rola)
+            if not ok:
+                self._note(f"filar: {powod}")
+                self.notify(powod, severity="warning", timeout=6)
+                return
+            self._note(f"⚑ filar ({ROLE_FILARA[rola]})")
+        save_state(self._user_state, self.processed_dir)
+        self._render_library(keep_cursor=True)
+        self.query_one("#lib-table", DataTable).focus()
 
     def _open_pillar_mode_panel(self) -> None:
         aktualny = self._user_state.get("tryb_filarow", "rozstaw")
@@ -2044,8 +2254,9 @@ class DanceLabTUI(App):
         sekcję briefu") — filary lądują w tabelce podświetlone na złoto,
         użytkownik uzupełnia formularz i dopiero B buduje wokół nich."""
         from dancelab.core.config import load_config, load_weights
-        from dancelab.tui.user_store import MIN_FILARY, resolve_tracks
-        n = len(self._user_state["filary"])
+        from dancelab.tui.user_store import (MIN_FILARY, filary_wpisy,
+                                             resolve_tracks)
+        n = len(filary_wpisy(self._user_state))
         if n < MIN_FILARY:
             self.notify(f"do budowy z filarów trzeba minimum {MIN_FILARY} "
                         f"(masz {n}) — klawisz F w Bibliotece zaznacza",
@@ -2055,7 +2266,7 @@ class DanceLabTUI(App):
             self.notify("Biblioteka jeszcze się ładuje — chwila", timeout=4)
             return
         by_id = {a.track.track_id: a for a in self._lib}
-        ids, missing = resolve_tracks(self._user_state["filary"], by_id)
+        ids, missing = resolve_tracks(filary_wpisy(self._user_state), by_id)
         for m in missing:
             self._note(f"FILAR nieobecny w puli (pominięty): {m}")
         if len(ids) < MIN_FILARY:
@@ -2461,7 +2672,7 @@ class DanceLabTUI(App):
                 anchor = resolve_anchor(p["dj"])
 
         count = estimate_track_count_for_duration(analyses, p["minutes"])
-        filary, filar_notes = _filary_for_build(
+        filary, filar_notes, role_filarow = _filary_for_build(
             self._user_state, {a.track.track_id: a for a in analyses},
             p["bpm_min"], p["bpm_max"], count)
         # filar może wskazywać duplikat bajt-w-bajt, który dedup wytnie —
@@ -2470,6 +2681,7 @@ class DanceLabTUI(App):
         from dancelab.decision.dedup import canonical_ids
         mapping = canonical_ids(analyses)
         filary = list(dict.fromkeys(mapping.get(t, t) for t in filary))
+        role_filarow = {mapping.get(t, t): r for t, r in role_filarow.items()}
         by_id_all = {a.track.track_id: a for a in analyses}
         tryb = self._user_state.get("tryb_filarow", "rozstaw")
 
@@ -2492,6 +2704,13 @@ class DanceLabTUI(App):
                                "równy rozstaw")
             tryb = "rozstaw"
 
+        # role krańcowe wyjmujemy z podpór: otwarcie/zamknięcie to deklaracje
+        # miejsc, a podpory szukają najsłabszych przęseł W ŚRODKU
+        otwarcie_id = next((t for t, r in role_filarow.items()
+                            if r == "otwarcie"), None)
+        zamkniecie_id = next((t for t, r in role_filarow.items()
+                              if r == "zamkniecie"), None)
+
         if filary and tryb == "podpory":
             # metafora dosłownie: konstrukcja bez filarów → pomiar przęseł →
             # filar w najsłabsze; plan tempa/łuk kształtują KONSTRUKCJĘ,
@@ -2507,8 +2726,18 @@ class DanceLabTUI(App):
             fn = _default_score_fn(weights, p["arc"], p["planner"],
                                    energy, e_rng)
             score = lambda x, y: fn(by_id_all[x], by_id_all[y])  # noqa: E731
+            srodkowe = [t for t in filary
+                        if t not in (otwarcie_id, zamkniecie_id)]
             final, podpory_notes = _wstaw_podpory(
-                list(plan.track_order), filary, score)
+                list(plan.track_order), srodkowe, score)
+            if otwarcie_id:
+                final = [otwarcie_id, *final]
+                podpory_notes.append("rola otwarcie: pozycja #1 (poza "
+                                     "pomiarem przęseł — deklaracja DJ-a)")
+            if zamkniecie_id:
+                final = [*final, zamkniecie_id]
+                podpory_notes.append(f"rola zamknięcie: pozycja "
+                                     f"#{len(final)} (deklaracja DJ-a)")
             filar_notes.extend(podpory_notes)
             filar_notes.append(f"zgodność konstrukcji (bez podpór): "
                                f"{plan.mean_transition_score}")
@@ -2518,6 +2747,9 @@ class DanceLabTUI(App):
         else:
             rozstaw = _rozstaw_filary(filary, by_id_all, count, tryb) \
                 if filary else {}
+            rozstaw, role_notes = _zastosuj_role_krancowe(
+                rozstaw, role_filarow, count)
+            filar_notes.extend(role_notes)
             if rozstaw:
                 filar_notes.append(
                     f"filary rozstawione ({_TRYB_LABEL.get(tryb, tryb)}): "
@@ -2593,8 +2825,9 @@ class DanceLabTUI(App):
         self._row_cells = []
         # flagi z kontekstu budowy (id już po mapowaniu duplikatów);
         # bez kontekstu (świeży szkic/wczytany plan) — ze stanu użytkownika
+        from dancelab.tui.user_store import filary_wpisy
         filary = set(self._ctx.get("filary") or
-                     resolve_tracks(self._user_state.get("filary", []),
+                     resolve_tracks(filary_wpisy(self._user_state),
                                     by_id)[0])
         for i, tid in enumerate(self._order, 1):
             t = by_id[tid].track
@@ -2713,7 +2946,8 @@ class DanceLabTUI(App):
         a on wraca przy następnej budowie" to najgorsze zaskoczenie).
         Filar-duplikat: wpis w stanie może wskazywać bliźniaka bajt-w-bajt —
         dopasowujemy też przez mapę kanoniczną (cache skrótów ciepły po budowie)."""
-        entries = self._user_state.get("filary", [])
+        from dancelab.tui.user_store import filary_wpisy
+        entries = filary_wpisy(self._user_state)
         if not entries:
             return False
         by_id = self._ctx["by_id"]

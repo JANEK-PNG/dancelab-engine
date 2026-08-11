@@ -40,7 +40,10 @@ def test_interfejs_jest_po_polsku():
                   "loading", "search", "save", "load", "export"}
     napisy = _widoczne_napisy().lower()
     for slowo in angielskie:
-        assert slowo not in napisy, f"angielskie słowo w UI: {slowo}"
+        # granice słów: polska odmiana („playlisty", „playlistach") zawiera
+        # angielski rdzeń jako podciąg i NIE jest wtrętem
+        assert not re.search(rf"\b{re.escape(slowo)}\b", napisy), \
+            f"angielskie słowo w UI: {slowo}"
     assert wlasne, "nazwy własne wolno zostawić"
 
 

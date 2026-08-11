@@ -45,8 +45,22 @@ def sciezka_stanu(pula: str | None = None) -> pathlib.Path:
 MIN_FILARY = 3
 MAX_FILARY = 10
 
+# Role filarów (Janek, 11.08): filar przestaje być tylko „musi zagrać" —
+# niesie deklarację MIEJSCA w secie. To jest odpowiedź na obalony łuk:
+# zamiast narzuconej krzywej DJ deklaruje punkty stałe, a silnik napina
+# set między nimi. Nazwa „filar" została świadomie (Janek: „nie rozstawiasz
+# 5 kotwic, a filary już tak") — „kotwica" pozostaje przy „Graj jak…".
+ROLE_FILARA = {
+    "otwarcie": "pierwszy utwór",
+    "buildup": "rozpędza w górę",
+    "oddech": "zejście w środku",
+    "zamkniecie": "ostatni utwór",
+    "": "bez roli — po prostu musi zagrać",
+}
+
 _EMPTY = {"ulubione_utwory": [], "ulubione_playlisty": [], "filary": [],
-          "tryb_filarow": "rozstaw", "okladki_w_liscie": False}
+          "tryb_filarow": "rozstaw", "okladki_w_liscie": False,
+          "playlisty": [], "aktywna_playlista": None}
 
 
 def _kopia(v):
@@ -65,7 +79,122 @@ def load_state(pula: str | None = None) -> dict:
     state = json.loads(sciezka.read_text())
     for key, default in _EMPTY.items():
         state.setdefault(key, _kopia(default))
+    _migruj_filary_do_playlisty(state)
     return state
+
+
+def _migruj_filary_do_playlisty(state: dict) -> None:
+    """Filary żyją W PLAYLISTACH (decyzja Janka 11.08), nie globalnie.
+
+    Stare globalne filary nie znikają: przy pierwszym wczytaniu stają się
+    playlistą „Moje filary" (bez ról — role to nowość, nie zgadujemy ich),
+    która od razu jest aktywna. Stary klucz zostaje nietknięty jako zapis
+    historyczny — źródłem prawdy są od teraz playlisty."""
+    if state["playlisty"] or not state["filary"]:
+        return
+    state["playlisty"].append({
+        "nazwa": "Moje filary",
+        "kotwica": None,
+        "filary": [{**e, "rola": ""} for e in state["filary"]],
+    })
+    state["aktywna_playlista"] = 0
+
+
+def aktywna_playlista(state: dict) -> dict | None:
+    idx = state.get("aktywna_playlista")
+    pl = state.get("playlisty", [])
+    if idx is None or not (0 <= idx < len(pl)):
+        return None
+    return pl[idx]
+
+
+def nowa_playlista(state: dict, nazwa: str) -> int:
+    """Nowa playlista staje się aktywna; kotwicę wybiera się ZARAZ PO nazwie
+    (kolejność z decyzji Janka: najpierw nazwa z metadanych, potem kotwica)."""
+    state["playlisty"].append({"nazwa": nazwa, "kotwica": None, "filary": []})
+    state["aktywna_playlista"] = len(state["playlisty"]) - 1
+    return state["aktywna_playlista"]
+
+
+def ustaw_kotwice_playlisty(state: dict, kotwica: str | None) -> bool:
+    pl = aktywna_playlista(state)
+    if pl is None:
+        return False
+    pl["kotwica"] = kotwica
+    return True
+
+
+def filary_wpisy(state: dict) -> list[dict]:
+    """Wpisy filarów AKTYWNEJ playlisty — jedyne źródło prawdy dla budowy."""
+    pl = aktywna_playlista(state)
+    return pl["filary"] if pl is not None else []
+
+
+def rola_filara(state: dict, track_id: str, path: str) -> str | None:
+    """Rola filara albo None, gdy utwór nie jest filarem aktywnej playlisty."""
+    i = _entry_index(filary_wpisy(state), track_id, path)
+    return filary_wpisy(state)[i].get("rola", "") if i is not None else None
+
+
+def ustaw_filar(state: dict, track_id: str, path: str,
+                rola: str) -> tuple[bool, str | None]:
+    """Wpisz/zmień filar Z ROLĄ w aktywnej playliście.
+
+    Zwraca (czy_wpisany, powód_odmowy). Role wyłączności (otwarcie,
+    zamknięcie) wypierają poprzedniego posiadacza — dwóch otwierających
+    to sprzeczność, a cichy konflikt byłby gorszy niż jawna wymiana."""
+    if rola not in ROLE_FILARA:
+        return False, f"nieznana rola: {rola}"
+    pl = aktywna_playlista(state)
+    if pl is None:
+        return False, ("filary żyją w playlistach — najpierw wybierz albo "
+                       "utwórz playlistę")
+    wpisy = pl["filary"]
+    i = _entry_index(wpisy, track_id, path)
+    if i is None and len(wpisy) >= MAX_FILARY:
+        return False, (f"limit {MAX_FILARY} filarów — więcej filarów niż "
+                       f"przestrzeni do projektowania to już playlista ręczna")
+    if rola in ("otwarcie", "zamkniecie"):
+        for e in wpisy:
+            if e.get("rola") == rola and e.get("track_id") != track_id:
+                e["rola"] = ""
+    if i is None:
+        wpisy.append({"track_id": track_id, "path": path, "rola": rola})
+    else:
+        wpisy[i]["rola"] = rola
+    return True, None
+
+
+def zdejmij_filar(state: dict, track_id: str, path: str) -> bool:
+    wpisy = filary_wpisy(state)
+    i = _entry_index(wpisy, track_id, path)
+    if i is None:
+        return False
+    wpisy.pop(i)
+    return True
+
+
+def nazwa_z_metadanych(by_id: dict) -> str:
+    """Propozycja nazwy playlisty z metadanych puli (wzór z praktyki Janka:
+    „Piątek · 130–135 · jak Ben UFO"): dzień tygodnia + rozpiętość tempa +
+    dominujący gatunek. Propozycja, nie wyrok — pole zostaje edytowalne."""
+    import datetime
+
+    dni = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek",
+           "Sobota", "Niedziela"]
+    czesci = [dni[datetime.date.today().weekday()]]
+    bpmy = [a.track.bpm_estimate for a in by_id.values()
+            if a.track.bpm_estimate]
+    if bpmy:
+        czesci.append(f"{round(min(bpmy))}–{round(max(bpmy))}")
+    gatunki: dict[str, int] = {}
+    for a in by_id.values():
+        g = (a.track.style_label or "").strip()
+        if g:
+            gatunki[g] = gatunki.get(g, 0) + 1
+    if gatunki:
+        czesci.append(max(gatunki, key=gatunki.get))
+    return " · ".join(czesci)
 
 
 def _domyslna(pula: str) -> bool:
