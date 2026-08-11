@@ -789,7 +789,9 @@ class SetCoherence(BaseModel):
     """
 
     overall: float = Field(ge=0.0, le=1.0)
-    arc_adherence: float = Field(ge=0.0, le=1.0)  # energy curve vs intended arc
+    # None when arc="off": adherence to a target that does not exist is not a
+    # measurement, and reporting a number there would invent one (ADR-005).
+    arc_adherence: float | None = Field(default=None, ge=0.0, le=1.0)
     tempo_continuity: float = Field(ge=0.0, le=1.0)  # smoothness of BPM progression
     note: str = ""
 

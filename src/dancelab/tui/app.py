@@ -685,9 +685,10 @@ class DanceLabTUI(App):
                                 yield Switch(value=False, id="contour")
                                 yield Label(" kontur skoków tego DJ-a")
                             yield Label("Łuk / plan tempa / tryb", classes="field-label")
-                            yield Select([("build", "build"), ("peak", "peak"),
+                            yield Select([("bez łuku (zmierzone)", "off"),
+                                          ("build", "build"), ("peak", "peak"),
                                           ("flat", "flat")],
-                                         value="build", id="arc", allow_blank=False)
+                                         value="off", id="arc", allow_blank=False)
                             yield Select([("staircase", "staircase"),
                                           ("linear", "linear"),
                                           ("off", "off")], value="staircase",

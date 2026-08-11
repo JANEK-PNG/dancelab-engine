@@ -514,7 +514,17 @@ def track_energy(analysis: AnalysisResult) -> float:
 
 
 def _energy_score(delta: float, arc: str) -> float:
-    """Reward energy change appropriate to the set arc."""
+    """Reward energy change appropriate to the set arc.
+
+    arc="off" is the DEFAULT since 2026-08-11 (Janek's call after the shape
+    measurement). Measured three independent ways, the "build" ramp described
+    real sets WORSE than a flat line, and real sets take a median of 5 energy
+    drops >8% — which "build" forbade outright. With "off" the energy term is
+    neutral and the pairwise core decides alone; build/peak/flat stay as
+    explicit choices in the brief, not as a default worldview.
+    """
+    if arc == "off":                # measured: no global energy shape exists
+        return 1.0
     if arc == "build":              # gentle rise preferred; punish big drops
         return float(np.clip(0.6 + 4.0 * delta, 0.0, 1.0)) if delta >= -0.02 else \
             float(np.clip(0.6 + 8.0 * delta, 0.0, 1.0))
@@ -540,8 +550,11 @@ def _set_arc_target_profile(
 
     Build is a single broad climb, peak stays in the upper energy region, and
     flat stays near the median. This is a ranking target, not a fabricated
-    measurement and not a claim about crowd response.
+    measurement and not a claim about crowd response. arc="off" (the measured
+    default) returns no target at all — real sets showed no global shape.
     """
+    if arc == "off":
+        return []
     count = max(int(target_count), 1)
     values = sorted(_normalized_energy(value, e_min, e_range) for value in energy.values())
     if not values:
@@ -585,6 +598,11 @@ def _arc_profile_candidates(
     """Keep energy-near choices, then let transition scoring break the tie."""
     if not candidates:
         return candidates
+    if arc == "off" or not target_profile:
+        # No target → no shaping and no drop ban. The measured default: the
+        # no-drop rule painted builds into a corner (at high energy only a
+        # handful of tracks remained eligible) while real DJs drop freely.
+        return list(candidates)
     shaped = list(candidates)
 
     if arc == "build" and current is not None:
@@ -633,6 +651,23 @@ def compute_set_coherence(
     """
     if len(order) < 2:
         return None
+
+    if arc == "off":
+        # No intended arc → adherence is undefined; the whole-set report is
+        # tempo continuity alone. Inventing an adherence number here would be
+        # fabricating a measurement (ADR-005).
+        bpms_off = [bpm_by_id.get(t) for t in order]
+        jumps_off = [abs(b - a) / a for a, b in zip(bpms_off, bpms_off[1:])
+                     if a and b and a > 0]
+        tempo_only = (float(np.clip(1.0 - float(np.mean(jumps_off)) / 0.10,
+                                    0.0, 1.0)) if jumps_off else 0.5)
+        return SetCoherence(
+            overall=round(tempo_only, 4),
+            arc_adherence=None,
+            tempo_continuity=round(tempo_only, 4),
+            note=("arc off — tempo continuity only; no energy-shape target "
+                  "(measured 2026-08-11: real sets have no global arc)"),
+        )
 
     actual = [_normalized_energy(energy[t], e_min, e_range) for t in order]
     target = list(target_profile)[: len(actual)]
@@ -1117,6 +1152,11 @@ def _constrained_order(
             if current is None:
                 if start_track_id in candidates:
                     chosen = start_track_id
+                elif not target_profile:
+                    # arc="off": no energy target exists, so the engine holds
+                    # no opinion about the opener. Deterministic pick keeps
+                    # builds reproducible; a DJ with an opener in mind pins it.
+                    chosen = min(candidates)
                 else:
                     target = target_profile[min(index, len(target_profile) - 1)]
                     chosen = min(
@@ -1163,7 +1203,7 @@ def _constrained_order(
 def build_set(
     analyses: list[AnalysisResult],
     weights: DescriptorWeights,
-    arc: str = "build",
+    arc: str = "off",  # measured default 2026-08-11; build/peak/flat = explicit choice
     start_track_id: str | None = None,
     target_track_count: int | None = None,
     locked_positions: Mapping[int | str, str] | None = None,
