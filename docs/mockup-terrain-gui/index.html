@@ -203,8 +203,10 @@ const S={tab:'set',
  cue:{cur:0,pads:{},sel:null,w:1,undo:[],tp:false,tpCur:0,tpVal:''},
  play:{on:false,poz:0,dl:384,kto:null},
  panel:null,pcur:0,gatWybrane:new Set(),kotwica:"— bez kotwicy —",kontur:false,modal:false,modalTyp:'plan',
- playlisty:[{nazwa:"Piątek · 130–135 · jak Ben UFO",kotwica:"Ben UFO",filary:new Set([5,9])}],
- aktywna:null, przypiszKotwice:false};
+ playlisty:[{nazwa:"Piątek · 130–135 · jak Ben UFO",kotwica:"Ben UFO",filary:{0:'otwarcie',5:'buildup',2:'oddech',9:'zamkniecie'}}],
+ aktywna:null, przypiszKotwice:false, filarKandydat:null};
+const ROLE={otwarcie:['O','Otwarcie — pierwszy utwór'],buildup:['B','Buildup — rozpędza w górę'],
+ oddech:['~','Oddech — zejście w środku'],zamkniecie:['Z','Zamknięcie — ostatni utwór'],'':['⚑','Bez roli — po prostu musi zagrać']};
 TR.forEach((_,i)=>S.cue.pads[i]=[{l:'A',t:.12,cudzy:true},{l:'E',t:.64,eng:true}]);
 const FRAZY=[["INTRO",0],["UP",28.2],["BREAK",56.5],["GROOVE",84.7],["GROOVE",141.2],["BREAK",169.4],["GROOVE",220.0],["OUTRO",290.0]];
 const ws=document.getElementById('ws');
@@ -237,7 +239,7 @@ function playerRow(){const p=S.play;const t=p.kto!==null?TR[p.kto]:null;const pr
 function rSet(){
  const o=S.set;
  const rows=o.built?o.order.map((ti,i)=>{const t=TR[ti];const j=i<o.order.length-1?(JAK[i]??0.9):null;
-  return `<tr class="${i===o.cur?'cur':''}" data-i="${i}"><td class="mono">${i+1}${filarySet().has(ti)?' '+I.flag(true):''}</td>
+  return `<tr class="${i===o.cur?'cur':''}" data-i="${i}"><td class="mono">${i+1}${maFilar(ti)?' '+I.flag(true)+'<span style="font-size:9px;color:var(--volt)">'+rolaZnak(ti)+'</span>':''}</td>
   <td class="bpm">${t[2].toFixed(1)}</td><td class="key">${t[3]}</td><td>${pew(t[4])}</td><td class="soft">${t[6]}</td>
   <td class="mono dim">${Math.round((i+1)*6.2)}</td><td>${t[1]} – ${t[0]}</td>
   <td class="mono" style="color:${j!==null&&j<0.8?'var(--deck-b)':'var(--dim)'}">${j!==null?j.toFixed(2):''}</td></tr>`}).join(''):'';
@@ -276,7 +278,7 @@ function infoCard(t){return `<div class="infocard"><b style="color:var(--ink)">$
 function rLib(){
  const rows=TR.map((t,i)=>`<tr class="${i===S.lib.cur?'cur':''}" data-i="${i}">
   <td class="ico-t" data-fav="${i}">${I.heart(S.lib.fav.has(i))}</td>
-  <td class="ico-t" data-fil="${i}">${I.flag(filarySet().has(i))}</td>
+  <td class="ico-t" data-fil="${i}">${I.flag(maFilar(i))}<span class="mono" style="font-size:9px;color:var(--volt)">${rolaZnak(i)}</span></td>
   ${S.lib.okladki?'<td><span class="cover" style="width:22px;height:22px;display:inline-block"></span></td>':''}
   <td class="bpm">${t[2].toFixed(1)}</td><td class="key">${t[3]}</td><td>${pew(t[4])}</td>
   <td class="mono dim">${t[5]}</td><td class="dim">${t[6]}</td><td class="mono dim">${t[7].toFixed(1)}</td>
@@ -286,7 +288,7 @@ function rLib(){
   <div class="opt ${S.lib.sekcja==='Cała'&&S.aktywna===null?'active':''}" data-s="Cała">${I.lib} Cała biblioteka</div>
   <div class="opt ${S.lib.sekcja==='♥'?'active':''}" data-s="♥">${I.heart(true)} Ulubione utwory</div>
   <div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--dim);padding:10px 14px 3px">PLAYLISTY <span style="float:right">filary + kotwica per playlista</span></div>
-  ${S.playlisty.map((p,i)=>`<div class="opt ${S.aktywna===i?'active':''}" data-pl="${i}" title="kotwica: ${p.kotwica} · filary: ${p.filary.size}">${I.disc} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nazwa}</span></div>`).join('')}
+  ${S.playlisty.map((p,i)=>`<div class="opt ${S.aktywna===i?'active':''}" data-pl="${i}" title="kotwica: ${p.kotwica} · filary: ${Object.keys(p.filary).length}">${I.disc} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nazwa}</span></div>`).join('')}
   <div class="opt" id="plplus" style="color:var(--volt)">＋ Nowa playlista</div></div>
  <div class="right">
   <div class="filters">
@@ -296,7 +298,7 @@ function rLib(){
   </div>
   ${S.set.info?infoCard(TR[S.lib.cur]):''}
   <div class="tblwrap"><table><thead><tr><th></th><th></th>${S.lib.okladki?'<th>ART</th>':''}<th>BPM</th><th>TON</th><th>PEW.</th><th>ENERGIA</th><th>GATUNEK</th><th>MIN</th><th>WYKONAWCA</th><th>UTWÓR</th></tr></thead><tbody>${rows}</tbody></table></div>
-  <div class="licznik">${TR.length} utworów · ${S.aktywna!==null?`playlista: <b>${S.playlisty[S.aktywna].nazwa}</b> · kotwica: ${S.playlisty[S.aktywna].kotwica} · ⚑ ${S.playlisty[S.aktywna].filary.size} (tej playlisty)`:`sekcja: ${S.lib.sekcja} · filary żyją w playlistach`} · <kbd>U</kbd>=♥ · <kbd>F</kbd>=filar · <kbd>G</kbd>=szkic z filarów</div>
+  <div class="licznik">${TR.length} utworów · ${S.aktywna!==null?`playlista: <b>${S.playlisty[S.aktywna].nazwa}</b> · kotwica: ${S.playlisty[S.aktywna].kotwica} · ⚑ ${Object.keys(S.playlisty[S.aktywna].filary).length} (tej playlisty)`:`sekcja: ${S.lib.sekcja} · filary żyją w playlistach`} · <kbd>U</kbd>=♥ · <kbd>F</kbd>=filar · <kbd>G</kbd>=szkic z filarów</div>
   ${playerRow()}
  </div>`;
  ws.querySelectorAll('tr[data-i]').forEach(r=>r.onclick=e=>{
@@ -306,16 +308,16 @@ function rLib(){
  ws.querySelectorAll('.opt[data-s]').forEach(o=>o.onclick=()=>{S.lib.sekcja=o.dataset.s;S.aktywna=null;rLib()});
  ws.querySelectorAll('.opt[data-pl]').forEach(o=>o.onclick=()=>{S.aktywna=+o.dataset.pl;S.lib.sekcja='playlista';
   const p=S.playlisty[S.aktywna];S.kotwica=p.kotwica;
-  toast(`playlista <b>${p.nazwa}</b> · kotwica: ${p.kotwica} · filary: ${p.filary.size} — F dodaje filar TEJ playlisty`);rLib()});
+  toast(`playlista <b>${p.nazwa}</b> · kotwica: ${p.kotwica} · filary: ${Object.keys(p.filary).length} — F dodaje filar TEJ playlisty`);rLib()});
  const pp=document.getElementById('plplus');if(pp)pp.onclick=()=>nowaPlaylista();
  const sw=document.getElementById('oklsw');if(sw)sw.onclick=()=>{S.lib.okladki=!S.lib.okladki;rLib()};
 }
-function filarySet(){return S.aktywna!==null?S.playlisty[S.aktywna].filary:S.lib.fil}
+function filaryMap(){return S.aktywna!==null?S.playlisty[S.aktywna].filary:{}}
+function maFilar(i){return i in filaryMap()}
+function rolaZnak(i){const r=filaryMap()[i];return r?ROLE[r][0]:''}
 function toggleFilar(i){
  if(S.aktywna===null){toast('filary żyją W PLAYLISTACH — wybierz playlistę albo utwórz nową (＋)');return}
- const f=S.playlisty[S.aktywna].filary;
- f.has(i)?f.delete(i):f.add(i);
- toast(f.has(i)?`⚑ filar playlisty „${S.playlisty[S.aktywna].nazwa.slice(0,24)}…"`:'⚑ filar zdjęty z playlisty');rLib()}
+ S.filarKandydat=i;openPanel('rola')}
 function nazwaZMetadanych(){
  const dni=['Niedziela','Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota'];
  const bpmy=TR.map(t=>t[2]).filter(b=>typeof b==='number');
@@ -420,11 +422,17 @@ function panelOpts(){
  if(S.panel==='slot')return [["kandydaci do slotu "+(S.set.cur+1)+" (wejście+wyjście)",null],["O'Flynn – Rivermouth · 0,97 (we 0,96 · wy 0,98)","1"],["Jayda G – Glass Court · 0,91 (we 0,93 · wy 0,89)","3"],["Bicep – Tin Lake · 0,88 · bez pliku — odsłuch odmówi","5"],["Eltron – Kair · 0,85","10"]];
  if(S.panel==='plany')return [["klik + O = wczytaj · X = usuń (kosz)",null],...S.set.plany.map(p=>[`${p[0]} · ${p[1]} utworów · smart`,p[0]])];
  if(S.panel==='filary')return [["tryb filarów: klik + F wybiera",null],["PODPORY — pomiar wstawia w najsłabsze",'podpory'],["RÓWNY ROZSTAW",'rozstaw'],["RAMA (pierwszy/ostatni)",'rama']];
+ if(S.panel==='rola'){const t=TR[S.filarKandydat];
+  return [[`${t[1]} – ${t[0]} — jaki to filar?`,null],
+   ["O · Otwarcie — pierwszy utwór",'otwarcie'],["B · Buildup — rozpędza w górę",'buildup'],
+   ["~ · Oddech — zejście w środku",'oddech'],["Z · Zamknięcie — ostatni utwór",'zamkniecie'],
+   ["⚑ · Bez roli — po prostu musi zagrać",''],["✕ · Zdejmij filar",'__zdejmij']]}
  return []}
 function drawPanel(){
  const tyt={gatunki:`GATUNKI — masz 21 z 46 Beatportu · 214 bez tagu\nEnter dodaje/zdejmuje · ^G/Esc zamyka`,
   dj:`KSIĘGA KOTWIC — 285 DJ-ów zmierzonych z setów\nkogo tu nie ma, tego nie mierzyliśmy · Enter ustawia i zamyka`,
-  slot:`PODPOWIEDŹ SLOTU (Z podmienia · A dopisuje)`,plany:`WCZYTAJ PLAN`,filary:`TRYB FILARÓW`};
+  slot:`PODPOWIEDŹ SLOTU (Z podmienia · A dopisuje)`,plany:`WCZYTAJ PLAN`,filary:`TRYB FILARÓW`,
+  rola:`FILAR Z ROLĄ — gdzie ten utwór ma żyć w secie\nEnter przypisuje · Esc anuluje`};
  document.getElementById('ptitle').textContent=tyt[S.panel]||'';
  const opts=panelOpts();
  document.getElementById('plist').innerHTML=opts.map((o,i)=>{
@@ -443,7 +451,11 @@ function panelEnter(){const o=panelOpts()[S.pcur];if(!o||o[1]===null)return;
   else{if(S.tab==='set')rSet();toast(`kotwica: <b>${o[1]}</b> — Enter ustawia i zamyka`)}}
  else if(S.panel==='slot'){toast(`Z podmienia slot ${S.set.cur+1} na: <b>${o[0].split('·')[0]}</b> (pozornie)`);S.set.edits++;closePanel();rSet()}
  else if(S.panel==='plany'){toast(`plan „<b>${o[1]}</b>" wczytany (pozornie)`);S.set.built=true;S.set.order=[0,1,2,3,4,5,6,7,8,9];closePanel();rSet()}
- else if(S.panel==='filary'){toast(`tryb filarów: <b>${o[1]}</b>`);closePanel()}}
+ else if(S.panel==='filary'){toast(`tryb filarów: <b>${o[1]}</b>`);closePanel()}
+ else if(S.panel==='rola'){const f=S.playlisty[S.aktywna].filary;const i=S.filarKandydat;
+  if(o[1]==='__zdejmij'){delete f[i];toast('⚑ filar zdjęty z playlisty')}
+  else{f[i]=o[1];toast(`⚑ ${TR[i][0]} = <b>${o[1]?ROLE[o[1]][1]:ROLE[''][1]}</b> w „${S.playlisty[S.aktywna].nazwa.slice(0,22)}…"`)}
+  closePanel();rerender()}}
 
 /* ── akcje ── */
 function buduj(){S.set.built=true;S.set.order=[0,1,2,3,4,5,6,7,8,9];S.set.cur=0;
@@ -482,7 +494,7 @@ document.body.addEventListener('keydown',e=>{
  if(S.modal){if(k==='Enter'){const n=document.getElementById('planname').value||'bez nazwy';
    S.modal=false;document.getElementById('modal').classList.remove('open');
    if(S.modalTyp==='playlista'){
-    S.playlisty.push({nazwa:n,kotwica:'— bez kotwicy —',filary:new Set()});
+    S.playlisty.push({nazwa:n,kotwica:'— bez kotwicy —',filary:{}});
     S.aktywna=S.playlisty.length-1;S.przypiszKotwice=true;
     toast(`playlista „<b>${n}</b>" utworzona — teraz wybierz jej KOTWICĘ`);
     if(S.tab!=='lib')setTab('lib');else rLib();
