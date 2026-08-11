@@ -5,11 +5,40 @@
 > dokument: `docs/JAK_ODPALIC.md` (+ PDF na biurku Janka) — pisany wg zasad
 > dokumentacji zadaniowej (ISO 26514): pojęcia, scenariusze, spójne nazwy.
 
-Stan: 2026-08-05. Układ 2.0 wg TUI_WIZJA_2 (zatwierdzony): ZAKŁADKI
+Stan: 2026-08-11. Układ 2.0 wg TUI_WIZJA_2 (zatwierdzony): ZAKŁADKI
 **Biblioteka · Set · Eksport/Cue**, Ctrl+Tab krąży. JĘZYK: interfejs w 100%
 po polsku — komunikaty silnika (po angielsku, konwencja kodu) tłumaczy
 `tui/po_polsku.py` na granicy UI; nieznany komunikat przechodzi bez zmian. Framework: Textual
 (czysty Python, ten sam venv, testy headless przez `run_test()`).
+
+## Inwentarz okien i paneli (stan 2026-08-11, z kodu)
+
+**Nakładka `#suggest` — JEDNO okno, PIĘĆ trybów** (`_panel_mode`; wspólna
+obsługa klawiszy i wygląd, różni je treść i zachowanie Entera):
+
+| tryb | otwiera | Enter | zamyka |
+|---|---|---|---|
+| `gatunki` | Ctrl+G | dodaje/zdejmuje (✓), LISTA ZOSTAJE — gatunków wybiera się kilka (życzenie Janka 09.08) | Ctrl+G / Esc |
+| `dj` | Ctrl+D | ustawia kotwicę i ZAMYKA — kotwica jest jedna; na górze „— twoje brzmienie —" z ★ moje ulubione; 285 DJ-ów w grupach po BRZMIENIU (klastry centroidów) | Esc |
+| `slot-suggest` | Z / A na tabeli setu | podmiana/dopisanie (wzorzec dwóch naciśnięć) | Esc |
+| `pillar_mode` | po G (auto) / drugie F w Secie | klik + F wybiera tryb filarów | Esc |
+| `plans` | O | klik + O wczytuje; X usuwa (kosz) | Esc |
+
+**Jedyny modal:** `NazwaPlanuScreen` (S — nazwa zapisywanego planu; Esc anuluje).
+**Pasek odtwarzacza** (`tui/pasek.PasekOdtwarzacza`) — jeden komponent,
+instancja w każdym z trzech tabów; oś z głowicą, tick 1 s, dźwięk wyłącznie
+z jawnego klawisza. **Filtry Biblioteki:** #lib-search / #lib-key / #lib-bpm
++ lista boczna #lib-side-list (Cała · ♥ Ulubione · ⚑ Filary · playlisty
+wkrótce) + przełącznik okładek (#lib-artwork, K).
+
+**Moduły TUI → silnik (kto co woła):** `cue_podglad` → cue_plan, harmonic,
+transition_windows · `cue_edycje` → cue_grid, rekordbox_siatka ·
+`cue_zapis` → cue_conflict, cue_ledger · `seam_preview` →
+transition_simulation, tempo_adjustment, transition_length · `gatunki` →
+gatunki_beatport · `grupy_dj` → księga kotwic · app.py → build_set,
+slot_suggest, anchors, dedup, history, rekordbox_cue_writer,
+playlist_publish, analysis_enrichment, loudness, artwork_sync,
+smart_playlist (import), FileAnalysisRepository.
 
 ## Zakładka BIBLIOTEKA ✅ (krok a+b+c wizji)
 | komponent silnika | widget |
@@ -45,9 +74,9 @@ warnings zawsze widoczne, tonacja o pewności <0,5 przygaszona, stan Rekordboxa 
 | `--minutes` → `estimate_track_count_for_duration` | Input #minutes |
 | `--bpm lo-hi` | Input #bpm (parser odmawia z powodem) |
 | `--gatunki` (tagi Janka z RB, enrichment) | Input #styles |
-| kotwice 284 DJ-ów (`dj_anchors.json`) | Select #dj (nazwa · wektory · mediana skoku) |
+| kotwice 285 DJ-ów (`dj_anchors.json`) + ★ moje ulubione (`kotwica_z_utworow` — średni wektor ♥, od 09.08) | Select #dj (nazwa · wektory · mediana skoku) + panel Ctrl+D |
 | kontur skoków | Switch #contour |
-| łuk / plan tempa / tryb | Selecty #arc #tempo #planner |
+| łuk / plan tempa / tryb — **łuk domyślnie „bez łuku (zmierzone)"** od 11.08 (pomiar: rampa „build" gorsza niż płaska linia na dwóch instrumentach; build/peak/flat zostają jako jawny wybór) | Selecty #arc #tempo #planner |
 | świeżość §14 silnika (novelty_mode + seed + historia odcisków) — TUI wreszcie podpina istniejącą maszynerię; seed losowany i POKAZANY (powtórka = wpisz ten sam); historia `HISTORIA_SETOW` karmiona TYLKO przy S/W (zmierzone: dopisywanie przy każdym B łamało powtarzalność seeda — odcisk czeka w ctx, `_utrwal_odcisk` raz na budowę) | Select #novelty + Input #seed; seed w linii SET; notka o dopisaniu odcisku |
 | `SetPlan.track_order` | DataTable: # · BPM · ton · pewność · gatunek · Σ min · utwór |
 | `SetPlan.warnings` + notki dokarmiania | Log #warnings — SCHOWANY domyślnie (decyzja Janka 04.08), klawisz L (log) przełącza; licznik notek ZAWSZE w pasku statusu, ODMOWA i wynik zapisu dodatkowo dymkiem (kanał uczciwości przeniesiony, nie usunięty) |
@@ -69,14 +98,11 @@ warnings zawsze widoczne, tonacja o pewności <0,5 przygaszona, stan Rekordboxa 
 | stan Rekordboxa + liczba backupów | Static #status, odświeżany co 5 s |
 | anulowanie | Esc → `threading.Event` → `should_stop` (Esc najpierw zamyka panel) |
 
-## Ekran 2 · BIBLIOTEKA (projekt)
-analizy (sztywna siatka, tonacja+pewność, energia) → tabela z filtrami; frazy RB (1740
-utworów, `ingestion/rekordbox_phrases`) → pasek sekcji INTRO▮UP▮DOWN▮CHORUS▮OUTRO;
-krzywe stemów (`stems/envelopes`, na żądanie) → klawisz S.
-
-## Ekran 3 · PARA (projekt)
-`transition_score` z pełnym uzasadnieniem; okna mix-in/out + `transition_length`
-(zapas + frazy) → oś czasu; `preview` (WAV) → klawisz P, odtwarzanie TYLKO na jawny klawisz.
+## Historyczne projekty ekranów (dla pamięci — ZREALIZOWANE inaczej)
+„Ekran 2 · BIBLIOTEKA (projekt)" → żyje jako zakładka Biblioteka (bez paska
+fraz i krzywych stemów — nie weszły). „Ekran 3 · PARA (projekt)" → żyje
+częściowo: fakty pary = pasek szwu C w Secie (bez odsłuchu, weto Janka
+09.08 — słuchanie przeniesione do Eksport/Cue, gdzie szew powstaje z padów).
 
 ## Ekran 4 · KOTWICE (projekt)
 przeglądarka `dj_anchors.json`: n miksów, kwartyle skoków, kontur jako sparkline.
