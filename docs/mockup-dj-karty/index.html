@@ -446,7 +446,7 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
       const c = mix(Math.min(Math.max(cieplo + (r()-0.5)*0.9, 0), 1));
       const cicho = x > xs ? 0.35 : 1;           // przed kropką: cisza
       ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.07*cicho).toFixed(3)})`;
-      ctx.lineWidth = (0.6 + r()*bas*1.6) * gr;
+      ctx.lineWidth = (1.2 + r()*bas*3.2) * gr;
       ctx.beginPath(); ctx.moveTo(x, y);
       for (let i = 0; i < 60; i++){
         const t2 = kat(x, y);
@@ -487,7 +487,7 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
       let y = rt()*H - zT*16;
       if (perf){
         ctx.strokeStyle = `rgba(${volt[0]},${volt[1]},${volt[2]},${(Math.min(0.9, 0.4*zaplon)*glab).toFixed(2)})`;
-        ctx.lineWidth = 1.0 * gr * skala;
+        ctx.lineWidth = 2.0 * gr * skala;
         ctx.shadowColor = "rgba(214,245,73,0.25)"; ctx.shadowBlur = 2;
         ctx.beginPath();
         for (let i = 0; i < Math.round(120*wzrost); i++){
@@ -499,7 +499,7 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
       } else if (czysty){
         const c = mix(t01((s.a + s.b) / 2));
         ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(Math.min(0.95,(0.4+rt()*0.2)*zaplon)*glab).toFixed(2)})`;
-        ctx.lineWidth = (1.0 + bas*1.8) * gr * skala;
+        ctx.lineWidth = (2.0 + bas*3.6) * gr * skala;
         ctx.beginPath();
         const dl = Math.round((55 + Math.min(Math.abs(s.d),30)*2.5)*wzrost);
         for (let i = 0; i < dl; i++){
@@ -511,7 +511,7 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
       } else {
         const c = mix(t01((s.a + s.b) / 2)).map(v => Math.round(v*0.55 + 60));
         ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(Math.min(0.8, 0.34*zaplon)*glab).toFixed(2)})`;
-        ctx.lineWidth = 0.7 * gr * skala;
+        ctx.lineWidth = 1.4 * gr * skala;
         for (let seg = 0; seg < Math.max(1, Math.round(3*wzrost)); seg++){
           ctx.beginPath();
           for (let i = 0; i < 6; i++){
@@ -579,7 +579,7 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
       : mix(Math.min(Math.max(cieplo + (r()-0.5)*0.9, 0), 1));
     const alfa = akcent ? 0.38 + r()*0.22 : 0.13 + r()*0.18;
     ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alfa.toFixed(2)})`;
-    ctx.lineWidth = (akcent ? 0.9 : 0.6 + r()*bas*2.2) * gr;
+    ctx.lineWidth = (akcent ? 1.8 : 1.2 + r()*bas*4.4) * gr;
     ctx.beginPath(); ctx.moveTo(x, y);
     const dl = 40 + en*80;
     for (let i = 0; i < dl; i++){
