@@ -55,6 +55,14 @@
   .hero canvas{width:100%; height:100%; display:block}
   .hero .podpis{position:absolute; right:8px; top:6px; font-size:9px; letter-spacing:.6px;
     color:var(--slaby); text-transform:uppercase}
+  .posluchaj{position:absolute; left:8px; bottom:8px; background:rgba(23,22,20,.82);
+    border:1px solid var(--linia); border-radius:var(--r); color:var(--tekst);
+    font-family:inherit; font-size:10.5px; letter-spacing:.6px; padding:5px 10px; cursor:pointer}
+  .posluchaj:hover{border-color:var(--volt); color:var(--volt)}
+  .odsluch{margin:0 0 14px; display:none}
+  .odsluch.jest{display:block}
+  .odsluch iframe{width:100%; height:120px; border:0; border-radius:var(--r)}
+  .odsluch .zrodlo-linku{font-size:9.5px; color:var(--slaby); margin-top:4px}
 
   .tempo{margin-bottom:14px}
   .tempo-etykieta{display:flex; justify-content:space-between; font-size:11px; color:var(--przygaszony); margin-bottom:5px}
@@ -137,18 +145,22 @@
 const DJE = [
   {ksywa:"Tim Reaper", zrodlo:"RA Podcast", poznany:true,
    edycje:["RA Podcast 2020","RA Podcast 2025"],
+   sluchaj:"https://soundcloud.com/resident-advisor/ra1000-timreaper",
    bpm_lo:119, bpm_hi:173, bpm_med:140, harm:24, skok:5.0,
    energia:.55, groove:.43, bas:.54, sety:2, szwy:177, utwory:215},
   {ksywa:"Piasecki", zrodlo:"Audioriver", poznany:true,
    edycje:["Audioriver 2018"],
+   sluchaj:"https://soundcloud.com/piasecki/ep398",
    bpm_lo:104, bpm_hi:178, bpm_med:127, harm:12, skok:17.0,
    energia:.41, groove:.19, bas:.39, sety:6, szwy:92, utwory:104},
   {ksywa:"Catz 'n Dogz", zrodlo:"sety klubowe i podcasty", poznany:false,
    edycje:[],
+   sluchaj:"https://soundcloud.com/catzndogz/music-not-genres-by-catz-n-dogz-newonce-radio-25042020",
    bpm_lo:108, bpm_hi:171, bpm_med:124, harm:12, skok:6.0,
    energia:.41, groove:.41, bas:.42, sety:9, szwy:48, utwory:77},
   {ksywa:"Ayesha", zrodlo:"RA Podcast", poznany:false,
    edycje:["RA Podcast 2025"],
+   sluchaj:"https://soundcloud.com/resident-advisor/ra-983-ayesha/",
    bpm_lo:132, bpm_hi:181, bpm_med:140, harm:26, skok:7.0,
    energia:null, groove:null, bas:null, sety:1, szwy:39, utwory:null},
   {ksywa:"VOODOOHOP", zrodlo:"profil w budowie", wbudowie:true, poznany:false,
@@ -190,7 +202,9 @@ function karta(d){
     <div class="nazwa">${d.ksywa}</div>
     <div class="zrodlo">${d.zrodlo}</div>
     <div class="hero"><canvas class="portret" data-i="${d._i}"></canvas>
-      <span class="podpis">portret brzmienia — z pomiarów</span></div>
+      <span class="podpis">portret brzmienia — z pomiarów</span>
+      ${d.sluchaj ? `<button class="posluchaj" onclick="odsluch(${d._i})">▶ POSŁUCHAJ SETU</button>` : ""}</div>
+    <div class="odsluch" id="odsluch-${d._i}"></div>
     <div class="tempo">
       <div class="tempo-etykieta"><span>tempo (uderzenia na minutę)</span><span class="mono">mediana ${d.bpm_med}</span></div>
       <div class="tor">
@@ -288,6 +302,21 @@ function portret(cv, d){
     }
     ctx.stroke();
   }
+}
+
+/* Odsłuch: portret zostaje twarzą karty, odtwarzacz SoundCloud dochodzi
+   NA ŻĄDANIE (klik) — 551 iframe'ów na ścianie zabiłoby przeglądarkę,
+   a set gra dopiero od kliknięcia w play (nigdy sam z siebie). Link
+   to prawdziwy set z mapy (set_link z bazy Janka). */
+function odsluch(i){
+  const d = DJE[i], box = document.getElementById(`odsluch-${i}`);
+  if (box.classList.contains("jest")){ box.classList.remove("jest"); box.innerHTML = ""; return; }
+  const src = "https://w.soundcloud.com/player/?url=" + encodeURIComponent(d.sluchaj)
+    + "&color=%23d6f549&auto_play=false&hide_related=true&show_comments=false"
+    + "&show_reposts=false&visual=false";
+  box.innerHTML = `<iframe src="${src}" allow="autoplay"></iframe>
+    <div class="zrodlo-linku">set z mapy: ${d.sluchaj.replace("https://","")}</div>`;
+  box.classList.add("jest");
 }
 
 let t;

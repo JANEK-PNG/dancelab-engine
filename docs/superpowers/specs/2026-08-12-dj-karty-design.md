@@ -74,6 +74,15 @@ najpierw zapytanie-bzdura / pary kontrolne, potem produkt.
   (ton DanceLab: kumpel, nie oceniający). Oś „komercyjny ↔ uznany" wejdzie
   dopiero, gdy będzie policzona dla wszystkich kart naraz — jako współrzędna,
   nie ocena.
+- **Odsłuch (pomysł Janka 12.08):** kartę da się USŁYSZEĆ — „▶ posłuchaj
+  setu" rozwija wbudowany odtwarzacz SoundCloud z prawdziwym setem z mapy
+  (set_link z bazy). Świadomie NIE zamiast portretu, tylko obok: (1) 551
+  iframe'ów na ścianie zabija przeglądarkę → odtwarzacz ładuje się na klik,
+  (2) linki do setów umierają, portret z pomiarów renderuje się zawsze,
+  (3) embed niesie brand SoundCloud — twarzą karty zostaje nasz portret.
+  Dźwięk startuje wyłącznie od kliknięcia użytkownika w play. Prawa czyste:
+  embed hostuje SoundCloud z pełną atrybucją artysty. Furtka: odsłuch może
+  w przyszłości oznaczać kartę jako „poznaną".
 - **Mostek:** na każdej karcie jeden czasownik — „GRAJ JAK TEN" → ustawia
   kotwicę playlisty/briefu i wraca do budowy.
 - Karty bez pełnego profilu (mało szwów policzonych) = karta uproszczona:
