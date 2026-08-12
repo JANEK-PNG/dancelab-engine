@@ -27,9 +27,13 @@ def _norm(s: str) -> str:
     return unicodedata.normalize("NFC", s or "").casefold().strip()
 
 
-def wczytaj(path: pathlib.Path = PROFIL_PATH) -> dict:
+def wczytaj(path: pathlib.Path | None = None) -> dict:
     """Profil po ZNORMALIZOWANEJ ksywie; brak pliku = pusty słownik
-    (karta wraca do skromnej wersji z księgi kotwic, bez zgadywania)."""
+    (karta wraca do skromnej wersji z księgi kotwic, bez zgadywania).
+    Ścieżkę czytamy w CHWILI wywołania (nie w definicji) — inaczej
+    podmiana w testach nic nie daje."""
+    if path is None:
+        path = PROFIL_PATH
     if not path.exists():
         return {}
     dane = json.loads(path.read_text()).get("djs", {})

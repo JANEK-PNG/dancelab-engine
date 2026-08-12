@@ -54,3 +54,45 @@ def test_wczytaj_normalizuje_ksywy(tmp_path):
     assert P.znajdz(profile, "catz 'n dogz")["sety"] == 9
     assert P.znajdz(profile, "nie ma") is None
     assert P.wczytaj(tmp_path / "brak.json") == {}
+
+
+def test_wejscie_w_zakladke_od_razu_podswietla_i_rysuje_karte(
+        tmp_path, monkeypatch):
+    """Skarga Janka 13.08: po wejściu w DJ-e karta była pusta, póki nie
+    ruszyło się kursorem. Wejście w zakładkę podświetla pierwszego DJ-a
+    z pełnym profilem i od razu rysuje kartę."""
+    import asyncio
+    import json as _json
+
+    import dancelab.decision.anchors as A
+    import dancelab.tui.user_store as U
+    from dancelab.tui.app import DanceLabTUI
+    monkeypatch.setattr(U, "STATE_PATH", tmp_path / "stan.json")
+    monkeypatch.setattr(A, "load_anchor_book", lambda *a, **k: {"djs": {
+        "Ayesha": {"centroid": [1, 0], "n_tracks": 39, "cos_median": 0.7},
+        "Ben UFO": {"centroid": [0, 1], "n_tracks": 28, "cos_median": 0.8},
+        "Tim Reaper": {"centroid": [1, 1], "n_tracks": 177,
+                       "cos_median": 0.75}}})
+    monkeypatch.setattr(A, "list_anchors", lambda *a, **k: [
+        ("Ayesha", 39, 0.7), ("Ben UFO", 28, 0.8), ("Tim Reaper", 177, 0.75)])
+    plik = tmp_path / "dj_profile.json"
+    plik.write_text(_json.dumps({"djs": {"Ben UFO": {
+        "bpm_lo": 120, "bpm_med": 133, "bpm_hi": 150, "harm_proc": 31,
+        "skok_bpm": 4.0, "energia": 0.5, "groove": 0.4, "bas": 0.6,
+        "sety": 3, "szwy": 40, "szwy_pelne": 28, "edycje": []}}}))
+    monkeypatch.setattr(P, "PROFIL_PATH", plik)
+
+    async def go():
+        from textual.widgets import OptionList, Static, TabbedContent
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            app.query_one("#tabs", TabbedContent).active = "tab-dj"
+            await pilot.pause()
+            lst = app.query_one("#dj-lista", OptionList)
+            assert lst.highlighted is not None
+            assert (lst.get_option_at_index(lst.highlighted).id
+                    == "Ben UFO"), "pierwszy DJ z PEŁNYM profilem"
+            karta = str(app.query_one("#dj-karta", Static).content)
+            assert "mediana [b]133" in karta and "31%" in karta, \
+                "karta narysowana bez ruchu kursorem"
+    asyncio.run(go())

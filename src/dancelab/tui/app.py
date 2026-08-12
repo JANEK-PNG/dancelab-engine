@@ -1685,6 +1685,30 @@ class DanceLabTUI(App):
             # fokus na listę, żeby litery/strzałki edytora działały od razu
             self._cue_podglad_worker()
             self.query_one("#cue-table", DataTable).focus()
+        if pane is not None and pane.id == "tab-dj":
+            # wejście w DJ-e = od razu pełna karta (skarga Janka 13.08:
+            # „kompletnie nic się nie zmieniło" — karta czekała na ruch
+            # kursora); podświetlamy pierwszego DJ-a z PEŁNYM profilem
+            lst = self.query_one("#dj-lista", OptionList)
+            lst.focus()
+            if lst.highlighted is None and lst.option_count:
+                from dancelab.tui import dj_profile as P
+                profile = getattr(self, "_dj_profile", {})
+                pierwszy_dj, pierwszy_pelny = None, None
+                for i in range(lst.option_count):
+                    oid = lst.get_option_at_index(i).id or ""
+                    if oid.startswith("__") or oid == "★ moje ulubione":
+                        continue
+                    if pierwszy_dj is None:
+                        pierwszy_dj = i
+                    prof = P.znajdz(profile, oid)
+                    if prof and "bpm_med" in prof:
+                        pierwszy_pelny = i
+                        break
+                cel = pierwszy_pelny if pierwszy_pelny is not None \
+                    else pierwszy_dj
+                if cel is not None:
+                    lst.highlighted = cel
 
     # --------------------------------------------------------- Eksport / Cue
 
