@@ -129,94 +129,80 @@ function warstwaSplatanie(ctx, k){
   if (!POLE || !k.szwy.length) return;
   const {czas, W, H} = k;
   const bpm1 = k.szwy[0].a || 128;
-  const yLina = H * (0.97 - (bpm1 - 60) / 140 * 0.94);   // ta sama skala co pole
-  const xStart = W * 0.10, xKoniec = W * 0.94;
+  const yOs = H * (0.97 - (bpm1 - 60) / 140 * 0.94);
   const CYKL = 30, faza = (czas % CYKL) / CYKL;
-  // splot dojrzewa przez pierwsze 45% cyklu, potem punkt PODĄŻA po linie
-  const splot = Math.min(1, faza / 0.45);
-  const wedrowka = Math.max(0, (faza - 0.45) / 0.55);
+  const splot = Math.min(1, faza / 0.45);              // warkocz się zaplata
+  const wedrowka = Math.max(0, (faza - 0.45) / 0.55);  // punkt idzie po nim
 
-  // kształt liny — jedna wspólna droga, po której pójdzie punkt
-  const lina = [];
-  for (let j = 0; j <= 90; j++){
-    const u = j / 90;
-    lina.push({
-      x: xStart + (xKoniec - xStart) * u,
-      y: yLina + Math.sin(u * 3.1 + czas * 0.18) * H * 0.045
-             + Math.sin(u * 7.4 - czas * 0.11) * H * 0.018,
-    });
-  }
+  // OŚ WARKOCZA — nie jest rysowana. To linia, wokół której splatają się
+  // te same włosy, które przed chwilą były luźne (Janek: „nie wyrywasz
+  // fragmentu z głowy i nie splatasz obok").
+  const os = (u) => yOs + Math.sin(u * 3.1 + czas * 0.18) * H * 0.045
+                        + Math.sin(u * 7.4 - czas * 0.11) * H * 0.018;
+  const xA = W * 0.26, xB = W * 0.82;                  // strefa warkocza
+  const MARG = W * 0.30;                              // długie, miękkie wejście
+  const gladko = (v) => { const u = Math.max(0, Math.min(1, v));
+                          return u * u * (3 - 2 * u); };
+  const wStrefie = (x) => Math.min(gladko((x - (xA - MARG)) / MARG),
+                                   gladko(((xB + MARG) - x) / MARG));
 
-  // 1 · nici zbiegają się do liny i NABIERAJĄ KOLORU, gdy w nią wchodzą
-  const NICI = 90;
+  const NICI = 130;
+  let wplecionych = 0;
   for (let i = 0; i < NICI; i++){
-    const r = rnd(hash("splot" + i));
+    const r = rnd(hash("wlos" + i));
     const bpm0 = 60 + r() * 140, en0 = r();
     const g = gestosc(bpm0, en0);
-    if (g < 0.01) continue;
+    if (g < 0.008) continue;
     const y0 = H * (0.97 - (bpm0 - 60) / 140 * 0.94);
-    const x0 = -40 + r() * W * 0.42;
-    const wejscie = r();                       // własny moment przypłynięcia
-    const zywa = Math.max(0, Math.min(1, (splot - wejscie * 0.6) / 0.4));
-    if (zywa <= 0) continue;
-    const gdzie = 0.18 + r() * 0.5;            // gdzie wtapia się w linę
-    const kroki = 46;
-    for (let j = 0; j < kroki; j++){
-      const u = j / kroki, u2 = (j + 1) / kroki;
-      const wejdz = (uu) => {
-        const t2 = Math.min(1, uu / gdzie);
-        const sciag = Math.pow(t2, 1.6) * zywa;
-        const px = x0 + (xKoniec - x0) * uu;
-        const wlasna = y0 + Math.sin(uu * 6.2 + i) * H * 0.03;
-        const cel = lina[Math.min(90, Math.round(uu * 90))].y;
-        return {x: px, y: wlasna + (cel - wlasna) * sciag, sciag};
-      };
-      const A = wejdz(u), B = wejdz(u2);
-      // KOLOR narasta z wtopieniem: z szarej pamięci w ciepłą decyzję
-      const c = [Math.round(210 + 45 * A.sciag), Math.round(206 + 22 * A.sciag),
-                 Math.round(196 - 74 * A.sciag)];
-      const alfa = (0.05 + g * 0.34) * zywa * (0.35 + A.sciag * 0.9);
-      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alfa.toFixed(3)})`;
-      ctx.lineWidth = (0.5 + g * 1.7) * (0.5 + A.sciag * 1.6);
-      ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
+    const wejscie = r();                       // kiedy ten włos daje się wpleść
+    const zywa = Math.max(0, Math.min(1, (splot - wejscie * 0.55) / 0.45));
+    const bierze = zywa > 0.02;                // czy w ogóle wchodzi w warkocz
+    if (bierze) wplecionych++;
+    const pasmo = (r() - 0.5) * 2;             // miejsce w warkoczu (-1..1)
+    const skret = 5 + r() * 4;                 // ile skrętów na długości
+    const fazaS = r() * 6.283;
+    const grubosc = H * 0.008;                 // promień warkocza
+
+    ctx.beginPath();
+    let pierwszy = true;
+    const kroki = 120;
+    for (let j = 0; j <= kroki; j++){
+      const u = j / kroki;
+      const x = -40 + (W + 80) * u;
+      const uu = Math.max(0, Math.min(1, (x - xA) / (xB - xA)));
+      const s = bierze ? wStrefie(x) * zywa : 0;       // ile splecione TU
+      // luźny włos ma własną drogę; splatany zbiega do osi i ją oplata
+      const wlasna = y0 + Math.sin(u * 5.4 + i) * H * 0.035
+                        + Math.sin(u * 11.2 + i * 2) * H * 0.012;
+      const owin = Math.sin(uu * skret * 6.283 + fazaS) * grubosc * pasmo;
+      const y = wlasna + (os(uu) + owin - wlasna) * s;
+      // kolor narasta ze splecieniem: szara możliwość → ciepła decyzja
+      const c = [Math.round(206 + 49 * s), Math.round(202 + 26 * s),
+                 Math.round(192 - 62 * s)];
+      const alfa = (0.03 + g * 0.22) * (0.5 + s * 1.6);
+      if (!pierwszy){
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alfa.toFixed(3)})`;
+        ctx.lineWidth = (0.4 + g * 1.3) * (0.7 + s * 1.5);
+        ctx.lineTo(x, y); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.moveTo(x, y); pierwszy = false;
     }
   }
 
-  // 2 · LINA: to, co powstało ze splotu — grubieje wraz z dojrzewaniem
-  for (let j = 1; j < lina.length; j++){
-    const u = j / lina.length;
-    const dojrz = Math.min(1, splot * 1.3 - u * 0.25);
-    if (dojrz <= 0) continue;
-    ctx.strokeStyle = `rgba(255,228,150,${(0.10 + 0.34 * dojrz).toFixed(3)})`;
-    ctx.lineWidth = (0.7 + 2.4 * dojrz);
-    ctx.beginPath();
-    ctx.moveTo(lina[j - 1].x, lina[j - 1].y);
-    ctx.lineTo(lina[j].x, lina[j].y);
-    ctx.stroke();
-  }
-
-  // 3 · PUNKT PODĄŻA PO LINIE (nie wyznacza jej): rusza dopiero, gdy splot
-  //     jest gotowy — pierwszy utwór gra, decyzja niesie się dalej
+  // PUNKT: idzie po osi warkocza — po tym, co splotły włosy
   if (wedrowka > 0){
-    const idx = Math.min(90, Math.round(wedrowka * 90));
-    const p = lina[idx];
+    const u = wedrowka;
+    const x = xA + (xB - xA) * u, y = os(u);
     const puls = 0.8 + 0.2 * Math.sin(czas * 2.4);
-    const rr = H * 0.016 * puls;
-    const gg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rr * 4);
-    gg.addColorStop(0, "rgba(255,255,255,0.62)");
-    gg.addColorStop(0.35, "rgba(255,228,150,0.15)");
+    const rr = H * 0.014 * puls;
+    const gg = ctx.createRadialGradient(x, y, 0, x, y, rr * 4);
+    gg.addColorStop(0, "rgba(255,255,255,0.6)");
+    gg.addColorStop(0.35, "rgba(255,228,150,0.14)");
     gg.addColorStop(1, "rgba(255,228,150,0)");
     ctx.fillStyle = gg;
-    ctx.fillRect(p.x - rr * 4, p.y - rr * 4, rr * 8, rr * 8);
+    ctx.fillRect(x - rr * 4, y - rr * 4, rr * 8, rr * 8);
     ctx.fillStyle = "rgba(255,255,255,0.9)";
-    ctx.beginPath(); ctx.arc(p.x, p.y, 2.2, 0, 6.283); ctx.fill();
-    // ślad za punktem — droga już przebyta świeci mocniej
-    ctx.strokeStyle = "rgba(255,236,180,0.5)";
-    ctx.lineWidth = 2.2;
-    ctx.beginPath();
-    for (let j = 0; j <= idx; j++)
-      j === 0 ? ctx.moveTo(lina[j].x, lina[j].y) : ctx.lineTo(lina[j].x, lina[j].y);
-    ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 6.283); ctx.fill();
   }
 }
 WARSTWY.push(warstwaSplatanie);
