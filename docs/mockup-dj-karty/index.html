@@ -100,6 +100,19 @@
   }
   .graj:hover{filter:brightness(1.08)}
   .karta.szara .graj{background:none; color:var(--przygaszony); border:1px solid var(--linia)}
+  .graj.w-kol{background:none; color:var(--volt); border:1px solid var(--volt)}
+  .karta.szara .graj.w-kol{color:var(--volt); border-color:var(--volt)}
+
+  /* podgląd pola „Brzmi jak…": kolekcja ma PIERWSZEŃSTWO, z checkmarkiem */
+  .brzmi-podglad{border:1px solid var(--linia); border-radius:var(--r);
+    padding:10px 12px; margin-bottom:20px}
+  .brzmi-podglad .tytul{font-size:11px; color:var(--przygaszony);
+    letter-spacing:.5px; text-transform:uppercase; margin-bottom:7px}
+  .brzmi-podglad .lista{display:flex; gap:7px; flex-wrap:wrap}
+  .pozycja{font-size:12px; border:1px solid var(--linia); border-radius:var(--r);
+    padding:4px 10px; color:var(--przygaszony)}
+  .pozycja.kol{color:var(--tekst); border-color:var(--volt)}
+  .pozycja.kol .ptak{color:var(--volt); font-weight:700}
 
   .wbudowie{font-size:11px; color:var(--przygaszony); border:1px dashed var(--linia);
     border-radius:var(--r); padding:8px 10px; margin-bottom:12px; line-height:1.5}
@@ -117,17 +130,22 @@
 
 <header>
   <h1>DJ-e</h1>
-  <span class="licznik">poznanych: <b>2</b> z 551 zmierzonych <span class="mono">·</span> 869 w mapie</span>
+  <span class="licznik">w kolekcji: <b id="ile-kol">2</b> z 551 zmierzonych <span class="mono">·</span> 869 w mapie</span>
 </header>
 <p class="pod">Każda liczba na karcie to pomiar z prawdziwych setów tego DJ-a w naszej mapie. Żadnych ocen — tylko jak kto gra.</p>
 
 <div class="filtry" id="filtry">
   <button class="filtr on" data-f="all">wszyscy</button>
-  <button class="filtr" data-f="poznani">poznani</button>
+  <button class="filtr" data-f="kolekcja">w kolekcji</button>
   <button class="filtr" data-f="RA Podcast 2025">RA Podcast 2025</button>
   <button class="filtr" data-f="Audioriver 2018">Audioriver 2018</button>
   <button class="filtr" data-f="Garbicz Festival 2014">Garbicz 2014</button>
   <button class="filtr" data-f="Garbicz Festival 2026">Garbicz 2026</button>
+</div>
+
+<div class="brzmi-podglad">
+  <div class="tytul">tak ułoży się pole „Brzmi jak…" w briefie — kolekcja ma pierwszeństwo</div>
+  <div class="lista" id="brzmi-lista"></div>
 </div>
 
 <div class="sciana" id="sciana"></div>
@@ -146,29 +164,29 @@
 
 <script>
 const DJE = [
-  {ksywa:"Tim Reaper", zrodlo:"RA Podcast", poznany:true,
+  {ksywa:"Tim Reaper", zrodlo:"RA Podcast", kolekcja:true,
    edycje:["RA Podcast 2020","RA Podcast 2025"],
    sluchaj:"https://soundcloud.com/resident-advisor/ra1000-timreaper",
    bpm_lo:119, bpm_hi:173, bpm_med:140, harm:24, skok:5.0,
    energia:.55, groove:.43, bas:.54, sety:2, szwy:177, utwory:215},
-  {ksywa:"Piasecki", zrodlo:"Audioriver", poznany:true,
+  {ksywa:"Piasecki", zrodlo:"Audioriver", kolekcja:true,
    edycje:["Audioriver 2018"],
    sluchaj:"https://soundcloud.com/piasecki/ep398",
    bpm_lo:104, bpm_hi:178, bpm_med:127, harm:12, skok:17.0,
    energia:.41, groove:.19, bas:.39, sety:6, szwy:92, utwory:104},
-  {ksywa:"Catz 'n Dogz", zrodlo:"sety klubowe i podcasty", poznany:false,
+  {ksywa:"Catz 'n Dogz", zrodlo:"sety klubowe i podcasty", kolekcja:false,
    edycje:[],
    sluchaj:"https://soundcloud.com/catzndogz/music-not-genres-by-catz-n-dogz-newonce-radio-25042020",
    bpm_lo:108, bpm_hi:171, bpm_med:124, harm:12, skok:6.0,
    energia:.41, groove:.41, bas:.42, sety:9, szwy:48, utwory:77},
-  {ksywa:"Ayesha", zrodlo:"RA Podcast", poznany:false,
+  {ksywa:"Ayesha", zrodlo:"RA Podcast", kolekcja:false,
    edycje:["RA Podcast 2025"],
    sluchaj:"https://soundcloud.com/resident-advisor/ra-983-ayesha/",
    bpm_lo:132, bpm_hi:181, bpm_med:140, harm:26, skok:7.0,
    energia:null, groove:null, bas:null, sety:1, szwy:39, utwory:null},
-  {ksywa:"VOODOOHOP", zrodlo:"profil w budowie", wbudowie:true, poznany:false,
+  {ksywa:"VOODOOHOP", zrodlo:"profil w budowie", wbudowie:true, kolekcja:false,
    edycje:["Garbicz Festival 2014"], sety:3, szwy:12},
-  {ksywa:"Jyoty", zrodlo:"profil w budowie", wbudowie:true, poznany:false,
+  {ksywa:"Jyoty", zrodlo:"profil w budowie", wbudowie:true, kolekcja:false,
    edycje:["RA Podcast 2025"], sety:1, szwy:39},
 ];
 // Edycje wprost z bazy Janka (arkusz → fakty_szew: wydarzenie + rok).
@@ -196,11 +214,11 @@ function karta(d){
         ale za mało policzonych, żeby uczciwie narysować profil. Karta uzupełni się sama,
         gdy pomiary dojdą — nic tu nie zgadujemy.</div>
       <div class="stopka"><span class="zaplecze">w mapie: ${d.sety} sety · ${d.szwy} szwów</span>
-      <button class="graj" onclick="graj('${d.ksywa}')">BUDUJ W TYM STYLU</button></div>
+      <button class="graj${d.kolekcja?" w-kol":""}" onclick="kolekcja(${d._i})">${d.kolekcja?"✓ W KOLEKCJI":"＋ DO KOLEKCJI"}</button></div>
     </div>`;
   }
-  const zn = d.poznany ? `<span class="znaczek">✓ POZNANY</span>` : "";
-  return `<div class="karta${d.poznany?"":" szara"}">
+  const zn = d.kolekcja ? `<span class="znaczek">✓ W KOLEKCJI</span>` : "";
+  return `<div class="karta${d.kolekcja?"":" szara"}">
     ${zn}
     <div class="nazwa">${d.ksywa}</div>
     <div class="zrodlo">${d.zrodlo}</div>
@@ -228,7 +246,7 @@ function karta(d){
     </div>
     <div class="stopka">
       <span class="zaplecze">w mapie: ${d.sety} set${d.sety===1?"":"y"} · ${d.szwy} szwów policzonych${d.utwory?` · ${d.utwory} utworów`:""}</span>
-      <button class="graj" onclick="graj('${d.ksywa.replace(/'/g,"\\'")}')">BUDUJ W TYM STYLU</button>
+      <button class="graj${d.kolekcja?" w-kol":""}" onclick="kolekcja(${d._i})">${d.kolekcja?"✓ W KOLEKCJI":"＋ DO KOLEKCJI"}</button>
     </div>
   </div>`;
 }
@@ -238,7 +256,7 @@ DJE.forEach((d,i)=>d._i=i);
 function rysuj(filtr){
   const zbior = DJE.filter(d =>
     filtr === "all" ? true :
-    filtr === "poznani" ? d.poznany :
+    filtr === "kolekcja" ? d.kolekcja :
     (d.edycje || []).includes(filtr));
   document.getElementById("sciana").innerHTML = zbior.map(karta).join("");
   const pusto = document.getElementById("pusto");
@@ -336,12 +354,38 @@ function odsluch(i){
 }
 
 let t;
-function graj(kto){
+function toast(tekst){
   const el = document.getElementById("toast");
-  el.textContent = `kotwica: ${kto} — buduję w tym stylu (pozorne)`;
+  el.textContent = tekst;
   el.classList.add("jest");
   clearTimeout(t); t = setTimeout(()=>el.classList.remove("jest"), 2600);
 }
+
+/* KOLEKCJA (decyzja Janka 12.08): karta się KOLEKCJONUJE, nie odpala budowy.
+   DJ-e z kolekcji dostają pierwszeństwo w polu „Brzmi jak…" w briefie
+   i zielony checkmark obok nazwiska. */
+function kolekcja(i){
+  const d = DJE[i];
+  d.kolekcja = !d.kolekcja;
+  toast(d.kolekcja
+    ? `${d.ksywa} w kolekcji — pierwszeństwo w polu „Brzmi jak…”`
+    : `${d.ksywa} poza kolekcją`);
+  const aktywny = document.querySelector(".filtr.on")?.dataset.f || "all";
+  rysuj(aktywny);
+  brzmiLista();
+}
+
+function brzmiLista(){
+  const kol = DJE.filter(d => d.kolekcja);
+  const reszta = DJE.filter(d => !d.kolekcja);
+  document.getElementById("ile-kol").textContent = kol.length;
+  document.getElementById("brzmi-lista").innerHTML = [
+    ...kol.map(d => `<span class="pozycja kol"><span class="ptak">✓</span> ${d.ksywa}</span>`),
+    ...reszta.map(d => `<span class="pozycja">${d.ksywa}</span>`),
+    `<span class="pozycja">… i 545 kolejnych z mapy</span>`,
+  ].join("");
+}
+brzmiLista();
 </script>
 </body>
 </html>

@@ -31,7 +31,10 @@ wiedział. Wniosek: zanim dobudujemy nowe, wyciągamy istniejące na światło.
 ### 1. Brief: „Brzmi jak te utwory" (fundament)
 
 Pole „Graj jak…" dostaje równorzędną alternatywę: użytkownik wskazuje 2–3
-utwory ze swojej biblioteki i one stają się kotwicą brzmienia. Silnik już
+utwory ze swojej biblioteki i one stają się kotwicą brzmienia.
+**Decyzja copy (Janek 12.08, wdrożona):** pole nazywa się od teraz
+„Brzmi jak…" — jedna rodzina kotwic (DJ, utwory, karty) pod jednym
+czasownikiem brzmienia; zmienione w TUI, pomocy CLI i wiernej makiecie. Silnik już
 to umie — zmiana dotyczy widoczności: wybór wprost (nie przez serduszka),
 jasna etykieta w briefie, czym set będzie pachniał.
 
@@ -52,11 +55,15 @@ najpierw zapytanie-bzdura / pary kontrolne, potem produkt.
 
 ### 3. Zakładka „DJ-e": ściana kart
 
-- **Katalog od razu, znaczek „poznany"** (wariant C): wszystkie karty
-  dostępne od pierwszego dnia; karty DJ-ów, z którymi użytkownik coś
-  przeżył (użył jako kotwicy, przyszedł z rekomendacji, jego szwy grały
-  w zbudowanym secie), są pełnokolorowe ze znaczkiem; reszta lekko
-  wyszarzona. Licznik „poznanych: N z M". Zero zamkniętych drzwi.
+- **Katalog od razu, KOLEKCJA zamiast „poznanych"** (Janek 12.08,
+  nadpisuje wcześniejszy znaczek „poznany"): karta ma guzik
+  „＋ DO KOLEKCJI"; DJ-e z kolekcji są pełnokolorowi ze znaczkiem
+  „✓ W KOLEKCJI", reszta wyszarzona, licznik „w kolekcji: N z M".
+  Kolekcja to RĘCZNY wybór użytkownika (odsłuch może kiedyś podpowiadać,
+  ale nie dodaje sam). Zero zamkniętych drzwi — wszystkie karty widoczne.
+  **Kolekcja karmi brief:** w polu „Brzmi jak…" DJ-e z kolekcji mają
+  PIERWSZEŃSTWO na liście i zielony checkmark obok nazwiska — kolekcjonujesz
+  na ścianie kart, zbierasz owoce przy budowie.
 - **Karta = wyłącznie pomiary z prawdziwych setów DJ-a w mapie:**
   zakres temp (percentyle 10–90 + mediana), % przejść zgodnych
   harmonicznie, mediana skoku tempa na szwie, energia / gęstość groove'u /
@@ -83,11 +90,11 @@ najpierw zapytanie-bzdura / pary kontrolne, potem produkt.
   Dźwięk startuje wyłącznie od kliknięcia użytkownika w play. Prawa czyste:
   embed hostuje SoundCloud z pełną atrybucją artysty. Furtka: odsłuch może
   w przyszłości oznaczać kartę jako „poznaną".
-- **Mostek:** na każdej karcie jeden czasownik — „BUDUJ W TYM STYLU"
-  (decyzja copy 12.08: spójne z głównym „Buduj set", mówi skutek,
-  neutralne płciowo; „Graj jak ten" odrzucone — wiszący zaimek,
-  ton rozkazu naśladowania) → ustawia
-  kotwicę playlisty/briefu i wraca do budowy.
+- **Mostek:** na każdej karcie jeden czasownik — „＋ DO KOLEKCJI"
+  (trzecia iteracja copy 12.08: „Graj jak ten" odrzucone — wiszący
+  zaimek i ton rozkazu; „Buduj w tym stylu" nadpisane decyzją Janka —
+  karta nie odpala budowy, karta się KOLEKCJONUJE, a budowę w stylu
+  robi pole „Brzmi jak…", gdzie kolekcja ma pierwszeństwo).
 - Karty bez pełnego profilu (mało szwów policzonych) = karta uproszczona:
   nazwa + to, co wiemy, z uczciwą etykietą „profil w budowie".
 
