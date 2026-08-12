@@ -560,31 +560,6 @@ function zyj(ts){
       const czas = ts/1000*0.35;
       const dd = DJE[+cv.dataset.i];
       portret(cv, dd, czas);
-      // paski żyją z kropką: pokazują utwór grający POD nią;
-      // w pauzie nocy wracają do median całości
-      const kartaEl = cv.closest(".karta");
-      const szwy = SZWY[dd.ksywa] || [];
-      if (!kartaEl) return;
-      const paski = kartaEl.querySelectorAll(".pasek");
-      if (paski.length < 3) return;
-      let e = dd.energia, g = dd.groove, bs = dd.bas;
-      if (szwy.length){
-        const faza = (czas / 15) % 1;
-        if (faza < 0.86){
-          const s = szwy[Math.min(szwy.length - 1,
-            Math.floor(faza / 0.86 * szwy.length))];
-          if (s.eb != null) e = s.eb;
-          if (s.gb != null) g = s.gb;
-          if (s.bb != null) bs = s.bb;
-        }
-      }
-      [[0, e], [1, g], [2, bs]].forEach(([i, v]) => {
-        if (v == null) return;
-        const fill = paski[i].querySelector(".fill");
-        const licz = paski[i].querySelector(".mono");
-        if (fill) fill.style.width = (v * 100).toFixed(0) + "%";
-        if (licz) licz.textContent = v.toFixed(2);
-      });
     });
   }
   requestAnimationFrame(zyj);
