@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DanceLab — scena (portret na pełnym ekranie)</title>
+<script src="https://w.soundcloud.com/player/api.js"></script>
+<script src="portret.js"></script>
+<style>
+  :root{--tlo:#171614; --tekst:#e8e4da; --przygaszony:#8f8a7e; --slaby:#5c5850;
+    --volt:#d6f549; --linia:#3a3730; --r:3px}
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%; overflow:hidden}
+  body{background:var(--tlo); color:var(--tekst);
+    font-family:"Space Grotesk", system-ui, sans-serif}
+  /* ta sama scena co w kafelku — tylko rozciągnięta na cały ekran */
+  #plotno{position:fixed; inset:0; width:100vw; height:100vh; display:block;
+    cursor:ew-resize}
+  .ui{position:fixed; z-index:5; transition:opacity .6s}
+  body.spokoj .ui{opacity:0; pointer-events:none}
+  #wybor{top:16px; left:18px; display:flex; gap:8px}
+  .dj{border:1px solid var(--linia); border-radius:var(--r); padding:5px 12px;
+    font-size:12px; color:var(--przygaszony); cursor:pointer;
+    background:rgba(23,22,20,.72); font-family:inherit}
+  .dj.on{border-color:var(--volt); color:var(--volt)}
+  #graj{bottom:18px; left:18px; border:1px solid var(--linia);
+    border-radius:var(--r); background:rgba(23,22,20,.72); color:var(--tekst);
+    font-family:inherit; font-size:12px; letter-spacing:.6px;
+    padding:7px 14px; cursor:pointer}
+  #graj:hover{border-color:var(--volt); color:var(--volt)}
+  #vol{bottom:22px; right:56px; width:80px; height:10px; display:none;
+    accent-color:var(--volt); cursor:pointer}
+  #vol.jest{display:block}
+  #voli{bottom:16px; right:18px; width:22px; height:22px; border-radius:50%;
+    border:1px solid var(--przygaszony); color:var(--przygaszony);
+    background:rgba(23,22,20,.72); font-size:11px; font-family:inherit;
+    cursor:pointer; display:none}
+  #voli.jest{display:block}
+  #voli:hover{border-color:var(--volt); color:var(--volt)}
+  #pasek{position:fixed; left:0; right:0; bottom:0; height:20px; z-index:4;
+    cursor:ew-resize}
+  #pasek::after{content:""; position:absolute; left:0; right:0; bottom:0;
+    height:2px; background:var(--linia)}
+  #postep{position:absolute; left:0; bottom:0; height:2px; width:0;
+    background:var(--volt)}
+  .sc-ukryty{position:fixed; width:1px; height:1px; opacity:0;
+    pointer-events:none; border:0}
+</style>
+</head>
+<body>
+<canvas id="plotno" class="portret"></canvas>
+<div id="wybor" class="ui"></div>
+<button id="graj" class="ui" onclick="odsluchScena()">▶ POSŁUCHAJ SETU</button>
+<input type="range" id="vol" class="ui" min="0" max="100" value="80"
+  oninput="glosnoscScena(this.value)" title="głośność — grubość włókien">
+<button id="voli" class="ui" onclick="document.getElementById('vol').classList.toggle('jest')"
+  title="głośność">♪</button>
+<div id="pasek"><div id="postep"></div></div>
+
+<script>
+/* Scena = KAFELEK NA PEŁNYM EKRANIE: rysuje ta sama funkcja portret()
+   z portret.js, tylko płótno ma rozmiar okna. Zero kopiowania kodu —
+   co poprawimy na karcie, dzieje się tu samo. */
+const DJE = [
+  {ksywa:"Tim Reaper", sety:2, szwy:177, bpm_med:140, skok:5.0,
+   energia:.55, groove:.43, bas:.54, _i:0, grany:1,
+   sluchaj:"https://soundcloud.com/resident-advisor/ra1000-timreaper"},
+  {ksywa:"Piasecki", sety:6, szwy:92, bpm_med:127, skok:17.0,
+   energia:.41, groove:.19, bas:.39, _i:1, grany:3,
+   sluchaj:"https://soundcloud.com/piasecki/ep398"},
+  {ksywa:"Catz 'n Dogz", sety:9, szwy:48, bpm_med:124, skok:6.0,
+   energia:.41, groove:.41, bas:.42, _i:2, grany:0,
+   sluchaj:"https://soundcloud.com/catzndogz/music-not-genres-by-catz-n-dogz-newonce-radio-25042020"},
+];
+let KTO = 0, GRACZ = null, VOL = 0.8;
+
+const cv = document.getElementById("plotno");
+function klatka(ts){
+  const czas = ts / 1000 * 0.35;
+  portret(cv, DJE[KTO], czas, GRACZ ? GRACZ.frac : null, GRACZ ? VOL : null);
+  if (GRACZ) document.getElementById("postep").style.width =
+    (GRACZ.frac * 100).toFixed(2) + "%";
+  requestAnimationFrame(klatka);
+}
+requestAnimationFrame(klatka);
+
+function odsluchScena(){
+  const d = DJE[KTO], guzik = document.getElementById("graj");
+  if (GRACZ && !document.querySelector("iframe.sc-ukryty")) GRACZ = null;
+  if (GRACZ){ GRACZ.gra ? GRACZ.widget.pause() : GRACZ.widget.play(); return; }
+  const fr = document.createElement("iframe");
+  fr.className = "sc-ukryty"; fr.allow = "autoplay";
+  fr.src = "https://w.soundcloud.com/player/?url="
+    + encodeURIComponent(d.sluchaj) + "&auto_play=false&visual=false";
+  document.body.appendChild(fr);
+  const w = SC.Widget(fr);
+  GRACZ = {widget: w, frac: 0, dur: 0, gra: false};
+  w.bind(SC.Widget.Events.READY, () => {
+    w.getDuration(ms => GRACZ.dur = ms); w.setVolume(VOL * 100); w.play(); });
+  w.bind(SC.Widget.Events.PLAY, () => { GRACZ.gra = true;
+    guzik.textContent = "⏸ PAUZA"; });
+  w.bind(SC.Widget.Events.PAUSE, () => { GRACZ.gra = false;
+    guzik.textContent = "▶ WZNÓW"; });
+  w.bind(SC.Widget.Events.PLAY_PROGRESS, e => {
+    if (GRACZ.dur) GRACZ.frac = e.currentPosition / GRACZ.dur;
+    else w.getDuration(ms => GRACZ.dur = ms); });
+  document.getElementById("voli").classList.add("jest");
+  guzik.textContent = "⏸ PAUZA";
+}
+function glosnoscScena(v){
+  VOL = v / 100;
+  if (GRACZ) GRACZ.widget.setVolume(+v);
+}
+// przewijanie: ciągnięcie po scenie albo po pasku nocy
+let ciagnie = false, ostatni = 0;
+function przewin(ev){
+  if (!GRACZ) return;
+  const frac = Math.max(0, Math.min(1, ev.clientX / innerWidth));
+  GRACZ.frac = frac;
+  const teraz = performance.now();
+  if (GRACZ.dur && teraz - ostatni > 140){
+    ostatni = teraz; GRACZ.widget.seekTo(frac * GRACZ.dur);
+  }
+}
+for (const el of [cv, document.getElementById("pasek")])
+  el.addEventListener("pointerdown", ev => { ciagnie = true; przewin(ev); });
+addEventListener("pointermove", ev => { if (ciagnie) przewin(ev); });
+addEventListener("pointerup", () => ciagnie = false);
+addEventListener("keydown", ev => {
+  if (ev.key === " "){ ev.preventDefault(); odsluchScena(); }
+});
+// UI znika, gdy patrzysz
+let cichoT;
+addEventListener("pointermove", () => {
+  document.body.classList.remove("spokoj");
+  clearTimeout(cichoT);
+  cichoT = setTimeout(() => document.body.classList.add("spokoj"), 2600);
+});
+
+const wyb = document.getElementById("wybor");
+DJE.forEach((d, i) => {
+  const b = document.createElement("button");
+  b.className = "dj" + (i === 0 ? " on" : ""); b.textContent = d.ksywa;
+  b.onclick = () => {
+    if (GRACZ) GRACZ.widget.pause();
+    document.querySelectorAll("iframe.sc-ukryty").forEach(f => f.remove());
+    GRACZ = null; KTO = i;
+    document.getElementById("graj").textContent = "▶ POSŁUCHAJ SETU";
+    document.getElementById("postep").style.width = "0%";
+    document.querySelectorAll(".dj").forEach((x, j) =>
+      x.classList.toggle("on", j === i));
+  };
+  wyb.appendChild(b);
+});
+fetch("szwy.json").then(r => r.json()).then(d => { SZWY = d; });
+</script>
+</body>
+</html>
