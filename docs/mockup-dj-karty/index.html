@@ -241,7 +241,7 @@ function karta(d){
       <div class="wbudowie">Mamy ${d.sety} set${d.sety===1?"":"y"} i ${d.szwy} szwów tego DJ-a,
         ale za mało policzonych, żeby uczciwie narysować profil. Karta uzupełni się sama,
         gdy pomiary dojdą — nic tu nie zgadujemy.</div>
-      <div class="stopka"><span class="zaplecze">w mapie: ${d.sety} sety · ${d.szwy} szwów</span>
+      <div class="stopka"><span class="zaplecze">w mapie:<br>${d.sety} sety<br>${d.szwy} szwów</span>
       <button class="graj${d.kolekcja?" w-kol":""}" onclick="kolekcja(${d._i})" title="${d.kolekcja?"usuń z kolekcji":"dodaj do kolekcji"}">${d.kolekcja?"":"＋"}</button></div>
     </div>`;
   }
@@ -273,7 +273,7 @@ function karta(d){
       ${pasek("bas", d.bas, true)}
     </div>
     <div class="stopka">
-      <span class="zaplecze">w mapie: ${d.sety} set${d.sety===1?"":"y"} · ${d.szwy} szwów policzonych${d.utwory?` · ${d.utwory} utworów`:""}</span>
+      <span class="zaplecze">w mapie:<br>${d.sety} set${d.sety===1?"":"y"}<br>${d.szwy} szwów policzonych${d.utwory?`<br>${d.utwory} utworów`:""}</span>
       <button class="graj${d.kolekcja?" w-kol":""}" onclick="kolekcja(${d._i})" title="${d.kolekcja?"usuń z kolekcji":"dodaj do kolekcji"}">${d.kolekcja?"":"＋"}</button>
     </div>
   </div>`;
