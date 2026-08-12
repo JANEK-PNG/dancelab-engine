@@ -42,9 +42,10 @@
 <canvas id="scena"></canvas>
 <div id="wybor" class="ui"></div>
 <button id="graj" class="ui" onclick="graj()">▶ POSŁUCHAJ SETU</button>
-<div id="opis" class="ui">sieć przejść: każdy węzeł i połączenie rodzi się
-  w momencie przejścia między utworami · zgodne tonacyjnie sprzęgają się
-  mocniej · idealne błyskają voltem · kliknięcie w dół ekranu przewija noc</div>
+<div id="opis" class="ui">strumienie czasu: każde włókno to jedno przejście
+  między utworami · w chwili przejścia wystrzeliwują rozgałęzienia i iskry ·
+  zgodne tonacyjnie płyną daleko, idealne świecą voltem, zgrzyty urywają się
+  poszarpane · ciągnij, żeby przewinąć noc</div>
 <div id="pasek-nocy"><div id="postep"></div></div>
 
 <script>
@@ -73,109 +74,172 @@ function hash(s){let h=7; for(const c of s) h=(h*31+c.charCodeAt(0))&0xFFFFFFFF;
 function rnd(seed){let h=seed; return ()=>{h^=(h<<13)&0xFFFFFFFF; h^=h>>>17;
   h^=(h<<5)&0xFFFFFFFF; return (h>>>0)/4294967296}}
 
-/* SIEĆ: każdy szew rodzi 2-4 węzły wokół wędrującego środka myśli;
-   połączenia — do najbliższych starszych węzłów. Zgodność harmoniczna
-   sprzęga mocniej (więcej krawędzi), idealna = voltowe wiązanie. */
+/* STRUMIENIE CZASU (kadr Janka: gałęzie czasu): materią sceny są
+   ŚWIETLISTE WŁÓKNA — jedno na przejście. Płyną przez noc na wysokości
+   swojego tempa; w chwili przejścia wystrzeliwują rozgałęzienia i iskry.
+   Zgodne tonacyjnie płyną długo i gładko, idealne świecą voltem,
+   zgrzyty rozpryskują się w poszarpane odnogi. */
 let PLANY = {};
+function galaz(r, x, y, kat, dl, glebia){
+  // rozgałęzienie fraktalne — jak wyładowanie
+  const pkt = [{x, y}];
+  let cx = x, cy = y, k = kat;
+  const kroki = Math.max(3, Math.round(dl / 7));
+  for (let i = 0; i < kroki; i++){
+    k += (r() - 0.5) * 0.55;
+    cx += Math.cos(k) * 7; cy += Math.sin(k) * 7;
+    pkt.push({x: cx, y: cy});
+  }
+  const dzieci = [];
+  if (glebia > 0){
+    const ile = 1 + (r() > 0.55 ? 1 : 0);
+    for (let d = 0; d < ile; d++){
+      const i = Math.floor(pkt.length * (0.35 + r() * 0.5));
+      const w = pkt[Math.min(i, pkt.length - 1)];
+      dzieci.push(galaz(r, w.x, w.y, kat + (r() - 0.5) * 1.9,
+                        dl * (0.42 + r() * 0.25), glebia - 1));
+    }
+  }
+  return {pkt, dzieci};
+}
 function plan(ksywa, szwy){
   const klucz = ksywa + W + "x" + H;
   if (PLANY[klucz]) return PLANY[klucz];
-  const r = rnd(hash(ksywa + "siec"));
-  const wezly = [], krawedzie = [];
-  const mx = W * 0.06, my = H * 0.12;
-  szwy.forEach((s, i) => {
-    // grunt: poziom = miejsce w nocy, pion = tempo tego przejścia
+  const r = rnd(hash(ksywa + "strumien"));
+  const mx = W * 0.04, my = H * 0.10;
+  const wlokna = szwy.map((s, i) => {
     const x0 = mx + (i + 0.5) / szwy.length * (W - 2 * mx);
     const y0 = H - my - t01((s.a + s.b) / 2) * (H - 2 * my);
     const czysty = ZG.has(s.h), perf = s.h === "idealna";
-    const ile = perf ? 4 : czysty ? 3 : 2;
-    const rozrzut = 26 + Math.min(Math.abs(s.d), 30) * 3.2;   // skok = rozrzut
-    const nowe = [];
-    for (let k = 0; k < ile; k++){
-      const kat = r() * 6.28, dyst = r() * rozrzut;
-      wezly.push({x: x0 + Math.cos(kat) * dyst * 1.6,
-                  y: Math.max(8, Math.min(H - 8, y0 + Math.sin(kat) * dyst)),
-                  szew: i, perf, czysty, c: mix(t01((s.a + s.b) / 2)),
-                  f: r() * 6.28, w: 1.2 + r() * (perf ? 2.4 : 1.4)});
-      nowe.push(wezly.length - 1);
+    // długość: czysty szew płynie daleko, zgrzyt urywa się szybko
+    const dl = (perf ? 0.42 : czysty ? 0.30 : 0.11) * W * (0.6 + r() * 0.8);
+    const amp = (perf ? 26 : czysty ? 40 : 70) * (0.5 + r());
+    const okres = 90 + r() * 190;
+    const kier = r() > 0.5 ? 1 : -1;
+    const pkt = [];
+    const n = Math.max(12, Math.round(dl / 8));
+    const o2 = okres * (0.31 + r() * 0.2), f2 = r() * 6.28;
+    const dryf = (r() - 0.5) * amp * 1.7;
+    for (let j = 0; j <= n; j++){
+      const u = j / n;
+      const x = x0 - dl * 0.35 + dl * u + Math.sin(u * 4.1 + f2) * amp * 0.25;
+      const y = y0 + dryf * u
+        + (Math.sin(u * dl / okres * 6.28 + i) * 0.72
+           + Math.sin(u * dl / o2 * 6.28 + f2) * 0.38) * amp * kier
+          * Math.sin(u * 3.14);                       // wybrzusza się w środku
+      pkt.push({x, y});
     }
-    for (let a = 0; a < nowe.length - 1; a++)
-      krawedzie.push({a: nowe[a], b: nowe[a + 1], szew: i, perf, czysty});
-    const starsze = wezly.length - ile;
-    const zasieg = perf ? 3 : czysty ? 2 : 1;
-    for (let z = 0; z < zasieg && starsze > 0; z++){
-      const cel = nowe[z % nowe.length];
-      let naj = -1, najD = 1e9;
-      for (let j = Math.max(0, starsze - 30); j < starsze; j++){
-        const dx = wezly[j].x - wezly[cel].x, dy = wezly[j].y - wezly[cel].y;
-        const d = dx * dx + dy * dy;
-        if (d < najD){ najD = d; naj = j; }
-      }
-      if (naj >= 0) krawedzie.push({a: cel, b: naj, szew: i, perf, czysty});
+    // rozgałęzienia rosną z brzucha włókna
+    const galezie = [];
+    const ileG = perf ? 3 : czysty ? 2 : 3;
+    for (let g = 0; g < ileG; g++){
+      const w = pkt[Math.floor(pkt.length * (0.25 + r() * 0.55))];
+      const dlG = (perf ? 70 : czysty ? 52 : 30) * (0.6 + r() * 0.9);
+      galezie.push(galaz(r, w.x, w.y,
+                         (r() > 0.5 ? -1 : 1) * (0.5 + r() * 1.4),
+                         dlG, perf ? 2 : czysty ? 2 : 1));
     }
+    return {pkt, galezie, perf, czysty, szew: i,
+            c: mix(t01((s.a + s.b) / 2)), f: r() * 6.28,
+            iskry: Array.from({length: perf ? 14 : czysty ? 9 : 6}, () => ({
+              t: r(), roz: 4 + r() * 26, f: r() * 6.28}))};
   });
-  return PLANY[klucz] = {wezly, krawedzie, n: szwy.length};
+  return PLANY[klucz] = {wlokna, n: szwy.length};
 }
 
 let DANE = {}, KTO = null, GRACZ = null, FRAC = 0, T0 = performance.now();
 
+function sciezka(p, przes, faza, ile){
+  ctx.beginPath();
+  const n = Math.max(2, Math.round(p.length * ile));
+  for (let i = 0; i < n; i++){
+    const w = p[i];
+    const d = Math.sin(faza + i * 0.35) * przes;
+    i === 0 ? ctx.moveTo(w.x, w.y + d) : ctx.lineTo(w.x, w.y + d);
+  }
+  ctx.stroke();
+}
+function rysGalaz(g, przes, faza, ile, kolor, alfa, szer){
+  ctx.strokeStyle = `rgba(${kolor[0]},${kolor[1]},${kolor[2]},${alfa.toFixed(3)})`;
+  ctx.lineWidth = szer;
+  sciezka(g.pkt, przes, faza, ile);
+  for (const d of g.dzieci)
+    rysGalaz(d, przes, faza, ile, kolor, alfa * 0.62, szer * 0.6);
+}
+
 function rysuj(ts){
   const czas = ts / 1000;
-  ctx.clearRect(0, 0, W, H);
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = "rgba(10,10,14,0.30)";      // smużenie: ślad świateł
+  ctx.fillRect(0, 0, W, H);
   const szwy = (DANE[KTO] || []);
   if (!szwy.length){ requestAnimationFrame(rysuj); return; }
   const P = plan(KTO, szwy);
-  const frac = GRACZ ? FRAC : ((czas / 90) % 1);   // bez grania: powolna noc
+  const frac = GRACZ ? FRAC : ((czas / 90) % 1);
   const prog = frac * P.n;
-  document.getElementById("postep").style.width = (frac*100).toFixed(2) + "%";
+  document.getElementById("postep").style.width = (frac * 100).toFixed(2) + "%";
 
-  // krawędzie: rodzą się w chwili przejścia — wyrastają przez ~1.2 szwu
-  for (const k of P.krawedzie){
-    if (k.szew > prog) continue;
-    const wiek = prog - k.szew;
-    const wzrost = Math.min(1, wiek / 1.2);
-    const A = P.wezly[k.a], B = P.wezly[k.b];
-    const drg = Math.sin(czas*0.7 + A.f) * 3;
-    const mx = (A.x+B.x)/2 + drg, my = (A.y+B.y)/2 - drg;
-    const ex = A.x + (B.x - A.x) * wzrost, ey = A.y + (B.y - A.y) * wzrost;
-    const star = Math.min(1, wiek / (P.n * 0.5));
-    let alfa = (k.perf ? 0.6 : k.czysty ? 0.34 : 0.16) * (1 - star * 0.65);
-    if (wiek < 1.2) alfa += 0.35 * (1 - wiek / 1.2);     // rozbłysk narodzin
-    const c = k.perf ? VOLT : P.wezly[k.a].c;
-    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alfa.toFixed(3)})`;
-    ctx.lineWidth = k.perf ? 1.4 : 0.8;
-    ctx.beginPath(); ctx.moveTo(A.x, A.y);
-    ctx.quadraticCurveTo(mx, my, ex, ey);
-    ctx.stroke();
-  }
-  // węzły: oddychają; świeże większe i jaśniejsze
-  for (const wz of P.wezly){
-    if (wz.szew > prog) continue;
-    const wiek = prog - wz.szew;
-    const puls = 1 + Math.sin(czas*1.3 + wz.f) * 0.18;
-    const mlody = Math.max(0, 1 - wiek / 2);
-    const rr = wz.w * puls * (1 + mlody * 1.6);
-    const c = wz.perf ? VOLT : wz.c;
-    const alfa = (wz.perf ? 0.85 : 0.5) * (0.35 + 0.65 * Math.max(mlody, 0.3));
-    const g = ctx.createRadialGradient(wz.x, wz.y, 0, wz.x, wz.y, rr*3);
-    g.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${alfa.toFixed(2)})`);
-    g.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
-    ctx.fillStyle = g;
-    ctx.fillRect(wz.x - rr*3, wz.y - rr*3, rr*6, rr*6);
-  }
-  // FALA UDERZENIOWA przejścia: pierścień z miejsca narodzin
-  const biezacy = Math.min(P.n - 1, Math.floor(prog));
-  const ulamek = prog - biezacy;
-  if (ulamek < 0.8){
-    const swiezy = P.wezly.find(w => w.szew === biezacy);
-    if (swiezy){
-      const rr = 12 + ulamek * 130;
-      const c = swiezy.perf ? VOLT : [232,228,218];
-      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.5*(1-ulamek/0.8)).toFixed(2)})`;
-      ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.arc(swiezy.x, swiezy.y, rr, 0, 7); ctx.stroke();
+  ctx.globalCompositeOperation = "lighter";   // światło się dodaje
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  for (const wl of P.wlokna){
+    if (wl.szew > prog) continue;
+    const wiek = prog - wl.szew;
+    const ile = Math.min(1, wiek / 1.4);            // wysuwa się z ciemności
+    const narodziny = Math.max(0, 1 - wiek / 1.8);  // rozbłysk przejścia
+    const star = Math.min(1, wiek / (P.n * 0.55));
+    const zycie = (1 - star * 0.72) * (0.55 + narodziny * 1.5);
+    const c = wl.perf ? VOLT : wl.c;
+    const przes = 2 + Math.sin(czas * 0.5 + wl.f) * 2;
+    const faza = czas * 0.6 + wl.f;
+    // 1 · poświata
+    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.05 * zycie).toFixed(3)})`;
+    ctx.lineWidth = wl.perf ? 22 : 14;
+    sciezka(wl.pkt, przes, faza, ile);
+    // 2 · barwa
+    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.30 * zycie).toFixed(3)})`;
+    ctx.lineWidth = wl.perf ? 4.5 : 2.6;
+    sciezka(wl.pkt, przes, faza, ile);
+    // 3 · biały rdzeń
+    ctx.strokeStyle = `rgba(255,255,255,${(0.42 * zycie * (0.4 + narodziny)).toFixed(3)})`;
+    ctx.lineWidth = wl.perf ? 1.5 : 0.9;
+    sciezka(wl.pkt, przes, faza, ile);
+    // 4 · rozgałęzienia — wystrzeliwują w chwili przejścia
+    const ileG = Math.min(1, Math.max(0, (wiek - 0.15) / 1.1));
+    if (ileG > 0)
+      for (const g of wl.galezie){
+        rysGalaz(g, przes * 0.5, faza, ileG, c,
+                 0.40 * zycie * (0.45 + narodziny), wl.perf ? 2.2 : 1.4);
+        rysGalaz(g, przes * 0.5, faza, ileG, [255,255,255],
+                 0.26 * zycie * (0.2 + narodziny), 0.9);
+      }
+    // 5 · iskry na włóknie
+    for (const isk of wl.iskry){
+      const w = wl.pkt[Math.floor(isk.t * (wl.pkt.length - 1) * ile)];
+      if (!w) continue;
+      const puls = 0.5 + 0.5 * Math.sin(czas * 2.1 + isk.f);
+      const rr = isk.roz * (0.4 + narodziny * 1.3) * (0.6 + puls * 0.6);
+      const a = 0.18 * zycie * (0.3 + narodziny) * puls;
+      const g = ctx.createRadialGradient(w.x, w.y, 0, w.x, w.y, rr);
+      g.addColorStop(0, `rgba(255,255,255,${a.toFixed(3)})`);
+      g.addColorStop(0.35, `rgba(${c[0]},${c[1]},${c[2]},${(a * 0.7).toFixed(3)})`);
+      g.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+      ctx.fillStyle = g;
+      ctx.fillRect(w.x - rr, w.y - rr, rr * 2, rr * 2);
     }
   }
+  // fala uderzeniowa bieżącego przejścia
+  const biezacy = Math.min(P.n - 1, Math.floor(prog));
+  const ulamek = prog - biezacy;
+  const wl = P.wlokna[biezacy];
+  if (wl && ulamek < 0.85){
+    const w = wl.pkt[Math.floor(wl.pkt.length * 0.35)];
+    const rr = 16 + ulamek * 210;
+    const c = wl.perf ? VOLT : [220, 235, 255];
+    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.32 * (1 - ulamek / 0.85)).toFixed(3)})`;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(w.x, w.y, rr, 0, 7); ctx.stroke();
+  }
+  ctx.globalCompositeOperation = "source-over";
   requestAnimationFrame(rysuj);
 }
 requestAnimationFrame(rysuj);
