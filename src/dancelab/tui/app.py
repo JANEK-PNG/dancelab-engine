@@ -1639,42 +1639,31 @@ class DanceLabTUI(App):
             lst.highlighted = min(gdzie, lst.option_count - 1)
         n = len(kolekcja_djow(self._user_state))
         ilu = len(getattr(self, "_dj_info", {}))
+        from dancelab.tui import dj_profile as P
+        if not hasattr(self, "_dj_profile"):
+            self._dj_profile = P.wczytaj()
+        pelne = sum(1 for p in self._dj_profile.values() if "bpm_med" in p)
         self.query_one("#dj-licznik", Static).update(
-            f"w kolekcji: {n} · zmierzonych DJ-ów: {ilu}   —   "
+            f"w kolekcji: [b]{n}[/b] · zmierzonych DJ-ów: {ilu} · "
+            f"pełnych profili z mapy: {pelne}   —   "
             f"K zbiera/wypuszcza · Enter ustawia kotwicę „Brzmi jak…”")
 
     def _render_dj_karta(self, dj: str | None) -> None:
-        """Karta DJ-a: wyłącznie to, co ZMIERZONE w księdze kotwic.
-        Profil rozszerzony (tempo/harmonia/energia z mapy) — po moście
-        danych ze spec 2026-08-12; do tego czasu karta mówi to uczciwie."""
+        """Karta DJ-a jak na kartach GUI: pomiary z mostu danych mapy
+        (tempo, harmonia, mierniki, edycje), a gdy DJ-a w mapie nie ma —
+        skromna, uczciwa wersja z księgi kotwic."""
+        from dancelab.tui import dj_profile as P
         from dancelab.tui.user_store import w_kolekcji
         pole = self.query_one("#dj-karta", Static)
-        info = getattr(self, "_dj_info", {})
-        if not dj or dj not in info:
+        if not dj:
             pole.update("↑ najedź na nazwisko, żeby zobaczyć kartę")
             return
-        n, skok, grupa = info[dj]
-        if skok is None:
-            odwaga = "—"
-        elif skok < 0.70:
-            odwaga = f"{skok:.2f} · odważne skoki"
-        elif skok > 0.80:
-            odwaga = f"{skok:.2f} · gładkie przejścia"
-        else:
-            odwaga = f"{skok:.2f}"
-        stan = ("[b]✓ w kolekcji[/b] — K wypuszcza"
-                if w_kolekcji(self._user_state, dj)
-                else "poza kolekcją — K zbiera")
-        pole.update(
-            f"[b]{dj}[/b]\n"
-            f"{stan}\n\n"
-            f"grupa brzmieniowa:\n  {grupa}\n"
-            f"wektorów brzmienia: {n}\n"
-            f"mediana skoku: {odwaga}\n\n"
-            f"[dim]profil rozszerzony (tempo, harmonia,\n"
-            f"energia, festiwale) dojdzie po moście\n"
-            f"danych z mapy — spec 12.08[/dim]\n\n"
-            f"Enter — kotwica „Brzmi jak…” na tego DJ-a")
+        if not hasattr(self, "_dj_profile"):
+            self._dj_profile = P.wczytaj()
+        info = getattr(self, "_dj_info", {})
+        grupa = info[dj][2] if dj in info else None
+        pole.update(P.karta(dj, P.znajdz(self._dj_profile, dj),
+                            w_kolekcji(self._user_state, dj), grupa))
 
     def action_next_tab(self) -> None:
         self._switch_tab(+1)
