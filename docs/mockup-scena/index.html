@@ -106,43 +106,50 @@ function plan(ksywa, szwy){
   const klucz = ksywa + W + "x" + H;
   if (PLANY[klucz]) return PLANY[klucz];
   const r = rnd(hash(ksywa + "strumien"));
+  // WSPÓLNE POLE SIŁ (jak w jedwabiu na karcie) — po nim płyną wszystkie
+  // włókna, dlatego układają się w jedną tkaninę, nie w osobne wstęgi
+  const bpmy = szwy.flatMap(s => [s.a, s.b]);
+  const skoki = szwy.map(s => Math.abs(s.d));
+  const srSkok = skoki.reduce((a, b) => a + b, 0) / Math.max(1, skoki.length);
+  const turb = 0.45 + Math.min(srSkok / 20, 1) * 1.9;
+  const a1 = 0.0022 + r() * 0.0016, a2 = 0.0026 + r() * 0.0020,
+        a3 = 0.0016 + r() * 0.0013;
+  const p1 = r() * 6.28, p2 = r() * 6.28, p3 = r() * 6.28;
+  const pole = (x, y) => (Math.sin(x * a1 + p1) + Math.cos(y * a2 + p2)
+                          + Math.sin((x + y) * a3 + p3)) * turb;
   const mx = W * 0.04, my = H * 0.10;
-  const wlokna = szwy.map((s, i) => {
+  const wlokna = [];
+  szwy.forEach((s, i) => {
     const x0 = mx + (i + 0.5) / szwy.length * (W - 2 * mx);
     const y0 = H - my - t01((s.a + s.b) / 2) * (H - 2 * my);
     const czysty = ZG.has(s.h), perf = s.h === "idealna";
-    // długość: czysty szew płynie daleko, zgrzyt urywa się szybko
-    const dl = (perf ? 0.42 : czysty ? 0.30 : 0.11) * W * (0.6 + r() * 0.8);
-    const amp = (perf ? 26 : czysty ? 40 : 70) * (0.5 + r());
-    const okres = 90 + r() * 190;
-    const kier = r() > 0.5 ? 1 : -1;
-    const pkt = [];
-    const n = Math.max(12, Math.round(dl / 8));
-    const o2 = okres * (0.31 + r() * 0.2), f2 = r() * 6.28;
-    const dryf = (r() - 0.5) * amp * 1.7;
-    for (let j = 0; j <= n; j++){
-      const u = j / n;
-      const x = x0 - dl * 0.35 + dl * u + Math.sin(u * 4.1 + f2) * amp * 0.25;
-      const y = y0 + dryf * u
-        + (Math.sin(u * dl / okres * 6.28 + i) * 0.72
-           + Math.sin(u * dl / o2 * 6.28 + f2) * 0.38) * amp * kier
-          * Math.sin(u * 3.14);                       // wybrzusza się w środku
-      pkt.push({x, y});
+    // każde przejście rodzi kilka cienkich nitek — gęsty jedwab, nie wstęga
+    const ile = perf ? 5 : czysty ? 4 : 3;
+    for (let k = 0; k < ile; k++){
+      let x = x0 + (r() - 0.5) * 34, y = y0 + (r() - 0.5) * 46;
+      const dl = Math.round((perf ? 130 : czysty ? 105 : 34) * (0.6 + r() * 0.8));
+      const drzenie = czysty ? 0.10 : 0.85;
+      const pkt = [{x, y}];
+      for (let j = 0; j < dl; j++){
+        const kat = pole(x, y) + (r() - 0.5) * drzenie;
+        x += Math.cos(kat) * 3.0; y += Math.sin(kat) * 3.0;
+        pkt.push({x, y});
+      }
+      wlokna.push({pkt, perf, czysty, szew: i,
+                   c: mix(t01((s.a + s.b) / 2)), f: r() * 6.28,
+                   w: (perf ? 1.1 : czysty ? 0.85 : 0.6) * (0.7 + r() * 0.7)});
     }
-    // rozgałęzienia rosną z brzucha włókna
+    // rozgałęzienia narodzin — wystrzeliwują z miejsca przejścia
     const galezie = [];
-    const ileG = perf ? 3 : czysty ? 2 : 3;
-    for (let g = 0; g < ileG; g++){
-      const w = pkt[Math.floor(pkt.length * (0.25 + r() * 0.55))];
-      const dlG = (perf ? 70 : czysty ? 52 : 30) * (0.6 + r() * 0.9);
-      galezie.push(galaz(r, w.x, w.y,
-                         (r() > 0.5 ? -1 : 1) * (0.5 + r() * 1.4),
-                         dlG, perf ? 2 : czysty ? 2 : 1));
-    }
-    return {pkt, galezie, perf, czysty, szew: i,
-            c: mix(t01((s.a + s.b) / 2)), f: r() * 6.28,
-            iskry: Array.from({length: perf ? 14 : czysty ? 9 : 6}, () => ({
-              t: r(), roz: 4 + r() * 26, f: r() * 6.28}))};
+    for (let g = 0; g < (perf ? 3 : czysty ? 2 : 3); g++)
+      galezie.push(galaz(r, x0 + (r() - 0.5) * 20, y0 + (r() - 0.5) * 20,
+                         (r() > 0.5 ? -1 : 1) * (0.4 + r() * 1.6),
+                         (perf ? 74 : czysty ? 54 : 32) * (0.6 + r()),
+                         perf ? 2 : 1));
+    wlokna[wlokna.length - 1].galezie = galezie;
+    wlokna[wlokna.length - 1].iskry =
+      Array.from({length: perf ? 10 : czysty ? 6 : 4}, () => ({
+        t: r(), roz: 6 + r() * 30, f: r() * 6.28}));
   });
   return PLANY[klucz] = {wlokna, n: szwy.length};
 }
@@ -170,7 +177,7 @@ function rysGalaz(g, przes, faza, ile, kolor, alfa, szer){
 function rysuj(ts){
   const czas = ts / 1000;
   ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = "rgba(10,10,14,0.30)";      // smużenie: ślad świateł
+  ctx.fillStyle = "rgba(10,10,14,0.16)";      // smużenie: ślad świateł
   ctx.fillRect(0, 0, W, H);
   const szwy = (DANE[KTO] || []);
   if (!szwy.length){ requestAnimationFrame(rysuj); return; }
@@ -189,23 +196,25 @@ function rysuj(ts){
     const star = Math.min(1, wiek / (P.n * 0.55));
     const zycie = (1 - star * 0.72) * (0.55 + narodziny * 1.5);
     const c = wl.perf ? VOLT : wl.c;
-    const przes = 2 + Math.sin(czas * 0.5 + wl.f) * 2;
+    const przes = 0.8 + Math.sin(czas * 0.35 + wl.f) * 0.8;
     const faza = czas * 0.6 + wl.f;
-    // 1 · poświata
-    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.05 * zycie).toFixed(3)})`;
-    ctx.lineWidth = wl.perf ? 22 : 14;
+    // 1 · poświata (szeroka, ledwie widoczna — daje mgłę wokół tkaniny)
+    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.020 * zycie).toFixed(3)})`;
+    ctx.lineWidth = wl.w * 9;
     sciezka(wl.pkt, przes, faza, ile);
-    // 2 · barwa
-    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.30 * zycie).toFixed(3)})`;
-    ctx.lineWidth = wl.perf ? 4.5 : 2.6;
+    // 2 · barwa — cienka nić
+    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.26 * zycie).toFixed(3)})`;
+    ctx.lineWidth = wl.w * 1.5;
     sciezka(wl.pkt, przes, faza, ile);
-    // 3 · biały rdzeń
-    ctx.strokeStyle = `rgba(255,255,255,${(0.42 * zycie * (0.4 + narodziny)).toFixed(3)})`;
-    ctx.lineWidth = wl.perf ? 1.5 : 0.9;
-    sciezka(wl.pkt, przes, faza, ile);
+    // 3 · biały rdzeń tylko w chwili narodzin
+    if (narodziny > 0.02){
+      ctx.strokeStyle = `rgba(255,255,255,${(0.36 * zycie * narodziny).toFixed(3)})`;
+      ctx.lineWidth = wl.w * 0.7;
+      sciezka(wl.pkt, przes, faza, ile);
+    }
     // 4 · rozgałęzienia — wystrzeliwują w chwili przejścia
     const ileG = Math.min(1, Math.max(0, (wiek - 0.15) / 1.1));
-    if (ileG > 0)
+    if (ileG > 0 && wl.galezie)
       for (const g of wl.galezie){
         rysGalaz(g, przes * 0.5, faza, ileG, c,
                  0.40 * zycie * (0.45 + narodziny), wl.perf ? 2.2 : 1.4);
@@ -213,7 +222,7 @@ function rysuj(ts){
                  0.26 * zycie * (0.2 + narodziny), 0.9);
       }
     // 5 · iskry na włóknie
-    for (const isk of wl.iskry){
+    for (const isk of (wl.iskry || [])){
       const w = wl.pkt[Math.floor(isk.t * (wl.pkt.length - 1) * ile)];
       if (!w) continue;
       const puls = 0.5 + 0.5 * Math.sin(czas * 2.1 + isk.f);

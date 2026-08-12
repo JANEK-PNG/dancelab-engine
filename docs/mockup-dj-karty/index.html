@@ -222,7 +222,8 @@ function nicY(nic, x){
   return nic[i].y;
 }
 function planPortretu(ksywa, szwy, W, H, p){
-  if (PLAN_CACHE[ksywa]) return PLAN_CACHE[ksywa];
+  const kl = ksywa + "|" + W + "x" + H;
+  if (PLAN_CACHE[kl]) return PLAN_CACHE[kl];
   const r = rnd(hash(ksywa + "plachta"));
   const t01 = v => Math.max(0, Math.min(1, (v - 95) / 95));
   const ZG = new Set(["idealna","sasiednia","rownolegla"]);
@@ -255,7 +256,7 @@ function planPortretu(ksywa, szwy, W, H, p){
       c: mix(Math.max(0, Math.min(1, p.cieplo + (r() - 0.5) * 0.5))),
       a: 0.09 + r() * 0.08, g: 0.6 + r() * p.bas * 1.9});
   }
-  return PLAN_CACHE[ksywa] = {nic, zdarzenia, watki};
+  return PLAN_CACHE[kl] = {nic, zdarzenia, watki};
 }
 const DJE = [
   {ksywa:"Tim Reaper", zrodlo:"RA Podcast", kolekcja:true,
@@ -415,7 +416,17 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
     : vol <= 0.8 ? 0.3 + 2.2 * vol            // do 80%: znana grubość
     : 2.06 + (vol - 0.8) * 14.7;              // szczyt: ×2 na maksie
   const ctx = cv.getContext("2d");
-  const W = cv.width = 600, H = cv.height = 208;
+  // rozdzielczość NATYWNA elementu (Janek 13.08: „zeszliśmy z jakości" —
+  // sztywne płótno 600×208 rozciągane na szeroką kartę dawało rozmycie)
+  const DPR = Math.min(2, devicePixelRatio || 1);
+  const W = Math.max(240, Math.round(cv.clientWidth || 600));
+  const H = Math.max(90, Math.round(cv.clientHeight || 208));
+  if (cv.width !== Math.round(W * DPR) || cv.height !== Math.round(H * DPR)){
+    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  }
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const gest = Math.max(1, Math.min(2.4, W / 300));   // gęstość rośnie z kartą
   if (d.wbudowie){
     ctx.strokeStyle = "#3a3730"; ctx.setLineDash([5,6]); ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(0, H*0.68); ctx.lineTo(W, H*0.68); ctx.stroke();
@@ -451,14 +462,14 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
     const faza = frakcja != null ? frakcja * PODROZ : (czas / T) % 1;
     const xs = Math.min(faza / PODROZ, 1) * W;
     const wyg = faza > KONIEC ? (faza - KONIEC) / (1 - KONIEC) : 0;
-    for (let s = 0; s < 120; s++){
+    for (let s = 0; s < Math.round(120 * gest); s++){
       let x = r()*W, y = r()*H;
       const c = mix(Math.min(Math.max(cieplo + (r()-0.5)*0.9, 0), 1));
       const cicho = x > xs ? 0.35 : 1;           // przed kropką: cisza
       ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.07*cicho).toFixed(3)})`;
       ctx.lineWidth = (0.6 + r()*bas*1.6) * gr;
       ctx.beginPath(); ctx.moveTo(x, y);
-      for (let i = 0; i < 60; i++){
+      for (let i = 0; i < Math.round(60 * gest); i++){
         const t2 = kat(x, y);
         x += Math.cos(t2)*2.6; y += Math.sin(t2)*2.6;
         ctx.lineTo(x, y);
@@ -500,7 +511,7 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
         ctx.lineWidth = 1.0 * gr * skala;
         ctx.shadowColor = "rgba(214,245,73,0.25)"; ctx.shadowBlur = 2;
         ctx.beginPath();
-        for (let i = 0; i < Math.round(120*wzrost); i++){
+        for (let i = 0; i < Math.round(120*wzrost*gest); i++){
           const t2 = kat(x, y);
           x += Math.cos(t2)*2.6; y += Math.sin(t2)*2.6;
           i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
@@ -511,7 +522,7 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
         ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(Math.min(0.95,(0.4+rt()*0.2)*zaplon)*glab).toFixed(2)})`;
         ctx.lineWidth = (1.0 + bas*1.8) * gr * skala;
         ctx.beginPath();
-        const dl = Math.round((55 + Math.min(Math.abs(s.d),30)*2.5)*wzrost);
+        const dl = Math.round((55 + Math.min(Math.abs(s.d),30)*2.5)*wzrost*gest);
         for (let i = 0; i < dl; i++){
           const t2 = kat(x, y) + (rt()-0.5)*0.1;
           x += Math.cos(t2)*2.6; y += Math.sin(t2)*2.6;
