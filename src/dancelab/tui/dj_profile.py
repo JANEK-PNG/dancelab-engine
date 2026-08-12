@@ -71,6 +71,45 @@ def miernik(v: float | None, kolor: str, szer: int = 14) -> str:
             f"  {v:.2f}")
 
 
+def portret_klockowy(dj: str, profil: dict | None, szer: int = 30) -> str:
+    """Portret brzmienia w ziarnie terminala: dwa wiersze klocków ▁▂▃▅▇,
+    deterministyczne (ziarno = ksywa), parametry jak na kartach GUI —
+    energia → wysokość, skok tempa → poszarpanie, mediana tempa → ile
+    ciepła w kolorze. Bez profilu — przerywana linia oczekiwania."""
+    if not profil or "bpm_med" not in profil:
+        return "[dim]" + "╌" * szer + "[/]"
+    h = 7
+    for c in dj:
+        h = (h * 31 + ord(c)) & 0xFFFFFFFF
+    def r():
+        nonlocal h
+        h ^= (h << 13) & 0xFFFFFFFF
+        h ^= h >> 17
+        h ^= (h << 5) & 0xFFFFFFFF
+        return (h & 0xFFFFFFFF) / 4294967296
+    import math
+    en = profil.get("energia") or 0.4
+    skok = min((profil.get("skok_bpm") or 8) / 20, 1)
+    cieplo = max(0.0, min(1.0, ((profil["bpm_med"] - 95) / 95)))
+    klocki = "▁▂▃▄▅▆▇█"
+    f1, f2 = 1.3 + r() * 2, 3.5 + r() * 3
+    p1, p2 = r() * 6.28, r() * 6.28
+    wiersze = []
+    for baza in (0.66, 0.33):
+        znaki = []
+        for i in range(szer):
+            x = i / szer
+            y = 0.62 * math.sin(f1 * x * 6.28 + p1) \
+                + 0.38 * math.sin(f2 * x * 6.28 + p2)
+            y = (y + 1) / 2 * (0.45 + en) * baza + (r() - 0.5) * skok * 0.35
+            y = max(0.0, min(0.999, y))
+            kolor = CHLODNY if (x + (r() - 0.5) * 0.3) < (1 - cieplo) \
+                else CIEPLY
+            znaki.append(f"[{kolor}]{klocki[int(y * len(klocki))]}[/]")
+        wiersze.append("".join(znaki))
+    return "\n".join(wiersze)
+
+
 def karta(dj: str, profil: dict | None, w_kolekcji: bool,
           grupa: str | None, min_pelnych: int = 10) -> str:
     """Treść karty (znaczniki Rich) — układ 1:1 z kartą GUI, na ile
@@ -78,7 +117,8 @@ def karta(dj: str, profil: dict | None, w_kolekcji: bool,
     w mapie, edycje."""
     stan = ("[#d6f549]✓ w kolekcji[/] — K wypuszcza" if w_kolekcji
             else "[dim]poza kolekcją — K zbiera[/]")
-    czesci = [f"[b]{dj}[/b]", stan, ""]
+    czesci = [f"[b]{dj}[/b]", stan, "",
+              portret_klockowy(dj, profil), ""]
     if profil is None:
         czesci += ["[dim]tego DJ-a nie ma w mapie festiwalowej —[/]",
                    "[dim]karta z pomiarów księgi kotwic:[/]", ""]

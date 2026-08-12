@@ -31,7 +31,7 @@ import threading
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.containers import Grid, Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import OptionList
 from textual.widgets.option_list import Option
@@ -535,6 +535,35 @@ class NazwaPlaylistyScreen(NazwaPlanuScreen):
                 yield Button("Anuluj", id="nazwa-cancel")
 
 
+class KartaDJ(Static):
+    """Karta DJ-a na ścianie zakładki DJ-e — fokusowalna jak kafelek
+    w GUI: strzałki chodzą po siatce, K zbiera do kolekcji, Enter
+    ustawia kotwicę „Brzmi jak…"."""
+
+    can_focus = True
+
+    def __init__(self, dj: str, tresc: str, w_kolekcji: bool) -> None:
+        super().__init__(tresc)
+        self.dj = dj
+        self.add_class("karta-dj")
+        if not w_kolekcji:
+            self.add_class("szara")
+
+    def on_key(self, event) -> None:
+        if event.key == "k":
+            event.stop()
+            event.prevent_default()
+            self.app._kolekcja_z_karty_sciennej(self.dj)
+        elif event.key == "enter":
+            event.stop()
+            event.prevent_default()
+            self.app._kotwica_z_karty_sciennej(self.dj)
+        elif event.key in ("left", "right", "up", "down"):
+            event.stop()
+            event.prevent_default()
+            self.app._ruch_po_scianie(self, event.key)
+
+
 class DanceLabTUI(App):
     TITLE = "DanceLab — budowa setu"
     CSS = """
@@ -568,11 +597,15 @@ class DanceLabTUI(App):
     .pb-sub { height: 1; color: $text-muted; }
     .pb-os { height: 1; }
     #lib-side { width: 26; border-right: solid $primary; padding: 0 1; }
-    #dj-tab-main { height: 1fr; }
     #dj-licznik { height: 2; padding: 0 1; color: $text-muted; }
-    #dj-lista { height: 1fr; }
-    #dj-karta-box { width: 46; border-left: solid $primary; padding: 0 1; }
-    #dj-karta { padding: 1 0; }
+    #dj-filtry { height: 3; }
+    #dj-filtry Button { margin-right: 1; min-width: 12; }
+    #dj-brzmi { height: 2; padding: 0 1; }
+    #dj-przewijak { height: 1fr; }
+    #dj-sciana { layout: grid; grid-size: 3; grid-gutter: 1 2; height: auto; padding: 0 1; }
+    .karta-dj { border: solid $panel; padding: 0 1; height: auto; }
+    .karta-dj:focus { border: solid $primary; }
+    .karta-dj.szara { opacity: 55%; }
     #lib-filters { height: 3; }
     #lib-filters Input { width: 1fr; margin-right: 1; }
     #lib-tools { height: 1; }
@@ -735,18 +768,20 @@ class DanceLabTUI(App):
                             yield Button("→ Zbuduj z filarów  [G]",
                                          id="lib-build", variant="success")
             with TabPane("DJ-e", id="tab-dj"):
-                # Ściana kart DJ-ów przeniesiona z makiety (Janek 12.08):
-                # lista = kolekcja na górze + grupy brzmieniowe, po prawej
-                # KARTA podświetlonego DJ-a z tego, co zmierzone w księdze
-                # kotwic. Profil rozszerzony (tempo/harmonia/energia) czeka
-                # na most danych z mapy — spec 2026-08-12.
-                with Horizontal(id="dj-tab-main"):
-                    with Vertical():
-                        yield Static("", id="dj-licznik")
-                        yield OptionList(id="dj-lista")
-                    with Vertical(id="dj-karta-box"):
-                        yield Label("KARTA", classes="field-label")
-                        yield Static("", id="dj-karta")
+                # ŚCIANA KART jak w GUI (Janek 13.08: „czemu w TUI dostaję
+                # listę?" — bo poszedłem na skróty; hierarchia makiety:
+                # licznik → filtry → pasek „Brzmi jak…" → siatka kart).
+                # Poza zasięgiem terminala zostają tylko: jedwabny portret
+                # (jest wersja z klocków), odsłuch SoundCloud i crossfade.
+                with Vertical():
+                    yield Static("", id="dj-licznik")
+                    with Horizontal(id="dj-filtry"):
+                        yield Button("wszyscy", id="dj-f-all",
+                                     variant="primary")
+                        yield Button("w kolekcji", id="dj-f-kol")
+                    yield Static("", id="dj-brzmi")
+                    with VerticalScroll(id="dj-przewijak"):
+                        yield Grid(id="dj-sciana")
             with TabPane("Set", id="tab-set"):
                 with Vertical():
                     with Horizontal(id="set-main"):
@@ -896,7 +931,6 @@ class DanceLabTUI(App):
             self.query_one("#lib-artwork", Switch).value = True
         self._load_anchors()
         self._render_dj_tab()
-        self._render_dj_karta(None)
         self._refresh_status()
         self.set_interval(5.0, self._refresh_status)
         self.set_interval(1.0, self._tick_player)
@@ -951,12 +985,6 @@ class DanceLabTUI(App):
             event.stop()
             event.prevent_default()
             self._przelacz_kolekcje_dj_z_panelu()
-            return
-        if event.key == "k" \
-                and getattr(self.focused, "id", None) == "dj-lista":
-            event.stop()
-            event.prevent_default()
-            self._przelacz_kolekcje_dj_z_karty()
             return
         try:
             active = self.query_one("#tabs", TabbedContent).active
@@ -1608,62 +1636,123 @@ class DanceLabTUI(App):
             lst.add_option(Option(label, id=oid))
         if gdzie is not None:
             lst.highlighted = min(gdzie, lst.option_count - 1)
-        self._render_dj_tab(zachowaj=True)
+        self._render_dj_tab()
 
-    def _przelacz_kolekcje_dj_z_karty(self) -> None:
-        """K w zakładce DJ-e — to samo co w panelu, na liście zakładki."""
-        lst = self.query_one("#dj-lista", OptionList)
-        dj = self._dj_pod_kursorem(lst)
-        if dj is None:
-            return
-        self._kolekcja_przelacz(dj)
-        self._render_dj_tab(zachowaj=True)
-        self._render_dj_karta(dj)
+    MAX_KART = 48
 
-    def _render_dj_tab(self, zachowaj: bool = False) -> None:
-        """Zakładka DJ-e: kolekcja na górze + grupy brzmieniowe — ta sama
-        lista co panel Ctrl+D, na stałe, z kartą po prawej."""
+    def _render_dj_tab(self, fokus_dj: str | None = None) -> None:
+        """Ściana kart jak w GUI: kolekcja najpierw (pełny kolor), potem
+        pełne profile z mapy, potem reszta przygaszona — z filtrami
+        i paskiem podglądu pola „Brzmi jak…". Limit MAX_KART z jawną notą
+        (terminal montuje widżety, nie diva — bez limitu klęka)."""
         try:
-            _naglowek, opcje = self._dj_panel_opcje()
+            self._dj_panel_opcje()          # wypełnia _dj_info (grupy)
         except Exception as exc:  # noqa: BLE001 — brak księgi to stan, nie awaria
             self.query_one("#dj-licznik", Static).update(
                 f"księga kotwic niedostępna: {exc}")
             return
-        from dancelab.tui.user_store import kolekcja_djow
-        lst = self.query_one("#dj-lista", OptionList)
-        gdzie = lst.highlighted if zachowaj else None
-        lst.clear_options()
-        for label, oid in opcje:
-            lst.add_option(Option(label, id=oid))
-        if gdzie is not None and lst.option_count:
-            lst.highlighted = min(gdzie, lst.option_count - 1)
-        n = len(kolekcja_djow(self._user_state))
-        ilu = len(getattr(self, "_dj_info", {}))
         from dancelab.tui import dj_profile as P
+        from dancelab.tui.user_store import kolekcja_djow, w_kolekcji
         if not hasattr(self, "_dj_profile"):
             self._dj_profile = P.wczytaj()
-        pelne = sum(1 for p in self._dj_profile.values() if "bpm_med" in p)
-        self.query_one("#dj-licznik", Static).update(
-            f"w kolekcji: [b]{n}[/b] · zmierzonych DJ-ów: {ilu} · "
-            f"pełnych profili z mapy: {pelne}   —   "
-            f"K zbiera/wypuszcza · Enter ustawia kotwicę „Brzmi jak…”")
+        info = self._dj_info
+        kol = [d for d in kolekcja_djow(self._user_state) if d in info]
+        prof = {d: P.znajdz(self._dj_profile, d) for d in info}
+        filtr = getattr(self, "_dj_filtr", "all")
 
-    def _render_dj_karta(self, dj: str | None) -> None:
-        """Karta DJ-a jak na kartach GUI: pomiary z mostu danych mapy
-        (tempo, harmonia, mierniki, edycje), a gdy DJ-a w mapie nie ma —
-        skromna, uczciwa wersja z księgi kotwic."""
-        from dancelab.tui import dj_profile as P
-        from dancelab.tui.user_store import w_kolekcji
-        pole = self.query_one("#dj-karta", Static)
-        if not dj:
-            pole.update("↑ najedź na nazwisko, żeby zobaczyć kartę")
+        self._dj_edycje_filtry = self._policz_edycje(prof)
+        self._domontuj_filtry_edycji()
+
+        w_kol = set(kol)
+        pelni = sorted((d for d in info if d not in w_kol
+                        and prof[d] and "bpm_med" in prof[d]),
+                       key=lambda d: -prof[d].get("szwy_pelne", 0))
+        reszta = sorted(d for d in info
+                        if d not in w_kol and d not in set(pelni))
+        wybor = [*kol, *pelni, *reszta]
+        if filtr == "kolekcja":
+            wybor = [d for d in wybor if d in w_kol]
+        elif filtr.startswith("edycja:"):
+            ed = filtr.split(":", 1)[1]
+            wybor = [d for d in wybor
+                     if prof[d] and ed in prof[d].get("edycje", [])]
+        uciete = max(0, len(wybor) - self.MAX_KART)
+        wybor = wybor[:self.MAX_KART]
+
+        sciana = self.query_one("#dj-sciana", Grid)
+        sciana.remove_children()
+        self._dj_karty = []
+        for d in wybor:
+            jest = w_kolekcji(self._user_state, d)
+            tresc = P.karta(d, prof[d], jest,
+                            info[d][2] if d in info else None)
+            karta = KartaDJ(d, tresc, jest)
+            self._dj_karty.append(karta)
+            sciana.mount(karta)
+
+        pelne = sum(1 for v in prof.values() if v and "bpm_med" in v)
+        nota = (f" · pokazuję {len(wybor)}, resztę ({uciete}) zawęź filtrem"
+                if uciete else "")
+        self.query_one("#dj-licznik", Static).update(
+            f"[b]DJ-e[/b] · w kolekcji: [b]{len(kol)}[/b] z {len(info)} "
+            f"zmierzonych · pełnych profili z mapy: {pelne}{nota}   —   "
+            f"żadnych ocen, tylko jak kto gra · K zbiera · Enter = kotwica")
+        self._render_dj_brzmi(kol, wybor)
+        if fokus_dj and fokus_dj in wybor:
+            self._dj_karty[wybor.index(fokus_dj)].focus()
+
+    def _policz_edycje(self, prof: dict) -> list[str]:
+        from collections import Counter
+        c = Counter(ed for v in prof.values() if v
+                    for ed in v.get("edycje", []))
+        return [ed for ed, _n in c.most_common(3)]
+
+    def _domontuj_filtry_edycji(self) -> None:
+        """Guziki edycji (np. „Garbicz 2026") montują się raz, z danych."""
+        pasek = self.query_one("#dj-filtry", Horizontal)
+        if len(pasek.children) > 2:
             return
-        if not hasattr(self, "_dj_profile"):
-            self._dj_profile = P.wczytaj()
-        info = getattr(self, "_dj_info", {})
-        grupa = info[dj][2] if dj in info else None
-        pole.update(P.karta(dj, P.znajdz(self._dj_profile, dj),
-                            w_kolekcji(self._user_state, dj), grupa))
+        for i, ed in enumerate(self._dj_edycje_filtry):
+            pasek.mount(Button(ed, id=f"dj-f-e{i}"))
+
+    def _render_dj_brzmi(self, kol: list[str], widoczni: list[str]) -> None:
+        czesci = [f"[#d6f549]✓ {d}[/]" for d in kol]
+        czesci += [f"[dim]{d}[/]" for d in widoczni
+                   if d not in set(kol)][:max(0, 6 - len(kol))]
+        ogon = len(self._dj_info) - len(kol)
+        self.query_one("#dj-brzmi", Static).update(
+            "[dim]tak ułoży się pole „Brzmi jak…”:[/]  "
+            + " · ".join(czesci) + f"  [dim]… i {ogon} kolejnych[/]")
+
+    def _ustaw_dj_filtr(self, filtr: str, guzik_id: str) -> None:
+        self._dj_filtr = filtr
+        for b in self.query_one("#dj-filtry", Horizontal).children:
+            if isinstance(b, Button):
+                b.variant = "primary" if b.id == guzik_id else "default"
+        self._render_dj_tab()
+        if self._dj_karty:
+            self._dj_karty[0].focus()
+
+    def _kolekcja_z_karty_sciennej(self, dj: str) -> None:
+        self._kolekcja_przelacz(dj)
+        self._render_dj_tab(fokus_dj=dj)
+
+    def _kotwica_z_karty_sciennej(self, dj: str) -> None:
+        self._ustaw_kotwice(dj)
+        self._note(f"kotwica: {dj} — pole „Brzmi jak…” ustawione, "
+                   f"brief czeka w zakładce Set")
+
+    def _ruch_po_scianie(self, karta, klawisz: str) -> None:
+        """Strzałki chodzą PO KARTACH jak po kafelkach: lewo/prawo ±1,
+        góra/dół ±szerokość siatki."""
+        karty = getattr(self, "_dj_karty", [])
+        if karta not in karty:
+            return
+        i = karty.index(karta)
+        krok = {"left": -1, "right": 1, "up": -3, "down": 3}[klawisz]
+        j = max(0, min(len(karty) - 1, i + krok))
+        karty[j].focus()
+        karty[j].scroll_visible()
 
     def action_next_tab(self) -> None:
         self._switch_tab(+1)
@@ -1672,6 +1761,11 @@ class DanceLabTUI(App):
         self._switch_tab(-1)
 
     def _switch_tab(self, delta: int) -> None:
+        # sfokusowana karta DJ-a przyciąga TabbedContent z powrotem do
+        # swojej zakładki (Textual aktywuje panel z fokusem) — zdejmujemy
+        # fokus PRZED przełączeniem, inaczej Ctrl+Tab cichnie
+        if isinstance(self.focused, KartaDJ):
+            self.set_focus(None)
         tc = self.query_one("#tabs", TabbedContent)
         i = _TAB_ORDER.index(tc.active) if tc.active in _TAB_ORDER else 0
         tc.active = _TAB_ORDER[(i + delta) % len(_TAB_ORDER)]
@@ -1680,35 +1774,19 @@ class DanceLabTUI(App):
     def on_tabbed_content_tab_activated(self, event) -> None:
         self.refresh_bindings()              # klik w zakładkę też odświeża pasek
         pane = getattr(event, "pane", None)
+        if pane is not None and pane.id != "tab-dj" \
+                and isinstance(self.focused, KartaDJ):
+            self.set_focus(None)         # klik w nagłówek zakładki też
         if pane is not None and pane.id == "tab-export":
             # podgląd liczy się przy każdym wejściu — po edycjach setu też;
             # fokus na listę, żeby litery/strzałki edytora działały od razu
             self._cue_podglad_worker()
             self.query_one("#cue-table", DataTable).focus()
         if pane is not None and pane.id == "tab-dj":
-            # wejście w DJ-e = od razu pełna karta (skarga Janka 13.08:
-            # „kompletnie nic się nie zmieniło" — karta czekała na ruch
-            # kursora); podświetlamy pierwszego DJ-a z PEŁNYM profilem
-            lst = self.query_one("#dj-lista", OptionList)
-            lst.focus()
-            if lst.highlighted is None and lst.option_count:
-                from dancelab.tui import dj_profile as P
-                profile = getattr(self, "_dj_profile", {})
-                pierwszy_dj, pierwszy_pelny = None, None
-                for i in range(lst.option_count):
-                    oid = lst.get_option_at_index(i).id or ""
-                    if oid.startswith("__") or oid == "★ moje ulubione":
-                        continue
-                    if pierwszy_dj is None:
-                        pierwszy_dj = i
-                    prof = P.znajdz(profile, oid)
-                    if prof and "bpm_med" in prof:
-                        pierwszy_pelny = i
-                        break
-                cel = pierwszy_pelny if pierwszy_pelny is not None \
-                    else pierwszy_dj
-                if cel is not None:
-                    lst.highlighted = cel
+            # wejście w DJ-e = od razu pełna karta pod fokusem
+            karty = getattr(self, "_dj_karty", [])
+            if karty and self.focused not in karty:
+                karty[0].focus()
 
     # --------------------------------------------------------- Eksport / Cue
 
@@ -2021,12 +2099,6 @@ class DanceLabTUI(App):
         lo, hi, err = _parse_bpm(self.query_one("#lib-bpm", Input).value)
         return search, key, lo, hi, err
 
-    def on_option_list_option_highlighted(self, event) -> None:
-        """Ruch kursora po liście DJ-ów odświeża kartę po prawej."""
-        if getattr(event.option_list, "id", None) == "dj-lista":
-            dj = getattr(event.option, "id", None) or ""
-            self._render_dj_karta(None if dj.startswith("__") else dj)
-
     def on_option_list_option_selected(self, event) -> None:
         """ENTER (albo klik) na liście.
 
@@ -2037,16 +2109,6 @@ class DanceLabTUI(App):
         przy wzorcu dwóch naciśnięć — tam Enter tylko zaznacza."""
         if getattr(event.option_list, "id", None) == "lib-side-list":
             self._set_lib_section(event.option.id)
-            return
-        if getattr(event.option_list, "id", None) == "dj-lista":
-            wybor = event.option.id
-            if not wybor or wybor.startswith("__"):
-                return
-            event.stop()
-            self._ustaw_kotwice(wybor)
-            self._note(f"kotwica: {wybor} — pole „Brzmi jak…” ustawione, "
-                       f"brief czeka w zakładce Set")
-            self._render_dj_karta(wybor)
             return
         if not self.query_one("#suggest").has_class("open"):
             return
@@ -2474,6 +2536,17 @@ class DanceLabTUI(App):
         self._render_library(keep_cursor=True)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
+        if (event.button.id or "").startswith("dj-f-"):
+            gid = event.button.id
+            if gid == "dj-f-all":
+                self._ustaw_dj_filtr("all", gid)
+            elif gid == "dj-f-kol":
+                self._ustaw_dj_filtr("kolekcja", gid)
+            else:                        # dj-f-e0..e2 — edycje z danych
+                i = int(gid.rsplit("e", 1)[1])
+                self._ustaw_dj_filtr(
+                    f"edycja:{self._dj_edycje_filtry[i]}", gid)
+            return
         if event.button.id == "go":
             self.action_build()          # przycisk robi to samo co B —
         elif event.button.id == "lib-analyze":   # wcześniej był atrapą

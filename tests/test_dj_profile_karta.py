@@ -56,17 +56,16 @@ def test_wczytaj_normalizuje_ksywy(tmp_path):
     assert P.wczytaj(tmp_path / "brak.json") == {}
 
 
-def test_wejscie_w_zakladke_od_razu_podswietla_i_rysuje_karte(
+def test_wejscie_w_zakladke_pokazuje_pelne_karty_z_mostu(
         tmp_path, monkeypatch):
-    """Skarga Janka 13.08: po wejściu w DJ-e karta była pusta, póki nie
-    ruszyło się kursorem. Wejście w zakładkę podświetla pierwszego DJ-a
-    z pełnym profilem i od razu rysuje kartę."""
+    """Wejście w DJ-e od razu pokazuje ścianę z pomiarami mostu — karta
+    z pełnym profilem niesie medianę i harmonię, licznik zna filtry edycji."""
     import asyncio
     import json as _json
 
     import dancelab.decision.anchors as A
     import dancelab.tui.user_store as U
-    from dancelab.tui.app import DanceLabTUI
+    from dancelab.tui.app import DanceLabTUI, KartaDJ
     monkeypatch.setattr(U, "STATE_PATH", tmp_path / "stan.json")
     monkeypatch.setattr(A, "load_anchor_book", lambda *a, **k: {"djs": {
         "Ayesha": {"centroid": [1, 0], "n_tracks": 39, "cos_median": 0.7},
@@ -79,20 +78,23 @@ def test_wejscie_w_zakladke_od_razu_podswietla_i_rysuje_karte(
     plik.write_text(_json.dumps({"djs": {"Ben UFO": {
         "bpm_lo": 120, "bpm_med": 133, "bpm_hi": 150, "harm_proc": 31,
         "skok_bpm": 4.0, "energia": 0.5, "groove": 0.4, "bas": 0.6,
-        "sety": 3, "szwy": 40, "szwy_pelne": 28, "edycje": []}}}))
+        "sety": 3, "szwy": 40, "szwy_pelne": 28,
+        "edycje": ["Garbicz Festival 2026"]}}}))
     monkeypatch.setattr(P, "PROFIL_PATH", plik)
 
     async def go():
-        from textual.widgets import OptionList, Static, TabbedContent
+        from textual.widgets import Button, TabbedContent
         app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
         async with app.run_test() as pilot:
             app.query_one("#tabs", TabbedContent).active = "tab-dj"
             await pilot.pause()
-            lst = app.query_one("#dj-lista", OptionList)
-            assert lst.highlighted is not None
-            assert (lst.get_option_at_index(lst.highlighted).id
-                    == "Ben UFO"), "pierwszy DJ z PEŁNYM profilem"
-            karta = str(app.query_one("#dj-karta", Static).content)
-            assert "mediana [b]133" in karta and "31%" in karta, \
-                "karta narysowana bez ruchu kursorem"
+            karty = app.query(KartaDJ).nodes
+            assert [k.dj for k in karty][0] == "Ben UFO", \
+                "pełny profil przed resztą"
+            tresc = str(karty[0].content)
+            assert "mediana [b]133" in tresc and "31%" in tresc
+            etykiety = [str(b.label) for b in
+                        app.query_one("#dj-filtry").children
+                        if isinstance(b, Button)]
+            assert "Garbicz Festival 2026" in etykiety, "filtr edycji z danych"
     asyncio.run(go())
