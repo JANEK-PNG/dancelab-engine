@@ -60,7 +60,8 @@ ROLE_FILARA = {
 
 _EMPTY = {"ulubione_utwory": [], "ulubione_playlisty": [], "filary": [],
           "tryb_filarow": "rozstaw", "okladki_w_liscie": False,
-          "playlisty": [], "aktywna_playlista": None}
+          "playlisty": [], "aktywna_playlista": None,
+          "kolekcja_djow": []}
 
 
 def _kopia(v):
@@ -192,6 +193,27 @@ def zdejmij_filar(state: dict, track_id: str, path: str) -> bool:
     if i is None:
         return False
     wpisy.pop(i)
+    return True
+
+
+def kolekcja_djow(state: dict) -> list[str]:
+    """Kolekcja DJ-ów (decyzja Janka 12.08, przeniesiona ze ściany kart):
+    ręcznie zbierani DJ-e, którzy dostają PIERWSZEŃSTWO w polu „Brzmi jak…"
+    i ✓ obok nazwiska. Kolejność = kolejność zbierania."""
+    return state.get("kolekcja_djow", [])
+
+
+def w_kolekcji(state: dict, dj: str) -> bool:
+    return dj in state.get("kolekcja_djow", [])
+
+
+def przelacz_kolekcje_dj(state: dict, dj: str) -> bool:
+    """Dodaj/zdejmij DJ-a z kolekcji. Zwraca True, gdy jest TERAZ w kolekcji."""
+    kol = state.setdefault("kolekcja_djow", [])
+    if dj in kol:
+        kol.remove(dj)
+        return False
+    kol.append(dj)
     return True
 
 

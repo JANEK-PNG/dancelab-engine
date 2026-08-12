@@ -177,6 +177,19 @@ def _rozstaw_filary(filary: list[str], by_id: dict, count: int,
     return pozycje
 
 
+def _opcje_kotwic(wpisy: list[tuple], kolekcja: list[str]) -> list[tuple[str, str]]:
+    """Kolejność pola „Brzmi jak…": KOLEKCJA DJ-ów użytkownika przed resztą,
+    z ✓ obok nazwiska (decyzja Janka 12.08, przeniesiona ze ściany kart:
+    kolekcjonujesz w panelu, owoce zbierasz przy budowie). Kolejność wewnątrz
+    kolekcji = kolejność zbierania; reszta zostaje w porządku księgi."""
+    w_kol = set(kolekcja)
+    kol = [w for w in wpisy if w[0] in w_kol]
+    kol.sort(key=lambda w: kolekcja.index(w[0]))
+    reszta = [w for w in wpisy if w[0] not in w_kol]
+    return ([(f"✓ {n}  ({ile} wekt., skok {med})", n) for n, ile, med in kol]
+            + [(f"{n}  ({ile} wekt., skok {med})", n) for n, ile, med in reszta])
+
+
 def _filary_for_build(state: dict, by_id: dict, bpm_min: float | None,
                       bpm_max: float | None, count: int | None
                       ) -> tuple[list[str], list[str], dict[str, str]]:
@@ -889,7 +902,18 @@ class DanceLabTUI(App):
     def on_key(self, event) -> None:
         """Klawisze edytora cue (etap 2): litera = pad (jak na CDJ),
         strzałki przesuwają wybrany pad po siatce bitów, X zdejmuje,
-        Z cofa. Tylko zakładka Eksport/Cue z fokusem na liście."""
+        Z cofa. Tylko zakładka Eksport/Cue z fokusem na liście.
+        Wyjątek: K w otwartym panelu „Brzmi jak…" zbiera DJ-a do kolekcji."""
+        try:
+            panel_dj = getattr(self, "_panel_mode", None) == "dj" \
+                and self.query_one("#suggest").has_class("open")
+        except Exception:  # noqa: BLE001 — panel może nie istnieć w testach
+            panel_dj = False
+        if event.key == "k" and panel_dj:
+            event.stop()
+            event.prevent_default()
+            self._przelacz_kolekcje_dj_z_panelu()
+            return
         try:
             active = self.query_one("#tabs", TabbedContent).active
         except Exception:  # noqa: BLE001
@@ -1443,36 +1467,88 @@ class DanceLabTUI(App):
         """Ctrl+D: OTWIERA i ZAMYKA listę kotwic pogrupowanych po BRZMIENIU
         (zmierzone klastry centroidów, nie gatunek). Wyboru dokonuje ENTER —
         kotwica jest jedna, więc Enter ją ustawia i zamyka listę."""
-        from dancelab.tui import grupy_dj as G
         if self.query_one("#suggest").has_class("open") \
                 and self._panel_mode == "dj":
             self._close_panel()
             self.query_one("#set", DataTable).focus()
             return
         try:
-            from dancelab.decision.anchors import load_anchor_book
-            book = load_anchor_book()
+            naglowek, opcje = self._dj_panel_opcje()
         except Exception as exc:  # noqa: BLE001 — brak pliku to stan, nie awaria
             self._note(f"kotwice niedostępne: {exc}")
             return
+        self._open_suggest_panel(None, naglowek, opcje, "dj")
+
+    def _dj_panel_opcje(self) -> tuple[str, list[tuple[str, str]]]:
+        """Panel „Brzmi jak…": twoje brzmienie → TWOJA KOLEKCJA (✓, decyzja
+        Janka 12.08 ze ściany kart) → grupy brzmieniowe. K w panelu zbiera."""
+        from dancelab.decision.anchors import MOJE_ULUBIONE, load_anchor_book
+        from dancelab.tui import grupy_dj as G
+        from dancelab.tui.user_store import kolekcja_djow
+        book = load_anchor_book()
         grupy = G.grupuj(book["djs"])
+        kol = kolekcja_djow(self._user_state)
+        opis_dj = {dj: (n, skok) for _e, czl in grupy for dj, n, skok in czl}
         opcje: list[tuple[str, str]] = []
-        from dancelab.decision.anchors import MOJE_ULUBIONE
         ilu = len(self._user_state.get("ulubione_utwory", []))
-        opcje.append((f"— twoje brzmienie —", "__twoje"))
+        opcje.append(("— twoje brzmienie —", "__twoje"))
         opcje.append((f"  {MOJE_ULUBIONE} ({ilu} utworów) — kotwica policzona "
                       f"z Twoich ♥, gdy Twojego DJ-a tu nie ma", MOJE_ULUBIONE))
+        if kol:
+            opcje.append((f"— twoja kolekcja ({len(kol)}) — pierwszeństwo "
+                          f"w polu Brzmi jak… —", "__kolekcja"))
+            for dj in kol:
+                if dj in opis_dj:
+                    n, skok = opis_dj[dj]
+                    opcje.append((f"  ✓ {G.opis(dj, n, skok)}", dj))
+                else:
+                    opcje.append((f"  ✓ {dj}", dj))
+        kol_set = set(kol)
         for etykieta, czlonkowie in grupy:
-            opcje.append((f"— {etykieta} ({len(czlonkowie)}) —",
+            # zebrani są już wyżej, w sekcji kolekcji — lista opcji nie
+            # przyjmuje dwóch pozycji o tym samym id (złapane testem 12.08)
+            zostali = [w for w in czlonkowie if w[0] not in kol_set]
+            if not zostali:
+                continue
+            opcje.append((f"— {etykieta} ({len(zostali)}) —",
                           f"__{etykieta[:20]}"))
             opcje.extend((f"  {G.opis(dj, n, skok)}", dj)
-                         for dj, n, skok in czlonkowie)
-        self._open_suggest_panel(
-            None,
-            f"GRAJ JAK… — {len(book['djs'])} DJ-ów ZMIERZONYCH z ich setów; "
+                         for dj, n, skok in zostali)
+        naglowek = (
+            f"BRZMI JAK… — {len(book['djs'])} DJ-ów ZMIERZONYCH z ich setów; "
             f"kogo tu nie ma, tego nie mierzyliśmy\n"
-            f"Enter wybiera kotwicę · Ctrl+D albo Esc zamyka",
-            opcje, "dj")
+            f"Enter wybiera kotwicę · K dodaje/zdejmuje z kolekcji "
+            f"(✓ = pierwszeństwo w polu) · Ctrl+D albo Esc zamyka")
+        return naglowek, opcje
+
+    def _przelacz_kolekcje_dj_z_panelu(self) -> None:
+        """K w panelu „Brzmi jak…": zbierz/wypuść DJ-a pod kursorem.
+        Lista zostaje otwarta (wzór dwóch naciśnięć jak przy gatunkach),
+        a pole „Brzmi jak…" od razu przestawia kolejność."""
+        from dancelab.decision.anchors import MOJE_ULUBIONE
+        from dancelab.tui.user_store import (kolekcja_djow,
+                                             przelacz_kolekcje_dj, save_state)
+        lst = self.query_one("#suggest-list", OptionList)
+        i = lst.highlighted
+        if i is None:
+            return
+        dj = lst.get_option_at_index(i).id or ""
+        if dj.startswith("__") or dj == MOJE_ULUBIONE:
+            self._note("kolekcja przyjmuje DJ-ów — najedź na nazwisko")
+            return
+        teraz = przelacz_kolekcje_dj(self._user_state, dj)
+        save_state(self._user_state, self.processed_dir)
+        _n, opcje = self._dj_panel_opcje()
+        gdzie = lst.highlighted
+        lst.clear_options()
+        for label, oid in opcje:
+            lst.add_option(Option(label, id=oid))
+        if gdzie is not None:
+            lst.highlighted = min(gdzie, lst.option_count - 1)
+        self._load_anchors()
+        n = len(kolekcja_djow(self._user_state))
+        self._note(f"{dj} {'w kolekcji' if teraz else 'poza kolekcją'} · "
+                   f"kolekcja: {n} — kolejność pola Brzmi jak… przestawiona")
 
     def action_next_tab(self) -> None:
         self._switch_tab(+1)
@@ -2448,14 +2524,24 @@ class DanceLabTUI(App):
     def _load_anchors(self) -> None:
         try:
             from dancelab.decision.anchors import MOJE_ULUBIONE, list_anchors
+            from dancelab.tui.user_store import kolekcja_djow
             # Własne brzmienie NA POCZĄTKU listy: księga ma 285 DJ-ów
             # zmierzonych z ich setów i nie ma jak dopisać kogoś, czyich
             # setów nie mamy (test person 09.08 — Kuba gra jak Amelie Lens,
             # której tam nie ma). Ulubione działają dla każdego.
             options = [(f"{MOJE_ULUBIONE} — z Twoich ♥", MOJE_ULUBIONE)]
-            options += [(f"{name}  ({n} wekt., skok {med})", name)
-                        for name, n, med in list_anchors(limit=500)]
-            self.query_one("#dj", Select).set_options(options)
+            options += _opcje_kotwic(
+                list_anchors(limit=500),
+                kolekcja_djow(getattr(self, "_user_state", {}) or {}))
+            pole = self.query_one("#dj", Select)
+            try:
+                biezacy = pole.value
+            except Exception:  # noqa: BLE001
+                biezacy = None
+            pole.set_options(options)
+            # przeładowanie kolejności nie może gubić wybranej kotwicy
+            if isinstance(biezacy, str) and biezacy in {v for _e, v in options}:
+                pole.value = biezacy
         except Exception as exc:  # noqa: BLE001 — brak pliku kotwic to stan, nie awaria
             self._note(f"kotwice niedostępne: {exc}")
 
