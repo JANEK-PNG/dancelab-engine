@@ -30,9 +30,12 @@ def test_karta_pelna_niesie_pomiary_gui():
               "sety": 2, "szwy_pelne": 177, "utwory_zmierzone": 215,
               "edycje": ["RA Podcast 2020", "RA Podcast 2025"]}
     k = P.karta("Tim Reaper", profil, w_kolekcji=True, grupa="brzmi jak: X")
-    for fragment in ("Tim Reaper", "✓ w kolekcji", "mediana [b]140",
-                     "24%", "±5", "0.55", "177 szwów", "RA Podcast 2025"):
+    for fragment in ("Tim Reaper", "✓ w kolekcji", "K = ✕ wyrzuca",
+                     "mediana [b]140", "24%", "±5", "0.55", "177 szwów",
+                     "RA PODCAST 2025"):        # tagon-chip, wielkie litery
         assert fragment in k, fragment
+    poza = P.karta("Tim Reaper", profil, w_kolekcji=False, grupa=None)
+    assert "＋" in poza and "K dodaje do kolekcji" in poza
 
 
 def test_karta_w_budowie_mowi_ile_brakuje():
