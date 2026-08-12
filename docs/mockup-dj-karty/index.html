@@ -397,9 +397,13 @@ function portret(cv, d, czas = 0){
     // co DJ zrobił w tym miejscu setu).
     const plan = planPortretu(d.ksywa, szwy, W, H, {cieplo, en, groove, bas, r});
     // tło: cienka tkanina z charakteru DJ-a
-    const T = 13, PAUZA = 0.92;
+    const T = 15, PODROZ = 0.66, KONIEC = 0.9;
     const faza = (czas / T) % 1;
-    const xs = Math.min(faza / PAUZA, 1) * W;
+    const xs = Math.min(faza / PODROZ, 1) * W;
+    const zb0 = faza <= PODROZ ? 0
+      : Math.min(1, (faza - PODROZ) / (KONIEC - PODROZ));
+    const zb = zb0 * zb0 * (3 - 2 * zb0);         // zejście w całość
+    const wyg = faza > KONIEC ? (faza - KONIEC) / (1 - KONIEC) : 0;
     for (let s = 0; s < 120; s++){
       let x = r()*W, y = r()*H;
       const c = mix(Math.min(Math.max(cieplo + (r()-0.5)*0.9, 0), 1));
@@ -414,18 +418,21 @@ function portret(cv, d, czas = 0){
       }
       ctx.stroke();
     }
-    // linia artysty: mix to wytyczona ręką droga — rysuje się za kropką
-    ctx.strokeStyle = "rgba(232,228,218,0.20)"; ctx.lineWidth = 1;
-    ctx.beginPath();
-    let zaczete = false;
-    for (const pkt of plan.nic){
-      if (pkt.x > xs) break;
-      zaczete ? ctx.lineTo(pkt.x, pkt.y) : ctx.moveTo(pkt.x, pkt.y);
-      zaczete = true;
+    // linia artysty: grubieje w miarę doczepiania utworów — mix nabiera
+    // całości; w finale przejmuje wszystko i zostaje sama
+    for (let i = 1; i < plan.nic.length; i++){
+      const a = plan.nic[i-1], b = plan.nic[i];
+      if (a.x > xs) break;
+      const udzial = a.x / W;
+      ctx.lineWidth = (0.8 + 2.6 * udzial) * (1 + 1.6 * zb);
+      ctx.strokeStyle = `rgba(232,228,218,${((0.18 + 0.3 * zb) * (1 - wyg)).toFixed(3)})`;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+      ctx.stroke();
     }
-    ctx.stroke();
     // UTWORY DOCZEPIANE STOPNIOWO: nić istnieje dopiero, gdy noc
     // do niej doszła; świeżo doczepiona wyrasta z linii przez chwilę
+    ctx.save();
+    ctx.globalAlpha = 1 - wyg * 0.85;
     szwy.forEach((s, idx) => {
       const xN = (idx + 0.5) / szwy.length * W;
       if (xN > xs) return;
@@ -440,23 +447,25 @@ function portret(cv, d, czas = 0){
         ctx.strokeStyle = `rgba(${volt[0]},${volt[1]},${volt[2]},${Math.min(0.9, 0.4*zaplon).toFixed(2)})`;
         ctx.lineWidth = 1.0;
         ctx.shadowColor = "rgba(214,245,73,0.25)"; ctx.shadowBlur = 2;
-        ctx.beginPath(); ctx.moveTo(x, y);
+        ctx.beginPath();
         for (let i = 0; i < Math.round(120*wzrost); i++){
           const t2 = kat(x, y);
           x += Math.cos(t2)*2.6; y += Math.sin(t2)*2.6;
-          ctx.lineTo(x, y);
+          const yb = y + (nicY(plan.nic, x) - y) * zb;
+          i === 0 ? ctx.moveTo(x, yb) : ctx.lineTo(x, yb);
         }
         ctx.stroke(); ctx.shadowBlur = 0;
       } else if (czysty){
         const c = mix(t01((s.a + s.b) / 2));
         ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${Math.min(0.95,(0.4+rt()*0.2)*zaplon).toFixed(2)})`;
         ctx.lineWidth = 1.0 + bas*1.8;
-        ctx.beginPath(); ctx.moveTo(x, y);
+        ctx.beginPath();
         const dl = Math.round((55 + Math.min(Math.abs(s.d),30)*2.5)*wzrost);
         for (let i = 0; i < dl; i++){
           const t2 = kat(x, y) + (rt()-0.5)*0.1;
           x += Math.cos(t2)*2.6; y += Math.sin(t2)*2.6;
-          ctx.lineTo(x, y);
+          const yb = y + (nicY(plan.nic, x) - y) * zb;
+          i === 0 ? ctx.moveTo(x, yb) : ctx.lineTo(x, yb);
         }
         ctx.stroke();
       } else {
@@ -464,17 +473,19 @@ function portret(cv, d, czas = 0){
         ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${Math.min(0.8, 0.34*zaplon).toFixed(2)})`;
         ctx.lineWidth = 0.7;
         for (let seg = 0; seg < Math.max(1, Math.round(3*wzrost)); seg++){
-          ctx.beginPath(); ctx.moveTo(x, y);
+          ctx.beginPath();
           for (let i = 0; i < 6; i++){
             const t2 = kat(x, y) + (rt()-0.5)*1.4;
             x += Math.cos(t2)*2.6; y += Math.sin(t2)*2.6;
-            ctx.lineTo(x, y);
+            const yb = y + (nicY(plan.nic, x) - y) * zb;
+            i === 0 ? ctx.moveTo(x, yb) : ctx.lineTo(x, yb);
           }
           ctx.stroke();
           x += (rt()-0.5)*14; y += (rt()-0.5)*14;
         }
       }
     });
+    ctx.restore();
     // iskry zapłonu: nitki odkryte w tej chwili świecą u nasady
     szwy.forEach((s, idx) => {
       const xN = (idx + 0.5) / szwy.length * W;
@@ -488,8 +499,9 @@ function portret(cv, d, czas = 0){
       ctx.fillRect(xN-9, yN-9, 18, 18);
     });
     // ŚWIATŁO-EMOCJA: pióro artysty na końcu wytyczanej linii
-    if (faza < PAUZA && czas > 0){
-      let ys = nicY(plan.nic, xs), alfa = 0.8, kolor = [232,228,218], rr = 15;
+    if (faza < KONIEC && czas > 0){
+      let ys = nicY(plan.nic, xs), alfa = 0.8 * (1 - zb), kolor = [232,228,218],
+        rr = 15 + 14 * zb;
       for (const z of plan.zdarzenia){
         if (z.typ === "wbicie" && xs > z.x && xs < z.x + z.dl){
           alfa = 0.28; rr = 8;                     // schodzi pod tkaninę
@@ -563,10 +575,10 @@ function zyj(ts){
       if (paski.length < 3) return;
       let e = dd.energia, g = dd.groove, bs = dd.bas;
       if (szwy.length){
-        const faza = (czas / 13) % 1;
-        if (faza < 0.92){
+        const faza = (czas / 15) % 1;
+        if (faza < 0.66){
           const s = szwy[Math.min(szwy.length - 1,
-            Math.floor(faza / 0.92 * szwy.length))];
+            Math.floor(faza / 0.66 * szwy.length))];
           if (s.eb != null) e = s.eb;
           if (s.gb != null) g = s.gb;
           if (s.bb != null) bs = s.bb;
