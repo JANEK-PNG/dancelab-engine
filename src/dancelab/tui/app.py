@@ -824,7 +824,25 @@ class DanceLabTUI(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        self.theme = "monokai"        # wiodący motyw — wybór Janka 06.08
+        # Paleta TERRAIN z makiet GUI (decyzja Janka 12.08 — „powoli zbliżamy
+        # się do oryginału"; nadpisuje monokai z 06.08): ciepły grafit tła,
+        # volt na wybór/akcję, ciepły bursztyn i chłodny błękit jak talie A/B.
+        from textual.theme import Theme
+        self.register_theme(Theme(
+            name="dancelab-terrain",
+            primary="#d6f549",       # volt — wybór i jeden czasownik
+            secondary="#6db3c9",     # chłodny błękit (talia B)
+            accent="#e0a458",        # ciepły bursztyn (talia A)
+            warning="#e0a458",
+            error="#e07458",         # ciepła czerwień usuwania (jak ✕ karty)
+            success="#a8c952",       # oliwkowa zieleń (miernik groove)
+            foreground="#e8e4da",
+            background="#171614",
+            surface="#211f1c",
+            panel="#26241f",
+            dark=True,
+        ))
+        self.theme = "dancelab-terrain"
         table = self.query_one("#set", DataTable)
         for lbl, w in (("#", None), ("BPM", 10), ("ton", 8), ("pew.", None),
                        ("gatunek", None), ("Σ min", None), ("utwór", None)):
