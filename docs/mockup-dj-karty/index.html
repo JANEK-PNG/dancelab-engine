@@ -38,7 +38,14 @@
   .karta{
     background:var(--karta); border:1px solid var(--linia); border-radius:var(--r);
     padding:16px 16px 14px; position:relative; transition:border-color .12s, transform .12s;
+    /* wejście wg biblii ruchu TERRAIN: 220 ms, krzywa (.2,0,0,1),
+       8 px rise and fade; schodek 24 ms nadaje rysuj(), maks 8 schodków
+       (220 + 8×24 = 412 ms < limit 420 ms na odsłonę karty terenu) */
+    animation:karta-in 220ms cubic-bezier(.2,0,0,1) backwards;
+    animation-delay:var(--wej, 0ms);
   }
+  @keyframes karta-in{from{opacity:0; transform:translateY(8px)}}
+  @media (prefers-reduced-motion: reduce){ .karta{animation:none} }
   .karta:hover{border-color:#565246; transform:translateY(-2px)}
   .karta.szara{opacity:.55; filter:saturate(.3)}
   .karta.szara:hover{opacity:.8}
@@ -288,6 +295,9 @@ function rysuj(filtr){
     filtr === "kolekcja" ? d.kolekcja :
     (d.edycje || []).includes(filtr));
   document.getElementById("sciana").innerHTML = zbior.map(karta).join("");
+  // schodek wejścia 24 ms na kartę, maks osiem (biblia ruchu: „max eight staggered")
+  document.querySelectorAll(".karta").forEach((k, i) =>
+    k.style.setProperty("--wej", `${Math.min(i, 8) * 24}ms`));
   const pusto = document.getElementById("pusto");
   if (!zbior.length){
     pusto.style.display = "block";
