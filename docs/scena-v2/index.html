@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DanceLab — scena v2 (start od zera)</title>
+<script src="https://w.soundcloud.com/player/api.js"></script>
+<style>
+  :root{--tlo:#141312; --tekst:#e8e4da; --przygaszony:#8f8a7e; --slaby:#5c5850;
+    --volt:#d6f549; --linia:#3a3730; --r:3px}
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%; overflow:hidden}
+  body{background:var(--tlo); color:var(--tekst);
+    font-family:"Space Grotesk", system-ui, sans-serif}
+  #plotno{position:fixed; inset:0; width:100vw; height:100vh; display:block}
+  .ui{position:fixed; z-index:5; transition:opacity .5s}
+  body.spokoj .ui{opacity:0; pointer-events:none}
+  #stan{top:14px; left:16px; font-size:11px; color:var(--slaby);
+    letter-spacing:.4px; line-height:1.7}
+  #stan b{color:var(--przygaszony); font-weight:500}
+</style>
+</head>
+<body>
+<canvas id="plotno"></canvas>
+<div id="stan" class="ui">scena v2 · czyste płótno<br>czekam na pierwszą warstwę</div>
+
+<script>
+/* SCENA v2 — start od zera (Janek 13.08).
+   Tu jest tylko fundament: płótno w natywnej rozdzielczości, dane szwów
+   z profilami policzonymi PRZEZ SILNIK, deterministyczna losowość i pętla
+   klatek. Żadnej warstwy wizualnej — dokładamy je po kolei, na Twoje
+   polecenie, każdą osobno i nazwaną.
+
+   Czego uczy nas poprzednie podejście (żeby nie powtórzyć):
+   · każdy element ma WŁASNE stałe ziarno — inaczej obraz miga;
+   · warstwy dopisujemy jako osobne funkcje w WARSTWY[] — łatwo wyłączyć;
+   · nic nie rysujemy „na oko": każda cecha ma nieść liczbę z danych. */
+
+const cv = document.getElementById("plotno");
+const ctx = cv.getContext("2d");
+let W = 0, H = 0, MIN = 0;
+
+function wymiary(){
+  const DPR = Math.min(2, devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight; MIN = Math.min(W, H);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+addEventListener("resize", wymiary); wymiary();
+
+/* deterministyczna losowość — ziarno z tekstu, nigdy Math.random */
+function hash(s){let h=7; for(const c of s) h=(h*31+c.charCodeAt(0))|0; return h>>>0||1}
+function rnd(seed){let s=seed; return ()=>{s^=s<<13; s^=s>>>17; s^=s<<5;
+  return (s>>>0)/4294967296}}
+
+/* dane: przejścia z mapy DJ-ów + profil In Between policzony przez silnik
+   (C, D, Syn, U, K, okreslone) oraz pętla DJ↔muzyka (iDJ, iM, Cdj, Ddj) */
+let SZWY = {};
+let KTO = "Tim Reaper";
+let GRACZ = null;               // odtwarzacz dojdzie, gdy powiesz
+let FRAKCJA = null;             // pozycja w secie: null = pętla własna
+
+/* WARSTWY: każda to funkcja (ctx, k) → rysuje jedną rzecz.
+   Dodajemy je po kolei na Twoje polecenie. */
+const WARSTWY = [];
+
+function kontekst(czas){
+  const szwy = (SZWY[KTO] || []);
+  const n = szwy.length;
+  const teraz = n ? (FRAKCJA != null ? FRAKCJA * n : ((czas / 30) % 1) * n) : 0;
+  const i = Math.max(0, Math.min(n - 1, Math.floor(teraz)));
+  return {czas, szwy, n, teraz, i, s: szwy[i] || null,
+          poprz: szwy[i - 1] || szwy[i] || null,
+          cx: W / 2, cy: H / 2, W, H, MIN, hash, rnd};
+}
+
+function klatka(ts){
+  const czas = ts / 1000;
+  ctx.clearRect(0, 0, W, H);
+  const k = kontekst(czas);
+  for (const warstwa of WARSTWY) warstwa(ctx, k);
+  requestAnimationFrame(klatka);
+}
+requestAnimationFrame(klatka);
+
+/* interfejs znika, gdy patrzysz */
+let cichoT;
+addEventListener("pointermove", () => {
+  document.body.classList.remove("spokoj");
+  clearTimeout(cichoT);
+  cichoT = setTimeout(() => document.body.classList.add("spokoj"), 2600);
+});
+
+fetch("szwy.json?v=" + Date.now()).then(r => r.json()).then(d => {
+  SZWY = d;
+  const n = (SZWY[KTO] || []).length;
+  document.getElementById("stan").innerHTML =
+    `scena v2 · czyste płótno<br><b>${KTO}</b> · ${n} przejść z profilem ` +
+    `In Between<br>warstw: <b>${WARSTWY.length}</b> — czekam na pierwszą`;
+});
+</script>
+</body>
+</html>
