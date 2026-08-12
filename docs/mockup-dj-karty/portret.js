@@ -198,17 +198,85 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
     }
   }
 
-  // --- DJ: nieruchomy w swoim TERAZ, w środku przestrzeni ---
-  const puls = 0.82 + 0.18 * Math.sin(czas * 2.2);
-  const rr = Math.min(W, H) * 0.05 * puls;
-  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rr * 3);
-  g.addColorStop(0, "rgba(255,255,255,0.55)");
-  g.addColorStop(0.35, "rgba(232,228,218,0.14)");
-  g.addColorStop(1, "rgba(232,228,218,0)");
-  ctx.fillStyle = g;
-  ctx.fillRect(cx - rr * 3, cy - rr * 3, rr * 6, rr * 6);
-  ctx.fillStyle = "rgba(255,255,255,0.9)";
-  ctx.beginPath(); ctx.arc(cx, cy, Math.max(1.2, rr * 0.16), 0, 6.283); ctx.fill();
+  // === IN BETWEEN = NAPIĘCIE, NIE PUNKT ===
+  // Nasz wzór: score(A→B) = 0,35·harmonia + 0,25·tempo + 0,20·energia
+  //                        + 0,20·mixowalność  (⊕ brzmienie, × prior)
+  // Każdy człon bierze DWA utwory — więc „teraz" nie jest stanem, tylko
+  // relacją. Zamiast jednej kropki: dwa ciała (A gaśnie, B wschodzi)
+  // i cztery wiązania między nimi — grubość z wagi we wzorze, jasność
+  // z wartości tego składnika DLA TEGO przejścia.
+  const i0 = Math.max(0, Math.min(P.n - 1, Math.floor(teraz)));
+  const u = teraz - Math.floor(teraz);
+  const sz = szwy[i0] || {};
+  const poprz = szwy[i0 - 1] || sz;
+  const wart = skladniki(sz, poprz);
+  const rozstaw = Math.min(W, H) * (0.055 + 0.10 * u);     // A i B rozchodzą się
+  const puls = 0.85 + 0.15 * Math.sin(czas * ((sz.b || 128) / 60) * 6.283);
+  const ax = cx - rozstaw, bx = cx + rozstaw;
+  const cA = BARWA(T01(sz.a || 128)), cB = BARWA(T01(sz.b || 128));
+
+  // wiązania: cztery struny naprężone między utworem wychodzącym a wchodzącym
+  const WIAZANIA = [
+    {n: "harmonia",   w: 0.35, v: wart.harmonia,   dy: -0.045},
+    {n: "tempo",      w: 0.25, v: wart.tempo,      dy: -0.015},
+    {n: "energia",    w: 0.20, v: wart.energia,    dy:  0.015},
+    {n: "mixowalność",w: 0.20, v: wart.mix,        dy:  0.045},
+  ];
+  for (const wz of WIAZANIA){
+    const y = cy + Math.min(W, H) * wz.dy;
+    const luz = (1 - wz.v) * Math.min(W, H) * 0.05;   // słabe wiązanie zwisa
+    const a = 0.12 + wz.v * 0.55;
+    ctx.strokeStyle = `rgba(232,228,218,${(a * puls).toFixed(3)})`;
+    ctx.lineWidth = Math.max(0.5, wz.w * 7 * gr * (0.5 + wz.v * 0.8));
+    ctx.beginPath(); ctx.moveTo(ax, cy);
+    ctx.quadraticCurveTo(cx, y + luz, bx, cy);
+    ctx.stroke();
+    if (wz.v > 0.85){                       // wiązanie napięte do maksimum
+      ctx.strokeStyle = `rgba(${VOLT[0]},${VOLT[1]},${VOLT[2]},${(0.5 * puls).toFixed(2)})`;
+      ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(ax, cy);
+      ctx.quadraticCurveTo(cx, y + luz, bx, cy); ctx.stroke();
+    }
+  }
+  // dwa ciała: A oddaje pole, B je przejmuje — to jest samo przejście
+  for (const [x, c, moc] of [[ax, cA, 1 - u], [bx, cB, u]]){
+    const rr = Math.min(W, H) * 0.035 * (0.5 + moc) * puls;
+    const g = ctx.createRadialGradient(x, cy, 0, x, cy, rr * 3);
+    g.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${(0.75 * (0.35 + moc)).toFixed(2)})`);
+    g.addColorStop(0.4, `rgba(${c[0]},${c[1]},${c[2]},0.12)`);
+    g.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(x - rr * 3, cy - rr * 3, rr * 6, rr * 6);
+    ctx.fillStyle = `rgba(255,255,255,${(0.35 + moc * 0.55).toFixed(2)})`;
+    ctx.beginPath(); ctx.arc(x, cy, Math.max(1, rr * 0.2), 0, 6.283); ctx.fill();
+  }
+  // ręka DJ-a: napięcie sumaryczne — im lepsze przejście, tym jaśniej
+  const suma = WIAZANIA.reduce((s, z) => s + z.w * z.v, 0);
+  const rd = Math.min(W, H) * 0.02 * puls * (0.6 + suma);
+  const gd = ctx.createRadialGradient(cx, cy, 0, cx, cy, rd * 4);
+  gd.addColorStop(0, `rgba(255,255,255,${(0.25 + suma * 0.45).toFixed(2)})`);
+  gd.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = gd;
+  ctx.fillRect(cx - rd * 4, cy - rd * 4, rd * 8, rd * 8);
+}
+
+/* Składniki wzoru dla TEGO przejścia — przybliżone z tego, co mapa ma
+   naprawdę: tonacje, tempa i energie utworów. Nie udajemy pełnego
+   mixability (9 nici) — bierzemy jego mierzalne rdzenie. */
+function skladniki(s, poprz){
+  const H_MAP = {idealna: 1, sasiednia: 0.78, rownolegla: 0.72,
+                 wzgledna: 0.55, zadna: 0.15};
+  const harmonia = H_MAP[s.h] ?? 0.3;
+  const tempo = 1 - Math.min(Math.abs(s.d || 0) / 20, 1);
+  const eA = poprz.eb, eB = s.eb;
+  const energia = (eA == null || eB == null) ? 0.5
+    : 1 - Math.min(Math.abs(eB - eA) * 1.6, 1);
+  const gA = poprz.gb, gB = s.gb, bA = poprz.bb, bB = s.bb;
+  const groove = (gA == null || gB == null) ? 0.5 : 1 - Math.min(Math.abs(gB - gA) * 1.4, 1);
+  const bas = (bA == null || bB == null) ? 0.5 : 1 - Math.min(Math.abs(bB - bA) * 1.4, 1);
+  const mix = 0.17 * tempo + 0.13 * groove + 0.13 * energia + 0.13 * bas
+              + 0.15 * harmonia + 0.29 * 0.5;     // reszta nici: brak pomiaru
+  return {harmonia, tempo, energia, mix};
 }
 
 /* przeszłość oddala się coraz wolniej — bliskie zdarzenia rozdzielone
