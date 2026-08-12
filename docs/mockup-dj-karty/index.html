@@ -196,7 +196,7 @@ function karta(d){
         ale za mało policzonych, żeby uczciwie narysować profil. Karta uzupełni się sama,
         gdy pomiary dojdą — nic tu nie zgadujemy.</div>
       <div class="stopka"><span class="zaplecze">w mapie: ${d.sety} sety · ${d.szwy} szwów</span>
-      <button class="graj" onclick="graj('${d.ksywa}')">GRAJ JAK TEN</button></div>
+      <button class="graj" onclick="graj('${d.ksywa}')">BUDUJ W TYM STYLU</button></div>
     </div>`;
   }
   const zn = d.poznany ? `<span class="znaczek">✓ POZNANY</span>` : "";
@@ -228,7 +228,7 @@ function karta(d){
     </div>
     <div class="stopka">
       <span class="zaplecze">w mapie: ${d.sety} set${d.sety===1?"":"y"} · ${d.szwy} szwów policzonych${d.utwory?` · ${d.utwory} utworów`:""}</span>
-      <button class="graj" onclick="graj('${d.ksywa.replace(/'/g,"\\'")}')">GRAJ JAK TEN</button>
+      <button class="graj" onclick="graj('${d.ksywa.replace(/'/g,"\\'")}')">BUDUJ W TYM STYLU</button>
     </div>
   </div>`;
 }
@@ -338,7 +338,7 @@ function odsluch(i){
 let t;
 function graj(kto){
   const el = document.getElementById("toast");
-  el.textContent = `kotwica: ${kto} — wracam do briefu (pozorne)`;
+  el.textContent = `kotwica: ${kto} — buduję w tym stylu (pozorne)`;
   el.classList.add("jest");
   clearTimeout(t); t = setTimeout(()=>el.classList.remove("jest"), 2600);
 }

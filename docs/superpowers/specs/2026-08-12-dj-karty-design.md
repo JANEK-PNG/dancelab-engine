@@ -83,7 +83,10 @@ najpierw zapytanie-bzdura / pary kontrolne, potem produkt.
   Dźwięk startuje wyłącznie od kliknięcia użytkownika w play. Prawa czyste:
   embed hostuje SoundCloud z pełną atrybucją artysty. Furtka: odsłuch może
   w przyszłości oznaczać kartę jako „poznaną".
-- **Mostek:** na każdej karcie jeden czasownik — „GRAJ JAK TEN" → ustawia
+- **Mostek:** na każdej karcie jeden czasownik — „BUDUJ W TYM STYLU"
+  (decyzja copy 12.08: spójne z głównym „Buduj set", mówi skutek,
+  neutralne płciowo; „Graj jak ten" odrzucone — wiszący zaimek,
+  ton rozkazu naśladowania) → ustawia
   kotwicę playlisty/briefu i wraca do budowy.
 - Karty bez pełnego profilu (mało szwów policzonych) = karta uproszczona:
   nazwa + to, co wiemy, z uczciwą etykietą „profil w budowie".
