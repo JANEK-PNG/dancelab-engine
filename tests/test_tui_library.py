@@ -818,3 +818,45 @@ def test_buduj_set_zawsze_widoczny_bez_skrolowania():
             assert wyniki.region.x > kolumna.region.x, \
                 "kolumna wyników nadal OBOK briefu, nie pod nim"
     asyncio.run(go())
+
+
+def test_nowa_playlista_wraca_do_biblioteki_a_budowa_zapisuje(
+        tmp_path, monkeypatch):
+    """Decyzje Janka 12.08: Enter po nazwie → OD RAZU Biblioteka (F przypina
+    filary do playlisty), a każda udana budowa zapisuje utwory DO aktywnej
+    playlisty (ostatnia budowa wygrywa)."""
+    import dancelab.tui.user_store as store
+    monkeypatch.setattr(store, "STATE_PATH", tmp_path / "stan.json")
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import DataTable, Input
+            app._lib = LIB
+            app._set_lib_section("pl-new")          # ＋ nowa playlista
+            await pilot.pause()
+            pole = app.screen.query_one("#plan-name", Input)
+            pole.value = "Środa testowa"
+            pole.focus()
+            await pilot.press("enter")
+            await pilot.pause()
+            pl = store.aktywna_playlista(app._user_state)
+            assert pl is not None and pl["nazwa"] == "Środa testowa"
+            assert app._lib_section == "all", "po nazwie wracamy do Biblioteki"
+            assert app.focused is app.query_one("#lib-table", DataTable), \
+                "fokus na tabeli Biblioteki — od razu można zaznaczać F"
+
+            class _Plan:
+                track_order = ["a", "b", "e"]
+                mean_transition_score = 0.5
+                warnings = []
+
+            app._ctx = dict(by_id=_by_id(), weights=None, arc="off",
+                            planner="smart", bpm_min=None, bpm_max=None,
+                            anchor=None, params={}, filary=[])
+            app._show_plan(_Plan(), _by_id(), [])
+            await pilot.pause()
+            zapisane = [e["track_id"]
+                        for e in store.utwory_playlisty(app._user_state)]
+            assert zapisane == ["a", "b", "e"], "budowa zapisała set W playliście"
+    asyncio.run(go())

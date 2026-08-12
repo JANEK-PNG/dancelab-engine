@@ -96,6 +96,7 @@ def _migruj_filary_do_playlisty(state: dict) -> None:
         "nazwa": "Moje filary",
         "kotwica": None,
         "filary": [{**e, "rola": ""} for e in state["filary"]],
+        "utwory": [],
     })
     state["aktywna_playlista"] = 0
 
@@ -109,9 +110,11 @@ def aktywna_playlista(state: dict) -> dict | None:
 
 
 def nowa_playlista(state: dict, nazwa: str) -> int:
-    """Nowa playlista staje się aktywna; kotwicę wybiera się ZARAZ PO nazwie
-    (kolejność z decyzji Janka: najpierw nazwa z metadanych, potem kotwica)."""
-    state["playlisty"].append({"nazwa": nazwa, "kotwica": None, "filary": []})
+    """Nowa playlista staje się aktywna; zaraz po nazwie wracamy do Biblioteki,
+    gdzie DJ zaznacza filary (kolejność z decyzji Janka 12.08 — kotwica nie jest
+    wymuszonym krokiem, ustawia się ją polem „Graj jak…" w dowolnej chwili)."""
+    state["playlisty"].append({"nazwa": nazwa, "kotwica": None, "filary": [],
+                               "utwory": []})
     state["aktywna_playlista"] = len(state["playlisty"]) - 1
     return state["aktywna_playlista"]
 
@@ -122,6 +125,24 @@ def ustaw_kotwice_playlisty(state: dict, kotwica: str | None) -> bool:
         return False
     pl["kotwica"] = kotwica
     return True
+
+
+def zapisz_utwory_playlisty(state: dict, wpisy: list[dict]) -> bool:
+    """Zbudowany set trafia DO aktywnej playlisty (Janek 12.08: „powinno
+    automatycznie zapisywać utwory po tym jak klikam buduj").
+
+    Ostatnia budowa wygrywa — playlista trzyma jeden, aktualny set. Wpisy
+    niosą track_id ORAZ ścieżkę (ten sam wzór ratunkowy co filary)."""
+    pl = aktywna_playlista(state)
+    if pl is None:
+        return False
+    pl["utwory"] = list(wpisy)
+    return True
+
+
+def utwory_playlisty(state: dict) -> list[dict]:
+    pl = aktywna_playlista(state)
+    return pl.get("utwory", []) if pl is not None else []
 
 
 def filary_wpisy(state: dict) -> list[dict]:

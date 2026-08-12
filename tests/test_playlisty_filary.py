@@ -91,15 +91,42 @@ def test_nazwa_z_metadanych_sklada_sie_z_puli():
                                      "Niedziela"]
 
 
+def test_zbudowany_set_zapisuje_sie_do_aktywnej_playlisty():
+    """Janek 12.08: klik „buduj" = utwory automatycznie W playliście.
+    Ostatnia budowa wygrywa — playlista trzyma jeden, aktualny set."""
+    state = _stan()
+    assert not U.zapisz_utwory_playlisty(state, [{"track_id": "a",
+                                                  "path": "/m/a.aiff"}])
+    U.nowa_playlista(state, "Piątek")
+    assert U.zapisz_utwory_playlisty(
+        state, [{"track_id": "a", "path": "/m/a.aiff"},
+                {"track_id": "b", "path": "/m/b.aiff"}])
+    assert [e["track_id"] for e in U.utwory_playlisty(state)] == ["a", "b"]
+    U.zapisz_utwory_playlisty(state, [{"track_id": "c", "path": "/m/c.aiff"}])
+    assert [e["track_id"] for e in U.utwory_playlisty(state)] == ["c"]
+
+
+def test_utwory_naleza_do_playlisty_nie_do_stanu():
+    state = _stan()
+    U.nowa_playlista(state, "Piątek")
+    U.zapisz_utwory_playlisty(state, [{"track_id": "a", "path": "/m/a.aiff"}])
+    U.nowa_playlista(state, "Sobota")
+    assert U.utwory_playlisty(state) == []          # nowa — pusta
+    state["aktywna_playlista"] = 0
+    assert [e["track_id"] for e in U.utwory_playlisty(state)] == ["a"]
+
+
 def test_stan_przezywa_zapis_i_odczyt(tmp_path, monkeypatch):
     monkeypatch.setattr(U, "STATE_PATH", tmp_path / "stan.json")
     state = _stan()
     U.nowa_playlista(state, "Piątek · 130–135 · jak Ben UFO")
     U.ustaw_kotwice_playlisty(state, "Ben UFO")
     U.ustaw_filar(state, "a", "/m/a.aiff", "zamkniecie")
+    U.zapisz_utwory_playlisty(state, [{"track_id": "a", "path": "/m/a.aiff"}])
     U.save_state(state)
     wczytany = U.load_state()
     pl = U.aktywna_playlista(wczytany)
     assert pl["nazwa"].startswith("Piątek")
     assert pl["kotwica"] == "Ben UFO"
     assert U.rola_filara(wczytany, "a", "/m/a.aiff") == "zamkniecie"
+    assert [e["track_id"] for e in U.utwory_playlisty(wczytany)] == ["a"]

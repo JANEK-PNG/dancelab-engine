@@ -509,15 +509,16 @@ class NazwaPlanuScreen(ModalScreen):
 
 class NazwaPlaylistyScreen(NazwaPlanuScreen):
     """＋ nowa playlista: NAJPIERW nazwa (zaproponowana z metadanych puli —
-    wzór z praktyki Janka: „Piątek · 130–135 · jak Ben UFO"), POTEM kotwica.
-    Kolejność z jego decyzji 11.08."""
+    wzór z praktyki Janka: „Piątek · 130–135 · jak Ben UFO"), a po Enterze
+    OD RAZU Biblioteka, gdzie DJ zaznacza filary (decyzja Janka 12.08 —
+    kotwica przestała być wymuszonym krokiem)."""
 
     def compose(self) -> ComposeResult:
         with Vertical(id="nazwa-box"):
             yield Label("Nazwa playlisty (z metadanych — popraw, jeśli chcesz):")
             yield Input(value=self._domyslna, id="plan-name")
             with Horizontal(id="nazwa-przyciski"):
-                yield Button("Dalej: kotwica", id="nazwa-ok", variant="primary")
+                yield Button("Dalej: filary", id="nazwa-ok", variant="primary")
                 yield Button("Anuluj", id="nazwa-cancel")
 
 
@@ -830,7 +831,6 @@ class DanceLabTUI(App):
             cue.add_column(lbl, width=w)
         cue.cursor_type = "row"
         self._lib_section = "all"
-        self._przypisz_kotwice = False
         try:
             from dancelab.tui.user_store import load_state
             self._user_state = load_state(self.processed_dir)
@@ -1841,19 +1841,20 @@ class DanceLabTUI(App):
                                   *((e, w) for e, w in (pole._options or []))])
             pole.value = wybor
             self._close_panel()
-            if getattr(self, "_przypisz_kotwice", False):
-                from dancelab.tui.user_store import (aktywna_playlista,
-                                                     save_state,
-                                                     ustaw_kotwice_playlisty)
-                if ustaw_kotwice_playlisty(self._user_state, wybor):
-                    save_state(self._user_state, self.processed_dir)
-                    pl = aktywna_playlista(self._user_state)
-                    s_ = pl["nazwa"]; self._note(f"kotwica playlisty „{s_}” to teraz: {wybor}")
-                    self.notify(f"„{pl['nazwa']}” · kotwica: {wybor}",
-                                timeout=5)
-                self._przypisz_kotwice = False
-                self.query_one("#lib-table", DataTable).focus()
-                return
+            # Kotwica należy do playlisty: gdy jakaś jest aktywna, wybór
+            # DJ-a ustawia JEJ kotwicę — jawnie, z notką (kotwica przestała
+            # być wymuszonym krokiem tworzenia, Janek 12.08).
+            from dancelab.tui.user_store import (aktywna_playlista,
+                                                 save_state,
+                                                 ustaw_kotwice_playlisty)
+            if aktywna_playlista(self._user_state) is not None:
+                ustaw_kotwice_playlisty(self._user_state, wybor)
+                save_state(self._user_state, self.processed_dir)
+                pl = aktywna_playlista(self._user_state)
+                self._note(f"kotwica playlisty „{pl['nazwa']}” to teraz: "
+                           f"{wybor}")
+                self.notify(f"„{pl['nazwa']}” · kotwica: {wybor}", timeout=5)
+                self._render_side_list()
             self.query_one("#set", DataTable).focus()
             self._note(f"kotwica: {wybor}")
 
@@ -1868,7 +1869,10 @@ class DanceLabTUI(App):
         side.add_option(Option("⚑ Filary (playlisty)", id="filary"))
         for i, pl in enumerate(self._user_state.get("playlisty", [])):
             znak = "▸ " if aktywna_playlista(self._user_state) is pl else "  "
-            side.add_option(Option(f"{znak}{pl['nazwa'][:24]}", id=f"pl:{i}"))
+            n_utw = len(pl.get("utwory", []))
+            ogon = f" · {n_utw}" if n_utw else ""
+            side.add_option(Option(f"{znak}{pl['nazwa'][:24]}{ogon}",
+                                   id=f"pl:{i}"))
         side.add_option(Option("＋ nowa playlista", id="pl-new"))
         side.highlighted = 0
 
@@ -1886,12 +1890,17 @@ class DanceLabTUI(App):
                 nowa_playlista(self._user_state, nazwa)
                 save_state(self._user_state, self.processed_dir)
                 self._render_side_list()
-                self._note(f"playlista „{nazwa}” utworzona — teraz wybierz "
-                           f"jej kotwicę (lista otwarta)")
-                self.notify(f"Playlista „{nazwa}” — wybierz kotwicę",
+                # Janek 12.08: po nazwie OD RAZU Biblioteka — DJ zaznacza
+                # filary (F) do tej playlisty; kotwica nie jest wymuszonym
+                # krokiem, ustawia się ją panelem „Graj jak…" (Ctrl+G).
+                self._lib_section = "all"
+                self._render_library()
+                self.query_one("#lib-table", DataTable).focus()
+                self._note(f"playlista „{nazwa}” utworzona i aktywna — "
+                           f"F przypina filary do niej, B buduje i zapisuje "
+                           f"set w playliście; kotwica: panel Graj jak…")
+                self.notify(f"„{nazwa}” aktywna — zaznacz filary klawiszem F",
                             timeout=6)
-                self._przypisz_kotwice = True
-                self.action_grupy_dj()
 
             self.push_screen(NazwaPlaylistyScreen(propozycja), po_nazwie)
             return
@@ -1914,7 +1923,9 @@ class DanceLabTUI(App):
             self._render_library()
             self._note(f"playlista aktywna: {pl['nazwa']} · kotwica: "
                        f"{pl.get('kotwica') or '—'} · filary: "
-                       f"{len(pl['filary'])} — F przypina filar TEJ playlisty")
+                       f"{len(pl['filary'])} · utwory z budowy: "
+                       f"{len(pl.get('utwory', []))} — F przypina filar, "
+                       f"B buduje i zapisuje set")
             self.query_one("#lib-table", DataTable).focus()
             return
         self._lib_section = section
@@ -2801,6 +2812,18 @@ class DanceLabTUI(App):
         self._edits = []
         self._mean_score = plan.mean_transition_score
         self._render_order(by_id)
+        # Zbudowany set trafia DO aktywnej playlisty (Janek 12.08: zapis ma
+        # być automatyczny po „buduj"). Ostatnia budowa wygrywa.
+        from dancelab.tui.user_store import (aktywna_playlista, save_state,
+                                             zapisz_utwory_playlisty)
+        wpisy = [{"track_id": t, "path": by_id[t].track.source_path}
+                 for t in self._order if t in by_id]
+        if wpisy and zapisz_utwory_playlisty(self._user_state, wpisy):
+            save_state(self._user_state, self.processed_dir)
+            pl = aktywna_playlista(self._user_state)
+            self._note(f"set zapisany w playliście „{pl['nazwa']}” "
+                       f"({len(wpisy)} utworów) — ostatnia budowa wygrywa")
+            self._render_side_list()
         # Dwa rodzaje ostrzeżeń nie mogą siedzieć w schowanych notkach:
         # „brief zignorowany" i „set się sypie" zmieniają to, co DJ dostał
         # (oba złapane testem person 09.08).
