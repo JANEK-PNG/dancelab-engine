@@ -43,6 +43,7 @@ function profilP(s, poprz){
   if (s.C != null){
     return {C: s.C, D: s.D, Syn: s.Syn, U: s.U, K: s.K,
             okreslone: s.okreslone !== false, zSilnika: true,
+            iDJ: s.iDJ, iM: s.iM, Cdj: s.Cdj, Ddj: s.Ddj,
             cA: BARWA(T01(s.a || 128)), cB: BARWA(T01(s.b || 128))};
   }
   const H = {idealna: 1, sasiednia: 0.8, rownolegla: 0.74, wzgledna: 0.5,
@@ -156,6 +157,72 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
   const i0 = Math.max(0, Math.min(n - 1, Math.floor(teraz)));
   const P = profilP(szwy[i0], szwy[i0 - 1] || szwy[i0]);
   poleRelacji(ctx, cx, cy, MIN * 0.36, P, 1, czas, rt, gr, true);
+
+  // === PĘTLA DJ ↔ MUZYKA (Janek: „to jest właśnie in between") ===
+  // DJ nie jest widzem — jest DRUGĄ STRONĄ relacji. Puszcza muzykę,
+  // a muzyka zmienia jego następny ruch. Rysujemy oba kierunki:
+  // ku środkowi — ile DJ NARZUCIŁ (i_DJ→M), na zewnątrz — ile MUZYKA
+  // go poprowadziła (i_M→DJ). Grubsza strona prowadzi.
+  petlaDJ(ctx, cx, cy, MIN, P, czas, rt, gr,
+          (szwy[i0].b || 128) / 60);
+}
+
+function petlaDJ(ctx, cx, cy, MIN, P, czas, rt, gr, hz){
+  const iDJ = P.iDJ ?? 0.5, iM = P.iM ?? 0.5;
+  const Rd = MIN * 0.46;
+  const bit = 0.86 + 0.14 * Math.sin(czas * hz * 6.283);   // puls granego tempa
+
+  // obecność DJ-a: pierścień wokół pola relacji, oddycha rytmem utworu
+  ctx.strokeStyle = `rgba(232,228,218,${(0.05 + iDJ * 0.09).toFixed(3)})`;
+  ctx.lineWidth = Math.max(0.4, (0.4 + iDJ * 1.0) * gr);
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, Rd * bit, Rd * 0.66 * bit, 0, 0, 6.283);
+  ctx.stroke();
+
+  // kierunek DJ → MUZYKA: włókna z pierścienia do środka (narzucanie)
+  const doSrodka = Math.round(3 + iDJ * 22);
+  for (let k = 0; k < doSrodka; k++){
+    const kat = rt() * 6.283;
+    const x0 = cx + Math.cos(kat) * Rd * bit, y0 = cy + Math.sin(kat) * Rd * 0.66 * bit;
+    const x1 = cx + Math.cos(kat) * MIN * 0.1, y1 = cy + Math.sin(kat) * MIN * 0.07;
+    const a = (0.03 + iDJ * 0.13) * (0.4 + rt() * 0.7);
+    ctx.strokeStyle = `rgba(255,255,255,${a.toFixed(3)})`;
+    ctx.lineWidth = Math.max(0.25, (0.25 + iDJ * 0.5) * gr);
+    const wyg = (rt() - 0.5) * MIN * 0.22;
+    ctx.beginPath(); ctx.moveTo(x0, y0);
+    ctx.quadraticCurveTo((x0 + x1) / 2 + wyg, (y0 + y1) / 2 + wyg, x1, y1);
+    ctx.stroke();
+  }
+  // kierunek MUZYKA → DJ: włókna ze środka ku pierścieniowi (prowadzenie)
+  const naZewnatrz = Math.round(3 + iM * 22);
+  for (let k = 0; k < naZewnatrz; k++){
+    const kat = rt() * 6.283;
+    const x0 = cx + Math.cos(kat) * MIN * 0.12, y0 = cy + Math.sin(kat) * MIN * 0.08;
+    const x1 = cx + Math.cos(kat) * Rd * bit * 1.04,
+          y1 = cy + Math.sin(kat) * Rd * 0.66 * bit * 1.04;
+    const c = P.cB;
+    const a = (0.03 + iM * 0.13) * (0.4 + rt() * 0.7);
+    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(3)})`;
+    ctx.lineWidth = Math.max(0.25, (0.25 + iM * 0.5) * gr);
+    const wyg = (rt() - 0.5) * MIN * 0.22;
+    ctx.beginPath(); ctx.moveTo(x0, y0);
+    ctx.quadraticCurveTo((x0 + x1) / 2 + wyg, (y0 + y1) / 2 + wyg, x1, y1);
+    ctx.stroke();
+  }
+  // kto prowadzi: łuk po stronie silniejszego kierunku
+  if (P.Ddj != null){
+    const prowadziDJ = P.Ddj > 0;
+    const moc = Math.min(1, Math.abs(P.Ddj) / 1.6);
+    ctx.strokeStyle = prowadziDJ
+      ? `rgba(255,255,255,${(0.25 * moc).toFixed(3)})`
+      : `rgba(${VOLT[0]},${VOLT[1]},${VOLT[2]},${(0.3 * moc).toFixed(3)})`;
+    ctx.lineWidth = Math.max(0.5, 1.1 * moc * gr);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, Rd * bit * (prowadziDJ ? 1.06 : 0.9),
+                Rd * 0.66 * bit * (prowadziDJ ? 1.06 : 0.9), 0,
+                prowadziDJ ? -0.9 : 2.24, prowadziDJ ? 0.9 : 4.04);
+    ctx.stroke();
+  }
 }
 
 /* POLE RELACJI — brzegi są tylko krawędziami; ciałem jest to, co pomiędzy. */
