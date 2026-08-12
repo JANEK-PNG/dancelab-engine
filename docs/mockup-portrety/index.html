@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DanceLab — trzy portrety brzmienia (z prawdziwych szwów)</title>
+<style>
+  :root{
+    --tlo:#171614; --karta:#211f1c; --linia:#3a3730; --tekst:#e8e4da;
+    --przygaszony:#8f8a7e; --slaby:#5c5850; --volt:#d6f549;
+    --cieply:#e0a458; --chlodny:#6db3c9; --oliwka:#a8c952; --rdza:#e07458;
+    --r:3px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{background:var(--tlo); color:var(--tekst); min-height:100vh;
+    font-family:"Space Grotesk", system-ui, sans-serif; padding:28px 32px 60px}
+  .mono{font-family:"JetBrains Mono", ui-monospace, monospace}
+  h1{font-size:22px; font-weight:600; margin-bottom:4px}
+  .pod{color:var(--slaby); font-size:12px; margin-bottom:16px; max-width:900px}
+  .wybor{display:flex; gap:8px; margin-bottom:22px}
+  .dj{border:1px solid var(--linia); border-radius:var(--r); padding:6px 14px;
+    font-size:13px; color:var(--przygaszony); cursor:pointer; background:none;
+    font-family:inherit}
+  .dj.on{border-color:var(--volt); color:var(--volt)}
+  .sciana{display:grid; grid-template-columns:repeat(auto-fit,minmax(420px,1fr)); gap:18px}
+  .panel{background:var(--karta); border:1px solid var(--linia);
+    border-radius:var(--r); padding:14px}
+  .panel h2{font-size:14px; font-weight:600; letter-spacing:.5px;
+    text-transform:uppercase; margin-bottom:2px}
+  .panel .opis{font-size:11px; color:var(--przygaszony); margin-bottom:10px;
+    line-height:1.5; min-height:44px}
+  canvas{width:100%; display:block; background:#1b1a17; border-radius:var(--r)}
+  .legenda{font-size:10px; color:var(--slaby); margin-top:8px; line-height:1.6}
+  .legenda i{display:inline-block; width:10px; height:10px; border-radius:2px;
+    vertical-align:-1px; margin:0 4px 0 10px}
+</style>
+</head>
+<body>
+
+<h1>Trzy portrety brzmienia — jeden artysta, te same dane</h1>
+<p class="pod">Każdy portret rysowany WYŁĄCZNIE z prawdziwych szwów tego DJ-a w mapie
+(sekwencje przejść: tempo A → tempo B, skok, zgodność harmoniczna, kolejność w secie).
+Zero losowości poza deterministycznym ziarnem — ta sama osoba zawsze dostaje ten sam portret.</p>
+
+<div class="wybor" id="wybor"></div>
+
+<div class="sciana">
+  <div class="panel">
+    <h2>I · Pierścień przejść</h2>
+    <div class="opis">Geometria sakralna z rzemiosła: obwód to oś temp (95–190).
+      Każdy szew to cięciwa od tempa wyjścia do tempa wejścia. Kolor mówi o harmonii,
+      grubość o skoku. DJ „wąski" rysuje ciasny wachlarz, DJ-skoczek — pajęczynę.</div>
+    <canvas id="c1" width="640" height="640"></canvas>
+    <div class="legenda">cięciwy:<i style="background:var(--oliwka)"></i>zgodne harmonicznie
+      <i style="background:var(--chlodny)"></i>sąsiednie/równoległe
+      <i style="background:var(--rdza)"></i>bez zgodności · grubość = skok tempa</div>
+  </div>
+  <div class="panel">
+    <h2>II · Sejsmograf</h2>
+    <div class="opis">Brutalizm pomiaru: papier milimetrowy, jeden wiersz na set,
+      igła skacze o realny skok tempa przy każdym szwie. Zgodny harmonicznie szew
+      to cienka kreska, zgrzyt — gruby czarny słupek. Zero koloru, sama prawda zapisu.</div>
+    <canvas id="c2" width="640" height="640"></canvas>
+    <div class="legenda">oś pozioma = kolejne szwy w secie · wychylenie = ±skok BPM ·
+      słupek = szew bez zgodności harmonicznej</div>
+  </div>
+  <div class="panel">
+    <h2>III · Ogród</h2>
+    <div class="opis">Organika: każdy set wyrasta z ziemi jako łodyga — wysokość to
+      liczba szwów. Liście wyrastają pod kątem skoku tempa (spokojny DJ = łagodna
+      paproć, skoczek = jeżozwierz), kwiat na szczycie ma kolor mediany tempa setu.</div>
+    <canvas id="c3" width="640" height="640"></canvas>
+    <div class="legenda">łodyga = set · liść = szew (kąt = skok, kolor = harmonia) ·
+      kwiat = mediana tempa setu (chłodny→ciepły)</div>
+  </div>
+</div>
+
+<script>
+const K = {oliwka:"#a8c952", chlodny:"#6db3c9", rdza:"#e07458",
+           cieply:"#e0a458", volt:"#d6f549", tekst:"#e8e4da",
+           slaby:"#5c5850", linia:"#3a3730"};
+const ZGODNE = new Set(["idealna"]);
+const SASIEDNIE = new Set(["sasiednia","rownolegla"]);
+const kolorH = h => ZGODNE.has(h) ? K.oliwka : SASIEDNIE.has(h) ? K.chlodny : K.rdza;
+const mieszaj = (a,b,t) => {
+  const pa=parseInt(a.slice(1),16), pb=parseInt(b.slice(1),16);
+  const c=i=>Math.round(((pa>>i&255))+(((pb>>i&255))-((pa>>i&255)))*t);
+  return `rgb(${c(16)},${c(8)},${c(0)})`;
+};
+const MIN=95, MAX=190;
+const t01 = v => Math.max(0, Math.min(1, (v-MIN)/(MAX-MIN)));
+
+/* I — PIERŚCIEŃ PRZEJŚĆ */
+function pierscien(cv, szwy){
+  const x = cv.getContext("2d"); const W=cv.width, H=cv.height;
+  x.clearRect(0,0,W,H);
+  const cx=W/2, cy=H/2, R=W*0.40;
+  const kat = v => (-0.5 + 1.5*t01(v)) * Math.PI;   // 3/4 okręgu, od góry
+  x.strokeStyle=K.linia; x.lineWidth=2;
+  x.beginPath(); x.arc(cx,cy,R,kat(MIN),kat(MAX)); x.stroke();
+  x.fillStyle=K.slaby; x.font="12px ui-monospace"; x.textAlign="center";
+  for (const v of [95,120,140,165,190]){
+    const a=kat(v);
+    x.fillText(v, cx+Math.cos(a)*(R+18), cy+Math.sin(a)*(R+18)+4);
+    x.beginPath(); x.moveTo(cx+Math.cos(a)*(R-4), cy+Math.sin(a)*(R-4));
+    x.lineTo(cx+Math.cos(a)*(R+5), cy+Math.sin(a)*(R+5)); x.stroke();
+  }
+  for (const s of szwy){
+    const a1=kat(s.a), a2=kat(s.b);
+    const p1={x:cx+Math.cos(a1)*R, y:cy+Math.sin(a1)*R};
+    const p2={x:cx+Math.cos(a2)*R, y:cy+Math.sin(a2)*R};
+    const sciag = 0.15 + 0.75*Math.min(Math.abs(s.d)/40,1); // duży skok → przez środek
+    const mx=(p1.x+p2.x)/2, my=(p1.y+p2.y)/2;
+    const qx=cx+(mx-cx)*(1-sciag), qy=cy+(my-cy)*(1-sciag);
+    x.strokeStyle=kolorH(s.h);
+    x.globalAlpha = 0.16 + 0.2*Math.min(Math.abs(s.d)/30,1);
+    x.lineWidth = 0.6 + Math.min(Math.abs(s.d)/12, 3.4);
+    x.beginPath(); x.moveTo(p1.x,p1.y); x.quadraticCurveTo(qx,qy,p2.x,p2.y); x.stroke();
+  }
+  x.globalAlpha=1;
+}
+
+/* II — SEJSMOGRAF */
+function sejsmograf(cv, szwy){
+  const x = cv.getContext("2d"); const W=cv.width, H=cv.height;
+  x.fillStyle="#e8e4da"; x.fillRect(0,0,W,H);          // papier
+  x.strokeStyle="rgba(109,179,201,.25)"; x.lineWidth=1; // milimetrówka
+  for(let i=0;i<W;i+=16){x.beginPath();x.moveTo(i,0);x.lineTo(i,H);x.stroke();}
+  for(let j=0;j<H;j+=16){x.beginPath();x.moveTo(0,j);x.lineTo(W,j);x.stroke();}
+  const sety=[...new Set(szwy.map(s=>s.set))];
+  const wys=H/(sety.length+1);
+  x.fillStyle="#161509"; x.strokeStyle="#161509";
+  sety.forEach((nr,wiersz)=>{
+    const ss=szwy.filter(s=>s.set===nr);
+    const y0=wys*(wiersz+1);
+    const krok=Math.min(22, (W-70)/Math.max(ss.length,1));
+    x.font="10px ui-monospace"; x.textAlign="left";
+    x.fillText(`SET ${String(nr+1).padStart(2,"0")} · ${ss.length}`, 8, y0-wys*0.32);
+    x.lineWidth=1.6; x.beginPath(); x.moveTo(40,y0);
+    ss.forEach((s,i)=>{
+      const px=40+krok*(i+1);
+      const wych=Math.max(-wys*0.42, Math.min(wys*0.42, -s.d*(s.b>=s.a?1:-1)*1.4));
+      x.lineTo(px-krok/2, y0);
+      x.lineTo(px-krok/2+1.5, y0+wych);
+      x.lineTo(px, y0);
+    });
+    x.stroke();
+    ss.forEach((s,i)=>{                     // zgrzyt = gruby słupek
+      if (!ZGODNE.has(s.h) && !SASIEDNIE.has(s.h)){
+        const px=40+krok*(i+1)-krok/2;
+        x.fillRect(px-1.6, y0-9, 3.2, 18);
+      }
+    });
+  });
+}
+
+/* III — OGRÓD */
+function ogrod(cv, szwy){
+  const x = cv.getContext("2d"); const W=cv.width, H=cv.height;
+  x.clearRect(0,0,W,H);
+  const ziemia=H-46;
+  x.strokeStyle=K.linia; x.lineWidth=2;
+  x.beginPath(); x.moveTo(20,ziemia); x.lineTo(W-20,ziemia); x.stroke();
+  const sety=[...new Set(szwy.map(s=>s.set))];
+  const luz=(W-80)/Math.max(sety.length,1);
+  sety.forEach((nr,i)=>{
+    const ss=szwy.filter(s=>s.set===nr);
+    const x0=55+luz*i + (nr*37%13);
+    const wysokosc=Math.min(ziemia-70, 60+ss.length*(ziemia-140)/60);
+    const przech=((nr*73%11)-5)*0.006;
+    x.strokeStyle="#7d8a5a"; x.lineWidth=2.2;
+    x.beginPath(); x.moveTo(x0,ziemia);
+    x.quadraticCurveTo(x0+przech*900, ziemia-wysokosc*0.6, x0+przech*1400, ziemia-wysokosc);
+    x.stroke();
+    const szczyt={x:x0+przech*1400, y:ziemia-wysokosc};
+    ss.forEach((s,j)=>{
+      const t=(j+1)/(ss.length+1);
+      const lx=x0+przech*1400*t*t, ly=ziemia-wysokosc*t;
+      const strona=j%2?1:-1;
+      const kal=Math.min(Math.abs(s.d)/28,1);
+      const kat=-0.15 - 1.25*kal;                 // spokojny liść ku górze, skoczny sterczy
+      const dl=7+Math.min(Math.abs(s.d),26)*0.65;
+      x.strokeStyle=kolorH(s.h); x.lineWidth=1.5; x.globalAlpha=0.85;
+      x.beginPath(); x.moveTo(lx,ly);
+      x.quadraticCurveTo(lx+strona*dl*0.7, ly+kat*dl*0.5, lx+strona*dl, ly+kat*dl);
+      x.stroke();
+    });
+    x.globalAlpha=1;
+    const bpmy=ss.flatMap(s=>[s.a,s.b]).sort((a,b)=>a-b);
+    const med=bpmy[Math.floor(bpmy.length/2)] ?? 130;
+    x.fillStyle=mieszaj("#6db3c9","#e0a458",t01(med));
+    x.beginPath(); x.arc(szczyt.x, szczyt.y, 5+ss.length*0.10, 0, 7); x.fill();
+    x.fillStyle=K.slaby; x.font="9px ui-monospace"; x.textAlign="center";
+    x.fillText(Math.round(med), szczyt.x, szczyt.y-12);
+  });
+}
+
+let DANE={};
+function rysuj(kto){
+  const szwy=DANE[kto]||[];
+  pierscien(document.getElementById("c1"), szwy);
+  sejsmograf(document.getElementById("c2"), szwy);
+  ogrod(document.getElementById("c3"), szwy);
+  document.querySelectorAll(".dj").forEach(b=>b.classList.toggle("on", b.textContent===kto));
+}
+fetch("szwy.json").then(r=>r.json()).then(d=>{
+  DANE=d;
+  const w=document.getElementById("wybor");
+  Object.keys(d).forEach(k=>{
+    const b=document.createElement("button");
+    b.className="dj"; b.textContent=k; b.onclick=()=>rysuj(k);
+    w.appendChild(b);
+  });
+  rysuj(Object.keys(d)[0]);
+});
+</script>
+</body>
+</html>
