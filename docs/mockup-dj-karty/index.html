@@ -96,7 +96,8 @@
   .paski{margin-bottom:14px}
   .pasek{display:grid; grid-template-columns:86px 1fr 34px; gap:8px; align-items:center; font-size:11px; color:var(--przygaszony); margin-bottom:5px}
   .pasek .tor2{height:5px; background:var(--karta-2); border-radius:var(--r); overflow:hidden}
-  .pasek .fill{height:100%; background:var(--cieply); opacity:.8}
+  .pasek .fill{height:100%; background:var(--cieply); opacity:.8;
+    transition:width .3s ease}
   .pasek .fill.c{background:var(--chlodny)}
   .pasek .fill.g{background:#a8c952}
 
@@ -409,18 +410,36 @@ function portret(cv, d, czas = 0){
       }
       ctx.stroke();
     }
-    // KAŻDA NITKA = JEDEN SZEW, w strefie swojego miejsca w nocy
+    // linia artysty: mix to wytyczona ręką droga — rysuje się za kropką
+    const T = 13, PAUZA = 0.92;
+    const faza = (czas / T) % 1;
+    const xs = Math.min(faza / PAUZA, 1) * W;
+    ctx.strokeStyle = "rgba(232,228,218,0.20)"; ctx.lineWidth = 1;
+    ctx.beginPath();
+    let zaczete = false;
+    for (const pkt of plan.nic){
+      if (pkt.x > xs) break;
+      zaczete ? ctx.lineTo(pkt.x, pkt.y) : ctx.moveTo(pkt.x, pkt.y);
+      zaczete = true;
+    }
+    ctx.stroke();
+    // UTWORY DOCZEPIANE STOPNIOWO: nić istnieje dopiero, gdy noc
+    // do niej doszła; świeżo doczepiona wyrasta z linii przez chwilę
     szwy.forEach((s, idx) => {
+      const xN = (idx + 0.5) / szwy.length * W;
+      if (xN > xs) return;
+      const wzrost = Math.min(1, (xs - xN) / 26);
+      const rt = rnd(hash(d.ksywa + ":" + idx));   // ziarno TEJ nitki
       const perf = s.h === "idealna";
       const czysty = ZG.has(s.h);
-      let x = (idx / szwy.length) * W + (r()-0.5)*W*0.15;
-      let y = r()*H;
+      let x = (idx / szwy.length) * W + (rt()-0.5)*W*0.15;
+      let y = rt()*H;
       if (perf){
         ctx.strokeStyle = `rgba(${volt[0]},${volt[1]},${volt[2]},0.4)`;
         ctx.lineWidth = 1.0;
         ctx.shadowColor = "rgba(214,245,73,0.25)"; ctx.shadowBlur = 2;
         ctx.beginPath(); ctx.moveTo(x, y);
-        for (let i = 0; i < 120; i++){
+        for (let i = 0; i < Math.round(120*wzrost); i++){
           const t2 = kat(x, y);
           x += Math.cos(t2)*2.6; y += Math.sin(t2)*2.6;
           ctx.lineTo(x, y);
@@ -428,12 +447,12 @@ function portret(cv, d, czas = 0){
         ctx.stroke(); ctx.shadowBlur = 0;
       } else if (czysty){
         const c = mix(t01((s.a + s.b) / 2));
-        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.4+r()*0.2).toFixed(2)})`;
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.4+rt()*0.2).toFixed(2)})`;
         ctx.lineWidth = 1.0 + bas*1.8;
         ctx.beginPath(); ctx.moveTo(x, y);
-        const dl = 55 + Math.min(Math.abs(s.d),30)*2.5;
+        const dl = Math.round((55 + Math.min(Math.abs(s.d),30)*2.5)*wzrost);
         for (let i = 0; i < dl; i++){
-          const t2 = kat(x, y) + (r()-0.5)*0.1;
+          const t2 = kat(x, y) + (rt()-0.5)*0.1;
           x += Math.cos(t2)*2.6; y += Math.sin(t2)*2.6;
           ctx.lineTo(x, y);
         }
@@ -442,23 +461,20 @@ function portret(cv, d, czas = 0){
         const c = mix(t01((s.a + s.b) / 2)).map(v => Math.round(v*0.55 + 60));
         ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},0.34)`;
         ctx.lineWidth = 0.7;
-        for (let seg = 0; seg < 3; seg++){
+        for (let seg = 0; seg < Math.max(1, Math.round(3*wzrost)); seg++){
           ctx.beginPath(); ctx.moveTo(x, y);
           for (let i = 0; i < 6; i++){
-            const t2 = kat(x, y) + (r()-0.5)*1.4;
+            const t2 = kat(x, y) + (rt()-0.5)*1.4;
             x += Math.cos(t2)*2.6; y += Math.sin(t2)*2.6;
             ctx.lineTo(x, y);
           }
           ctx.stroke();
-          x += (r()-0.5)*14; y += (r()-0.5)*14;
+          x += (rt()-0.5)*14; y += (rt()-0.5)*14;
         }
       }
     });
-    // ŚWIATŁO-EMOCJA: niewidzialna ścieżka nocy przez jedwab
-    const T = 13, PAUZA = 0.92;
-    const faza = (czas / T) % 1;
+    // ŚWIATŁO-EMOCJA: pióro artysty na końcu wytyczanej linii
     if (faza < PAUZA && czas > 0){
-      const xs = faza / PAUZA * W;
       let ys = nicY(plan.nic, xs), alfa = 0.8, kolor = [232,228,218], rr = 15;
       for (const z of plan.zdarzenia){
         if (z.typ === "wbicie" && xs > z.x && xs < z.x + z.dl){
@@ -520,8 +536,35 @@ function zyj(ts){
     OSTATNIA = ts;
     document.querySelectorAll(".portret").forEach(cv => {
       const b = cv.getBoundingClientRect();
-      if (b.bottom > 0 && b.top < innerHeight)
-        portret(cv, DJE[+cv.dataset.i], ts/1000*0.35);
+      if (b.bottom <= 0 || b.top >= innerHeight) return;
+      const czas = ts/1000*0.35;
+      const dd = DJE[+cv.dataset.i];
+      portret(cv, dd, czas);
+      // paski żyją z kropką: pokazują utwór grający POD nią;
+      // w pauzie nocy wracają do median całości
+      const kartaEl = cv.closest(".karta");
+      const szwy = SZWY[dd.ksywa] || [];
+      if (!kartaEl) return;
+      const paski = kartaEl.querySelectorAll(".pasek");
+      if (paski.length < 3) return;
+      let e = dd.energia, g = dd.groove, bs = dd.bas;
+      if (szwy.length){
+        const faza = (czas / 13) % 1;
+        if (faza < 0.92){
+          const s = szwy[Math.min(szwy.length - 1,
+            Math.floor(faza / 0.92 * szwy.length))];
+          if (s.eb != null) e = s.eb;
+          if (s.gb != null) g = s.gb;
+          if (s.bb != null) bs = s.bb;
+        }
+      }
+      [[0, e], [1, g], [2, bs]].forEach(([i, v]) => {
+        if (v == null) return;
+        const fill = paski[i].querySelector(".fill");
+        const licz = paski[i].querySelector(".mono");
+        if (fill) fill.style.width = (v * 100).toFixed(0) + "%";
+        if (licz) licz.textContent = v.toFixed(2);
+      });
     });
   }
   requestAnimationFrame(zyj);
