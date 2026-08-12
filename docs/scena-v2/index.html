@@ -94,8 +94,9 @@ function wlosy(H){
       faza: r() * 6.283, dryf: 0.05 + r() * 0.12,
       amp: H * (0.035 + g * 0.09),
       wejscie: r(),                 // kiedy ten włos daje się wpleść
-      pasmo: (r() - 0.5) * 2,       // jego miejsce w warkoczu
-      skret: 5 + r() * 4});
+      pasmo: i % 3,                 // jedno z trzech pasm warkocza
+      wpasmie: r(),                 // gdzie w obrębie pasma
+      skret: 3.2 + r() * 0.8});
   }
   WLOSY = {H, lista};
   return lista;
@@ -167,16 +168,43 @@ function splotStan(k){
                          gladko(((xB + MARG) - x) / MARG)) * zywa;
       if (s <= 0) return [wlasna, 0];
       const uu = Math.max(0, Math.min(1, (x - xA) / (xB - xA)));
-      const owin = Math.sin(uu * w.skret * 6.283 + w.faza) * H * 0.008 * w.pasmo;
-      return [wlasna + (os(uu) + owin - wlasna) * s, s];
+      // WARKOCZ: trzy pasma przechodzą jedno przez drugie — przesunięte
+      // o 120°, więc naprawdę się przeplatają, a nie biegną równolegle.
+      // Warkocz zaciska się w miarę dojrzewania splotu.
+      const zacisk = 0.5 + 0.5 * splot;
+      const promien = H * 0.05 * (1 - 0.88 * splot);   // zaciska się w sznur
+      const kat = uu * w.skret * 6.283 + w.pasmo * 2.0944;
+      const owin = Math.sin(kat) * promien
+                 + Math.sin(kat * 2 + w.wpasmie * 6.283) * promien * 0.18;
+      return [wlasna + (os(uu) + owin - wlasna) * s * zacisk, s];
     },
   };
 }
 
 function warstwaSplatanie(ctx, k){
   const S = splotStan(k);
-  if (!S || S.wedrowka <= 0) return;
-  const {czas, H} = k;
+  if (!S) return;
+  const {czas, H, W} = k;
+
+  // ZAISTNIENIE: w chwili, gdy warkocz się zaciska, połączenie staje się
+  // dość mocne, by istnieć — i wtedy DJ naciska play. Rozbłysk wzdłuż
+  // całej osi splotu, potem punkt rusza.
+  if (S.splot > 0.82){
+    const moc = Math.min(1, (S.splot - 0.82) / 0.18);
+    const zanik = S.wedrowka > 0 ? Math.max(0, 1 - S.wedrowka * 4) : 1;
+    const a = moc * zanik;
+    if (a > 0.01){
+      ctx.strokeStyle = `rgba(255,246,214,${(0.5 * a).toFixed(3)})`;
+      ctx.lineWidth = 2.2 + 3.4 * a;
+      ctx.beginPath();
+      for (let j = 0; j <= 60; j++){
+        const u = j / 60, x = S.xA + (S.xB - S.xA) * u;
+        j === 0 ? ctx.moveTo(x, S.os(u)) : ctx.lineTo(x, S.os(u));
+      }
+      ctx.stroke();
+    }
+  }
+  if (S.wedrowka <= 0) return;
   const u = S.wedrowka;
   const x = S.xA + (S.xB - S.xA) * u, y = S.os(u);
   const puls = 0.8 + 0.2 * Math.sin(czas * 2.4);
