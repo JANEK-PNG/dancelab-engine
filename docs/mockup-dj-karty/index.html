@@ -101,7 +101,13 @@
   }
   .graj:hover{filter:brightness(1.08)}
   .karta.szara .graj{background:none; color:var(--przygaszony); border:1px solid var(--linia)}
-  .graj.w-kol{background:none; color:var(--volt); border:1px solid var(--volt)}
+  /* w kolekcji: sam checkmark; hover = ✕ i cieplejszy kolor — klik wywala
+     z kolekcji i wracamy do „＋ DO KOLEKCJI" (Janek 12.08) */
+  .graj.w-kol{background:none; color:var(--volt); border:1px solid var(--volt);
+    min-width:44px; padding:9px 0; font-size:15px}
+  .graj.w-kol::before{content:"✓"}
+  .graj.w-kol:hover::before{content:"✕"}
+  .graj.w-kol:hover{color:#e07458; border-color:#e07458; filter:none}
   .karta.szara .graj.w-kol{color:var(--volt); border-color:var(--volt)}
 
   /* podgląd pola „Brzmi jak…": kolekcja ma PIERWSZEŃSTWO, z checkmarkiem */
@@ -236,7 +242,7 @@ function karta(d){
         ale za mało policzonych, żeby uczciwie narysować profil. Karta uzupełni się sama,
         gdy pomiary dojdą — nic tu nie zgadujemy.</div>
       <div class="stopka"><span class="zaplecze">w mapie: ${d.sety} sety · ${d.szwy} szwów</span>
-      <button class="graj${d.kolekcja?" w-kol":""}" onclick="kolekcja(${d._i})">${d.kolekcja?"✓ W KOLEKCJI":"＋ DO KOLEKCJI"}</button></div>
+      <button class="graj${d.kolekcja?" w-kol":""}" onclick="kolekcja(${d._i})" title="${d.kolekcja?"usuń z kolekcji":"dodaj do kolekcji"}">${d.kolekcja?"":"＋ DO KOLEKCJI"}</button></div>
     </div>`;
   }
   const zn = tagi(d);
@@ -268,7 +274,7 @@ function karta(d){
     </div>
     <div class="stopka">
       <span class="zaplecze">w mapie: ${d.sety} set${d.sety===1?"":"y"} · ${d.szwy} szwów policzonych${d.utwory?` · ${d.utwory} utworów`:""}</span>
-      <button class="graj${d.kolekcja?" w-kol":""}" onclick="kolekcja(${d._i})">${d.kolekcja?"✓ W KOLEKCJI":"＋ DO KOLEKCJI"}</button>
+      <button class="graj${d.kolekcja?" w-kol":""}" onclick="kolekcja(${d._i})" title="${d.kolekcja?"usuń z kolekcji":"dodaj do kolekcji"}">${d.kolekcja?"":"＋ DO KOLEKCJI"}</button>
     </div>
   </div>`;
 }
