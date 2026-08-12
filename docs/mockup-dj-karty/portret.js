@@ -43,9 +43,9 @@ function przestrzen(ksywa, szwy){
   const ziarna = szwy.map((s, i) => {
     const perf = s.h === "idealna", czysty = ZGODNE.has(s.h);
     return {
-      kat: i * 2.39996 + r() * 0.5,          // kąt złoty — brak stron świata
+      kat: i * 0.34 + (r() - 0.5) * 0.22,     // spirala: ciąg, nie zygzak
       przechyl: (r() - 0.5) * 0.9,
-      promien: 0.24 + 0.66 * T01((s.a + s.b) / 2),
+      promien: 0.30 + 0.85 * T01((s.a + s.b) / 2),
       dryf: (r() - 0.5) * 0.22,
       perf, czysty,
       c: perf ? VOLT : BARWA(T01((s.a + s.b) / 2)),
@@ -98,63 +98,103 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
     if (wiek < -1.6) continue;                // dalej niż zapowiedź = PRÓŻNIA
     widoczne.push({i, wiek});
   }
-  widoczne.sort((a, b) => b.wiek - a.wiek);   // od najgłębszych
+  widoczne.sort((a, b) => b.wiek - a.wiek);   // od najgłębszych ku teraz
 
+  // === JEDEN CIĄG (Janek 13.08: „to nie ma być pocięte spaghetti —
+  // to ciąg rozrastających się możliwości skupianych w jedną
+  // rzeczywistość"). Nić nie urywa się na przejściu: biegnie przez nie
+  // dalej, tylko zmienia barwę i grubość. Z każdego węzła wyrastają
+  // możliwości, które gasną — a rzeczywistość płynie nieprzerwanie. ===
   const rt = rnd(hash(d.ksywa + "klatka"));
-  for (const {i, wiek} of widoczne){
-    const z = ziarnoZ(wiek);
+  const punkty = widoczne.map(({i, wiek}) => {
     const s = P.ziarna[i];
+    const z = ziarnoZ(wiek);
     const persp = OKO / (OKO + z * SKALA * 0.9);
-    if (persp < 0.03) continue;
     const kat = s.kat + obrot + s.dryf * Math.sin(czas * 0.3 + s.f);
     const prom = s.promien * SKALA * (0.55 + 0.45 * Math.sin(czas * 0.22 + s.f));
-    const X = cx + Math.cos(kat) * prom * persp;
-    const Y = cy + Math.sin(kat) * prom * persp * (0.62 + s.przechyl * 0.2);
-    // zapowiedź przyszłości: zakrzywiona, ledwie zarysowana
-    const zapowiedz = wiek < 0;
-    const swiezosc = Math.max(0, 1 - Math.abs(wiek) / 1.6);
-    const zycie = zapowiedz ? swiezosc * 0.22
-      : Math.max(0.10, Math.pow(1 - Math.min(1, wiek / P.n), 0.55));
-    const alfa = zycie * (0.32 + swiezosc * 0.6) * (s.perf ? 1.25 : 1);
-    if (alfa < 0.008) continue;
-    ctx.strokeStyle = `rgba(${s.c[0]},${s.c[1]},${s.c[2]},${Math.min(0.95, alfa).toFixed(3)})`;
-    ctx.lineWidth = Math.max(0.35, (s.perf ? 1.15 : 0.85) * gr * persp);
-    const drzenie = s.czysty ? 0.12 : 0.9;
-    for (let k = 0; k < s.nitek; k++){
-      let x = X + (rt() - 0.5) * SKALA * s.rozrzut * persp;
-      let y = Y + (rt() - 0.5) * SKALA * s.rozrzut * persp;
-      const krok = 2.4 * persp * (Math.min(W, H) / 300);
+    return {
+      i, wiek, s, persp,
+      x: cx + Math.cos(kat) * prom * persp,
+      y: cy + Math.sin(kat) * prom * persp * (0.62 + s.przechyl * 0.2),
+      zapowiedz: wiek < 0,
+      swiez: Math.max(0, 1 - Math.abs(wiek) / 1.6),
+      zycie: wiek < 0 ? 0.22 : Math.max(0.1, Math.pow(1 - Math.min(1, wiek / P.n), 0.55)),
+    };
+  });
+
+  // 1 · MOŻLIWOŚCI: z każdego węzła rozrastają się i wygasają
+  for (const p of punkty){
+    if (p.zapowiedz || p.persp < 0.05) continue;
+    const ile = 3 + Math.round(p.s.rozrzut * 14);
+    const dl = SKALA * 0.16 * p.persp * (0.4 + p.swiez);
+    for (let k = 0; k < ile; k++){
+      const rozejscie = (rt() - 0.5) * 2.2;
+      const a = 0.11 * p.zycie * (0.25 + p.swiez * 0.9);
+      if (a < 0.006) continue;
+      ctx.strokeStyle = `rgba(${p.s.c[0]},${p.s.c[1]},${p.s.c[2]},${a.toFixed(3)})`;
+      ctx.lineWidth = Math.max(0.3, 0.55 * p.persp * gr);
+      let x = p.x, y = p.y, kier = rozejscie;
       ctx.beginPath(); ctx.moveTo(x, y);
-      for (let j = 0; j < s.dl; j++){
-        const kier = pole(x - cx, y - cy, czas, P.wzburzenie, s.f)
-                     + (rt() - 0.5) * drzenie;
-        x += Math.cos(kier) * krok; y += Math.sin(kier) * krok;
+      for (let j = 0; j < 10; j++){
+        kier += (rt() - 0.5) * 0.55
+                + pole(x - cx, y - cy, czas, P.wzburzenie, p.s.f) * 0.25;
+        x += Math.cos(kier) * dl / 10; y += Math.sin(kier) * dl / 10;
         ctx.lineTo(x, y);
       }
       ctx.stroke();
     }
-    // splot: dwa tempa związane w chwili miksu — tylko gdy blisko teraz
-    if (!zapowiedz && wiek < 0.9){
-      const moc = (1 - wiek / 0.9) * persp;
-      const dlS = 16 * persp * (1 + moc);
-      for (const znak of [1, -1]){
-        ctx.strokeStyle = `rgba(255,255,255,${(0.3 * moc).toFixed(3)})`;
-        ctx.lineWidth = 0.8 * persp * gr;
-        ctx.beginPath();
-        for (let t = 0; t <= 18; t++){
-          const u = t / 18;
-          const px = X - dlS + dlS * 2 * u;
-          const py = Y + Math.sin(u * 12.6 + (znak > 0 ? 0 : 3.14))
-                         * dlS * 0.34 * znak * Math.sin(u * 3.14);
-          t === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-        }
-        ctx.stroke();
+  }
+
+  // 2 · RZECZYWISTOŚĆ: nieprzerwany ciąg przez wszystkie węzły,
+  //     splecione pasma — grubieje i jaśnieje, im bliżej teraz
+  const PASM = 5;
+  for (let pas = 0; pas < PASM; pas++){
+    const przes = (pas - (PASM - 1) / 2) * 0.9;
+    const fazaPas = pas * 1.7;
+    for (let k = 0; k < punkty.length - 1; k++){
+      const a = punkty[k], b = punkty[k + 1];
+      if (a.persp < 0.03) continue;
+      const alfa = Math.min(0.95, b.zycie * (0.30 + b.swiez * 0.55)
+                                  * (b.s.perf ? 1.3 : 1) * (pas === 2 ? 1.25 : 0.7));
+      if (alfa < 0.008) continue;
+      const c = b.zapowiedz ? [140, 140, 140] : b.s.c;
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alfa.toFixed(3)})`;
+      ctx.lineWidth = Math.max(0.3, (b.s.perf ? 1.5 : 1.0) * gr * b.persp
+                                    * (pas === 2 ? 1.35 : 0.8));
+      const rozp = SKALA * 0.055;         // rozplot pasm — warkocz nici
+      const oa = Math.sin(a.i * 0.7 + fazaPas + czas * 0.4) * przes * rozp * a.persp;
+      const ob = Math.sin(b.i * 0.7 + fazaPas + czas * 0.4) * przes * rozp * b.persp;
+      const ax = a.x, ay = a.y + oa, bx = b.x, by = b.y + ob;
+      const mx = (ax + bx) / 2 + (ay - by) * 0.16;
+      const my = (ay + by) / 2 + (bx - ax) * 0.16;
+      ctx.beginPath(); ctx.moveTo(ax, ay);
+      ctx.quadraticCurveTo(mx, my, bx, by);
+      ctx.stroke();
+    }
+  }
+
+  // 3 · SPLOT w chwili miksu — dwa tempa związane na zawsze
+  for (const p of punkty){
+    if (p.zapowiedz || p.wiek > 0.9 || p.persp < 0.06) continue;
+    const moc = (1 - p.wiek / 0.9) * p.persp;
+    const dlS = SKALA * 0.045 * p.persp * (1 + moc);
+    for (const znak of [1, -1]){
+      ctx.strokeStyle = `rgba(255,255,255,${(0.32 * moc).toFixed(3)})`;
+      ctx.lineWidth = 0.8 * p.persp * gr;
+      ctx.beginPath();
+      for (let q = 0; q <= 18; q++){
+        const u = q / 18;
+        const px = p.x - dlS + dlS * 2 * u;
+        const py = p.y + Math.sin(u * 12.6 + (znak > 0 ? 0 : 3.14))
+                         * dlS * 0.4 * znak * Math.sin(u * 3.14);
+        q === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
       }
-      if (s.jedyny && moc > 0.5){       // splot jedyny w całej mapie
-        ctx.strokeStyle = `rgba(255,255,255,${(0.45 * (moc - 0.5) * 2).toFixed(3)})`;
-        ctx.lineWidth = 0.7;
-        ctx.beginPath(); ctx.arc(X, Y, dlS * 0.75, 0, 6.283); ctx.stroke();
-      }
+      ctx.stroke();
+    }
+    if (p.s.jedyny && moc > 0.5){
+      ctx.strokeStyle = `rgba(255,255,255,${(0.4 * (moc - 0.5) * 2).toFixed(3)})`;
+      ctx.lineWidth = 0.7;
+      ctx.beginPath(); ctx.arc(p.x, p.y, dlS * 0.85, 0, 6.283); ctx.stroke();
     }
   }
 
@@ -174,7 +214,7 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
 /* przeszłość oddala się coraz wolniej — bliskie zdarzenia rozdzielone
    wyraźnie, dawne zbijają się w mgłę pyłu */
 function ziarnoZ(wiek){
-  return wiek >= 0 ? Math.pow(wiek, 0.62) * 0.085 : wiek * 0.4;
+  return wiek >= 0 ? Math.pow(wiek, 0.78) * 0.16 : wiek * 0.5;
 }
 
 /* wspólne pole ruchu — po nim płyną wszystkie włókna, dlatego układają
