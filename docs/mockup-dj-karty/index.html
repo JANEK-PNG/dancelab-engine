@@ -197,7 +197,7 @@ function planPortretu(ksywa, szwy, W, H, p){
   const nic = [];
   for (let i = 0; i <= 120; i++){
     const s = szwy[Math.min(szwy.length - 1, Math.floor(i / 120 * szwy.length))];
-    const cel = H * (0.72 - 0.44 * t01((s.a + s.b) / 2));
+    const cel = H * (0.62 - 0.22 * t01((s.a + s.b) / 2));
     const poprz = nic.length ? nic[nic.length-1].y : H * 0.5;
     nic.push({x: i / 120 * W, y: poprz + (cel - poprz) * 0.055});
   }
@@ -384,8 +384,8 @@ function portret(cv, d, czas = 0){
   const p1 = r()*6.28, p2 = r()*6.28, p3 = r()*6.28;
   const turb = 0.5 + skok*2.2 + groove*0.8;
   const kat = (x,y) =>
-    (Math.sin(x*a1 + p1 + czas) + Math.cos(y*a2*(1+groove) + p2 + czas*0.7)
-     + Math.sin((x+y)*a3 + p3 + czas*0.5)) * turb;
+    (Math.sin(x*a1 + p1 + czas*0.45) + Math.cos(y*a2*(1+groove) + p2 + czas*0.3)
+     + Math.sin((x+y)*a3 + p3 + czas*0.22)) * turb;
   const ZG = new Set(["idealna","sasiednia","rownolegla"]);
   const t01 = v => Math.max(0, Math.min(1, (v-95)/95));
   const szwy = (SZWY[d.ksywa] || []);
@@ -397,10 +397,14 @@ function portret(cv, d, czas = 0){
     // co DJ zrobił w tym miejscu setu).
     const plan = planPortretu(d.ksywa, szwy, W, H, {cieplo, en, groove, bas, r});
     // tło: cienka tkanina z charakteru DJ-a
+    const T = 13, PAUZA = 0.92;
+    const faza = (czas / T) % 1;
+    const xs = Math.min(faza / PAUZA, 1) * W;
     for (let s = 0; s < 120; s++){
       let x = r()*W, y = r()*H;
       const c = mix(Math.min(Math.max(cieplo + (r()-0.5)*0.9, 0), 1));
-      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},0.07)`;
+      const cicho = x > xs ? 0.35 : 1;           // przed kropką: cisza
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.07*cicho).toFixed(3)})`;
       ctx.lineWidth = 0.6 + r()*bas*1.6;
       ctx.beginPath(); ctx.moveTo(x, y);
       for (let i = 0; i < 60; i++){
@@ -411,9 +415,6 @@ function portret(cv, d, czas = 0){
       ctx.stroke();
     }
     // linia artysty: mix to wytyczona ręką droga — rysuje się za kropką
-    const T = 13, PAUZA = 0.92;
-    const faza = (czas / T) % 1;
-    const xs = Math.min(faza / PAUZA, 1) * W;
     ctx.strokeStyle = "rgba(232,228,218,0.20)"; ctx.lineWidth = 1;
     ctx.beginPath();
     let zaczete = false;
@@ -429,13 +430,14 @@ function portret(cv, d, czas = 0){
       const xN = (idx + 0.5) / szwy.length * W;
       if (xN > xs) return;
       const wzrost = Math.min(1, (xs - xN) / 26);
+      const zaplon = 1 + 1.6 * (1 - wzrost);       // odkrycie = rozbłysk
       const rt = rnd(hash(d.ksywa + ":" + idx));   // ziarno TEJ nitki
       const perf = s.h === "idealna";
       const czysty = ZG.has(s.h);
       let x = (idx / szwy.length) * W + (rt()-0.5)*W*0.15;
       let y = rt()*H;
       if (perf){
-        ctx.strokeStyle = `rgba(${volt[0]},${volt[1]},${volt[2]},0.4)`;
+        ctx.strokeStyle = `rgba(${volt[0]},${volt[1]},${volt[2]},${Math.min(0.9, 0.4*zaplon).toFixed(2)})`;
         ctx.lineWidth = 1.0;
         ctx.shadowColor = "rgba(214,245,73,0.25)"; ctx.shadowBlur = 2;
         ctx.beginPath(); ctx.moveTo(x, y);
@@ -447,7 +449,7 @@ function portret(cv, d, czas = 0){
         ctx.stroke(); ctx.shadowBlur = 0;
       } else if (czysty){
         const c = mix(t01((s.a + s.b) / 2));
-        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.4+rt()*0.2).toFixed(2)})`;
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${Math.min(0.95,(0.4+rt()*0.2)*zaplon).toFixed(2)})`;
         ctx.lineWidth = 1.0 + bas*1.8;
         ctx.beginPath(); ctx.moveTo(x, y);
         const dl = Math.round((55 + Math.min(Math.abs(s.d),30)*2.5)*wzrost);
@@ -459,7 +461,7 @@ function portret(cv, d, czas = 0){
         ctx.stroke();
       } else {
         const c = mix(t01((s.a + s.b) / 2)).map(v => Math.round(v*0.55 + 60));
-        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},0.34)`;
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${Math.min(0.8, 0.34*zaplon).toFixed(2)})`;
         ctx.lineWidth = 0.7;
         for (let seg = 0; seg < Math.max(1, Math.round(3*wzrost)); seg++){
           ctx.beginPath(); ctx.moveTo(x, y);
@@ -472,6 +474,18 @@ function portret(cv, d, czas = 0){
           x += (rt()-0.5)*14; y += (rt()-0.5)*14;
         }
       }
+    });
+    // iskry zapłonu: nitki odkryte w tej chwili świecą u nasady
+    szwy.forEach((s, idx) => {
+      const xN = (idx + 0.5) / szwy.length * W;
+      if (xN > xs || xs - xN > 26) return;
+      const sila = 1 - (xs - xN) / 26;
+      const yN = nicY(plan.nic, xN);
+      const gi = ctx.createRadialGradient(xN, yN, 0, xN, yN, 9);
+      gi.addColorStop(0, `rgba(232,228,218,${(0.7*sila).toFixed(2)})`);
+      gi.addColorStop(1, "rgba(232,228,218,0)");
+      ctx.fillStyle = gi;
+      ctx.fillRect(xN-9, yN-9, 18, 18);
     });
     // ŚWIATŁO-EMOCJA: pióro artysty na końcu wytyczanej linii
     if (faza < PAUZA && czas > 0){
