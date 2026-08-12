@@ -105,51 +105,40 @@ function galaz(r, x, y, kat, dl, glebia){
 function plan(ksywa, szwy){
   const klucz = ksywa + W + "x" + H;
   if (PLANY[klucz]) return PLANY[klucz];
-  const r = rnd(hash(ksywa + "strumien"));
-  // WSPÓLNE POLE SIŁ (jak w jedwabiu na karcie) — po nim płyną wszystkie
-  // włókna, dlatego układają się w jedną tkaninę, nie w osobne wstęgi
-  const bpmy = szwy.flatMap(s => [s.a, s.b]);
+  // MECHANIKA KARTY 1:1 (Janek: „to nie to samo co kafelek"): nici cienkie
+  // i DŁUGIE, rozsiane po CAŁEJ wysokości, płynące po wspólnym polu sił.
+  const r = rnd(hash(ksywa + "jedwab"));
   const skoki = szwy.map(s => Math.abs(s.d));
   const srSkok = skoki.reduce((a, b) => a + b, 0) / Math.max(1, skoki.length);
-  const turb = 0.45 + Math.min(srSkok / 20, 1) * 1.9;
-  const a1 = 0.0022 + r() * 0.0016, a2 = 0.0026 + r() * 0.0020,
-        a3 = 0.0016 + r() * 0.0013;
+  const groove = 0.35;
+  const turb = 0.5 + Math.min(srSkok / 20, 1) * 2.2 + groove * 0.8;
+  const a1 = 0.0026 + r() * 0.0018, a2 = 0.0032 + r() * 0.0024,
+        a3 = 0.0019 + r() * 0.0016;
   const p1 = r() * 6.28, p2 = r() * 6.28, p3 = r() * 6.28;
-  const pole = (x, y) => (Math.sin(x * a1 + p1) + Math.cos(y * a2 + p2)
+  const pole = (x, y) => (Math.sin(x * a1 + p1) + Math.cos(y * a2 * (1 + groove) + p2)
                           + Math.sin((x + y) * a3 + p3)) * turb;
-  const mx = W * 0.04, my = H * 0.10;
+  const skala = Math.max(1, W / 600);          // krok rośnie z ekranem
   const wlokna = [];
   szwy.forEach((s, i) => {
-    const x0 = mx + (i + 0.5) / szwy.length * (W - 2 * mx);
-    const y0 = H - my - t01((s.a + s.b) / 2) * (H - 2 * my);
-    const czysty = ZG.has(s.h), perf = s.h === "idealna";
-    // każde przejście rodzi kilka cienkich nitek — gęsty jedwab, nie wstęga
-    const ile = perf ? 5 : czysty ? 4 : 3;
+    const perf = s.h === "idealna", czysty = ZG.has(s.h);
+    const ile = perf ? 3 : czysty ? 2 : 2;     // kilka nici na przejście
     for (let k = 0; k < ile; k++){
-      let x = x0 + (r() - 0.5) * 34, y = y0 + (r() - 0.5) * 46;
-      const dl = Math.round((perf ? 130 : czysty ? 105 : 34) * (0.6 + r() * 0.8));
-      const drzenie = czysty ? 0.10 : 0.85;
+      let x = (i / szwy.length) * W + (r() - 0.5) * W * 0.15;
+      let y = r() * H;                          // CAŁA wysokość, jak w karcie
+      const dl = Math.round((perf ? 240 : czysty ? 190 : 26)
+                            * (0.7 + r() * 0.6));
+      const drzenie = czysty ? 0.1 : 1.2;
+      const krok = 3.0 * skala;
       const pkt = [{x, y}];
       for (let j = 0; j < dl; j++){
         const kat = pole(x, y) + (r() - 0.5) * drzenie;
-        x += Math.cos(kat) * 3.0; y += Math.sin(kat) * 3.0;
+        x += Math.cos(kat) * krok; y += Math.sin(kat) * krok;
         pkt.push({x, y});
       }
-      wlokna.push({pkt, perf, czysty, szew: i,
-                   c: mix(t01((s.a + s.b) / 2)), f: r() * 6.28,
-                   w: (perf ? 1.1 : czysty ? 0.85 : 0.6) * (0.7 + r() * 0.7)});
+      wlokna.push({pkt, perf, czysty, szew: i, c: mix(t01((s.a + s.b) / 2)),
+                   f: r() * 6.28,
+                   w: (perf ? 1.0 : czysty ? 0.9 + r() * 0.5 : 0.7) * skala});
     }
-    // rozgałęzienia narodzin — wystrzeliwują z miejsca przejścia
-    const galezie = [];
-    for (let g = 0; g < (perf ? 3 : czysty ? 2 : 3); g++)
-      galezie.push(galaz(r, x0 + (r() - 0.5) * 20, y0 + (r() - 0.5) * 20,
-                         (r() > 0.5 ? -1 : 1) * (0.4 + r() * 1.6),
-                         (perf ? 74 : czysty ? 54 : 32) * (0.6 + r()),
-                         perf ? 2 : 1));
-    wlokna[wlokna.length - 1].galezie = galezie;
-    wlokna[wlokna.length - 1].iskry =
-      Array.from({length: perf ? 10 : czysty ? 6 : 4}, () => ({
-        t: r(), roz: 6 + r() * 30, f: r() * 6.28}));
   });
   return PLANY[klucz] = {wlokna, n: szwy.length};
 }
@@ -177,77 +166,60 @@ function rysGalaz(g, przes, faza, ile, kolor, alfa, szer){
 function rysuj(ts){
   const czas = ts / 1000;
   ctx.globalCompositeOperation = "source-over";
-  ctx.fillStyle = "rgba(10,10,14,0.16)";      // smużenie: ślad świateł
-  ctx.fillRect(0, 0, W, H);
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = "#0e0d0c"; ctx.fillRect(0, 0, W, H);
   const szwy = (DANE[KTO] || []);
   if (!szwy.length){ requestAnimationFrame(rysuj); return; }
   const P = plan(KTO, szwy);
   const frac = GRACZ ? FRAC : ((czas / 90) % 1);
   const prog = frac * P.n;
   document.getElementById("postep").style.width = (frac * 100).toFixed(2) + "%";
+  const xs = (prog / P.n) * W;
 
-  ctx.globalCompositeOperation = "lighter";   // światło się dodaje
   ctx.lineCap = "round"; ctx.lineJoin = "round";
   for (const wl of P.wlokna){
     if (wl.szew > prog) continue;
     const wiek = prog - wl.szew;
-    const ile = Math.min(1, wiek / 1.4);            // wysuwa się z ciemności
-    const narodziny = Math.max(0, 1 - wiek / 1.8);  // rozbłysk przejścia
-    const star = Math.min(1, wiek / (P.n * 0.55));
-    const zycie = (1 - star * 0.72) * (0.55 + narodziny * 1.5);
+    const ile = Math.min(1, wiek / 1.2);            // wysuwa się z ciemności
+    const zaplon = 1 + 1.6 * Math.max(0, 1 - wiek / 1.5);
+    const zT = Math.max(0, Math.min(1, wiek / (P.n * 0.9)));
+    const glab = 1 - 0.5 * zT, skalaZ = 1 - 0.4 * zT;   // oś Z: przeszłość w głąb
+    const n = Math.max(2, Math.round(wl.pkt.length * ile));
     const c = wl.perf ? VOLT : wl.c;
-    const przes = 0.8 + Math.sin(czas * 0.35 + wl.f) * 0.8;
-    const faza = czas * 0.6 + wl.f;
-    // 1 · poświata (szeroka, ledwie widoczna — daje mgłę wokół tkaniny)
-    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.020 * zycie).toFixed(3)})`;
-    ctx.lineWidth = wl.w * 9;
-    sciezka(wl.pkt, przes, faza, ile);
-    // 2 · barwa — cienka nić
-    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.26 * zycie).toFixed(3)})`;
-    ctx.lineWidth = wl.w * 1.5;
-    sciezka(wl.pkt, przes, faza, ile);
-    // 3 · biały rdzeń tylko w chwili narodzin
-    if (narodziny > 0.02){
-      ctx.strokeStyle = `rgba(255,255,255,${(0.36 * zycie * narodziny).toFixed(3)})`;
-      ctx.lineWidth = wl.w * 0.7;
-      sciezka(wl.pkt, przes, faza, ile);
+    const alfa = wl.perf ? Math.min(0.9, 0.4 * zaplon) * glab
+      : wl.czysty ? Math.min(0.95, 0.45 * zaplon) * glab
+      : Math.min(0.8, 0.34 * zaplon) * glab;
+    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alfa.toFixed(3)})`;
+    ctx.lineWidth = wl.w * skalaZ;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++){
+      const w = wl.pkt[i];
+      i === 0 ? ctx.moveTo(w.x, w.y) : ctx.lineTo(w.x, w.y);
     }
-    // 4 · rozgałęzienia — wystrzeliwują w chwili przejścia
-    const ileG = Math.min(1, Math.max(0, (wiek - 0.15) / 1.1));
-    if (ileG > 0 && wl.galezie)
-      for (const g of wl.galezie){
-        rysGalaz(g, przes * 0.5, faza, ileG, c,
-                 0.40 * zycie * (0.45 + narodziny), wl.perf ? 2.2 : 1.4);
-        rysGalaz(g, przes * 0.5, faza, ileG, [255,255,255],
-                 0.26 * zycie * (0.2 + narodziny), 0.9);
-      }
-    // 5 · iskry na włóknie
-    for (const isk of (wl.iskry || [])){
-      const w = wl.pkt[Math.floor(isk.t * (wl.pkt.length - 1) * ile)];
-      if (!w) continue;
-      const puls = 0.5 + 0.5 * Math.sin(czas * 2.1 + isk.f);
-      const rr = isk.roz * (0.4 + narodziny * 1.3) * (0.6 + puls * 0.6);
-      const a = 0.18 * zycie * (0.3 + narodziny) * puls;
-      const g = ctx.createRadialGradient(w.x, w.y, 0, w.x, w.y, rr);
-      g.addColorStop(0, `rgba(255,255,255,${a.toFixed(3)})`);
-      g.addColorStop(0.35, `rgba(${c[0]},${c[1]},${c[2]},${(a * 0.7).toFixed(3)})`);
-      g.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
-      ctx.fillStyle = g;
-      ctx.fillRect(w.x - rr, w.y - rr, rr * 2, rr * 2);
-    }
+    ctx.stroke();
   }
-  // fala uderzeniowa bieżącego przejścia
-  const biezacy = Math.min(P.n - 1, Math.floor(prog));
-  const ulamek = prog - biezacy;
-  const wl = P.wlokna[biezacy];
-  if (wl && ulamek < 0.85){
-    const w = wl.pkt[Math.floor(wl.pkt.length * 0.35)];
-    const rr = 16 + ulamek * 210;
-    const c = wl.perf ? VOLT : [220, 235, 255];
-    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.32 * (1 - ulamek / 0.85)).toFixed(3)})`;
-    ctx.lineWidth = 1.4;
-    ctx.beginPath(); ctx.arc(w.x, w.y, rr, 0, 7); ctx.stroke();
+  // iskry zapłonu: nici odkrywane w tej chwili świecą u nasady
+  ctx.globalCompositeOperation = "lighter";
+  for (const wl of P.wlokna){
+    const xN = (wl.szew / P.n) * W;
+    if (xN > xs || xs - xN > W * 0.06) continue;
+    const sila = 1 - (xs - xN) / (W * 0.06);
+    const w = wl.pkt[0];
+    const rr = 16 * sila * (wl.perf ? 1.6 : 1);
+    const c = wl.perf ? VOLT : [232, 228, 218];
+    const g = ctx.createRadialGradient(w.x, w.y, 0, w.x, w.y, rr);
+    g.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${(0.55 * sila).toFixed(3)})`);
+    g.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(w.x - rr, w.y - rr, rr * 2, rr * 2);
   }
+  // światło nocy — głowica na osi czasu
+  const ys = H * 0.5 + Math.sin(czas * 0.4) * H * 0.06;
+  const rr = 26;
+  const g = ctx.createRadialGradient(xs, ys, 0, xs, ys, rr);
+  g.addColorStop(0, "rgba(232,228,218,0.55)");
+  g.addColorStop(1, "rgba(232,228,218,0)");
+  ctx.fillStyle = g; ctx.fillRect(xs - rr, ys - rr, rr * 2, rr * 2);
   ctx.globalCompositeOperation = "source-over";
   requestAnimationFrame(rysuj);
 }
