@@ -180,7 +180,7 @@
   Makieta — nic nie jest wpięte w silnik. Karty Tim Reaper, Piasecki i Catz 'n Dogz niosą
   prawdziwe pomiary z mapy (plik karty_pilot3.json, stan 12.08). Szare karty pokazują stan
   „jeszcze nie poznany" i „profil w budowie". Zakres temp = percentyle 10–90 z obu stron
-  wszystkich policzonych szwów; kreska = mediana. „Zgodne harmonicznie" = odsetek szwów
+  wszystkich policzonych przejść; kreska = mediana. „Zgodne harmonicznie" = odsetek przejść
   o tonacjach idealnych/sąsiednich/równoległych. Energia, groove i bas to mediany po
   zmierzonych utworach granych przez DJ-a (0–1, względne w mapie).
 </p>
@@ -300,10 +300,10 @@ function karta(d){
       <div class="hero"><canvas class="portret" data-i="${d._i}"></canvas>
         <button class="info-i" onclick="infoPortret(${d._i})">i</button>
         <div class="warstwa-info" id="info-${d._i}"></div></div>
-      <div class="wbudowie">Mamy ${d.sety} set${d.sety===1?"":"y"} i ${d.szwy} szwów tego DJ-a,
+      <div class="wbudowie">Mamy ${d.sety} set${d.sety===1?"":"y"} i ${d.szwy} przejść tego DJ-a,
         ale za mało policzonych, żeby uczciwie narysować profil. Karta uzupełni się sama,
         gdy pomiary dojdą — nic tu nie zgadujemy.</div>
-      <div class="stopka"><span class="zaplecze">w mapie:<br>${d.sety} sety<br>${d.szwy} szwów</span>
+      <div class="stopka"><span class="zaplecze">w mapie:<br>${d.sety} sety<br>${d.szwy} przejść</span>
       <button class="graj${d.kolekcja?" w-kol":""}" onclick="kolekcja(${d._i})" title="${d.kolekcja?"usuń z kolekcji":"dodaj do kolekcji"}">${d.kolekcja?"":"＋"}</button></div>
     </div>`;
   }
@@ -327,8 +327,8 @@ function karta(d){
       <div class="os mono"><span>${MIN}</span><span>${MAX}</span></div>
     </div>
     <div class="staty">
-      <div class="stat"><div class="w mono">${d.harm}%</div><div class="e">szwów zgodnych harmonicznie</div></div>
-      <div class="stat"><div class="w mono">±${d.skok}</div><div class="e">typowy skok tempa na szwie</div></div>
+      <div class="stat"><div class="w mono">${d.harm}%</div><div class="e">przejść zgodnych harmonicznie</div></div>
+      <div class="stat"><div class="w mono">±${d.skok}</div><div class="e">typowy skok tempa w przejściu</div></div>
     </div>
     <div class="paski">
       ${pasek("energia", d.energia)}
@@ -336,7 +336,7 @@ function karta(d){
       ${pasek("bas", d.bas, "c")}
     </div>
     <div class="stopka">
-      <span class="zaplecze">w mapie:<br>${d.sety} set${d.sety===1?"":"y"}<br>${d.szwy} szwów policzonych${d.utwory?`<br>${d.utwory} utworów`:""}</span>
+      <span class="zaplecze">w mapie:<br>${d.sety} set${d.sety===1?"":"y"}<br>${d.szwy} przejść policzonych${d.utwory?`<br>${d.utwory} utworów`:""}</span>
       <button class="graj${d.kolekcja?" w-kol":""}" onclick="kolekcja(${d._i})" title="${d.kolekcja?"usuń z kolekcji":"dodaj do kolekcji"}">${d.kolekcja?"":"＋"}</button>
     </div>
   </div>`;
@@ -619,7 +619,7 @@ function infoPortret(i){
     const zgrzyty = szwy.length - zgodne;
     tekst = `<b>Jak powstał ten portret</b><br>
       Każda nić to jedno prawdziwe przejście z ${d.sety} setów ${d.ksywa}
-      w naszej mapie — ${szwy.length} szwów, w kolejności grania.
+      w naszej mapie — ${szwy.length} przejść między utworami, w kolejności grania.
       ${idealne} nici w kolorze volt to przejścia idealne tonacyjnie,
       ${zgrzyty} strzępów to zgrzyty. Kolor nici = tempo tego przejścia
       (chłodny→ciepły). Pozioma linia to droga setu — grubieje z każdym
@@ -629,7 +629,7 @@ function infoPortret(i){
       Zero losowości: te same sety dają zawsze ten sam portret.`;
   } else if (d.wbudowie){
     tekst = `<b>Czemu tu pusto</b><br>
-      Mamy ${d.sety} set${d.sety===1?"":"y"} i ${d.szwy} szwów tego DJ-a,
+      Mamy ${d.sety} set${d.sety===1?"":"y"} i ${d.szwy} przejść tego DJ-a,
       ale za mało policzonych, żeby uczciwie utkać portret. Przerywana
       linia to obietnica: nici pojawią się same, gdy pomiary dojdą —
       nic tu nie zgadujemy.`;
