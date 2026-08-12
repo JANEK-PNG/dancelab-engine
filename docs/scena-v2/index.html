@@ -145,7 +145,17 @@ function splotStan(k){
   if (!k.szwy.length) return null;
   const {czas, W, H} = k;
   const bpm1 = k.szwy[0].a || 128;
-  const yOs = H * (0.97 - (bpm1 - 60) / 140 * 0.94);
+  // warkocz zawiązuje się TAM, gdzie zeszły się włosy: środek ciężkości
+  // pasm, które dają się wpleść (ważony ich zasięgiem i gęstością)
+  let sumaW = 0, sumaY = 0;
+  for (const w of wlosy(H)){
+    const zas = 1 - Math.min(1, Math.abs(w.bpm - bpm1) / 95);
+    if (zas <= 0) continue;
+    const waga = zas * (0.3 + w.g);
+    sumaW += waga; sumaY += waga * w.y0;
+  }
+  const yOs = sumaW > 0 ? sumaY / sumaW
+                        : H * (0.97 - (bpm1 - 60) / 140 * 0.94);
   const CYKL = 30, faza = (czas % CYKL) / CYKL;
   const splot = Math.min(1, faza / 0.45);
   const wedrowka = Math.max(0, (faza - 0.45) / 0.55);
@@ -159,7 +169,7 @@ function splotStan(k){
     zagnij(w, x, u, wlasna){
       // splatamy tylko włosy w zasięgu ręki: te, których tempo jest blisko
       // pierwszego utworu. Reszta zostaje luźna — jak włosy poza warkoczem.
-      const zasieg = 1 - Math.min(1, Math.abs(w.bpm - bpm1) / 48);
+      const zasieg = 1 - Math.min(1, Math.abs(w.bpm - bpm1) / 95);
       if (zasieg <= 0) return [wlasna, 0];
       const zywa = Math.max(0, Math.min(1,
         (splot - w.wejscie * 0.55) / 0.45)) * zasieg;
@@ -176,7 +186,10 @@ function splotStan(k){
       const kat = uu * w.skret * 6.283 + w.pasmo * 2.0944;
       const owin = Math.sin(kat) * promien
                  + Math.sin(kat * 2 + w.wpasmie * 6.283) * promien * 0.18;
-      return [wlasna + (os(uu) + owin - wlasna) * s * zacisk, s];
+      // w chwili zaciśnięcia włosy w splocie same rozbłyskają
+      const blysk = splot > 0.82 ? (splot - 0.82) / 0.18 : 0;
+      return [wlasna + (os(uu) + owin - wlasna) * s * zacisk,
+              s * (1 + blysk * 0.45)];
     },
   };
 }
@@ -186,24 +199,8 @@ function warstwaSplatanie(ctx, k){
   if (!S) return;
   const {czas, H, W} = k;
 
-  // ZAISTNIENIE: w chwili, gdy warkocz się zaciska, połączenie staje się
-  // dość mocne, by istnieć — i wtedy DJ naciska play. Rozbłysk wzdłuż
-  // całej osi splotu, potem punkt rusza.
-  if (S.splot > 0.82){
-    const moc = Math.min(1, (S.splot - 0.82) / 0.18);
-    const zanik = S.wedrowka > 0 ? Math.max(0, 1 - S.wedrowka * 4) : 1;
-    const a = moc * zanik;
-    if (a > 0.01){
-      ctx.strokeStyle = `rgba(255,246,214,${(0.5 * a).toFixed(3)})`;
-      ctx.lineWidth = 2.2 + 3.4 * a;
-      ctx.beginPath();
-      for (let j = 0; j <= 60; j++){
-        const u = j / 60, x = S.xA + (S.xB - S.xA) * u;
-        j === 0 ? ctx.moveTo(x, S.os(u)) : ctx.lineTo(x, S.os(u));
-      }
-      ctx.stroke();
-    }
-  }
+  // ZAISTNIENIE pokazują SAME WŁOSY (rozjaśniają się w splocie) —
+  // żadnej osobnej linii nad nimi. Tu rysujemy wyłącznie punkt.
   if (S.wedrowka <= 0) return;
   const u = S.wedrowka;
   const x = S.xA + (S.xB - S.xA) * u, y = S.os(u);
