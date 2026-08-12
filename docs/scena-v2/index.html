@@ -129,56 +129,94 @@ function warstwaSplatanie(ctx, k){
   if (!POLE || !k.szwy.length) return;
   const {czas, W, H} = k;
   const bpm1 = k.szwy[0].a || 128;
-  const yCel = H * (0.97 - (bpm1 - 60) / 140 * 0.94);      // ta sama skala
-  const xCel = W * 0.72;
-  const NICI = 90;
-  // narastanie: splot dojrzewa w ~9 s, potem trwa (klik play)
-  const dojrzalosc = Math.min(1, (czas % 26) / 9);
-  const puls = 0.75 + 0.25 * Math.sin(czas * 0.55);
+  const yLina = H * (0.97 - (bpm1 - 60) / 140 * 0.94);   // ta sama skala co pole
+  const xStart = W * 0.10, xKoniec = W * 0.94;
+  const CYKL = 30, faza = (czas % CYKL) / CYKL;
+  // splot dojrzewa przez pierwsze 45% cyklu, potem punkt PODĄŻA po linie
+  const splot = Math.min(1, faza / 0.45);
+  const wedrowka = Math.max(0, (faza - 0.45) / 0.55);
 
+  // kształt liny — jedna wspólna droga, po której pójdzie punkt
+  const lina = [];
+  for (let j = 0; j <= 90; j++){
+    const u = j / 90;
+    lina.push({
+      x: xStart + (xKoniec - xStart) * u,
+      y: yLina + Math.sin(u * 3.1 + czas * 0.18) * H * 0.045
+             + Math.sin(u * 7.4 - czas * 0.11) * H * 0.018,
+    });
+  }
+
+  // 1 · nici zbiegają się do liny i NABIERAJĄ KOLORU, gdy w nią wchodzą
+  const NICI = 90;
   for (let i = 0; i < NICI; i++){
     const r = rnd(hash("splot" + i));
     const bpm0 = 60 + r() * 140, en0 = r();
     const g = gestosc(bpm0, en0);
     if (g < 0.01) continue;
     const y0 = H * (0.97 - (bpm0 - 60) / 140 * 0.94);
-    const x0 = -30 + r() * W * 0.5;
-    // każda nić ma swój moment przypłynięcia — pamięć nie wraca równo
-    const wejscie = r();
-    const zywa = Math.max(0, Math.min(1, (dojrzalosc - wejscie * 0.55) / 0.45));
+    const x0 = -40 + r() * W * 0.42;
+    const wejscie = r();                       // własny moment przypłynięcia
+    const zywa = Math.max(0, Math.min(1, (splot - wejscie * 0.6) / 0.4));
     if (zywa <= 0) continue;
-    const a = (0.08 + g * 0.42) * zywa * puls;
-    ctx.strokeStyle = `rgba(232,228,218,${a.toFixed(3)})`;
-    ctx.lineWidth = (0.6 + g * 2.0) * (0.6 + zywa * 1.1);
-    ctx.beginPath();
-    const kroki = 42;
-    for (let j = 0; j <= kroki; j++){
-      const u = j / kroki;
-      // splot: im bliżej celu, tym mocniej nić zbiega ku wspólnej drodze
-      const sciag = Math.pow(u, 1.7) * zywa;
-      const x = x0 + (xCel - x0) * u;
-      const wlasna = y0 + Math.sin(u * 6.2 + i) * H * 0.03;
-      const y = wlasna + (yCel - wlasna) * sciag
-                + Math.sin(u * 9 + czas * 0.5 + i) * H * 0.012 * (1 - sciag);
-      j === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    const gdzie = 0.18 + r() * 0.5;            // gdzie wtapia się w linę
+    const kroki = 46;
+    for (let j = 0; j < kroki; j++){
+      const u = j / kroki, u2 = (j + 1) / kroki;
+      const wejdz = (uu) => {
+        const t2 = Math.min(1, uu / gdzie);
+        const sciag = Math.pow(t2, 1.6) * zywa;
+        const px = x0 + (xKoniec - x0) * uu;
+        const wlasna = y0 + Math.sin(uu * 6.2 + i) * H * 0.03;
+        const cel = lina[Math.min(90, Math.round(uu * 90))].y;
+        return {x: px, y: wlasna + (cel - wlasna) * sciag, sciag};
+      };
+      const A = wejdz(u), B = wejdz(u2);
+      // KOLOR narasta z wtopieniem: z szarej pamięci w ciepłą decyzję
+      const c = [Math.round(210 + 45 * A.sciag), Math.round(206 + 22 * A.sciag),
+                 Math.round(196 - 74 * A.sciag)];
+      const alfa = (0.05 + g * 0.34) * zywa * (0.35 + A.sciag * 0.9);
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alfa.toFixed(3)})`;
+      ctx.lineWidth = (0.5 + g * 1.7) * (0.5 + A.sciag * 1.6);
+      ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(B.x, B.y); ctx.stroke();
     }
+  }
+
+  // 2 · LINA: to, co powstało ze splotu — grubieje wraz z dojrzewaniem
+  for (let j = 1; j < lina.length; j++){
+    const u = j / lina.length;
+    const dojrz = Math.min(1, splot * 1.3 - u * 0.25);
+    if (dojrz <= 0) continue;
+    ctx.strokeStyle = `rgba(255,228,150,${(0.10 + 0.34 * dojrz).toFixed(3)})`;
+    ctx.lineWidth = (0.7 + 2.4 * dojrz);
+    ctx.beginPath();
+    ctx.moveTo(lina[j - 1].x, lina[j - 1].y);
+    ctx.lineTo(lina[j].x, lina[j].y);
     ctx.stroke();
   }
 
-  // PIERWSZA DECYZJA: punkt, w którym splot staje się utworem
-  if (dojrzalosc > 0.55){
-    const moc = Math.min(1, (dojrzalosc - 0.55) / 0.45);
-    const rr = H * 0.02 * (0.5 + moc) * puls;
-    const gg = ctx.createRadialGradient(xCel, yCel, 0, xCel, yCel, rr * 4);
-    gg.addColorStop(0, `rgba(255,255,255,${(0.5 * moc).toFixed(3)})`);
-    gg.addColorStop(0.35, `rgba(232,228,218,${(0.12 * moc).toFixed(3)})`);
-    gg.addColorStop(1, "rgba(232,228,218,0)");
+  // 3 · PUNKT PODĄŻA PO LINIE (nie wyznacza jej): rusza dopiero, gdy splot
+  //     jest gotowy — pierwszy utwór gra, decyzja niesie się dalej
+  if (wedrowka > 0){
+    const idx = Math.min(90, Math.round(wedrowka * 90));
+    const p = lina[idx];
+    const puls = 0.8 + 0.2 * Math.sin(czas * 2.4);
+    const rr = H * 0.016 * puls;
+    const gg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, rr * 4);
+    gg.addColorStop(0, "rgba(255,255,255,0.62)");
+    gg.addColorStop(0.35, "rgba(255,228,150,0.15)");
+    gg.addColorStop(1, "rgba(255,228,150,0)");
     ctx.fillStyle = gg;
-    ctx.fillRect(xCel - rr * 4, yCel - rr * 4, rr * 8, rr * 8);
-    if (moc > 0.9){
-      ctx.fillStyle = `rgba(255,255,255,${(0.85 * (moc - 0.9) * 10).toFixed(2)})`;
-      ctx.beginPath(); ctx.arc(xCel, yCel, 2.4, 0, 6.283); ctx.fill();
-    }
+    ctx.fillRect(p.x - rr * 4, p.y - rr * 4, rr * 8, rr * 8);
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.beginPath(); ctx.arc(p.x, p.y, 2.2, 0, 6.283); ctx.fill();
+    // ślad za punktem — droga już przebyta świeci mocniej
+    ctx.strokeStyle = "rgba(255,236,180,0.5)";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    for (let j = 0; j <= idx; j++)
+      j === 0 ? ctx.moveTo(lina[j].x, lina[j].y) : ctx.lineTo(lina[j].x, lina[j].y);
+    ctx.stroke();
   }
 }
 WARSTWY.push(warstwaSplatanie);
