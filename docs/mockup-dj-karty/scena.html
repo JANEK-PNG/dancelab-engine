@@ -152,7 +152,7 @@ DJE.forEach((d, i) => {
   };
   wyb.appendChild(b);
 });
-fetch("szwy.json").then(r => r.json()).then(d => { SZWY = d; });
+fetch("szwy.json?v=" + Date.now()).then(r => r.json()).then(d => { SZWY = d; });
 </script>
 </body>
 </html>

@@ -220,6 +220,42 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
         ctx.stroke();
       }
     });
+    // SPLOT NIEROZERWALNY (Janek 13.08): w chwili miksu dwa utwory
+    // zostają związane węzłem, którego wcześniej nie było. 99,8% splotów
+    // w mapie zdarzyło się DOKŁADNIE RAZ — jedyny w historii 21 tysięcy
+    // przejść; taki węzeł dostaje pełny splot i sygnaturę światła.
+    grane.forEach((s, idx) => {
+      const xN = (idx + 0.5) / grane.length * W;
+      if (xN > xs || xs - xN > W * 0.16) return;
+      const swiez = 1 - (xs - xN) / (W * 0.16);
+      const yN = nicY(plan.nic, xN);
+      const jedyny = (s.uni ?? 1) === 1;
+      const rs = rnd(hash(d.ksywa + "splot" + idx));
+      const dlS = (34 + Math.min(Math.abs(s.d), 30) * 1.6) * (0.5 + swiez * 0.9);
+      const skretow = jedyny ? 5 : 3;
+      const cA = mix(t01(s.a)), cB = mix(t01(s.b));
+      for (const [znak, c] of [[1, cA], [-1, cB]]){
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.5 * swiez).toFixed(3)})`;
+        ctx.lineWidth = 1.0 + swiez * 1.8;
+        ctx.beginPath();
+        for (let i = 0; i <= 26; i++){
+          const u = i / 26;
+          const px = xN - dlS * 0.5 + dlS * u;
+          const py = yN + Math.sin(u * 6.283 * skretow + (znak > 0 ? 0 : 3.14))
+                          * (9 + swiez * 9) * znak * Math.sin(u * 3.14);
+          i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+      if (jedyny && swiez > 0.55){        // sygnatura: splot jedyny w mapie
+        const a = (swiez - 0.55) / 0.45;
+        ctx.strokeStyle = `rgba(255,255,255,${(0.5 * a).toFixed(3)})`;
+        ctx.lineWidth = 0.7;
+        ctx.beginPath();
+        ctx.arc(xN, yN, dlS * 0.42, 0, 6.283);
+        ctx.stroke();
+      }
+    });
     // iskry zapłonu: nitki odkryte w tej chwili świecą u nasady
     grane.forEach((s, idx) => {
       const xN = (idx + 0.5) / grane.length * W;
