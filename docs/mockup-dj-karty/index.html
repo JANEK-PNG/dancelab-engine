@@ -59,7 +59,7 @@
   .nazwa{font-size:19px; font-weight:600; margin-bottom:2px; letter-spacing:.3px}
   .zrodlo{font-size:11px; color:var(--przygaszony); margin-bottom:12px; letter-spacing:.4px; text-transform:uppercase}
 
-  .hero{height:120px; margin:0 0 14px; border-radius:var(--r); overflow:hidden;
+  .hero{height:208px; margin:0 0 12px; border-radius:var(--r); overflow:hidden;
     background:linear-gradient(180deg, #1b1a17, #211f1c); position:relative}
   .hero canvas{width:100%; height:100%; display:block; transition:opacity .5s}
   .hero .podpis{position:absolute; right:8px; top:6px; font-size:9px; letter-spacing:.6px;
@@ -105,6 +105,11 @@
     font-family:inherit; font-size:10.5px; letter-spacing:.6px; padding:5px 10px; cursor:pointer}
   .posluchaj:hover{border-color:var(--volt); color:var(--volt)}
 
+  .szczegoly{display:none}
+  .szczegoly.jest{display:block}
+  .wiecej{background:none; border:none; color:var(--przygaszony); font-family:inherit;
+    font-size:11px; letter-spacing:.4px; cursor:pointer; padding:0 0 10px}
+  .wiecej:hover{color:var(--volt)}
   .tempo{margin-bottom:9px}
   .tempo-etykieta{display:flex; justify-content:space-between; font-size:11px; color:var(--przygaszony); margin-bottom:9px}
   .tor{position:relative; height:28px}
@@ -341,6 +346,8 @@ function karta(d){
       <button class="flip-i" id="flip-${d._i}" onclick="scWidok(${d._i})" title="obróć: klasyczny widok SoundCloud">⇄</button>
       <input type="range" class="glosnosc" id="vol-${d._i}" min="0" max="100" value="80"
         oninput="glosnosc(${d._i}, this.value)" title="głośność — grubość włókien">` : ""}</div>
+    <button class="wiecej" onclick="szczegoly(${d._i}, this)">szczegóły ▾</button>
+    <div class="szczegoly" id="szcz-${d._i}">
     <div class="tempo">
       <div class="tempo-etykieta"><span>tempo (uderzenia na minutę)</span><span class="mono">mediana ${d.bpm_med}</span></div>
       <div class="tor">
@@ -359,6 +366,7 @@ function karta(d){
       ${pasek("energia", d.energia)}
       ${pasek("groove", d.groove, "g")}
       ${pasek("bas", d.bas, "c")}
+    </div>
     </div>
     <div class="stopka">
       <span class="zaplecze">w mapie:<br>${d.sety} set${d.sety===1?"":"y"}<br>${d.szwy} przejść policzonych${d.utwory?`<br>${d.utwory} utworów`:""}</span>
@@ -626,6 +634,11 @@ function scWidok(i){
   const hero = document.getElementById(`hero-${i}`);
   const fr = hero && hero.querySelector("iframe");
   if (fr) fr.classList.toggle("sc-pelny");
+}
+function szczegoly(i, guzik){
+  const el = document.getElementById(`szcz-${i}`);
+  const otwarte = el.classList.toggle("jest");
+  guzik.textContent = otwarte ? "szczegóły ▴" : "szczegóły ▾";
 }
 function volToggle(i){
   document.getElementById(`vol-${i}`).classList.toggle("otwarta");
