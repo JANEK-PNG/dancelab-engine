@@ -390,97 +390,102 @@ function portret(cv, d, czas = 0){
   const szwy = (SZWY[d.ksywa] || []);
 
   if (szwy.length){
-    // PŁACHTA CZASU (wizja Janka): noc rozpięta od lewej do prawej,
-    // muzyka jest przewodnikiem, a emocja to światło płynące PO niej.
-    // opadanie = nić osiada · wbicie = przebicie pod tkaninę ·
-    // symbioza = voltowy warkocz · łamanie norm = rozdarcie splotu.
+    // JEDWAB + CZAS (korekta Janka: poprzednia wersja niosła emocje —
+    // wraca jedwab; czas zostaje jako NIEWIDZIALNA ścieżka nocy,
+    // po której przez tkaninę wędruje światło-emocja i reaguje na to,
+    // co DJ zrobił w tym miejscu setu).
     const plan = planPortretu(d.ksywa, szwy, W, H, {cieplo, en, groove, bas, r});
-    const T = 13, PAUZA = 0.92;                  // jedna noc = ~12 s + cisza
-    const faza = (czas / T) % 1;
-
-    // 1 · tkanina nocy: wątki poziome falują; przy rozdarciach rozchodzą się
-    for (const w of plan.watki){
-      ctx.strokeStyle = `rgba(${w.c[0]},${w.c[1]},${w.c[2]},${w.a})`;
-      ctx.lineWidth = w.g;
-      ctx.beginPath();
-      for (let i = 0; i <= 24; i++){
-        const px = i / 24 * W;
-        let py = w.y + Math.sin(px * 0.015 + czas * 0.9 + w.faza) * 2.2;
-        for (const z of plan.zdarzenia) if (z.typ === "rozdarcie"){
-          const dx = px - z.x;
-          const sila = Math.exp(-(dx*dx) / 260);
-          py += sila * 13 * Math.sign(w.y - z.y || 1);
-        }
-        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    // tło: cienka tkanina z charakteru DJ-a
+    for (let s = 0; s < 120; s++){
+      let x = r()*W, y = r()*H;
+      const c = mix(Math.min(Math.max(cieplo + (r()-0.5)*0.9, 0), 1));
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},0.07)`;
+      ctx.lineWidth = 0.6 + r()*bas*1.6;
+      ctx.beginPath(); ctx.moveTo(x, y);
+      for (let i = 0; i < 60; i++){
+        const t2 = kat(x, y);
+        x += Math.cos(t2)*2.6; y += Math.sin(t2)*2.6;
+        ctx.lineTo(x, y);
       }
       ctx.stroke();
     }
-
-    // 2 · opadanie: nici delikatnie osiadające NA płachtę
-    for (const z of plan.zdarzenia) if (z.typ === "opad"){
-      ctx.strokeStyle = `rgba(${z.c[0]},${z.c[1]},${z.c[2]},0.5)`;
-      ctx.lineWidth = 1.1;
-      ctx.beginPath(); ctx.moveTo(z.x - 26, Math.max(6, z.y - 34));
-      ctx.quadraticCurveTo(z.x - 6, z.y - 8, z.x, z.y);
-      ctx.stroke();
-    }
-
-    // 3 · nić przewodnia (droga setu) — z przerwami tam, gdzie wbicia
-    ctx.lineWidth = 1.4;
-    for (let i = 1; i < plan.nic.length; i++){
-      const a = plan.nic[i-1], b = plan.nic[i];
-      const wSrodku = plan.zdarzenia.some(z => z.typ === "wbicie"
-        && a.x > z.x && a.x < z.x + z.dl);
-      if (wSrodku){                              // cień POD tkaniną
-        ctx.strokeStyle = "rgba(232,228,218,0.10)";
-        ctx.beginPath(); ctx.moveTo(a.x, a.y + 9); ctx.lineTo(b.x, b.y + 9);
+    // KAŻDA NITKA = JEDEN SZEW, w strefie swojego miejsca w nocy
+    szwy.forEach((s, idx) => {
+      const perf = s.h === "idealna";
+      const czysty = ZG.has(s.h);
+      let x = (idx / szwy.length) * W + (r()-0.5)*W*0.15;
+      let y = r()*H;
+      if (perf){
+        ctx.strokeStyle = `rgba(${volt[0]},${volt[1]},${volt[2]},0.4)`;
+        ctx.lineWidth = 1.0;
+        ctx.shadowColor = "rgba(214,245,73,0.25)"; ctx.shadowBlur = 2;
+        ctx.beginPath(); ctx.moveTo(x, y);
+        for (let i = 0; i < 120; i++){
+          const t2 = kat(x, y);
+          x += Math.cos(t2)*2.6; y += Math.sin(t2)*2.6;
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke(); ctx.shadowBlur = 0;
+      } else if (czysty){
+        const c = mix(t01((s.a + s.b) / 2));
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.4+r()*0.2).toFixed(2)})`;
+        ctx.lineWidth = 1.0 + bas*1.8;
+        ctx.beginPath(); ctx.moveTo(x, y);
+        const dl = 55 + Math.min(Math.abs(s.d),30)*2.5;
+        for (let i = 0; i < dl; i++){
+          const t2 = kat(x, y) + (r()-0.5)*0.1;
+          x += Math.cos(t2)*2.6; y += Math.sin(t2)*2.6;
+          ctx.lineTo(x, y);
+        }
         ctx.stroke();
       } else {
-        ctx.strokeStyle = "rgba(232,228,218,0.34)";
-        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
-        ctx.stroke();
-      }
-    }
-    // punkty wejścia/wyjścia wbić
-    for (const z of plan.zdarzenia) if (z.typ === "wbicie"){
-      ctx.fillStyle = "rgba(232,228,218,0.55)";
-      ctx.beginPath(); ctx.arc(z.x, z.y, 1.8, 0, 7); ctx.fill();
-      ctx.beginPath(); ctx.arc(z.x + z.dl, z.y2, 1.8, 0, 7); ctx.fill();
-    }
-
-    // 4 · symbioza: voltowy warkocz oplatający przewodnik
-    for (const z of plan.zdarzenia) if (z.typ === "warkocz"){
-      ctx.strokeStyle = `rgba(${volt[0]},${volt[1]},${volt[2]},0.5)`;
-      ctx.lineWidth = 1.0;
-      for (const znak of [1, -1]){
-        ctx.beginPath();
-        for (let i = 0; i <= 16; i++){
-          const px = z.x + i / 16 * 30;
-          const py = nicY(plan.nic, px) + Math.sin(i / 16 * 6.28 * 2) * 4 * znak;
-          i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        const c = mix(t01((s.a + s.b) / 2)).map(v => Math.round(v*0.55 + 60));
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},0.34)`;
+        ctx.lineWidth = 0.7;
+        for (let seg = 0; seg < 3; seg++){
+          ctx.beginPath(); ctx.moveTo(x, y);
+          for (let i = 0; i < 6; i++){
+            const t2 = kat(x, y) + (r()-0.5)*1.4;
+            x += Math.cos(t2)*2.6; y += Math.sin(t2)*2.6;
+            ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+          x += (r()-0.5)*14; y += (r()-0.5)*14;
         }
-        ctx.stroke();
       }
-    }
-
-    // 5 · ŚWIATŁO EMOCJI wędruje po przewodniku przez noc
-    if (faza < PAUZA){
+    });
+    // ŚWIATŁO-EMOCJA: niewidzialna ścieżka nocy przez jedwab
+    const T = 13, PAUZA = 0.92;
+    const faza = (czas / T) % 1;
+    if (faza < PAUZA && czas > 0){
       const xs = faza / PAUZA * W;
-      let ys = nicY(plan.nic, xs), alfa = 0.9, kolor = [232, 228, 218], rr = 16;
+      let ys = nicY(plan.nic, xs), alfa = 0.8, kolor = [232,228,218], rr = 15;
       for (const z of plan.zdarzenia){
         if (z.typ === "wbicie" && xs > z.x && xs < z.x + z.dl){
-          ys += 9; alfa = 0.25; rr = 8;          // pod płachtą — ledwie tli
+          alfa = 0.28; rr = 8;                     // schodzi pod tkaninę
         } else if (z.typ === "rozdarcie" && Math.abs(xs - z.x) < 11){
-          alfa = 0.4 + 0.5 * Math.abs(Math.sin(czas * 23));   // migot
-        } else if (z.typ === "warkocz" && xs > z.x && xs < z.x + 30){
-          kolor = volt; alfa = 1; rr = 20;       // symbioza świeci voltem
+          alfa = 0.35 + 0.5*Math.abs(Math.sin(czas*23));   // migot
+        } else if (z.typ === "warkocz" && Math.abs(xs - z.x) < 16){
+          kolor = volt; alfa = 0.95; rr = 20;      // symbioza: rozbłysk
         }
+      }
+      // warkocz emocji: gasnący ogon za światłem, wzdłuż ścieżki
+      for (let o = 8; o >= 1; o--){
+        const ox = xs - o*7;
+        if (ox < 0) continue;
+        const oy = nicY(plan.nic, ox);
+        const g2 = ctx.createRadialGradient(ox, oy, 0, ox, oy, rr*0.55);
+        const a2 = alfa * 0.10 * (1 - o/9);
+        g2.addColorStop(0, `rgba(${kolor[0]},${kolor[1]},${kolor[2]},${a2.toFixed(3)})`);
+        g2.addColorStop(1, `rgba(${kolor[0]},${kolor[1]},${kolor[2]},0)`);
+        ctx.fillStyle = g2;
+        ctx.fillRect(ox-rr, oy-rr, rr*2, rr*2);
       }
       const g = ctx.createRadialGradient(xs, ys, 0, xs, ys, rr);
       g.addColorStop(0, `rgba(${kolor[0]},${kolor[1]},${kolor[2]},${alfa})`);
       g.addColorStop(1, `rgba(${kolor[0]},${kolor[1]},${kolor[2]},0)`);
       ctx.fillStyle = g;
-      ctx.fillRect(xs - rr, ys - rr, rr * 2, rr * 2);
+      ctx.fillRect(xs-rr, ys-rr, rr*2, rr*2);
     }
     return;
   }
