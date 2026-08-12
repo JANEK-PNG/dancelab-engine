@@ -110,16 +110,17 @@
 </header>
 <p class="pod">Każda liczba na karcie to pomiar z prawdziwych setów tego DJ-a w naszej mapie. Żadnych ocen — tylko jak kto gra.</p>
 
-<div class="filtry">
-  <button class="filtr on">wszyscy</button>
-  <button class="filtr">poznani</button>
-  <button class="filtr">wolniej niż 125</button>
-  <button class="filtr">szybciej niż 140</button>
-  <button class="filtr">równy puls</button>
-  <button class="filtr">skoczne tempo</button>
+<div class="filtry" id="filtry">
+  <button class="filtr on" data-f="all">wszyscy</button>
+  <button class="filtr" data-f="poznani">poznani</button>
+  <button class="filtr" data-f="RA Podcast 2025">RA Podcast 2025</button>
+  <button class="filtr" data-f="Audioriver 2018">Audioriver 2018</button>
+  <button class="filtr" data-f="Garbicz Festival 2014">Garbicz 2014</button>
+  <button class="filtr" data-f="Garbicz Festival 2026">Garbicz 2026</button>
 </div>
 
 <div class="sciana" id="sciana"></div>
+<p id="pusto" style="display:none; color:var(--przygaszony); font-size:13px; padding:26px 4px; line-height:1.6"></p>
 
 <p class="stopka-strony">
   Makieta — nic nie jest wpięte w silnik. Karty Tim Reaper, Piasecki i Catz 'n Dogz niosą
@@ -135,20 +136,29 @@
 <script>
 const DJE = [
   {ksywa:"Tim Reaper", zrodlo:"RA Podcast", poznany:true,
+   edycje:["RA Podcast 2020","RA Podcast 2025"],
    bpm_lo:119, bpm_hi:173, bpm_med:140, harm:24, skok:5.0,
    energia:.55, groove:.43, bas:.54, sety:2, szwy:177, utwory:215},
   {ksywa:"Piasecki", zrodlo:"Audioriver", poznany:true,
+   edycje:["Audioriver 2018"],
    bpm_lo:104, bpm_hi:178, bpm_med:127, harm:12, skok:17.0,
    energia:.41, groove:.19, bas:.39, sety:6, szwy:92, utwory:104},
   {ksywa:"Catz 'n Dogz", zrodlo:"sety klubowe i podcasty", poznany:false,
+   edycje:[],
    bpm_lo:108, bpm_hi:171, bpm_med:124, harm:12, skok:6.0,
    energia:.41, groove:.41, bas:.42, sety:9, szwy:48, utwory:77},
   {ksywa:"Ayesha", zrodlo:"RA Podcast", poznany:false,
+   edycje:["RA Podcast 2025"],
    bpm_lo:132, bpm_hi:181, bpm_med:140, harm:26, skok:7.0,
    energia:null, groove:null, bas:null, sety:1, szwy:39, utwory:null},
-  {ksywa:"VOODOOHOP", zrodlo:"profil w budowie", wbudowie:true, poznany:false, sety:3, szwy:12},
-  {ksywa:"Jyoty", zrodlo:"profil w budowie", wbudowie:true, poznany:false, sety:1, szwy:39},
+  {ksywa:"VOODOOHOP", zrodlo:"profil w budowie", wbudowie:true, poznany:false,
+   edycje:["Garbicz Festival 2014"], sety:3, szwy:12},
+  {ksywa:"Jyoty", zrodlo:"profil w budowie", wbudowie:true, poznany:false,
+   edycje:["RA Podcast 2025"], sety:1, szwy:39},
 ];
+// Edycje wprost z bazy Janka (arkusz → fakty_szew: wydarzenie + rok).
+// W pełnej mapie filtr „Garbicz 2026" = 10 DJ-ów; pilotowa 6 go nie ma —
+// pusty wynik mówi to uczciwie zamiast udawać.
 
 const MIN=95, MAX=190;                       // oś temp wspólna dla wszystkich kart
 const proc = v => ((v-MIN)/(MAX-MIN)*100).toFixed(1);
@@ -208,7 +218,28 @@ function karta(d){
 }
 
 DJE.forEach((d,i)=>d._i=i);
-document.getElementById("sciana").innerHTML = DJE.map(karta).join("");
+
+function rysuj(filtr){
+  const zbior = DJE.filter(d =>
+    filtr === "all" ? true :
+    filtr === "poznani" ? d.poznany :
+    (d.edycje || []).includes(filtr));
+  document.getElementById("sciana").innerHTML = zbior.map(karta).join("");
+  const pusto = document.getElementById("pusto");
+  if (!zbior.length){
+    pusto.style.display = "block";
+    pusto.textContent = `Nikt z pilotowej szóstki nie grał na „${filtr}”. ` +
+      `W pełnej mapie ten filtr ma swoich DJ-ów (Garbicz 2026: dziesięciu) — ` +
+      `makieta pokazuje tylko 6 kart.`;
+  } else pusto.style.display = "none";
+  document.querySelectorAll(".portret").forEach(cv => portret(cv, DJE[+cv.dataset.i]));
+}
+document.getElementById("filtry").addEventListener("click", e => {
+  const b = e.target.closest(".filtr"); if (!b) return;
+  document.querySelectorAll(".filtr").forEach(x => x.classList.toggle("on", x === b));
+  rysuj(b.dataset.f);
+});
+rysuj("all");
 
 /* PORTRET BRZMIENIA — grzbiet terenu rysowany WYŁĄCZNIE z pomiarów DJ-a.
    Deterministyczny: ta sama karta zawsze wygląda tak samo (ziarno = ksywa).
@@ -258,7 +289,6 @@ function portret(cv, d){
     ctx.stroke();
   }
 }
-document.querySelectorAll(".portret").forEach(cv => portret(cv, DJE[+cv.dataset.i]));
 
 let t;
 function graj(kto){
