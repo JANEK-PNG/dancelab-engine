@@ -38,6 +38,13 @@ const BARWA = t => {
    tempa, energie, groove i bas obu stron. Czego nie zmierzyliśmy, tego
    nie zgadujemy — brak wchodzi jako nieznane, nie jako wartość. */
 function profilP(s, poprz){
+  // liczby policzone PRZEZ SILNIK (profil_in_between.py) mają pierwszeństwo —
+  // wizualizacja nie liczy własnej prawdy obok maszyny
+  if (s.C != null){
+    return {C: s.C, D: s.D, Syn: s.Syn, U: s.U, K: s.K,
+            okreslone: s.okreslone !== false, zSilnika: true,
+            cA: BARWA(T01(s.a || 128)), cB: BARWA(T01(s.b || 128))};
+  }
   const H = {idealna: 1, sasiednia: 0.8, rownolegla: 0.74, wzgledna: 0.5,
              zadna: 0.12}[s.h] ?? 0.3;
   const tempoBl = 1 - Math.min(Math.abs(s.d || 0) / 24, 1);
@@ -113,6 +120,36 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
     poleRelacji(ctx, cx + Math.cos(kat) * prom, cy + Math.sin(kat) * prom * 0.6,
                 MIN * 0.36 * persp, P, Math.max(0.05, persp * 0.85),
                 czas, rt, gr * persp, false);
+  }
+
+  // NIĆ CIĄGŁA: jedno pasmo przewleczone przez WSZYSTKIE pola relacji —
+  // szew nie urywa się na granicy utworu, tylko biegnie dalej (Janek:
+  // „znowu mamy pocięty makaron")
+  const wezly = [];
+  for (let k = Math.max(0, Math.floor(teraz) - ILE_WSTECZ); k <= Math.floor(teraz); k++){
+    const wiek = teraz - k;
+    const persp = OKO / (OKO + Math.pow(Math.max(0, wiek), 0.85) * MIN * 0.42);
+    const kat = k * 0.42 + czas * 0.06;
+    const prom = MIN * 0.16 * (1 - persp);
+    wezly.push({x: cx + Math.cos(kat) * prom, y: cy + Math.sin(kat) * prom * 0.6,
+                persp, P: profilP(szwy[k], szwy[k - 1] || szwy[k])});
+  }
+  for (let pas = 0; pas < 3; pas++){
+    for (let k = 1; k < wezly.length; k++){
+      const a = wezly[k - 1], b = wezly[k];
+      const c = b.P.cB;
+      const alfa = (0.10 + b.P.C * 0.35) * b.persp * (pas === 1 ? 1.3 : 0.6);
+      if (alfa < 0.01) continue;
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alfa.toFixed(3)})`;
+      ctx.lineWidth = Math.max(0.35, (0.6 + b.P.C * 1.4) * gr * b.persp
+                                     * (pas === 1 ? 1.3 : 0.7));
+      const roz = (pas - 1) * MIN * 0.012;
+      const mx = (a.x + b.x) / 2 + (a.y - b.y) * 0.2;
+      const my = (a.y + b.y) / 2 + (b.x - a.x) * 0.2 + roz;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y + roz * a.persp);
+      ctx.quadraticCurveTo(mx, my, b.x, b.y + roz * b.persp);
+      ctx.stroke();
+    }
   }
 
   // TERAZ — relacja w pełnej skali, w centrum
