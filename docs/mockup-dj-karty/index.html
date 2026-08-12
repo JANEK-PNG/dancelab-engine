@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DanceLab — DJ-e (mockup kart)</title>
+<style>
+  :root{
+    --tlo:#171614; --karta:#211f1c; --karta-2:#26241f; --linia:#3a3730;
+    --tekst:#e8e4da; --przygaszony:#8f8a7e; --slaby:#5c5850;
+    --volt:#d6f549; --volt-tekst:#161509; --cieply:#e0a458; --chlodny:#6db3c9;
+    --r:3px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{
+    background:var(--tlo); color:var(--tekst); min-height:100vh;
+    font-family:"Space Grotesk", system-ui, -apple-system, sans-serif;
+    padding:28px 32px 60px;
+  }
+  .mono{font-family:"JetBrains Mono", ui-monospace, SFMono-Regular, monospace}
+
+  header{display:flex; align-items:baseline; gap:18px; margin-bottom:6px}
+  h1{font-size:22px; font-weight:600; letter-spacing:.4px}
+  .licznik{color:var(--przygaszony); font-size:13px}
+  .licznik b{color:var(--volt); font-weight:600}
+  .pod{color:var(--slaby); font-size:12px; margin-bottom:18px}
+
+  .filtry{display:flex; gap:8px; margin-bottom:22px; flex-wrap:wrap}
+  .filtr{
+    border:1px solid var(--linia); border-radius:var(--r); padding:5px 12px;
+    font-size:12px; color:var(--przygaszony); cursor:pointer; background:none;
+    font-family:inherit;
+  }
+  .filtr.on{border-color:var(--volt); color:var(--volt)}
+
+  .sciana{display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:16px}
+
+  .karta{
+    background:var(--karta); border:1px solid var(--linia); border-radius:var(--r);
+    padding:16px 16px 14px; position:relative; transition:border-color .12s, transform .12s;
+  }
+  .karta:hover{border-color:#565246; transform:translateY(-2px)}
+  .karta.szara{opacity:.55; filter:saturate(.3)}
+  .karta.szara:hover{opacity:.8}
+
+  .znaczek{
+    position:absolute; top:12px; right:12px; font-size:11px; color:var(--volt);
+    border:1px solid var(--volt); border-radius:var(--r); padding:2px 7px; letter-spacing:.5px;
+  }
+  .nazwa{font-size:19px; font-weight:600; margin-bottom:2px; letter-spacing:.3px}
+  .zrodlo{font-size:11px; color:var(--przygaszony); margin-bottom:14px; letter-spacing:.4px; text-transform:uppercase}
+
+  .tempo{margin-bottom:14px}
+  .tempo-etykieta{display:flex; justify-content:space-between; font-size:11px; color:var(--przygaszony); margin-bottom:5px}
+  .tor{position:relative; height:26px; background:var(--karta-2); border-radius:var(--r); overflow:hidden}
+  .zakres{position:absolute; top:0; bottom:0; background:linear-gradient(90deg, var(--chlodny), var(--cieply)); opacity:.35}
+  .mediana{position:absolute; top:0; bottom:0; width:2px; background:var(--tekst)}
+  .tor-liczby{position:absolute; inset:0; display:flex; align-items:center; justify-content:space-between; padding:0 8px; font-size:11px; color:var(--tekst)}
+  .os{display:flex; justify-content:space-between; font-size:9px; color:var(--slaby); margin-top:3px}
+
+  .staty{display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; margin-bottom:12px}
+  .stat{font-size:12px}
+  .stat .w{font-size:16px; font-weight:600}
+  .stat .e{color:var(--przygaszony); font-size:10.5px; letter-spacing:.3px}
+  .stat .brak{color:var(--slaby)}
+
+  .paski{margin-bottom:14px}
+  .pasek{display:grid; grid-template-columns:86px 1fr 34px; gap:8px; align-items:center; font-size:11px; color:var(--przygaszony); margin-bottom:5px}
+  .pasek .tor2{height:5px; background:var(--karta-2); border-radius:var(--r); overflow:hidden}
+  .pasek .fill{height:100%; background:var(--cieply); opacity:.8}
+  .pasek .fill.c{background:var(--chlodny)}
+
+  .stopka{display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--linia); padding-top:12px}
+  .zaplecze{font-size:10.5px; color:var(--slaby); line-height:1.5}
+  .graj{
+    background:var(--volt); color:var(--volt-tekst); border:none; border-radius:var(--r);
+    font-family:inherit; font-weight:700; font-size:12px; letter-spacing:.8px;
+    padding:9px 14px; cursor:pointer;
+  }
+  .graj:hover{filter:brightness(1.08)}
+  .karta.szara .graj{background:none; color:var(--przygaszony); border:1px solid var(--linia)}
+
+  .wbudowie{font-size:11px; color:var(--przygaszony); border:1px dashed var(--linia);
+    border-radius:var(--r); padding:8px 10px; margin-bottom:12px; line-height:1.5}
+
+  #toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px);
+    background:var(--volt); color:var(--volt-tekst); padding:10px 18px; border-radius:var(--r);
+    font-size:13px; font-weight:600; transition:transform .18s; z-index:9;
+  }
+  #toast.jest{transform:translateX(-50%) translateY(0)}
+  .stopka-strony{margin-top:34px; color:var(--slaby); font-size:11px; line-height:1.6; max-width:720px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>DJ-e</h1>
+  <span class="licznik">poznanych: <b>2</b> z 551 zmierzonych <span class="mono">·</span> 869 w mapie</span>
+</header>
+<p class="pod">Każda liczba na karcie to pomiar z prawdziwych setów tego DJ-a w naszej mapie. Żadnych ocen — tylko jak kto gra.</p>
+
+<div class="filtry">
+  <button class="filtr on">wszyscy</button>
+  <button class="filtr">poznani</button>
+  <button class="filtr">wolniej niż 125</button>
+  <button class="filtr">szybciej niż 140</button>
+  <button class="filtr">równy puls</button>
+  <button class="filtr">skoczne tempo</button>
+</div>
+
+<div class="sciana" id="sciana"></div>
+
+<p class="stopka-strony">
+  Makieta — nic nie jest wpięte w silnik. Karty Tim Reaper, Piasecki i Catz 'n Dogz niosą
+  prawdziwe pomiary z mapy (plik karty_pilot3.json, stan 12.08). Szare karty pokazują stan
+  „jeszcze nie poznany" i „profil w budowie". Zakres temp = percentyle 10–90 z obu stron
+  wszystkich policzonych szwów; kreska = mediana. „Zgodne harmonicznie" = odsetek szwów
+  o tonacjach idealnych/sąsiednich/równoległych. Energia, groove i bas to mediany po
+  zmierzonych utworach granych przez DJ-a (0–1, względne w mapie).
+</p>
+
+<div id="toast">kotwica ustawiona</div>
+
+<script>
+const DJE = [
+  {ksywa:"Tim Reaper", zrodlo:"RA Podcast", poznany:true,
+   bpm_lo:119, bpm_hi:173, bpm_med:140, harm:24, skok:5.0,
+   energia:.55, groove:.43, bas:.54, sety:2, szwy:177, utwory:215},
+  {ksywa:"Piasecki", zrodlo:"Audioriver", poznany:true,
+   bpm_lo:104, bpm_hi:178, bpm_med:127, harm:12, skok:17.0,
+   energia:.41, groove:.19, bas:.39, sety:6, szwy:92, utwory:104},
+  {ksywa:"Catz 'n Dogz", zrodlo:"sety klubowe i podcasty", poznany:false,
+   bpm_lo:108, bpm_hi:171, bpm_med:124, harm:12, skok:6.0,
+   energia:.41, groove:.41, bas:.42, sety:9, szwy:48, utwory:77},
+  {ksywa:"Ayesha", zrodlo:"RA Podcast", poznany:false,
+   bpm_lo:132, bpm_hi:181, bpm_med:140, harm:26, skok:7.0,
+   energia:null, groove:null, bas:null, sety:1, szwy:39, utwory:null},
+  {ksywa:"VOODOOHOP", zrodlo:"profil w budowie", wbudowie:true, poznany:false, sety:3, szwy:12},
+  {ksywa:"Jyoty", zrodlo:"profil w budowie", wbudowie:true, poznany:false, sety:1, szwy:39},
+];
+
+const MIN=95, MAX=190;                       // oś temp wspólna dla wszystkich kart
+const proc = v => ((v-MIN)/(MAX-MIN)*100).toFixed(1);
+
+function pasek(nazwa, v, chlodny){
+  const fill = v==null ? "" :
+    `<div class="fill${chlodny?" c":""}" style="width:${(v*100).toFixed(0)}%"></div>`;
+  const w = v==null ? "—" : v.toFixed(2);
+  return `<div class="pasek"><span>${nazwa}</span><div class="tor2">${fill}</div><span class="mono">${w}</span></div>`;
+}
+
+function karta(d){
+  if (d.wbudowie){
+    return `<div class="karta szara">
+      <div class="nazwa">${d.ksywa}</div>
+      <div class="zrodlo">${d.zrodlo}</div>
+      <div class="wbudowie">Mamy ${d.sety} set${d.sety===1?"":"y"} i ${d.szwy} szwów tego DJ-a,
+        ale za mało policzonych, żeby uczciwie narysować profil. Karta uzupełni się sama,
+        gdy pomiary dojdą — nic tu nie zgadujemy.</div>
+      <div class="stopka"><span class="zaplecze">w mapie: ${d.sety} sety · ${d.szwy} szwów</span>
+      <button class="graj" onclick="graj('${d.ksywa}')">GRAJ JAK TEN</button></div>
+    </div>`;
+  }
+  const zn = d.poznany ? `<span class="znaczek">✓ POZNANY</span>` : "";
+  return `<div class="karta${d.poznany?"":" szara"}">
+    ${zn}
+    <div class="nazwa">${d.ksywa}</div>
+    <div class="zrodlo">${d.zrodlo}</div>
+    <div class="tempo">
+      <div class="tempo-etykieta"><span>tempo (uderzenia na minutę)</span><span class="mono">mediana ${d.bpm_med}</span></div>
+      <div class="tor">
+        <div class="zakres" style="left:${proc(d.bpm_lo)}%; width:${(proc(d.bpm_hi)-proc(d.bpm_lo)).toFixed(1)}%"></div>
+        <div class="mediana" style="left:${proc(d.bpm_med)}%"></div>
+        <div class="tor-liczby mono"><span>${d.bpm_lo}</span><span>${d.bpm_hi}</span></div>
+      </div>
+      <div class="os mono"><span>${MIN}</span><span>${MAX}</span></div>
+    </div>
+    <div class="staty">
+      <div class="stat"><div class="w mono">${d.harm}%</div><div class="e">szwów zgodnych harmonicznie</div></div>
+      <div class="stat"><div class="w mono">±${d.skok}</div><div class="e">typowy skok tempa na szwie</div></div>
+    </div>
+    <div class="paski">
+      ${pasek("energia", d.energia)}
+      ${pasek("groove", d.groove)}
+      ${pasek("bas", d.bas, true)}
+    </div>
+    <div class="stopka">
+      <span class="zaplecze">w mapie: ${d.sety} set${d.sety===1?"":"y"} · ${d.szwy} szwów policzonych${d.utwory?` · ${d.utwory} utworów`:""}</span>
+      <button class="graj" onclick="graj('${d.ksywa.replace(/'/g,"\\'")}')">GRAJ JAK TEN</button>
+    </div>
+  </div>`;
+}
+
+document.getElementById("sciana").innerHTML = DJE.map(karta).join("");
+
+let t;
+function graj(kto){
+  const el = document.getElementById("toast");
+  el.textContent = `kotwica: ${kto} — wracam do briefu (pozorne)`;
+  el.classList.add("jest");
+  clearTimeout(t); t = setTimeout(()=>el.classList.remove("jest"), 2600);
+}
+</script>
+</body>
+</html>
