@@ -70,6 +70,15 @@
     pointer-events:none}
   .hero.gra .warstwa-sc{opacity:1; pointer-events:auto}
   .warstwa-sc iframe{width:100%; height:100%; border:0}
+  .info-i{position:absolute; right:8px; top:8px; z-index:5; width:20px; height:20px;
+    border-radius:50%; border:1px solid var(--przygaszony); color:var(--przygaszony);
+    background:rgba(23,22,20,.82); font-size:11px; font-family:inherit; cursor:pointer;
+    line-height:1}
+  .info-i:hover{border-color:var(--volt); color:var(--volt)}
+  .warstwa-info{position:absolute; inset:0; z-index:4; display:none;
+    background:rgba(23,22,20,.94); padding:9px 34px 9px 12px; font-size:10.5px;
+    line-height:1.5; color:var(--tekst); overflow:auto}
+  .warstwa-info.jest{display:block}
   .posluchaj{position:absolute; left:8px; bottom:8px; z-index:2; background:rgba(23,22,20,.82);
     border:1px solid var(--linia); border-radius:var(--r); color:var(--tekst);
     font-family:inherit; font-size:10.5px; letter-spacing:.6px; padding:5px 10px; cursor:pointer}
@@ -289,7 +298,8 @@ function karta(d){
       <div class="nazwa">${d.ksywa}</div>
       <div class="zrodlo">${d.zrodlo}</div>
       <div class="hero"><canvas class="portret" data-i="${d._i}"></canvas>
-        <span class="podpis">portret czeka na pomiary</span></div>
+        <button class="info-i" onclick="infoPortret(${d._i})">i</button>
+        <div class="warstwa-info" id="info-${d._i}"></div></div>
       <div class="wbudowie">Mamy ${d.sety} set${d.sety===1?"":"y"} i ${d.szwy} szwów tego DJ-a,
         ale za mało policzonych, żeby uczciwie narysować profil. Karta uzupełni się sama,
         gdy pomiary dojdą — nic tu nie zgadujemy.</div>
@@ -303,7 +313,8 @@ function karta(d){
     <div class="nazwa">${d.ksywa}</div>
     <div class="zrodlo">${d.zrodlo}</div>
     <div class="hero" id="hero-${d._i}"><canvas class="portret" data-i="${d._i}"></canvas>
-      <span class="podpis">portret brzmienia — z pomiarów</span>
+      <button class="info-i" onclick="infoPortret(${d._i})">i</button>
+      <div class="warstwa-info" id="info-${d._i}"></div>
       ${d.sluchaj ? `<button class="posluchaj" id="pos-${d._i}" onclick="odsluch(${d._i})">▶ POSŁUCHAJ SETU</button>` : ""}</div>
     <div class="tempo">
       <div class="tempo-etykieta"><span>tempo (uderzenia na minutę)</span><span class="mono">mediana ${d.bpm_med}</span></div>
@@ -594,6 +605,43 @@ function odsluch(i){
   }
   requestAnimationFrame(() => requestAnimationFrame(() => hero.classList.add("gra")));
   guzik.textContent = "✕ PORTRET";
+}
+
+function infoPortret(i){
+  const d = DJE[i];
+  const box = document.getElementById(`info-${i}`);
+  if (box.classList.contains("jest")){ box.classList.remove("jest"); return; }
+  const szwy = SZWY[d.ksywa] || [];
+  let tekst;
+  if (szwy.length){
+    const idealne = szwy.filter(s => s.h === "idealna").length;
+    const zgodne = szwy.filter(s => ["idealna","sasiednia","rownolegla"].includes(s.h)).length;
+    const zgrzyty = szwy.length - zgodne;
+    tekst = `<b>Jak powstał ten portret</b><br>
+      Każda nić to jedno prawdziwe przejście z ${d.sety} setów ${d.ksywa}
+      w naszej mapie — ${szwy.length} szwów, w kolejności grania.
+      ${idealne} nici w kolorze volt to przejścia idealne tonacyjnie,
+      ${zgrzyty} strzępów to zgrzyty. Kolor nici = tempo tego przejścia
+      (chłodny→ciepły). Pozioma linia to droga setu — grubieje z każdym
+      doczepionym utworem. Punkt światła to noc, która płynie: przed nim
+      cisza, pod nim utwory zapalają się i zostają. Kształt wirów bierze
+      się ze zmierzonego charakteru (energia, groove, skoki tempa).
+      Zero losowości: te same sety dają zawsze ten sam portret.`;
+  } else if (d.wbudowie){
+    tekst = `<b>Czemu tu pusto</b><br>
+      Mamy ${d.sety} set${d.sety===1?"":"y"} i ${d.szwy} szwów tego DJ-a,
+      ale za mało policzonych, żeby uczciwie utkać portret. Przerywana
+      linia to obietnica: nici pojawią się same, gdy pomiary dojdą —
+      nic tu nie zgadujemy.`;
+  } else {
+    tekst = `<b>Jak powstał ten portret</b><br>
+      Ten jedwab płynie z median zmierzonych utworów ${d.ksywa}
+      (energia, groove, bas, tempo) — sekwencje jego przejść nie są
+      jeszcze w pliku pilotażowym. Gdy dojdą z mostu danych, każda nić
+      stanie się jednym prawdziwym przejściem, jak u pozostałych.`;
+  }
+  box.innerHTML = tekst;
+  box.classList.add("jest");
 }
 
 let t;
