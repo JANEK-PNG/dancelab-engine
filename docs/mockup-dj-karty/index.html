@@ -91,6 +91,7 @@
   .pasek .tor2{height:5px; background:var(--karta-2); border-radius:var(--r); overflow:hidden}
   .pasek .fill{height:100%; background:var(--cieply); opacity:.8}
   .pasek .fill.c{background:var(--chlodny)}
+  .pasek .fill.g{background:#a8c952}
 
   .stopka{display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--linia); padding-top:12px}
   .zaplecze{font-size:10.5px; color:var(--slaby); line-height:1.5}
@@ -207,9 +208,9 @@ const DJE = [
 const MIN=95, MAX=190;                       // oś temp wspólna dla wszystkich kart
 const proc = v => ((v-MIN)/(MAX-MIN)*100).toFixed(1);
 
-function pasek(nazwa, v, chlodny){
+function pasek(nazwa, v, klasa){
   const fill = v==null ? "" :
-    `<div class="fill${chlodny?" c":""}" style="width:${(v*100).toFixed(0)}%"></div>`;
+    `<div class="fill${klasa?" "+klasa:""}" style="width:${(v*100).toFixed(0)}%"></div>`;
   const w = v==null ? "—" : v.toFixed(2);
   return `<div class="pasek"><span>${nazwa}</span><div class="tor2">${fill}</div><span class="mono">${w}</span></div>`;
 }
@@ -269,8 +270,8 @@ function karta(d){
     </div>
     <div class="paski">
       ${pasek("energia", d.energia)}
-      ${pasek("groove", d.groove)}
-      ${pasek("bas", d.bas, true)}
+      ${pasek("groove", d.groove, "g")}
+      ${pasek("bas", d.bas, "c")}
     </div>
     <div class="stopka">
       <span class="zaplecze">w mapie:<br>${d.sety} set${d.sety===1?"":"y"}<br>${d.szwy} szwów policzonych${d.utwory?`<br>${d.utwory} utworów`:""}</span>
