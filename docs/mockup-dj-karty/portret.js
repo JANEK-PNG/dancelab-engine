@@ -120,7 +120,7 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
     const prom = MIN * 0.16 * (1 - persp);
     poleRelacji(ctx, cx + Math.cos(kat) * prom, cy + Math.sin(kat) * prom * 0.6,
                 MIN * 0.36 * persp, P, Math.max(0.05, persp * 0.85),
-                czas, rt, gr * persp, false);
+                czas, rt, gr * persp, false, d.ksywa + "#" + k);
   }
 
   // NIĆ CIĄGŁA: jedno pasmo przewleczone przez WSZYSTKIE pola relacji —
@@ -156,7 +156,8 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
   // TERAZ — relacja w pełnej skali, w centrum
   const i0 = Math.max(0, Math.min(n - 1, Math.floor(teraz)));
   const P = profilP(szwy[i0], szwy[i0 - 1] || szwy[i0]);
-  poleRelacji(ctx, cx, cy, MIN * 0.36, P, 1, czas, rt, gr, true);
+  poleRelacji(ctx, cx, cy, MIN * 0.36, P, 1, czas, rt, gr, true,
+              d.ksywa + "#" + i0);
 
   // === PĘTLA DJ ↔ MUZYKA (Janek: „to jest właśnie in between") ===
   // DJ nie jest widzem — jest DRUGĄ STRONĄ relacji. Puszcza muzykę,
@@ -164,50 +165,42 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
   // ku środkowi — ile DJ NARZUCIŁ (i_DJ→M), na zewnątrz — ile MUZYKA
   // go poprowadziła (i_M→DJ). Grubsza strona prowadzi.
   petlaDJ(ctx, cx, cy, MIN, P, czas, rt, gr,
-          (szwy[i0].b || 128) / 60);
+          (szwy[i0].b || 128) / 60, d.ksywa + "#" + i0);
 }
 
-function petlaDJ(ctx, cx, cy, MIN, P, czas, rt, gr, hz){
+function petlaDJ(ctx, cx, cy, MIN, P, czas, rt, gr, hz, ziarno){
   const iDJ = P.iDJ ?? 0.5, iM = P.iM ?? 0.5;
   const Rd = MIN * 0.46;
   const bit = 0.86 + 0.14 * Math.sin(czas * hz * 6.283);   // puls granego tempa
 
   // obecność DJ-a: pierścień wokół pola relacji, oddycha rytmem utworu
-  ctx.strokeStyle = `rgba(232,228,218,${(0.05 + iDJ * 0.09).toFixed(3)})`;
+  ctx.strokeStyle = `rgba(232,228,218,${(0.035 + iDJ * 0.05).toFixed(3)})`;
   ctx.lineWidth = Math.max(0.4, (0.4 + iDJ * 1.0) * gr);
   ctx.beginPath();
   ctx.ellipse(cx, cy, Rd * bit, Rd * 0.66 * bit, 0, 0, 6.283);
   ctx.stroke();
 
-  // kierunek DJ → MUZYKA: włókna z pierścienia do środka (narzucanie)
-  const doSrodka = Math.round(3 + iDJ * 22);
-  for (let k = 0; k < doSrodka; k++){
-    const kat = rt() * 6.283;
-    const x0 = cx + Math.cos(kat) * Rd * bit, y0 = cy + Math.sin(kat) * Rd * 0.66 * bit;
-    const x1 = cx + Math.cos(kat) * MIN * 0.1, y1 = cy + Math.sin(kat) * MIN * 0.07;
-    const a = (0.03 + iDJ * 0.13) * (0.4 + rt() * 0.7);
-    ctx.strokeStyle = `rgba(255,255,255,${a.toFixed(3)})`;
-    ctx.lineWidth = Math.max(0.25, (0.25 + iDJ * 0.5) * gr);
-    const wyg = (rt() - 0.5) * MIN * 0.22;
-    ctx.beginPath(); ctx.moveTo(x0, y0);
-    ctx.quadraticCurveTo((x0 + x1) / 2 + wyg, (y0 + y1) / 2 + wyg, x1, y1);
-    ctx.stroke();
-  }
-  // kierunek MUZYKA → DJ: włókna ze środka ku pierścieniowi (prowadzenie)
-  const naZewnatrz = Math.round(3 + iM * 22);
-  for (let k = 0; k < naZewnatrz; k++){
-    const kat = rt() * 6.283;
-    const x0 = cx + Math.cos(kat) * MIN * 0.12, y0 = cy + Math.sin(kat) * MIN * 0.08;
-    const x1 = cx + Math.cos(kat) * Rd * bit * 1.04,
-          y1 = cy + Math.sin(kat) * Rd * 0.66 * bit * 1.04;
-    const c = P.cB;
-    const a = (0.03 + iM * 0.13) * (0.4 + rt() * 0.7);
-    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(3)})`;
-    ctx.lineWidth = Math.max(0.25, (0.25 + iM * 0.5) * gr);
-    const wyg = (rt() - 0.5) * MIN * 0.22;
-    ctx.beginPath(); ctx.moveTo(x0, y0);
-    ctx.quadraticCurveTo((x0 + x1) / 2 + wyg, (y0 + y1) / 2 + wyg, x1, y1);
-    ctx.stroke();
+  // oba kierunki pętli jako WŁÓKNA SPIRALNE, nie szprychy
+  for (const nurt of [{ile: Math.round(2 + iDJ * 11), do_: true, c: [255,255,255], si: iDJ},
+                      {ile: Math.round(2 + iM * 11), do_: false, c: P.cB, si: iM}]){
+    for (let k = 0; k < nurt.ile; k++){
+      const rk = rnd(hash((ziarno || "x") + (nurt.do_ ? "|dj" : "|mu") + k));
+      const kat0 = rk() * 6.283;
+      let r = nurt.do_ ? Rd * (0.82 + rk() * 0.2) : MIN * (0.10 + rk() * 0.06);
+      let kat = kat0;
+      const a2 = (0.025 + nurt.si * 0.10) * (0.4 + rk() * 0.7);
+      ctx.strokeStyle = `rgba(${nurt.c[0]},${nurt.c[1]},${nurt.c[2]},${a2.toFixed(3)})`;
+      ctx.lineWidth = Math.max(0.25, (0.3 + nurt.si * 0.6) * gr);
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(kat) * r, cy + Math.sin(kat) * r * 0.64);
+      const cel = nurt.do_ ? MIN * 0.1 : Rd;
+      for (let j = 0; j < 40; j++){
+        r += (cel - r) * 0.06;
+        kat += 0.11 + Math.sin(czas * 0.4 + kat0 + j * 0.2) * 0.05;
+        ctx.lineTo(cx + Math.cos(kat) * r, cy + Math.sin(kat) * r * 0.64);
+      }
+      ctx.stroke();
+    }
   }
   // kto prowadzi: łuk po stronie silniejszego kierunku
   if (P.Ddj != null){
@@ -226,7 +219,7 @@ function petlaDJ(ctx, cx, cy, MIN, P, czas, rt, gr, hz){
 }
 
 /* POLE RELACJI — brzegi są tylko krawędziami; ciałem jest to, co pomiędzy. */
-function poleRelacji(ctx, cx, cy, R, P, moc, czas, rt, gr, pelne){
+function poleRelacji(ctx, cx, cy, R, P, moc, czas, rt, gr, pelne, ziarno){
   const oddech = 0.94 + 0.06 * Math.sin(czas * 0.9);
   const przechyl = P.okreslone ? Math.max(-0.6, Math.min(0.6, P.D * 0.9)) : 0;
 
@@ -260,11 +253,12 @@ function poleRelacji(ctx, cx, cy, R, P, moc, czas, rt, gr, pelne){
      + Math.cos(dy / R * f2 * 3.1 - czas * 0.22)
      + Math.sin((dx + dy) / R * 2.2 + czas * 0.13)) * turb + przechyl * 1.4;
   for (let k = 0; k < ile; k++){
-    const zLewej = rt() < 0.5 - przechyl * 0.28;
-    let x = cx + (zLewej ? -1 : 1) * R * (0.35 + rt() * 0.62);
-    let y = cy + (rt() - 0.5) * R * 1.05 * P.U;
+    const rk = rnd(hash((ziarno || "x") + "|c" + k));   // stałe ziarno nici
+    const zLewej = rk() < 0.5 - przechyl * 0.28;
+    let x = cx + (zLewej ? -1 : 1) * R * (0.35 + rk() * 0.62);
+    let y = cy + (rk() - 0.5) * R * 1.05 * P.U;
     const c = zLewej ? P.cA : P.cB;
-    const a = (0.05 + P.C * 0.34) * moc * (0.35 + rt() * 0.8);
+    const a = (0.05 + P.C * 0.34) * moc * (0.35 + rk() * 0.8);
     if (a < 0.006) continue;
     ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(3)})`;
     ctx.lineWidth = Math.max(0.3, (0.45 + P.C * 1.3) * gr);
@@ -272,7 +266,7 @@ function poleRelacji(ctx, cx, cy, R, P, moc, czas, rt, gr, pelne){
     const krok = R * 0.035;
     ctx.beginPath(); ctx.moveTo(x, y);
     for (let j = 0; j < dlug; j++){
-      const kier = polePola(x - cx, y - cy) + (rt() - 0.5) * (1 - P.C) * 0.5;
+      const kier = polePola(x - cx, y - cy) + (rk() - 0.5) * (1 - P.C) * 0.5;
       x += Math.cos(kier) * krok; y += Math.sin(kier) * krok * 0.75;
       ctx.lineTo(x, y);
     }
@@ -282,14 +276,15 @@ function poleRelacji(ctx, cx, cy, R, P, moc, czas, rt, gr, pelne){
   // 4 · Syn — włókna, które NIE DOTYKAJĄ brzegów: powstały w środku
   const ileS = Math.round(P.Syn * 30 * (pelne ? 1 : 0.25));
   for (let k = 0; k < ileS; k++){
-    let x = cx + (rt() - 0.5) * R * 0.85, y = cy + (rt() - 0.5) * R * 0.5;
+    const rk = rnd(hash((ziarno || "x") + "|s" + k));
+    let x = cx + (rk() - 0.5) * R * 0.85, y = cy + (rk() - 0.5) * R * 0.5;
     const a = (0.1 + P.Syn * 0.55) * moc;
     ctx.strokeStyle = `rgba(${VOLT[0]},${VOLT[1]},${VOLT[2]},${a.toFixed(3)})`;
     ctx.lineWidth = Math.max(0.4, (0.55 + P.Syn) * gr);
     ctx.beginPath(); ctx.moveTo(x, y);
-    let kier = rt() * 6.283;
+    let kier = rk() * 6.283;
     for (let j = 0; j < 18; j++){
-      kier += (rt() - 0.5) * 0.65 + Math.sin(czas * 0.5 + j * 0.3) * 0.09;
+      kier += (rk() - 0.5) * 0.65 + Math.sin(czas * 0.5 + j * 0.3) * 0.09;
       x += Math.cos(kier) * R * 0.032; y += Math.sin(kier) * R * 0.026;
       ctx.lineTo(x, y);
     }
