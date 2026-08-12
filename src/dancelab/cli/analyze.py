@@ -206,7 +206,7 @@ def zagraj(
     bpm: str = typer.Option(
         "", "--bpm", help="Okno tempa, np. '128-140'"),
     play_like: str = typer.Option(
-        "", "--jak", help="Graj jak ten DJ (kotwica brzmienia z dj_anchors.json). "
+        "", "--jak", help="Brzmi jak ten DJ (kotwica brzmienia z dj_anchors.json). "
                           "'?' wypisuje dostępnych."),
     contour: bool = typer.Option(
         False, "--kontur", help="Prowadź skoki brzmienia konturem tego DJ-a "

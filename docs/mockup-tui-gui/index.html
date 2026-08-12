@@ -169,7 +169,7 @@ function pew(v){return v==="RB"?`<span class="pew-rb">RB</span>`:v==="ręka"?`<s
 
 const TYTUL={lib:'DanceLab — biblioteka',set:'DanceLab — budowa setu',cue:'DanceLab — eksport cue'};
 const FOOT={
- lib:`<span><b>p</b> Odsłuch</span><span><b>u</b> ♥ Ulubiony</span><span><b>f</b> Filar</span><span><b>g</b> Z filarów</span><span><b>k</b> Okładki</span><span><b>i</b> Info</span><span><b>^g</b> Gatunki</span><span><b>^d</b> Graj jak…</span><span><b>esc</b> Anuluj</span><span><b>q</b> Wyjdź</span><span class="right">^p palette</span>`,
+ lib:`<span><b>p</b> Odsłuch</span><span><b>u</b> ♥ Ulubiony</span><span><b>f</b> Filar</span><span><b>g</b> Z filarów</span><span><b>k</b> Okładki</span><span><b>i</b> Info</span><span><b>^g</b> Gatunki</span><span><b>^d</b> Brzmi jak…</span><span><b>esc</b> Anuluj</span><span><b>q</b> Wyjdź</span><span class="right">^p palette</span>`,
  set:`<span><b>b</b> Buduj</span><span><b>w</b> Wyślij do RB</span><span><b>z</b> Zamień</span><span><b>x</b> Wytnij</span><span><b>a</b> Dopisz</span><span><b>s</b> Zapisz plan</span><span><b>o</b> Wczytaj plan</span><span><b>c</b> Porównaj</span><span><b>i</b> Info</span><span><b>l</b> Notki</span><span><b>f</b> Filar</span><span><b>esc</b> Anuluj</span><span><b>q</b> Wyjdź</span><span class="right">^p palette</span>`,
  cue:`<span><b>a–h</b> pad</span><span><b>←→</b> pad o takt (⇧ ±8)</span><span><b>x</b> Zdejmij</span><span><b>z</b> Cofnij</span><span><b>s</b> Szew od padów</span><span><b>p</b> Od pada</span><span><b>w</b> Wyślij (2×)</span><span><b>esc</b> Odznacz</span><span class="right">^p palette</span>`};
 function chrome(){document.getElementById('titlemid').textContent=TYTUL[S.tab];
@@ -205,7 +205,7 @@ function rSet(){
    <div class="flabel">Okno tempa (np. 128-140)</div><input class="fld" placeholder="puste = bez okna">
    <div class="flabel">Gatunki (Ctrl+G = lista z biblioteki)</div>
    <input class="fld" id="f-gatunki" value="${[...S.gatWybrane].join(', ')}" placeholder="Tech House, UK Garage / Bassline">
-   <div class="flabel">Graj jak… (Ctrl+D = rodziny brzmienia)</div>
+   <div class="flabel">Brzmi jak… (Ctrl+D = rodziny brzmienia)</div>
    <div class="sel" onclick="openPanel('dj')">${S.kotwica}</div>
    <div class="switchrow"><span class="swx ${S.kontur?'on':''}" onclick="S.kontur=!S.kontur;rSet()"><i></i></span> kontur skoków tego DJ-a</div>
    <div class="flabel">Łuk / plan tempa / tryb</div>

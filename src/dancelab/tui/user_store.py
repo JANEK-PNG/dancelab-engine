@@ -49,7 +49,7 @@ MAX_FILARY = 10
 # niesie deklarację MIEJSCA w secie. To jest odpowiedź na obalony łuk:
 # zamiast narzuconej krzywej DJ deklaruje punkty stałe, a silnik napina
 # set między nimi. Nazwa „filar" została świadomie (Janek: „nie rozstawiasz
-# 5 kotwic, a filary już tak") — „kotwica" pozostaje przy „Graj jak…".
+# 5 kotwic, a filary już tak") — „kotwica" pozostaje przy „Brzmi jak…".
 ROLE_FILARA = {
     "otwarcie": "pierwszy utwór",
     "buildup": "rozpędza w górę",
@@ -112,7 +112,7 @@ def aktywna_playlista(state: dict) -> dict | None:
 def nowa_playlista(state: dict, nazwa: str) -> int:
     """Nowa playlista staje się aktywna; zaraz po nazwie wracamy do Biblioteki,
     gdzie DJ zaznacza filary (kolejność z decyzji Janka 12.08 — kotwica nie jest
-    wymuszonym krokiem, ustawia się ją polem „Graj jak…" w dowolnej chwili)."""
+    wymuszonym krokiem, ustawia się ją polem „Brzmi jak…" w dowolnej chwili)."""
     state["playlisty"].append({"nazwa": nazwa, "kotwica": None, "filary": [],
                                "utwory": []})
     state["aktywna_playlista"] = len(state["playlisty"]) - 1

@@ -614,7 +614,7 @@ class DanceLabTUI(App):
         Binding("pageup", "skok_tyl_128", "skok -128", show=False,
                 priority=True),
         Binding("ctrl+g", "gatunki", "Gatunki", show=False),
-        Binding("ctrl+d", "grupy_dj", "Graj jak…", show=False),
+        Binding("ctrl+d", "grupy_dj", "Brzmi jak…", show=False),
         Binding("c", "compare_pair", "Porównaj"),
         Binding("i", "track_info", "Info"),
         Binding("l", "toggle_notes", "Notki"),
@@ -734,7 +734,7 @@ class DanceLabTUI(App):
                                         classes="field-label")
                             yield Input(placeholder="Tech House, UK Garage / Bassline",
                                         id="styles")
-                            yield Label("Graj jak… (Ctrl+D = rodziny brzmienia)", classes="field-label")
+                            yield Label("Brzmi jak… (Ctrl+D = rodziny brzmienia)", classes="field-label")
                             yield Select([], id="dj", prompt="— bez kotwicy —")
                             with Horizontal():
                                 yield Switch(value=False, id="contour")
@@ -1892,13 +1892,13 @@ class DanceLabTUI(App):
                 self._render_side_list()
                 # Janek 12.08: po nazwie OD RAZU Biblioteka — DJ zaznacza
                 # filary (F) do tej playlisty; kotwica nie jest wymuszonym
-                # krokiem, ustawia się ją panelem „Graj jak…" (Ctrl+G).
+                # krokiem, ustawia się ją panelem „Brzmi jak…" (Ctrl+G).
                 self._lib_section = "all"
                 self._render_library()
                 self.query_one("#lib-table", DataTable).focus()
                 self._note(f"playlista „{nazwa}” utworzona i aktywna — "
                            f"F przypina filary do niej, B buduje i zapisuje "
-                           f"set w playliście; kotwica: panel Graj jak…")
+                           f"set w playliście; kotwica: panel Brzmi jak…")
                 self.notify(f"„{nazwa}” aktywna — zaznacz filary klawiszem F",
                             timeout=6)
 
@@ -2537,7 +2537,7 @@ class DanceLabTUI(App):
         if err:
             raise ValueError(err)
         minutes = float(get("#minutes", Input).value or 90)
-        # puste „Graj jak…" to NoSelection, NIE zawsze identyczne z Select.BLANK
+        # puste „Brzmi jak…" to NoSelection, NIE zawsze identyczne z Select.BLANK
         # (złapane 05.08: budowa bez kotwicy padała na ODMOWIE) — bierzemy tylko str
         dj = get("#dj", Select).value
         seed_txt = get("#seed", Input).value.strip()
