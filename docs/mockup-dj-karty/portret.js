@@ -181,21 +181,34 @@ function poleRelacji(ctx, cx, cy, R, P, moc, czas, rt, gr, pelne){
     ctx.stroke();
   }
 
-  // 3 · C — materia sprzężenia: włókna biegnące MIĘDZY brzegami; ich liczba
-  //     to C, rozpiętość w pionie to U, przechylenie ku prowadzącemu to D
-  const ile = Math.round((4 + P.C * 60) * (pelne ? 1 : 0.3));
+  // 3 · C — materia sprzężenia JAKO JEDWAB (Janek: „to mają być takie
+  //     włókna cały czas"): nici płyną po wspólnym polu sił wewnątrz pola
+  //     relacji. Ile ich = C. Jak wysoko sięgają = U. Ku której stronie
+  //     dryfują = D. Jak bardzo się plączą = 1−C (słabe sprzężenie szarpie).
+  const ile = Math.round((5 + P.C * 46) * (pelne ? 1 : 0.28));
+  const turb = 0.45 + (1 - P.C) * 1.8;
+  const f1 = 0.9 + P.U * 1.6, f2 = 1.7 + P.Syn * 2.2;
+  const polePola = (dx, dy) =>
+    (Math.sin(dx / R * f1 * 3.1 + czas * 0.35)
+     + Math.cos(dy / R * f2 * 3.1 - czas * 0.22)
+     + Math.sin((dx + dy) / R * 2.2 + czas * 0.13)) * turb + przechyl * 1.4;
   for (let k = 0; k < ile; k++){
-    const u = rt();
-    const y0 = cy + (rt() - 0.5) * R * 0.95 * P.U;
-    const wyg = (rt() - 0.5) * R * 0.3 + przechyl * R * 0.42;
-    const c = u < 0.5 ? P.cA : P.cB;
-    const a = (0.05 + P.C * 0.32) * moc * (0.35 + rt() * 0.85);
+    const zLewej = rt() < 0.5 - przechyl * 0.28;
+    let x = cx + (zLewej ? -1 : 1) * R * (0.35 + rt() * 0.62);
+    let y = cy + (rt() - 0.5) * R * 1.05 * P.U;
+    const c = zLewej ? P.cA : P.cB;
+    const a = (0.05 + P.C * 0.34) * moc * (0.35 + rt() * 0.8);
+    if (a < 0.006) continue;
     ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${a.toFixed(3)})`;
-    ctx.lineWidth = Math.max(0.3, (0.45 + P.C * 1.2) * gr);
-    ctx.beginPath();
-    ctx.moveTo(cx - R * 0.94, y0 + (rt() - 0.5) * R * 0.08);
-    ctx.quadraticCurveTo(cx + wyg, cy + (y0 - cy) * 0.3 + wyg * 0.5,
-                         cx + R * 0.94, y0 + (rt() - 0.5) * R * 0.08);
+    ctx.lineWidth = Math.max(0.3, (0.45 + P.C * 1.3) * gr);
+    const dlug = Math.round(26 + P.C * 74);
+    const krok = R * 0.035;
+    ctx.beginPath(); ctx.moveTo(x, y);
+    for (let j = 0; j < dlug; j++){
+      const kier = polePola(x - cx, y - cy) + (rt() - 0.5) * (1 - P.C) * 0.5;
+      x += Math.cos(kier) * krok; y += Math.sin(kier) * krok * 0.75;
+      ctx.lineTo(x, y);
+    }
     ctx.stroke();
   }
 
