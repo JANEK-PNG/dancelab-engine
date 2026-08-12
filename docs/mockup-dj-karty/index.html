@@ -228,25 +228,33 @@ function portret(cv, d){
   const r = rnd(hash(d.ksywa));
   const cieplo = Math.min(Math.max(((d.bpm_med ?? 140) - 95) / 95, 0), 1);
   const en = d.energia ?? 0.45, skok = Math.min((d.skok ?? 8) / 20, 1), bas = d.bas ?? 0.45;
+  const groove = d.groove ?? 0.35;
   const cool = [109,179,201], warm = [224,164,88];
   const mix = t => cool.map((v,i)=>Math.round(v + (warm[i]-v)*t));
-  for (let L = 0; L < 3; L++){
-    const base = H * (0.66 + 0.15*L);
-    const A = H * (0.16 + 0.13*L) * (0.55 + en);
-    const f1 = 1.2 + r()*1.8, f2 = 3.5 + r()*3, p1 = r()*6.28, p2 = r()*6.28;
-    ctx.beginPath(); ctx.moveTo(0, H);
-    for (let i = 0; i <= 96; i++){
-      const x = i/96;
-      let y = 0.62*Math.sin(f1*x*6.28 + p1) + 0.38*Math.sin(f2*x*6.28 + p2);
-      y = (y+1)/2;
-      y += (r()-0.5) * skok * 0.55;              // poszarpanie z ±skoku tempa
-      ctx.lineTo(x*W, base - Math.max(y,0)*A);
+  // pole sił: smugi płyną przez sumę fal — skok tempa podkręca turbulencję,
+  // groove częstotliwość wirów, energia liczbę i rozmach smug, bas grubość
+  const a1 = 0.008 + r()*0.006, a2 = 0.010 + r()*0.008, a3 = 0.006 + r()*0.005;
+  const p1 = r()*6.28, p2 = r()*6.28, p3 = r()*6.28;
+  const turb = 0.5 + skok*2.2 + groove*0.8;
+  const kat = (x,y) =>
+    (Math.sin(x*a1 + p1) + Math.cos(y*a2*(1+groove) + p2)
+     + Math.sin((x+y)*a3 + p3)) * turb;
+  const n = Math.round(170 + en*190);
+  for (let s = 0; s < n; s++){
+    let x = r()*W, y = r()*H;
+    const akcent = s < 12;                       // kilka jaśniejszych nitek
+    const c = mix(Math.min(Math.max(cieplo + (r()-0.5)*0.5, 0), 1));
+    const alfa = akcent ? 0.30 + r()*0.15 : 0.09 + r()*0.14;
+    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alfa.toFixed(2)})`;
+    ctx.lineWidth = akcent ? 0.8 : 0.6 + r()*bas*2.2;
+    ctx.beginPath(); ctx.moveTo(x, y);
+    const dl = 40 + en*80;
+    for (let i = 0; i < dl; i++){
+      const t = kat(x, y);
+      x += Math.cos(t)*2.6; y += Math.sin(t)*2.6;
+      ctx.lineTo(x, y);
     }
-    ctx.lineTo(W, H); ctx.closePath();
-    const c = mix(Math.min(Math.max(cieplo + (L-1)*0.16, 0), 1));
-    const alpha = 0.24 + L*0.2 + (L===2 ? bas*0.3 : 0);
-    ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${alpha.toFixed(2)})`;
-    ctx.fill();
+    ctx.stroke();
   }
 }
 document.querySelectorAll(".portret").forEach(cv => portret(cv, DJE[+cv.dataset.i]));
