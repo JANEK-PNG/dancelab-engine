@@ -43,10 +43,11 @@
   .karta.szara{opacity:.55; filter:saturate(.3)}
   .karta.szara:hover{opacity:.8}
 
-  .znaczek{
-    position:absolute; top:12px; right:12px; font-size:11px; color:var(--volt);
-    border:1px solid var(--volt); border-radius:var(--r); padding:2px 7px; letter-spacing:.5px;
-  }
+  /* tagony gatunkowe w prawym górnym rogu — każdy gatunek ma swój kolor;
+     stan kolekcji mieszka WYŁĄCZNIE na guziku (dubel usunięty 12.08) */
+  .tagi{position:absolute; top:12px; right:12px; display:flex; gap:5px}
+  .tag{font-size:10px; padding:2px 8px; border:1px solid; border-radius:var(--r);
+    letter-spacing:.4px; text-transform:uppercase}
   .nazwa{font-size:19px; font-weight:600; margin-bottom:2px; letter-spacing:.3px}
   .zrodlo{font-size:11px; color:var(--przygaszony); margin-bottom:12px; letter-spacing:.4px; text-transform:uppercase}
 
@@ -167,27 +168,31 @@ const DJE = [
   {ksywa:"Tim Reaper", zrodlo:"RA Podcast", kolekcja:true,
    edycje:["RA Podcast 2020","RA Podcast 2025"],
    sluchaj:"https://soundcloud.com/resident-advisor/ra1000-timreaper",
+   gatunki:["Jungle","DnB"],
    bpm_lo:119, bpm_hi:173, bpm_med:140, harm:24, skok:5.0,
    energia:.55, groove:.43, bas:.54, sety:2, szwy:177, utwory:215},
   {ksywa:"Piasecki", zrodlo:"Audioriver", kolekcja:true,
    edycje:["Audioriver 2018"],
    sluchaj:"https://soundcloud.com/piasecki/ep398",
+   gatunki:["House","Techno"],
    bpm_lo:104, bpm_hi:178, bpm_med:127, harm:12, skok:17.0,
    energia:.41, groove:.19, bas:.39, sety:6, szwy:92, utwory:104},
   {ksywa:"Catz 'n Dogz", zrodlo:"sety klubowe i podcasty", kolekcja:false,
    edycje:[],
    sluchaj:"https://soundcloud.com/catzndogz/music-not-genres-by-catz-n-dogz-newonce-radio-25042020",
+   gatunki:["House","Tech House"],
    bpm_lo:108, bpm_hi:171, bpm_med:124, harm:12, skok:6.0,
    energia:.41, groove:.41, bas:.42, sety:9, szwy:48, utwory:77},
   {ksywa:"Ayesha", zrodlo:"RA Podcast", kolekcja:false,
    edycje:["RA Podcast 2025"],
    sluchaj:"https://soundcloud.com/resident-advisor/ra-983-ayesha/",
+   gatunki:["Bass","Techno"],
    bpm_lo:132, bpm_hi:181, bpm_med:140, harm:26, skok:7.0,
    energia:null, groove:null, bas:null, sety:1, szwy:39, utwory:null},
   {ksywa:"VOODOOHOP", zrodlo:"profil w budowie", wbudowie:true, kolekcja:false,
-   edycje:["Garbicz Festival 2014"], sety:3, szwy:12},
+   edycje:["Garbicz Festival 2014"], gatunki:["Organic","Downtempo"], sety:3, szwy:12},
   {ksywa:"Jyoty", zrodlo:"profil w budowie", wbudowie:true, kolekcja:false,
-   edycje:["RA Podcast 2025"], sety:1, szwy:39},
+   edycje:["RA Podcast 2025"], gatunki:["UKG","Bass"], sety:1, szwy:39},
 ];
 // Edycje wprost z bazy Janka (arkusz → fakty_szew: wydarzenie + rok).
 // W pełnej mapie filtr „Garbicz 2026" = 10 DJ-ów; pilotowa 6 go nie ma —
@@ -203,9 +208,26 @@ function pasek(nazwa, v, chlodny){
   return `<div class="pasek"><span>${nazwa}</span><div class="tor2">${fill}</div><span class="mono">${w}</span></div>`;
 }
 
+const KOLORY_GATUNKOW = {
+  "Jungle":"#7ee081", "DnB":"#52c9a8", "House":"#e0a458", "Techno":"#6db3c9",
+  "Tech House":"#c9a86d", "Bass":"#b48ce8", "UKG":"#e88cc3",
+  "Organic":"#a8c952", "Downtempo":"#8fa3c9",
+};
+function kolorGatunku(g){
+  if (KOLORY_GATUNKOW[g]) return KOLORY_GATUNKOW[g];
+  let h = 0; for (const c of g) h = (h*31 + c.charCodeAt(0)) % 360;
+  return `hsl(${h} 45% 62%)`;
+}
+function tagi(d){
+  return `<span class="tagi">` + (d.gatunki || []).map(g =>
+    `<span class="tag" style="color:${kolorGatunku(g)}; border-color:${kolorGatunku(g)}">${g}</span>`
+  ).join("") + `</span>`;
+}
+
 function karta(d){
   if (d.wbudowie){
     return `<div class="karta szara">
+      ${tagi(d)}
       <div class="nazwa">${d.ksywa}</div>
       <div class="zrodlo">${d.zrodlo}</div>
       <div class="hero"><canvas class="portret" data-i="${d._i}"></canvas>
@@ -217,7 +239,7 @@ function karta(d){
       <button class="graj${d.kolekcja?" w-kol":""}" onclick="kolekcja(${d._i})">${d.kolekcja?"✓ W KOLEKCJI":"＋ DO KOLEKCJI"}</button></div>
     </div>`;
   }
-  const zn = d.kolekcja ? `<span class="znaczek">✓ W KOLEKCJI</span>` : "";
+  const zn = tagi(d);
   return `<div class="karta${d.kolekcja?"":" szara"}">
     ${zn}
     <div class="nazwa">${d.ksywa}</div>

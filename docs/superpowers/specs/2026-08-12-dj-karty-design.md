@@ -95,6 +95,13 @@ najpierw zapytanie-bzdura / pary kontrolne, potem produkt.
   zaimek i ton rozkazu; „Buduj w tym stylu" nadpisane decyzją Janka —
   karta nie odpala budowy, karta się KOLEKCJONUJE, a budowę w stylu
   robi pole „Brzmi jak…", gdzie kolekcja ma pierwszeństwo).
+- **Tagony gatunkowe** (Janek 12.08): prawy górny róg karty = 1–3 tagi
+  gatunku, każdy gatunek ma SWÓJ kolor (stała paleta + kolor z nazwy dla
+  nieznanych). Stan kolekcji mieszka wyłącznie na guziku — dubel znaczka
+  usunięty. UWAGA UCZCIWOŚCI: mapa nie ma dziś kolumny gatunku dla DJ-ów —
+  w makiecie tagi są poglądowe; przed prawdziwym wdrożeniem trzeba wybrać
+  źródło (profile stylu z harvestera / RA / etykiety stylu z wektorów)
+  i dopisać kolumnę do bazy. To jest osobny, mały krok danych.
 - Karty bez pełnego profilu (mało szwów policzonych) = karta uproszczona:
   nazwa + to, co wiemy, z uczciwą etykietą „profil w budowie".
 
