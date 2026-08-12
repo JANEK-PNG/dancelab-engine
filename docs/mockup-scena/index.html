@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DanceLab — scena: sieć przejść</title>
+<script src="https://w.soundcloud.com/player/api.js"></script>
+<style>
+  :root{--tlo:#121110; --tekst:#e8e4da; --przygaszony:#8f8a7e; --slaby:#5c5850;
+    --volt:#d6f549; --linia:#3a3730; --r:3px}
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%; overflow:hidden}
+  body{background:var(--tlo); color:var(--tekst);
+    font-family:"Space Grotesk", system-ui, sans-serif}
+  canvas{position:fixed; inset:0; width:100vw; height:100vh; display:block;
+    cursor:ew-resize}
+  .ui{position:fixed; z-index:5; transition:opacity .6s}
+  body.spokoj .ui{opacity:0; pointer-events:none}
+  #wybor{top:14px; left:16px; display:flex; gap:8px}
+  .dj{border:1px solid var(--linia); border-radius:var(--r); padding:5px 12px;
+    font-size:12px; color:var(--przygaszony); cursor:pointer;
+    background:rgba(18,17,16,.7); font-family:inherit}
+  .dj.on{border-color:var(--volt); color:var(--volt)}
+  #graj{bottom:16px; left:16px; border:1px solid var(--linia);
+    border-radius:var(--r); background:rgba(18,17,16,.7); color:var(--tekst);
+    font-family:inherit; font-size:12px; letter-spacing:.5px;
+    padding:7px 14px; cursor:pointer}
+  #graj:hover{border-color:var(--volt); color:var(--volt)}
+  #pasek-nocy{position:fixed; left:0; right:0; bottom:0; height:22px; z-index:4;
+    cursor:ew-resize}
+  #pasek-nocy::after{content:""; position:absolute; left:0; right:0; bottom:0;
+    height:2px; background:var(--linia)}
+  #postep{position:absolute; left:0; bottom:0; height:2px; width:0;
+    background:var(--volt); z-index:1}
+  #opis{bottom:16px; right:16px; font-size:11px; color:var(--slaby);
+    max-width:340px; text-align:right; line-height:1.5}
+  .sc-ukryty{position:fixed; width:1px; height:1px; opacity:0;
+    pointer-events:none; border:0}
+</style>
+</head>
+<body>
+<canvas id="scena"></canvas>
+<div id="wybor" class="ui"></div>
+<button id="graj" class="ui" onclick="graj()">▶ POSŁUCHAJ SETU</button>
+<div id="opis" class="ui">sieć przejść: każdy węzeł i połączenie rodzi się
+  w momencie przejścia między utworami · zgodne tonacyjnie sprzęgają się
+  mocniej · idealne błyskają voltem · kliknięcie w dół ekranu przewija noc</div>
+<div id="pasek-nocy"><div id="postep"></div></div>
+
+<script>
+const cv = document.getElementById("scena");
+const ctx = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+function wymiary(){
+  DPR = Math.min(2, devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+addEventListener("resize", () => { wymiary(); PLANY = {}; });
+wymiary();
+
+const ZG = new Set(["idealna","sasiednia","rownolegla"]);
+const t01 = v => Math.max(0, Math.min(1, (v - 95) / 95));
+const COOL = [86,186,255], WARM = [255,150,52], VOLT = [214,245,73];
+const mix = t => {                       // krzywa S: środek nie szarzeje
+  const s = t * t * (3 - 2 * t);
+  return COOL.map((v, i) => Math.round(v + (WARM[i] - v) * s));
+};
+
+function hash(s){let h=7; for(const c of s) h=(h*31+c.charCodeAt(0))&0xFFFFFFFF;
+  return h>>>0||1}
+function rnd(seed){let h=seed; return ()=>{h^=(h<<13)&0xFFFFFFFF; h^=h>>>17;
+  h^=(h<<5)&0xFFFFFFFF; return (h>>>0)/4294967296}}
+
+/* SIEĆ: każdy szew rodzi 2-4 węzły wokół wędrującego środka myśli;
+   połączenia — do najbliższych starszych węzłów. Zgodność harmoniczna
+   sprzęga mocniej (więcej krawędzi), idealna = voltowe wiązanie. */
+let PLANY = {};
+function plan(ksywa, szwy){
+  const klucz = ksywa + W + "x" + H;
+  if (PLANY[klucz]) return PLANY[klucz];
+  const r = rnd(hash(ksywa + "siec"));
+  const wezly = [], krawedzie = [];
+  const mx = W * 0.06, my = H * 0.12;
+  szwy.forEach((s, i) => {
+    // grunt: poziom = miejsce w nocy, pion = tempo tego przejścia
+    const x0 = mx + (i + 0.5) / szwy.length * (W - 2 * mx);
+    const y0 = H - my - t01((s.a + s.b) / 2) * (H - 2 * my);
+    const czysty = ZG.has(s.h), perf = s.h === "idealna";
+    const ile = perf ? 4 : czysty ? 3 : 2;
+    const rozrzut = 26 + Math.min(Math.abs(s.d), 30) * 3.2;   // skok = rozrzut
+    const nowe = [];
+    for (let k = 0; k < ile; k++){
+      const kat = r() * 6.28, dyst = r() * rozrzut;
+      wezly.push({x: x0 + Math.cos(kat) * dyst * 1.6,
+                  y: Math.max(8, Math.min(H - 8, y0 + Math.sin(kat) * dyst)),
+                  szew: i, perf, czysty, c: mix(t01((s.a + s.b) / 2)),
+                  f: r() * 6.28, w: 1.2 + r() * (perf ? 2.4 : 1.4)});
+      nowe.push(wezly.length - 1);
+    }
+    for (let a = 0; a < nowe.length - 1; a++)
+      krawedzie.push({a: nowe[a], b: nowe[a + 1], szew: i, perf, czysty});
+    const starsze = wezly.length - ile;
+    const zasieg = perf ? 3 : czysty ? 2 : 1;
+    for (let z = 0; z < zasieg && starsze > 0; z++){
+      const cel = nowe[z % nowe.length];
+      let naj = -1, najD = 1e9;
+      for (let j = Math.max(0, starsze - 30); j < starsze; j++){
+        const dx = wezly[j].x - wezly[cel].x, dy = wezly[j].y - wezly[cel].y;
+        const d = dx * dx + dy * dy;
+        if (d < najD){ najD = d; naj = j; }
+      }
+      if (naj >= 0) krawedzie.push({a: cel, b: naj, szew: i, perf, czysty});
+    }
+  });
+  return PLANY[klucz] = {wezly, krawedzie, n: szwy.length};
+}
+
+let DANE = {}, KTO = null, GRACZ = null, FRAC = 0, T0 = performance.now();
+
+function rysuj(ts){
+  const czas = ts / 1000;
+  ctx.clearRect(0, 0, W, H);
+  const szwy = (DANE[KTO] || []);
+  if (!szwy.length){ requestAnimationFrame(rysuj); return; }
+  const P = plan(KTO, szwy);
+  const frac = GRACZ ? FRAC : ((czas / 90) % 1);   // bez grania: powolna noc
+  const prog = frac * P.n;
+  document.getElementById("postep").style.width = (frac*100).toFixed(2) + "%";
+
+  // krawędzie: rodzą się w chwili przejścia — wyrastają przez ~1.2 szwu
+  for (const k of P.krawedzie){
+    if (k.szew > prog) continue;
+    const wiek = prog - k.szew;
+    const wzrost = Math.min(1, wiek / 1.2);
+    const A = P.wezly[k.a], B = P.wezly[k.b];
+    const drg = Math.sin(czas*0.7 + A.f) * 3;
+    const mx = (A.x+B.x)/2 + drg, my = (A.y+B.y)/2 - drg;
+    const ex = A.x + (B.x - A.x) * wzrost, ey = A.y + (B.y - A.y) * wzrost;
+    const star = Math.min(1, wiek / (P.n * 0.5));
+    let alfa = (k.perf ? 0.6 : k.czysty ? 0.34 : 0.16) * (1 - star * 0.65);
+    if (wiek < 1.2) alfa += 0.35 * (1 - wiek / 1.2);     // rozbłysk narodzin
+    const c = k.perf ? VOLT : P.wezly[k.a].c;
+    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alfa.toFixed(3)})`;
+    ctx.lineWidth = k.perf ? 1.4 : 0.8;
+    ctx.beginPath(); ctx.moveTo(A.x, A.y);
+    ctx.quadraticCurveTo(mx, my, ex, ey);
+    ctx.stroke();
+  }
+  // węzły: oddychają; świeże większe i jaśniejsze
+  for (const wz of P.wezly){
+    if (wz.szew > prog) continue;
+    const wiek = prog - wz.szew;
+    const puls = 1 + Math.sin(czas*1.3 + wz.f) * 0.18;
+    const mlody = Math.max(0, 1 - wiek / 2);
+    const rr = wz.w * puls * (1 + mlody * 1.6);
+    const c = wz.perf ? VOLT : wz.c;
+    const alfa = (wz.perf ? 0.85 : 0.5) * (0.35 + 0.65 * Math.max(mlody, 0.3));
+    const g = ctx.createRadialGradient(wz.x, wz.y, 0, wz.x, wz.y, rr*3);
+    g.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${alfa.toFixed(2)})`);
+    g.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(wz.x - rr*3, wz.y - rr*3, rr*6, rr*6);
+  }
+  // FALA UDERZENIOWA przejścia: pierścień z miejsca narodzin
+  const biezacy = Math.min(P.n - 1, Math.floor(prog));
+  const ulamek = prog - biezacy;
+  if (ulamek < 0.8){
+    const swiezy = P.wezly.find(w => w.szew === biezacy);
+    if (swiezy){
+      const rr = 12 + ulamek * 130;
+      const c = swiezy.perf ? VOLT : [232,228,218];
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.5*(1-ulamek/0.8)).toFixed(2)})`;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(swiezy.x, swiezy.y, rr, 0, 7); ctx.stroke();
+    }
+  }
+  requestAnimationFrame(rysuj);
+}
+requestAnimationFrame(rysuj);
+
+/* dźwięk pod spodem — ten sam wzór co na karcie */
+const LINKI = {
+  "Tim Reaper": ["https://soundcloud.com/resident-advisor/ra1000-timreaper", 1],
+  "Piasecki": ["https://soundcloud.com/piasecki/ep398", 3],
+  "Catz 'n Dogz": ["https://soundcloud.com/catzndogz/music-not-genres-by-catz-n-dogz-newonce-radio-25042020", 0],
+};
+function graj(){
+  const guzik = document.getElementById("graj");
+  if (GRACZ && !document.querySelector("iframe.sc-ukryty")) GRACZ = null;
+  if (GRACZ){
+    if (GRACZ.gra) GRACZ.widget.pause(); else GRACZ.widget.play();
+    return;
+  }
+  const [url, setIdx] = LINKI[KTO];
+  DANE[KTO + "#pelny"] = DANE[KTO];               // zapas: pełna sieć
+  DANE[KTO] = DANE[KTO].filter(s => s.set === setIdx);  // gramy JEDEN set
+  PLANY = {};
+  const fr = document.createElement("iframe");
+  fr.className = "sc-ukryty"; fr.allow = "autoplay";
+  fr.src = "https://w.soundcloud.com/player/?url=" + encodeURIComponent(url)
+    + "&auto_play=false&visual=false";
+  document.body.appendChild(fr);
+  const w = SC.Widget(fr);
+  GRACZ = {widget: w, dur: 0, gra: false};
+  w.bind(SC.Widget.Events.READY, () => { w.getDuration(ms => GRACZ.dur = ms);
+    w.setVolume(80); w.play(); });
+  w.bind(SC.Widget.Events.PLAY, () => { GRACZ.gra = true;
+    guzik.textContent = "⏸ PAUZA"; });
+  w.bind(SC.Widget.Events.PAUSE, () => { GRACZ.gra = false;
+    guzik.textContent = "▶ WZNÓW"; });
+  w.bind(SC.Widget.Events.PLAY_PROGRESS, e => {
+    if (GRACZ.dur) FRAC = e.currentPosition / GRACZ.dur;
+    else w.getDuration(ms => GRACZ.dur = ms);
+  });
+}
+// przewijanie: pasek nocy na dole + ciągnięcie po scenie
+let ciagnie = false, ostatniSeek = 0;
+function przewin(ev){
+  const frac = Math.max(0, Math.min(1, ev.clientX / W));
+  FRAC = frac;
+  const teraz = performance.now();
+  if (GRACZ && GRACZ.dur && teraz - ostatniSeek > 140){
+    ostatniSeek = teraz; GRACZ.widget.seekTo(frac * GRACZ.dur);
+  }
+}
+for (const cel of [cv, document.getElementById("pasek-nocy")]){
+  cel.addEventListener("pointerdown", ev => { if (GRACZ){ ciagnie = true; przewin(ev); } });
+}
+addEventListener("pointermove", ev => { if (ciagnie) przewin(ev); });
+addEventListener("pointerup", () => ciagnie = false);
+addEventListener("keydown", ev => { if (ev.key === " "){ ev.preventDefault(); graj(); } });
+
+// UI znika, gdy się skupiasz
+let cichoTimer;
+function ruch(){
+  document.body.classList.remove("spokoj");
+  clearTimeout(cichoTimer);
+  cichoTimer = setTimeout(() => document.body.classList.add("spokoj"), 2600);
+}
+addEventListener("pointermove", ruch); ruch();
+
+fetch("szwy.json").then(r => r.json()).then(d => {
+  DANE = d;
+  const w = document.getElementById("wybor");
+  Object.keys(d).forEach(k => {
+    const b = document.createElement("button");
+    b.className = "dj"; b.textContent = k;
+    b.onclick = () => {
+      if (GRACZ){ GRACZ.widget.pause(); }
+      GRACZ = null; FRAC = 0; PLANY = {};
+      document.querySelectorAll(".sc-ukryty").forEach(f => f.remove());
+      if (DANE[k + "#pelny"]){ DANE[k] = DANE[k + "#pelny"]; }
+      KTO = k;
+      document.getElementById("graj").textContent = "▶ POSŁUCHAJ SETU";
+      document.querySelectorAll(".dj").forEach(x =>
+        x.classList.toggle("on", x.textContent === k));
+    };
+    w.appendChild(b);
+  });
+  w.children[0].click();
+});
+</script>
+</body>
+</html>
