@@ -97,7 +97,7 @@
   .graj{
     background:var(--volt); color:var(--volt-tekst); border:none; border-radius:var(--r);
     font-family:inherit; font-weight:700; font-size:12px; letter-spacing:.8px;
-    padding:9px 14px; cursor:pointer;
+    min-width:44px; padding:9px 0; font-size:15px; cursor:pointer;
   }
   .graj:hover{filter:brightness(1.08)}
   .karta.szara .graj{background:none; color:var(--przygaszony); border:1px solid var(--linia)}
@@ -242,7 +242,7 @@ function karta(d){
         ale za mało policzonych, żeby uczciwie narysować profil. Karta uzupełni się sama,
         gdy pomiary dojdą — nic tu nie zgadujemy.</div>
       <div class="stopka"><span class="zaplecze">w mapie: ${d.sety} sety · ${d.szwy} szwów</span>
-      <button class="graj${d.kolekcja?" w-kol":""}" onclick="kolekcja(${d._i})" title="${d.kolekcja?"usuń z kolekcji":"dodaj do kolekcji"}">${d.kolekcja?"":"＋ DO KOLEKCJI"}</button></div>
+      <button class="graj${d.kolekcja?" w-kol":""}" onclick="kolekcja(${d._i})" title="${d.kolekcja?"usuń z kolekcji":"dodaj do kolekcji"}">${d.kolekcja?"":"＋"}</button></div>
     </div>`;
   }
   const zn = tagi(d);
@@ -274,7 +274,7 @@ function karta(d){
     </div>
     <div class="stopka">
       <span class="zaplecze">w mapie: ${d.sety} set${d.sety===1?"":"y"} · ${d.szwy} szwów policzonych${d.utwory?` · ${d.utwory} utworów`:""}</span>
-      <button class="graj${d.kolekcja?" w-kol":""}" onclick="kolekcja(${d._i})" title="${d.kolekcja?"usuń z kolekcji":"dodaj do kolekcji"}">${d.kolekcja?"":"＋ DO KOLEKCJI"}</button>
+      <button class="graj${d.kolekcja?" w-kol":""}" onclick="kolekcja(${d._i})" title="${d.kolekcja?"usuń z kolekcji":"dodaj do kolekcji"}">${d.kolekcja?"":"＋"}</button>
     </div>
   </div>`;
 }
