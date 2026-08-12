@@ -151,8 +151,10 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
       const rt = rnd(hash(d.ksywa + ":" + idx));   // ziarno TEJ nitki
       const perf = s.h === "idealna";
       const czysty = ZG.has(s.h);
-      let x = (idx / grane.length) * W + (rt()-0.5)*W*0.15;
-      let y = rt()*H - zT*16;
+      // DJ JEST PODMIOTEM (Janek 13.08): każda nić wychodzi Z JEGO RĘKI —
+      // z punktu, w którym stał, gdy podejmował tę decyzję
+      let x = xN + (rt()-0.5)*10;
+      let y = nicY(plan.nic, xN) + (rt()-0.5)*14 - zT*16;
       if (perf){
         ctx.strokeStyle = `rgba(${volt[0]},${volt[1]},${volt[2]},${(Math.min(0.9, 0.4*zaplon)*glab).toFixed(2)})`;
         ctx.lineWidth = 1.0 * gr * skala;
@@ -193,6 +195,31 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
       }
     });
     ctx.restore();
+    // ROZWAŻANIA DJ-a: w chwili decyzji z jego ręki wychodzi wachlarz
+    // możliwości — jedna zostaje nicią, reszta gaśnie. Im większy skok
+    // tempa musiał pokonać, tym szerzej sięgał (i tym więcej odrzucił).
+    grane.forEach((s, idx) => {
+      const xN = (idx + 0.5) / grane.length * W;
+      if (xN > xs || xs - xN > 46) return;
+      const swiezosc = 1 - (xs - xN) / 46;
+      const rw = rnd(hash(d.ksywa + "wybor" + idx));
+      const ile = 3 + Math.round(Math.min(Math.abs(s.d), 30) / 8);
+      const yN = nicY(plan.nic, xN);
+      for (let k = 0; k < ile; k++){
+        const kat = (rw() - 0.5) * (1.1 + Math.min(Math.abs(s.d), 30) / 22);
+        const dl = (16 + rw() * 44) * swiezosc;
+        ctx.strokeStyle = `rgba(232,228,218,${(0.16 * swiezosc * (0.3 + rw() * 0.7)).toFixed(3)})`;
+        ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(xN, yN);
+        let px = xN, py = yN, kk = kat;
+        for (let j = 0; j < 8; j++){
+          kk += (rw() - 0.5) * 0.5;
+          px += Math.cos(kk) * dl / 8; py += Math.sin(kk) * dl / 8;
+          ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+    });
     // iskry zapłonu: nitki odkryte w tej chwili świecą u nasady
     grane.forEach((s, idx) => {
       const xN = (idx + 0.5) / grane.length * W;
@@ -235,6 +262,9 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
       g.addColorStop(1, `rgba(${kolor[0]},${kolor[1]},${kolor[2]},0)`);
       ctx.fillStyle = g;
       ctx.fillRect(xs-rr, ys-rr, rr*2, rr*2);
+      // rdzeń DJ-a — ostry punkt decyzji w miękkiej aurze uwagi
+      ctx.fillStyle = `rgba(255,255,255,${Math.min(1, alfa * 1.15).toFixed(2)})`;
+      ctx.beginPath(); ctx.arc(xs, ys, 2.2, 0, 7); ctx.fill();
     }
     return;
   }
