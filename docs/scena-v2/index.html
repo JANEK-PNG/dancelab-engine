@@ -64,6 +64,57 @@ let FRAKCJA = null;             // pozycja w secie: null = pętla własna
    Dodajemy je po kolei na Twoje polecenie. */
 const WARSTWY = [];
 
+/* ── WARSTWA 1 · POLE MOŻLIWOŚCI ──────────────────────────────────────
+   „Zanim malarz dotknie pędzlem płótna" — przed decyzją jest wszystko:
+   setki tysięcy możliwości, sprzężonych, wynikających jedna z drugiej.
+   Nic nie jest tu rozdzielone, więc nie rysujemy punktów — rysujemy
+   CIĄGŁE PASMA, jak widmo światła przed pryzmatem.
+
+   Materia jest prawdziwa: gęstość pasm to rzeczywisty rozkład 9 750
+   zmierzonych utworów mapy w przestrzeni tempo × energia. Tam, gdzie
+   biblioteka jest bogata, widmo jest jasne; gdzie uboga — ciemnieje. */
+let POLE = null;
+fetch("mozliwosci.json?v=" + Date.now()).then(r => r.json()).then(d => POLE = d);
+
+function gestosc(bpm, en){
+  if (!POLE) return 0;
+  const ib = Math.max(0, Math.min(POLE.nb - 1,
+    Math.floor((bpm - POLE.bpm_od) / (POLE.bpm_do - POLE.bpm_od) * POLE.nb)));
+  const ie = Math.max(0, Math.min(POLE.ne - 1, Math.floor(en * POLE.ne)));
+  return POLE.siatka[ib][ie];
+}
+
+function warstwaMozliwosci(ctx, k){
+  if (!POLE) return;
+  const {czas, cx, cy, W, H, MIN} = k;
+  const PASM = 420;
+  for (let i = 0; i < PASM; i++){
+    const r = rnd(hash("mozliwosc" + i));
+    // każde pasmo to jedna ścieżka przez przestrzeń możliwości:
+    // wysokość = tempo, jasność = ile utworów naprawdę tam jest
+    const bpm0 = 60 + r() * 140;
+    const en0 = r();
+    const g = gestosc(bpm0, en0);
+    if (g < 0.006) continue;
+    const y0 = H * (0.97 - (bpm0 - 60) / 140 * 0.94);
+    const faza = r() * 6.283, tempoDryfu = 0.05 + r() * 0.12;
+    const amp = H * (0.035 + g * 0.09);
+    ctx.strokeStyle = `rgba(232,228,218,${(0.02 + g * 0.22).toFixed(3)})`;
+    ctx.lineWidth = 0.4 + g * 1.8;
+    ctx.beginPath();
+    for (let x = -20; x <= W + 20; x += 14){
+      const u = x / W;
+      // pasma nie są równoległe — splatają się, bo możliwości wynikają
+      // jedna z drugiej (sprzężenie, nie osobne byty)
+      const y = y0 + Math.sin(u * 5.2 + faza + czas * tempoDryfu) * amp
+                   + Math.sin(u * 11.7 + faza * 2 - czas * tempoDryfu * 0.6) * amp * 0.45;
+      x === -20 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
+WARSTWY.push(warstwaMozliwosci);
+
 function kontekst(czas){
   const szwy = (SZWY[KTO] || []);
   const n = szwy.length;
@@ -96,7 +147,7 @@ fetch("szwy.json?v=" + Date.now()).then(r => r.json()).then(d => {
   const n = (SZWY[KTO] || []).length;
   document.getElementById("stan").innerHTML =
     `scena v2 · czyste płótno<br><b>${KTO}</b> · ${n} przejść z profilem ` +
-    `In Between<br>warstw: <b>${WARSTWY.length}</b> — czekam na pierwszą`;
+    `In Between<br>warstwa 1: <b>pole możliwości</b> — 9 750 utworów mapy`;
 });
 </script>
 </body>
