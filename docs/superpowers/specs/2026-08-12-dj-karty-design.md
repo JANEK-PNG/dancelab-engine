@@ -62,7 +62,14 @@ najpierw zapytanie-bzdura / pary kontrolne, potem produkt.
   harmonicznie, mediana skoku tempa na szwie, energia / gęstość groove'u /
   obecność basu (mediany po utworach), liczba setów i szwów w mapie,
   festiwale/źródła. Pola bez pomiaru = „—", nigdy zmyślone.
-- **Zero zdjęć** (prawa autorskie): tożsamość karty z typografii i koloru.
+- **Zero zdjęć** (prawa autorskie: 869 cudzych fotek prasowych to prawne
+  bagno). W miejscu grafiki Pokémona — **portret brzmienia**: deterministyczna
+  grafika generowana WYŁĄCZNIE z pomiarów DJ-a (ziarno = ksywa; energia →
+  wysokość szczytów, typowy skok tempa → poszarpanie grani, mediana tempa →
+  ciepło koloru, bas → ciemność pierwszego planu). Unikalna jak odcisk palca,
+  legalnie nasza, skaluje się na 869 kart bez jednego maila o licencję.
+  Opcja na przyszłość (Pro): DJ odbiera swoją kartę i sam wgrywa zdjęcie —
+  wtedy prawa załatwia właściciel twarzy.
 - **Zero rankingów** „lepszy/gorszy" — karty się porównuje, nie ocenia
   (ton DanceLab: kumpel, nie oceniający). Oś „komercyjny ↔ uznany" wejdzie
   dopiero, gdy będzie policzona dla wszystkich kart naraz — jako współrzędna,
