@@ -73,6 +73,9 @@
   .warstwa-sc iframe{width:100%; height:100%; border:0}
   .sc-ukryty{position:absolute; width:1px; height:1px; opacity:0;
     pointer-events:none; border:0}
+  .glosnosc{position:absolute; right:10px; bottom:10px; z-index:3; width:76px;
+    display:none; accent-color:var(--volt); cursor:pointer}
+  .glosnosc.jest{display:block}
   .info-i{position:absolute; right:8px; top:8px; z-index:5; width:20px; height:20px;
     border-radius:50%; border:1px solid var(--przygaszony); color:var(--przygaszony);
     background:rgba(23,22,20,.82); font-size:11px; font-family:inherit; cursor:pointer;
@@ -318,7 +321,9 @@ function karta(d){
     <div class="hero" id="hero-${d._i}"><canvas class="portret" data-i="${d._i}"></canvas>
       <button class="info-i" onclick="infoPortret(${d._i})">i</button>
       <div class="warstwa-info" id="info-${d._i}"></div>
-      ${d.sluchaj ? `<button class="posluchaj" id="pos-${d._i}" onclick="odsluch(${d._i})">▶ POSŁUCHAJ SETU</button>` : ""}</div>
+      ${d.sluchaj ? `<button class="posluchaj" id="pos-${d._i}" onclick="odsluch(${d._i})">▶ POSŁUCHAJ SETU</button>
+      <input type="range" class="glosnosc" id="vol-${d._i}" min="0" max="100" value="80"
+        oninput="glosnosc(${d._i}, this.value)" title="głośność — grubość włókien">` : ""}</div>
     <div class="tempo">
       <div class="tempo-etykieta"><span>tempo (uderzenia na minutę)</span><span class="mono">mediana ${d.bpm_med}</span></div>
       <div class="tor">
@@ -379,7 +384,9 @@ rysuj("all");
 function hash(s){let h=7; for(const c of s) h=(h*31+c.charCodeAt(0))|0; return h>>>0||1}
 function rnd(seed){let s=seed; return ()=>{s^=s<<13; s^=s>>>17; s^=s<<5; return (s>>>0)/4294967296}}
 
-function portret(cv, d, czas = 0, frakcja = null){
+function portret(cv, d, czas = 0, frakcja = null, vol = null){
+  // pomysł Janka: głośność = grubość włókien (0.8 głośności = grubość 1.0)
+  const gr = vol == null ? 1 : 0.5 + 0.625 * vol;
   const ctx = cv.getContext("2d");
   const W = cv.width = 600, H = cv.height = 208;
   if (d.wbudowie){
@@ -420,7 +427,7 @@ function portret(cv, d, czas = 0, frakcja = null){
       const c = mix(Math.min(Math.max(cieplo + (r()-0.5)*0.9, 0), 1));
       const cicho = x > xs ? 0.35 : 1;           // przed kropką: cisza
       ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(0.07*cicho).toFixed(3)})`;
-      ctx.lineWidth = 0.6 + r()*bas*1.6;
+      ctx.lineWidth = (0.6 + r()*bas*1.6) * gr;
       ctx.beginPath(); ctx.moveTo(x, y);
       for (let i = 0; i < 60; i++){
         const t2 = kat(x, y);
@@ -456,7 +463,7 @@ function portret(cv, d, czas = 0, frakcja = null){
       let y = rt()*H;
       if (perf){
         ctx.strokeStyle = `rgba(${volt[0]},${volt[1]},${volt[2]},${Math.min(0.9, 0.4*zaplon).toFixed(2)})`;
-        ctx.lineWidth = 1.0;
+        ctx.lineWidth = 1.0 * gr;
         ctx.shadowColor = "rgba(214,245,73,0.25)"; ctx.shadowBlur = 2;
         ctx.beginPath();
         for (let i = 0; i < Math.round(120*wzrost); i++){
@@ -468,7 +475,7 @@ function portret(cv, d, czas = 0, frakcja = null){
       } else if (czysty){
         const c = mix(t01((s.a + s.b) / 2));
         ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${Math.min(0.95,(0.4+rt()*0.2)*zaplon).toFixed(2)})`;
-        ctx.lineWidth = 1.0 + bas*1.8;
+        ctx.lineWidth = (1.0 + bas*1.8) * gr;
         ctx.beginPath();
         const dl = Math.round((55 + Math.min(Math.abs(s.d),30)*2.5)*wzrost);
         for (let i = 0; i < dl; i++){
@@ -480,7 +487,7 @@ function portret(cv, d, czas = 0, frakcja = null){
       } else {
         const c = mix(t01((s.a + s.b) / 2)).map(v => Math.round(v*0.55 + 60));
         ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${Math.min(0.8, 0.34*zaplon).toFixed(2)})`;
-        ctx.lineWidth = 0.7;
+        ctx.lineWidth = 0.7 * gr;
         for (let seg = 0; seg < Math.max(1, Math.round(3*wzrost)); seg++){
           ctx.beginPath();
           for (let i = 0; i < 6; i++){
@@ -548,7 +555,7 @@ function portret(cv, d, czas = 0, frakcja = null){
       : mix(Math.min(Math.max(cieplo + (r()-0.5)*0.9, 0), 1));
     const alfa = akcent ? 0.38 + r()*0.22 : 0.13 + r()*0.18;
     ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alfa.toFixed(2)})`;
-    ctx.lineWidth = akcent ? 0.9 : 0.6 + r()*bas*2.2;
+    ctx.lineWidth = (akcent ? 0.9 : 0.6 + r()*bas*2.2) * gr;
     ctx.beginPath(); ctx.moveTo(x, y);
     const dl = 40 + en*80;
     for (let i = 0; i < dl; i++){
@@ -574,7 +581,8 @@ function zyj(ts){
       const czas = ts/1000*0.35;
       const dd = DJE[+cv.dataset.i];
       const gracz = PLAYERS[+cv.dataset.i];
-      portret(cv, dd, czas, gracz ? gracz.frac : null);
+      portret(cv, dd, czas, gracz ? gracz.frac : null,
+              gracz ? gracz.vol : null);
     });
   }
   requestAnimationFrame(zyj);
@@ -587,6 +595,12 @@ fetch("szwy.json").then(r=>r.json()).then(d=>{
 }).catch(()=>{});
 
 const PLAYERS = {};
+function glosnosc(i, v){
+  const P = PLAYERS[i];
+  if (!P) return;
+  P.vol = v / 100;
+  P.widget.setVolume(+v);
+}
 function odsluch(i){
   // PORTRET JEST PLAYEREM (pomysł Janka): dźwięk gra z ukrytej ramki
   // SoundClouda (oficjalne API), kropka to głowica, ciągnięcie po
@@ -606,9 +620,11 @@ function odsluch(i){
   fr.className = "sc-ukryty"; fr.allow = "autoplay"; fr.src = src;
   hero.appendChild(fr);
   const w = SC.Widget(fr);
-  P = PLAYERS[i] = {widget: w, frac: 0, dur: 0, gra: false};
+  P = PLAYERS[i] = {widget: w, frac: 0, dur: 0, gra: false, vol: 0.8};
+  document.getElementById(`vol-${i}`).classList.add("jest");
   w.bind(SC.Widget.Events.READY, () => {
     w.getDuration(ms => P.dur = ms);
+    w.setVolume(80);
     w.play();
   });
   w.bind(SC.Widget.Events.PLAY, () => {
