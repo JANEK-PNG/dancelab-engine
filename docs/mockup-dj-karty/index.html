@@ -335,6 +335,122 @@ function portret(cv, d){
   const groove = d.groove ?? 0.35;
   const cool = [96,196,228], warm = [235,166,72], volt = [214,245,73];
   const mix = t => cool.map((v,i)=>Math.round(v + (warm[i]-v)*t));
+  // pole sił z agregatów (charakter DJ-a) — po nim płyną nitki
+  const a1 = 0.008 + r()*0.006, a2 = 0.010 + r()*0.008, a3 = 0.006 + r()*0.005;
+  const p1 = r()*6.28, p2 = r()*6.28, p3 = r()*6.28;
+  const turb = 0.5 + skok*2.2 + groove*0.8;
+  const kat = (x,y) =>
+    (Math.sin(x*a1 + p1) + Math.cos(y*a2*(1+groove) + p2)
+     + Math.sin((x+y)*a3 + p3)) * turb;
+  const ZG = new Set(["idealna","sasiednia","rownolegla"]);
+  const t01 = v => Math.max(0, Math.min(1, (v-95)/95));
+  const szwy = (SZWY[d.ksywa] || []);
+
+  if (szwy.length){
+    // KAŻDA NITKA = JEDEN PRAWDZIWY SZEW z setów tego DJ-a (nauka z
+    // portretów: abstrakcja tak, ale ugruntowana — linia istnieje,
+    // bo istniało przejście). Dwa przebiegi dla gęstości jedwabiu.
+    for (let pas = 0; pas < 2; pas++){
+      szwy.forEach((s, idx) => {
+        const czysty = ZG.has(s.h);
+        const perf = s.h === "idealna";
+        let x = (idx / szwy.length) * W + (r()-0.5)*W*0.18;
+        let y = r()*H;
+        const c = perf ? volt : mix(t01((s.a + s.b) / 2));
+        const alfa = perf ? 0.5 : czysty ? 0.16 + r()*0.12 : 0.08 + r()*0.08;
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alfa.toFixed(2)})`;
+        ctx.lineWidth = perf ? 1.0 : czysty ? 0.7 + bas*1.6 : 0.6;
+        ctx.beginPath(); ctx.moveTo(x, y);
+        // czysty szew = długa laminarna nić; zgrzyt = krótki strzęp z drżeniem
+        const dl = czysty ? 46 + Math.min(Math.abs(s.d),30)*2.2
+                          : 14 + Math.min(Math.abs(s.d),30)*0.8;
+        const drzenie = czysty ? 0.12 : 0.85;
+        for (let i = 0; i < dl; i++){
+          const t = kat(x, y) + (r()-0.5)*drzenie;
+          x += Math.cos(t)*2.6; y += Math.sin(t)*2.6;
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      });
+    }
+    return;
+  }
+  // brak sekwencji szwów w danych — jedwab z samych agregatów (jak dotąd)
+  const n = Math.round(170 + en*190);
+  for (let s = 0; s < n; s++){
+    let x = r()*W, y = r()*H;
+    const akcent = s < 14;
+    const c = akcent ? volt
+      : mix(Math.min(Math.max(cieplo + (r()-0.5)*0.9, 0), 1));
+    const alfa = akcent ? 0.38 + r()*0.22 : 0.13 + r()*0.18;
+    ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alfa.toFixed(2)})`;
+    ctx.lineWidth = akcent ? 0.9 : 0.6 + r()*bas*2.2;
+    ctx.beginPath(); ctx.moveTo(x, y);
+    const dl = 40 + en*80;
+    for (let i = 0; i < dl; i++){
+      const t = kat(x, y);
+      x += Math.cos(t)*2.6; y += Math.sin(t)*2.6;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+}
+
+let SZWY = {};
+fetch("szwy.json").then(r=>r.json()).then(d=>{
+  SZWY = d;
+  const aktywny = document.querySelector(".filtr.on")?.dataset.f || "all";
+  rysuj(aktywny);                      // przerysuj portrety już z szwami
+}).catch(()=>{});
+
+DJE.forEach((d,i)=>d._i=i);
+
+function rysuj(filtr){
+  const zbior = DJE.filter(d =>
+    filtr === "all" ? true :
+    filtr === "kolekcja" ? d.kolekcja :
+    (d.edycje || []).includes(filtr));
+  document.getElementById("sciana").innerHTML = zbior.map(karta).join("");
+  // schodek wejścia 24 ms na kartę, maks osiem (biblia ruchu: „max eight staggered")
+  document.querySelectorAll(".karta").forEach((k, i) =>
+    k.style.setProperty("--wej", `${Math.min(i, 8) * 24}ms`));
+  const pusto = document.getElementById("pusto");
+  if (!zbior.length){
+    pusto.style.display = "block";
+    pusto.textContent = `Nikt z pilotowej szóstki nie grał na „${filtr}”. ` +
+      `W pełnej mapie ten filtr ma swoich DJ-ów (Garbicz 2026: dziesięciu) — ` +
+      `makieta pokazuje tylko 6 kart.`;
+  } else pusto.style.display = "none";
+  document.querySelectorAll(".portret").forEach(cv => portret(cv, DJE[+cv.dataset.i]));
+}
+document.getElementById("filtry").addEventListener("click", e => {
+  const b = e.target.closest(".filtr"); if (!b) return;
+  document.querySelectorAll(".filtr").forEach(x => x.classList.toggle("on", x === b));
+  rysuj(b.dataset.f);
+});
+rysuj("all");
+
+/* PORTRET BRZMIENIA — grzbiet terenu rysowany WYŁĄCZNIE z pomiarów DJ-a.
+   Deterministyczny: ta sama karta zawsze wygląda tak samo (ziarno = ksywa).
+   energia → wysokość szczytów · typowy skok tempa → poszarpanie grani ·
+   mediana tempa → ile ciepła w kolorze · bas → ciemność pierwszego planu. */
+function hash(s){let h=7; for(const c of s) h=(h*31+c.charCodeAt(0))|0; return h>>>0||1}
+function rnd(seed){let s=seed; return ()=>{s^=s<<13; s^=s>>>17; s^=s<<5; return (s>>>0)/4294967296}}
+
+function portret(cv, d){
+  const ctx = cv.getContext("2d");
+  const W = cv.width = 600, H = cv.height = 208;
+  if (d.wbudowie){
+    ctx.strokeStyle = "#3a3730"; ctx.setLineDash([5,6]); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, H*0.68); ctx.lineTo(W, H*0.68); ctx.stroke();
+    return;
+  }
+  const r = rnd(hash(d.ksywa));
+  const cieplo = Math.min(Math.max(((d.bpm_med ?? 140) - 95) / 95, 0), 1);
+  const en = d.energia ?? 0.45, skok = Math.min((d.skok ?? 8) / 20, 1), bas = d.bas ?? 0.45;
+  const groove = d.groove ?? 0.35;
+  const cool = [96,196,228], warm = [235,166,72], volt = [214,245,73];
+  const mix = t => cool.map((v,i)=>Math.round(v + (warm[i]-v)*t));
   // pole sił: smugi płyną przez sumę fal — skok tempa podkręca turbulencję,
   // groove częstotliwość wirów, energia liczbę i rozmach smug, bas grubość
   const a1 = 0.008 + r()*0.006, a2 = 0.010 + r()*0.008, a3 = 0.006 + r()*0.005;
