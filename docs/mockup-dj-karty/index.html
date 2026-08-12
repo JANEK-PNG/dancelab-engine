@@ -229,7 +229,7 @@ function portret(cv, d){
   const cieplo = Math.min(Math.max(((d.bpm_med ?? 140) - 95) / 95, 0), 1);
   const en = d.energia ?? 0.45, skok = Math.min((d.skok ?? 8) / 20, 1), bas = d.bas ?? 0.45;
   const groove = d.groove ?? 0.35;
-  const cool = [109,179,201], warm = [224,164,88];
+  const cool = [96,196,228], warm = [235,166,72], volt = [214,245,73];
   const mix = t => cool.map((v,i)=>Math.round(v + (warm[i]-v)*t));
   // pole sił: smugi płyną przez sumę fal — skok tempa podkręca turbulencję,
   // groove częstotliwość wirów, energia liczbę i rozmach smug, bas grubość
@@ -242,11 +242,12 @@ function portret(cv, d){
   const n = Math.round(170 + en*190);
   for (let s = 0; s < n; s++){
     let x = r()*W, y = r()*H;
-    const akcent = s < 12;                       // kilka jaśniejszych nitek
-    const c = mix(Math.min(Math.max(cieplo + (r()-0.5)*0.5, 0), 1));
-    const alfa = akcent ? 0.30 + r()*0.15 : 0.09 + r()*0.14;
+    const akcent = s < 14;                       // wiodące nitki: nasz volt
+    const c = akcent ? volt
+      : mix(Math.min(Math.max(cieplo + (r()-0.5)*0.9, 0), 1));
+    const alfa = akcent ? 0.38 + r()*0.22 : 0.13 + r()*0.18;
     ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${alfa.toFixed(2)})`;
-    ctx.lineWidth = akcent ? 0.8 : 0.6 + r()*bas*2.2;
+    ctx.lineWidth = akcent ? 0.9 : 0.6 + r()*bas*2.2;
     ctx.beginPath(); ctx.moveTo(x, y);
     const dl = 40 + en*80;
     for (let i = 0; i < dl; i++){
