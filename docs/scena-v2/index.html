@@ -115,6 +115,74 @@ function warstwaMozliwosci(ctx, k){
 }
 WARSTWY.push(warstwaMozliwosci);
 
+/* ── WARSTWA 2 · SPLATANIE ────────────────────────────────────────────
+   „Nie ma jednej myśli" — DJ nie wybiera jednej nitki z pola. To magia
+   połączeń, często nieoczywistych: wspomnienie z dzieciństwa, zapach,
+   twarz z parkietu, instynkt. Wiele nici z przeszłości zaczyna się
+   wiązać w jedną grubszą — i dopiero z niej zapada PIERWSZA DECYZJA.
+
+   Punkt docelowy nie jest wymyślony: to tempo pierwszego utworu tego
+   setu (z mapy), na tej samej skali wysokości co pole możliwości. Nici
+   przypływają falami — instynkt nie działa równym strumieniem.
+   Im bliżej decyzji, tym mocniej się splatają. Na końcu: klik play. */
+function warstwaSplatanie(ctx, k){
+  if (!POLE || !k.szwy.length) return;
+  const {czas, W, H} = k;
+  const bpm1 = k.szwy[0].a || 128;
+  const yCel = H * (0.97 - (bpm1 - 60) / 140 * 0.94);      // ta sama skala
+  const xCel = W * 0.72;
+  const NICI = 90;
+  // narastanie: splot dojrzewa w ~9 s, potem trwa (klik play)
+  const dojrzalosc = Math.min(1, (czas % 26) / 9);
+  const puls = 0.75 + 0.25 * Math.sin(czas * 0.55);
+
+  for (let i = 0; i < NICI; i++){
+    const r = rnd(hash("splot" + i));
+    const bpm0 = 60 + r() * 140, en0 = r();
+    const g = gestosc(bpm0, en0);
+    if (g < 0.01) continue;
+    const y0 = H * (0.97 - (bpm0 - 60) / 140 * 0.94);
+    const x0 = -30 + r() * W * 0.5;
+    // każda nić ma swój moment przypłynięcia — pamięć nie wraca równo
+    const wejscie = r();
+    const zywa = Math.max(0, Math.min(1, (dojrzalosc - wejscie * 0.55) / 0.45));
+    if (zywa <= 0) continue;
+    const a = (0.08 + g * 0.42) * zywa * puls;
+    ctx.strokeStyle = `rgba(232,228,218,${a.toFixed(3)})`;
+    ctx.lineWidth = (0.6 + g * 2.0) * (0.6 + zywa * 1.1);
+    ctx.beginPath();
+    const kroki = 42;
+    for (let j = 0; j <= kroki; j++){
+      const u = j / kroki;
+      // splot: im bliżej celu, tym mocniej nić zbiega ku wspólnej drodze
+      const sciag = Math.pow(u, 1.7) * zywa;
+      const x = x0 + (xCel - x0) * u;
+      const wlasna = y0 + Math.sin(u * 6.2 + i) * H * 0.03;
+      const y = wlasna + (yCel - wlasna) * sciag
+                + Math.sin(u * 9 + czas * 0.5 + i) * H * 0.012 * (1 - sciag);
+      j === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // PIERWSZA DECYZJA: punkt, w którym splot staje się utworem
+  if (dojrzalosc > 0.55){
+    const moc = Math.min(1, (dojrzalosc - 0.55) / 0.45);
+    const rr = H * 0.02 * (0.5 + moc) * puls;
+    const gg = ctx.createRadialGradient(xCel, yCel, 0, xCel, yCel, rr * 4);
+    gg.addColorStop(0, `rgba(255,255,255,${(0.5 * moc).toFixed(3)})`);
+    gg.addColorStop(0.35, `rgba(232,228,218,${(0.12 * moc).toFixed(3)})`);
+    gg.addColorStop(1, "rgba(232,228,218,0)");
+    ctx.fillStyle = gg;
+    ctx.fillRect(xCel - rr * 4, yCel - rr * 4, rr * 8, rr * 8);
+    if (moc > 0.9){
+      ctx.fillStyle = `rgba(255,255,255,${(0.85 * (moc - 0.9) * 10).toFixed(2)})`;
+      ctx.beginPath(); ctx.arc(xCel, yCel, 2.4, 0, 6.283); ctx.fill();
+    }
+  }
+}
+WARSTWY.push(warstwaSplatanie);
+
 function kontekst(czas){
   const szwy = (SZWY[KTO] || []);
   const n = szwy.length;
@@ -147,7 +215,8 @@ fetch("szwy.json?v=" + Date.now()).then(r => r.json()).then(d => {
   const n = (SZWY[KTO] || []).length;
   document.getElementById("stan").innerHTML =
     `scena v2 · czyste płótno<br><b>${KTO}</b> · ${n} przejść z profilem ` +
-    `In Between<br>warstwa 1: <b>pole możliwości</b> — 9 750 utworów mapy`;
+    `In Between<br>warstwa 1: <b>pole możliwości</b> · warstwa 2: <b>splatanie</b><br>` +
+    `pierwszy utwór setu: ${(SZWY[KTO][0]||{}).a || '—'} uderzeń`;
 });
 </script>
 </body>
