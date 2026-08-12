@@ -397,7 +397,7 @@ function portret(cv, d, czas = 0){
     // co DJ zrobił w tym miejscu setu).
     const plan = planPortretu(d.ksywa, szwy, W, H, {cieplo, en, groove, bas, r});
     // tło: cienka tkanina z charakteru DJ-a
-    const T = 15, PODROZ = 0.66, KONIEC = 0.9;
+    const T = 15, PODROZ = 0.74, KONIEC = 0.85;
     const faza = (czas / T) % 1;
     const xs = Math.min(faza / PODROZ, 1) * W;
     const zb0 = faza <= PODROZ ? 0
@@ -438,6 +438,10 @@ function portret(cv, d, czas = 0){
       if (xN > xs) return;
       const wzrost = Math.min(1, (xs - xN) / 26);
       const zaplon = 1 + 1.6 * (1 - wzrost);       // odkrycie = rozbłysk
+      // splatanie W TRAKCIE podróży: im dawniej odkryta nić, tym mocniej
+      // wpleciona w linię — za kropką rośnie całość, finał tylko domyka
+      const od = Math.max(0, Math.min(1, (xs - xN - 30) / (W * 0.55)));
+      const zbT = Math.max(zb, od * od * (3 - 2 * od));
       const rt = rnd(hash(d.ksywa + ":" + idx));   // ziarno TEJ nitki
       const perf = s.h === "idealna";
       const czysty = ZG.has(s.h);
@@ -451,7 +455,7 @@ function portret(cv, d, czas = 0){
         for (let i = 0; i < Math.round(120*wzrost); i++){
           const t2 = kat(x, y);
           x += Math.cos(t2)*2.6; y += Math.sin(t2)*2.6;
-          const yb = y + (nicY(plan.nic, x) - y) * zb;
+          const yb = y + (nicY(plan.nic, x) - y) * zbT;
           i === 0 ? ctx.moveTo(x, yb) : ctx.lineTo(x, yb);
         }
         ctx.stroke(); ctx.shadowBlur = 0;
@@ -464,7 +468,7 @@ function portret(cv, d, czas = 0){
         for (let i = 0; i < dl; i++){
           const t2 = kat(x, y) + (rt()-0.5)*0.1;
           x += Math.cos(t2)*2.6; y += Math.sin(t2)*2.6;
-          const yb = y + (nicY(plan.nic, x) - y) * zb;
+          const yb = y + (nicY(plan.nic, x) - y) * zbT;
           i === 0 ? ctx.moveTo(x, yb) : ctx.lineTo(x, yb);
         }
         ctx.stroke();
@@ -477,7 +481,7 @@ function portret(cv, d, czas = 0){
           for (let i = 0; i < 6; i++){
             const t2 = kat(x, y) + (rt()-0.5)*1.4;
             x += Math.cos(t2)*2.6; y += Math.sin(t2)*2.6;
-            const yb = y + (nicY(plan.nic, x) - y) * zb;
+            const yb = y + (nicY(plan.nic, x) - y) * zbT;
             i === 0 ? ctx.moveTo(x, yb) : ctx.lineTo(x, yb);
           }
           ctx.stroke();
@@ -576,9 +580,9 @@ function zyj(ts){
       let e = dd.energia, g = dd.groove, bs = dd.bas;
       if (szwy.length){
         const faza = (czas / 15) % 1;
-        if (faza < 0.66){
+        if (faza < 0.74){
           const s = szwy[Math.min(szwy.length - 1,
-            Math.floor(faza / 0.66 * szwy.length))];
+            Math.floor(faza / 0.74 * szwy.length))];
           if (s.eb != null) e = s.eb;
           if (s.gb != null) g = s.gb;
           if (s.bb != null) bs = s.bb;
