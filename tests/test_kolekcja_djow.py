@@ -102,3 +102,49 @@ def test_k_w_panelu_zbiera_dj_a_pole_dostaje_pierwszenstwo(tmp_path, monkeypatch
             await pilot.pause()
             assert U.kolekcja_djow(app._user_state) == ["Ben UFO"]
     asyncio.run(go())
+
+
+def test_zakladka_dje_lista_karta_kolekcja_i_kotwica(tmp_path, monkeypatch):
+    """Osobna zakładka DJ-e (Janek 12.08): lista z kolekcją na górze,
+    karta podświetlonego DJ-a z pomiarów księgi, K zbiera, Enter ustawia
+    kotwicę „Brzmi jak…" bez wychodzenia z zakładki."""
+    monkeypatch.setattr(U, "STATE_PATH", tmp_path / "stan.json")
+    import dancelab.decision.anchors as A
+    monkeypatch.setattr(A, "load_anchor_book", lambda *a, **k: _ksiega_atrapa())
+    monkeypatch.setattr(A, "list_anchors", lambda *a, **k: [
+        ("Ayesha", 39, 0.7), ("Ben UFO", 28, 0.8), ("Tim Reaper", 177, 0.75)])
+
+    async def go():
+        from textual.widgets import OptionList, Select, Static, TabbedContent
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            app.query_one("#tabs", TabbedContent).active = "tab-dj"
+            await pilot.pause()
+            lst = app.query_one("#dj-lista", OptionList)
+            assert lst.option_count > 3, "lista DJ-ów wypełniona z księgi"
+            cel = next(i for i in range(lst.option_count)
+                       if (lst.get_option_at_index(i).id or "") == "Ayesha")
+            lst.highlighted = cel
+            await pilot.pause()
+            karta = str(app.query_one("#dj-karta", Static).content)
+            assert "Ayesha" in karta and "39" in karta, "karta z pomiarów"
+            assert "poza kolekcją" in karta
+            lst.focus()
+            await pilot.press("k")                 # zbierz do kolekcji
+            await pilot.pause()
+            assert U.kolekcja_djow(app._user_state) == ["Ayesha"]
+            karta = str(app.query_one("#dj-karta", Static).content)
+            assert "w kolekcji" in karta
+            teksty = [str(lst.get_option_at_index(i).prompt)
+                      for i in range(lst.option_count)]
+            assert any("twoja kolekcja (1)" in t for t in teksty)
+            # Enter = kotwica w polu „Brzmi jak…"
+            cel = next(i for i in range(lst.option_count)
+                       if (lst.get_option_at_index(i).id or "") == "Ayesha")
+            lst.highlighted = cel
+            await pilot.press("enter")
+            await pilot.pause()
+            assert app.query_one("#dj", Select).value == "Ayesha"
+            assert app.query_one("#tabs", TabbedContent).active == "tab-dj", \
+                "Enter nie wyrzuca z zakładki"
+    asyncio.run(go())

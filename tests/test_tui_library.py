@@ -126,6 +126,9 @@ def test_zakladki_istnieja_i_ctrl_tab_krazy():
                 assert app.query_one(wid) is not None, wid
             app.action_next_tab()
             await pilot.pause()
+            assert tc.active == "tab-dj"           # DJ-e zaraz po Bibliotece
+            app.action_next_tab()
+            await pilot.pause()
             assert tc.active == "tab-set"
             app.action_next_tab()
             await pilot.pause()
@@ -859,4 +862,29 @@ def test_nowa_playlista_wraca_do_biblioteki_a_budowa_zapisuje(
             zapisane = [e["track_id"]
                         for e in store.utwory_playlisty(app._user_state)]
             assert zapisane == ["a", "b", "e"], "budowa zapisała set W playliście"
+    asyncio.run(go())
+
+
+def test_aktywacja_playlisty_pokazuje_pelna_biblioteke(tmp_path, monkeypatch):
+    """Janek 12.08 (zrzut z pustą ścianą): klik na playlistę NIE zawęża widoku
+    do jej filarów — świeża playlista ma ich zero i nie dało się nic wybrać.
+    Aktywacja = pełna biblioteka, boczna lista podświetla aktywną playlistę."""
+    import dancelab.tui.user_store as store
+    monkeypatch.setattr(store, "STATE_PATH", tmp_path / "stan.json")
+
+    async def go():
+        from textual.widgets import DataTable, OptionList
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            app._lib = LIB
+            store.nowa_playlista(app._user_state, "Świeża")
+            app._render_side_list()
+            app._set_lib_section("pl:0")
+            await pilot.pause()
+            assert app._lib_section == "all"
+            t = app.query_one("#lib-table", DataTable)
+            assert t.row_count == len(LIB), "pełna pula, nie pusta ściana"
+            side = app.query_one("#lib-side-list", OptionList)
+            pod = side.get_option_at_index(side.highlighted)
+            assert pod.id == "pl:0", "podświetlenie stoi na aktywnej playliście"
     asyncio.run(go())

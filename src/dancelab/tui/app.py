@@ -90,7 +90,7 @@ def _parse_bpm(text: str) -> tuple[float | None, float | None, str | None]:
 # Zakładki wg TUI_WIZJA_2 (inspiracja rmpc, układ zatwierdzony 05.08):
 # Biblioteka → Set → Export/Cue; Ctrl+Tab krąży (część terminali połyka
 # Ctrl+Tab — stąd też skróty w nawiasach na etykietach zakładek).
-_TAB_ORDER = ("tab-lib", "tab-set", "tab-export")
+_TAB_ORDER = ("tab-lib", "tab-dj", "tab-set", "tab-export")
 
 
 def _energy_raw(a) -> float | None:
@@ -568,6 +568,11 @@ class DanceLabTUI(App):
     .pb-sub { height: 1; color: $text-muted; }
     .pb-os { height: 1; }
     #lib-side { width: 26; border-right: solid $primary; padding: 0 1; }
+    #dj-tab-main { height: 1fr; }
+    #dj-licznik { height: 2; padding: 0 1; color: $text-muted; }
+    #dj-lista { height: 1fr; }
+    #dj-karta-box { width: 46; border-left: solid $primary; padding: 0 1; }
+    #dj-karta { padding: 1 0; }
     #lib-filters { height: 3; }
     #lib-filters Input { width: 1fr; margin-right: 1; }
     #lib-tools { height: 1; }
@@ -729,6 +734,19 @@ class DanceLabTUI(App):
                                          variant="primary")
                             yield Button("→ Zbuduj z filarów  [G]",
                                          id="lib-build", variant="success")
+            with TabPane("DJ-e", id="tab-dj"):
+                # Ściana kart DJ-ów przeniesiona z makiety (Janek 12.08):
+                # lista = kolekcja na górze + grupy brzmieniowe, po prawej
+                # KARTA podświetlonego DJ-a z tego, co zmierzone w księdze
+                # kotwic. Profil rozszerzony (tempo/harmonia/energia) czeka
+                # na most danych z mapy — spec 2026-08-12.
+                with Horizontal(id="dj-tab-main"):
+                    with Vertical():
+                        yield Static("", id="dj-licznik")
+                        yield OptionList(id="dj-lista")
+                    with Vertical(id="dj-karta-box"):
+                        yield Label("KARTA", classes="field-label")
+                        yield Static("", id="dj-karta")
             with TabPane("Set", id="tab-set"):
                 with Vertical():
                     with Horizontal(id="set-main"):
@@ -877,6 +895,8 @@ class DanceLabTUI(App):
             self._artwork_programowo = True
             self.query_one("#lib-artwork", Switch).value = True
         self._load_anchors()
+        self._render_dj_tab()
+        self._render_dj_karta(None)
         self._refresh_status()
         self.set_interval(5.0, self._refresh_status)
         self.set_interval(1.0, self._tick_player)
@@ -931,6 +951,12 @@ class DanceLabTUI(App):
             event.stop()
             event.prevent_default()
             self._przelacz_kolekcje_dj_z_panelu()
+            return
+        if event.key == "k" \
+                and getattr(self.focused, "id", None) == "dj-lista":
+            event.stop()
+            event.prevent_default()
+            self._przelacz_kolekcje_dj_z_karty()
             return
         try:
             active = self.query_one("#tabs", TabbedContent).active
@@ -1507,6 +1533,9 @@ class DanceLabTUI(App):
         grupy = G.grupuj(book["djs"])
         kol = kolekcja_djow(self._user_state)
         opis_dj = {dj: (n, skok) for _e, czl in grupy for dj, n, skok in czl}
+        # karta w zakładce DJ-e czyta stąd: (wektory, skok, etykieta grupy)
+        self._dj_info = {dj: (n, skok, etykieta)
+                         for etykieta, czl in grupy for dj, n, skok in czl}
         opcje: list[tuple[str, str]] = []
         ilu = len(self._user_state.get("ulubione_utwory", []))
         opcje.append(("— twoje brzmienie —", "__twoje"))
@@ -1539,23 +1568,39 @@ class DanceLabTUI(App):
             f"(✓ = pierwszeństwo w polu) · Ctrl+D albo Esc zamyka")
         return naglowek, opcje
 
+    def _kolekcja_przelacz(self, dj: str) -> bool:
+        """Wspólny rdzeń K (panel i zakładka DJ-e): przełącz kolekcję,
+        zapisz stan, przestaw pole „Brzmi jak…" i powiedz co się stało."""
+        from dancelab.tui.user_store import (kolekcja_djow,
+                                             przelacz_kolekcje_dj, save_state)
+        teraz = przelacz_kolekcje_dj(self._user_state, dj)
+        save_state(self._user_state, self.processed_dir)
+        self._load_anchors()
+        n = len(kolekcja_djow(self._user_state))
+        self._note(f"{dj} {'w kolekcji' if teraz else 'poza kolekcją'} · "
+                   f"kolekcja: {n} — kolejność pola Brzmi jak… przestawiona")
+        return teraz
+
+    def _dj_pod_kursorem(self, lst: OptionList) -> str | None:
+        from dancelab.decision.anchors import MOJE_ULUBIONE
+        i = lst.highlighted
+        if i is None:
+            return None
+        dj = lst.get_option_at_index(i).id or ""
+        if dj.startswith("__") or dj == MOJE_ULUBIONE:
+            self._note("kolekcja przyjmuje DJ-ów — najedź na nazwisko")
+            return None
+        return dj
+
     def _przelacz_kolekcje_dj_z_panelu(self) -> None:
         """K w panelu „Brzmi jak…": zbierz/wypuść DJ-a pod kursorem.
         Lista zostaje otwarta (wzór dwóch naciśnięć jak przy gatunkach),
         a pole „Brzmi jak…" od razu przestawia kolejność."""
-        from dancelab.decision.anchors import MOJE_ULUBIONE
-        from dancelab.tui.user_store import (kolekcja_djow,
-                                             przelacz_kolekcje_dj, save_state)
         lst = self.query_one("#suggest-list", OptionList)
-        i = lst.highlighted
-        if i is None:
+        dj = self._dj_pod_kursorem(lst)
+        if dj is None:
             return
-        dj = lst.get_option_at_index(i).id or ""
-        if dj.startswith("__") or dj == MOJE_ULUBIONE:
-            self._note("kolekcja przyjmuje DJ-ów — najedź na nazwisko")
-            return
-        teraz = przelacz_kolekcje_dj(self._user_state, dj)
-        save_state(self._user_state, self.processed_dir)
+        self._kolekcja_przelacz(dj)
         _n, opcje = self._dj_panel_opcje()
         gdzie = lst.highlighted
         lst.clear_options()
@@ -1563,10 +1608,73 @@ class DanceLabTUI(App):
             lst.add_option(Option(label, id=oid))
         if gdzie is not None:
             lst.highlighted = min(gdzie, lst.option_count - 1)
-        self._load_anchors()
+        self._render_dj_tab(zachowaj=True)
+
+    def _przelacz_kolekcje_dj_z_karty(self) -> None:
+        """K w zakładce DJ-e — to samo co w panelu, na liście zakładki."""
+        lst = self.query_one("#dj-lista", OptionList)
+        dj = self._dj_pod_kursorem(lst)
+        if dj is None:
+            return
+        self._kolekcja_przelacz(dj)
+        self._render_dj_tab(zachowaj=True)
+        self._render_dj_karta(dj)
+
+    def _render_dj_tab(self, zachowaj: bool = False) -> None:
+        """Zakładka DJ-e: kolekcja na górze + grupy brzmieniowe — ta sama
+        lista co panel Ctrl+D, na stałe, z kartą po prawej."""
+        try:
+            _naglowek, opcje = self._dj_panel_opcje()
+        except Exception as exc:  # noqa: BLE001 — brak księgi to stan, nie awaria
+            self.query_one("#dj-licznik", Static).update(
+                f"księga kotwic niedostępna: {exc}")
+            return
+        from dancelab.tui.user_store import kolekcja_djow
+        lst = self.query_one("#dj-lista", OptionList)
+        gdzie = lst.highlighted if zachowaj else None
+        lst.clear_options()
+        for label, oid in opcje:
+            lst.add_option(Option(label, id=oid))
+        if gdzie is not None and lst.option_count:
+            lst.highlighted = min(gdzie, lst.option_count - 1)
         n = len(kolekcja_djow(self._user_state))
-        self._note(f"{dj} {'w kolekcji' if teraz else 'poza kolekcją'} · "
-                   f"kolekcja: {n} — kolejność pola Brzmi jak… przestawiona")
+        ilu = len(getattr(self, "_dj_info", {}))
+        self.query_one("#dj-licznik", Static).update(
+            f"w kolekcji: {n} · zmierzonych DJ-ów: {ilu}   —   "
+            f"K zbiera/wypuszcza · Enter ustawia kotwicę „Brzmi jak…”")
+
+    def _render_dj_karta(self, dj: str | None) -> None:
+        """Karta DJ-a: wyłącznie to, co ZMIERZONE w księdze kotwic.
+        Profil rozszerzony (tempo/harmonia/energia z mapy) — po moście
+        danych ze spec 2026-08-12; do tego czasu karta mówi to uczciwie."""
+        from dancelab.tui.user_store import w_kolekcji
+        pole = self.query_one("#dj-karta", Static)
+        info = getattr(self, "_dj_info", {})
+        if not dj or dj not in info:
+            pole.update("↑ najedź na nazwisko, żeby zobaczyć kartę")
+            return
+        n, skok, grupa = info[dj]
+        if skok is None:
+            odwaga = "—"
+        elif skok < 0.70:
+            odwaga = f"{skok:.2f} · odważne skoki"
+        elif skok > 0.80:
+            odwaga = f"{skok:.2f} · gładkie przejścia"
+        else:
+            odwaga = f"{skok:.2f}"
+        stan = ("[b]✓ w kolekcji[/b] — K wypuszcza"
+                if w_kolekcji(self._user_state, dj)
+                else "poza kolekcją — K zbiera")
+        pole.update(
+            f"[b]{dj}[/b]\n"
+            f"{stan}\n\n"
+            f"grupa brzmieniowa:\n  {grupa}\n"
+            f"wektorów brzmienia: {n}\n"
+            f"mediana skoku: {odwaga}\n\n"
+            f"[dim]profil rozszerzony (tempo, harmonia,\n"
+            f"energia, festiwale) dojdzie po moście\n"
+            f"danych z mapy — spec 12.08[/dim]\n\n"
+            f"Enter — kotwica „Brzmi jak…” na tego DJ-a")
 
     def action_next_tab(self) -> None:
         self._switch_tab(+1)
@@ -1900,6 +2008,12 @@ class DanceLabTUI(App):
         lo, hi, err = _parse_bpm(self.query_one("#lib-bpm", Input).value)
         return search, key, lo, hi, err
 
+    def on_option_list_option_highlighted(self, event) -> None:
+        """Ruch kursora po liście DJ-ów odświeża kartę po prawej."""
+        if getattr(event.option_list, "id", None) == "dj-lista":
+            dj = getattr(event.option, "id", None) or ""
+            self._render_dj_karta(None if dj.startswith("__") else dj)
+
     def on_option_list_option_selected(self, event) -> None:
         """ENTER (albo klik) na liście.
 
@@ -1910,6 +2024,16 @@ class DanceLabTUI(App):
         przy wzorcu dwóch naciśnięć — tam Enter tylko zaznacza."""
         if getattr(event.option_list, "id", None) == "lib-side-list":
             self._set_lib_section(event.option.id)
+            return
+        if getattr(event.option_list, "id", None) == "dj-lista":
+            wybor = event.option.id
+            if not wybor or wybor.startswith("__"):
+                return
+            event.stop()
+            self._ustaw_kotwice(wybor)
+            self._note(f"kotwica: {wybor} — pole „Brzmi jak…” ustawione, "
+                       f"brief czeka w zakładce Set")
+            self._render_dj_karta(wybor)
             return
         if not self.query_one("#suggest").has_class("open"):
             return
@@ -1924,33 +2048,35 @@ class DanceLabTUI(App):
             self._apply_rola_filaru(wybor)
         elif self._panel_mode == "dj":
             event.stop()
-            pole = self.query_one("#dj", Select)
-            # Lista w panelu i lista w polu mogą się rozjechać (np. gdy pole
-            # dostało opcje z innego źródła). Textual rzuca wtedy wyjątkiem
-            # i ubija budowę — dokładamy brakującą pozycję zamiast wywalać
-            # aplikację (złapane 09.08 przy dodawaniu kotwicy z ulubionych).
-            dostepne = {w for _e, w in (pole._options or [])}
-            if wybor not in dostepne:
-                pole.set_options([(wybor, wybor),
-                                  *((e, w) for e, w in (pole._options or []))])
-            pole.value = wybor
+            self._ustaw_kotwice(wybor)
             self._close_panel()
-            # Kotwica należy do playlisty: gdy jakaś jest aktywna, wybór
-            # DJ-a ustawia JEJ kotwicę — jawnie, z notką (kotwica przestała
-            # być wymuszonym krokiem tworzenia, Janek 12.08).
-            from dancelab.tui.user_store import (aktywna_playlista,
-                                                 save_state,
-                                                 ustaw_kotwice_playlisty)
-            if aktywna_playlista(self._user_state) is not None:
-                ustaw_kotwice_playlisty(self._user_state, wybor)
-                save_state(self._user_state, self.processed_dir)
-                pl = aktywna_playlista(self._user_state)
-                self._note(f"kotwica playlisty „{pl['nazwa']}” to teraz: "
-                           f"{wybor}")
-                self.notify(f"„{pl['nazwa']}” · kotwica: {wybor}", timeout=5)
-                self._render_side_list()
             self.query_one("#set", DataTable).focus()
             self._note(f"kotwica: {wybor}")
+
+    def _ustaw_kotwice(self, wybor: str) -> None:
+        """Ustaw kotwicę w polu „Brzmi jak…" (i w aktywnej playliście).
+
+        Lista w panelu i lista w polu mogą się rozjechać (np. gdy pole
+        dostało opcje z innego źródła). Textual rzuca wtedy wyjątkiem
+        i ubija budowę — dokładamy brakującą pozycję zamiast wywalać
+        aplikację (złapane 09.08 przy dodawaniu kotwicy z ulubionych).
+        Kotwica należy do playlisty: gdy jakaś jest aktywna, wybór DJ-a
+        ustawia JEJ kotwicę — jawnie, z notką (Janek 12.08)."""
+        pole = self.query_one("#dj", Select)
+        dostepne = {w for _e, w in (pole._options or [])}
+        if wybor not in dostepne:
+            pole.set_options([(wybor, wybor),
+                              *((e, w) for e, w in (pole._options or []))])
+        pole.value = wybor
+        from dancelab.tui.user_store import (aktywna_playlista, save_state,
+                                             ustaw_kotwice_playlisty)
+        if aktywna_playlista(self._user_state) is not None:
+            ustaw_kotwice_playlisty(self._user_state, wybor)
+            save_state(self._user_state, self.processed_dir)
+            pl = aktywna_playlista(self._user_state)
+            self._note(f"kotwica playlisty „{pl['nazwa']}” to teraz: {wybor}")
+            self.notify(f"„{pl['nazwa']}” · kotwica: {wybor}", timeout=5)
+            self._render_side_list()
 
     def _render_side_list(self) -> None:
         """Sekcje + PLAYLISTY (decyzja Janka 11.08: playlista = projekt —
@@ -1961,14 +2087,19 @@ class DanceLabTUI(App):
         side.add_option(Option("Cała biblioteka", id="all"))
         side.add_option(Option("♥ Ulubione utwory", id="fav"))
         side.add_option(Option("⚑ Filary (playlisty)", id="filary"))
+        aktywny_wiersz = None
         for i, pl in enumerate(self._user_state.get("playlisty", [])):
-            znak = "▸ " if aktywna_playlista(self._user_state) is pl else "  "
+            if aktywna_playlista(self._user_state) is pl:
+                znak, aktywny_wiersz = "▸ ", 3 + i
+            else:
+                znak = "  "
             n_utw = len(pl.get("utwory", []))
             ogon = f" · {n_utw}" if n_utw else ""
             side.add_option(Option(f"{znak}{pl['nazwa'][:24]}{ogon}",
                                    id=f"pl:{i}"))
         side.add_option(Option("＋ nowa playlista", id="pl-new"))
-        side.highlighted = 0
+        # podświetlenie stoi na aktywnej playliście, nie skacze na początek
+        side.highlighted = aktywny_wiersz if aktywny_wiersz is not None else 0
 
     def _set_lib_section(self, section: str) -> None:
         from dancelab.tui.user_store import (aktywna_playlista,
@@ -2013,7 +2144,12 @@ class DanceLabTUI(App):
                                         for e, w in (pole._options or []))])
                 pole.value = pl["kotwica"]
             self._render_side_list()
-            self._lib_section = "filary"
+            # Aktywacja playlisty pokazuje PEŁNĄ bibliotekę (Janek 12.08:
+            # świeża playlista ma zero filarów — widok „filary" był pustą
+            # ścianą i nie dało się nic wybrać). Filary tej playlisty są
+            # w tabeli oznaczone F, a sekcja „Filary (playlisty)" nadal
+            # pokazuje sam wybór.
+            self._lib_section = "all"
             self._render_library()
             self._note(f"playlista aktywna: {pl['nazwa']} · kotwica: "
                        f"{pl.get('kotwica') or '—'} · filary: "
