@@ -73,6 +73,15 @@
   .warstwa-sc iframe{width:100%; height:100%; border:0}
   .sc-ukryty{position:absolute; width:1px; height:1px; opacity:0;
     pointer-events:none; border:0}
+  .flip-i{position:absolute; left:8px; top:8px; z-index:3; width:20px; height:20px;
+    border-radius:50%; border:1px solid var(--przygaszony); color:var(--przygaszony);
+    background:rgba(23,22,20,.82); font-size:10px; font-family:inherit; cursor:pointer;
+    line-height:1; display:none}
+  .flip-i.jest{display:block}
+  .flip-i:hover{border-color:var(--volt); color:var(--volt)}
+  .sc-pelny{position:absolute !important; inset:0 !important;
+    width:100% !important; height:100% !important; opacity:1 !important;
+    pointer-events:auto !important; z-index:6; border:0}
   .vol-i{position:absolute; right:8px; bottom:8px; z-index:3; width:20px; height:20px;
     border-radius:50%; border:1px solid var(--przygaszony); color:var(--przygaszony);
     background:rgba(23,22,20,.82); font-size:10px; font-family:inherit; cursor:pointer;
@@ -246,19 +255,19 @@ function planPortretu(ksywa, szwy, W, H, p){
 const DJE = [
   {ksywa:"Tim Reaper", zrodlo:"RA Podcast", kolekcja:true,
    edycje:["RA Podcast 2020","RA Podcast 2025"],
-   sluchaj:"https://soundcloud.com/resident-advisor/ra1000-timreaper",
+   sluchaj:"https://soundcloud.com/resident-advisor/ra1000-timreaper", grany:1,
    gatunki:["Jungle","DnB"],
    bpm_lo:119, bpm_hi:173, bpm_med:140, harm:24, skok:5.0,
    energia:.55, groove:.43, bas:.54, sety:2, szwy:177, utwory:215},
   {ksywa:"Piasecki", zrodlo:"Audioriver", kolekcja:true,
    edycje:["Audioriver 2018"],
-   sluchaj:"https://soundcloud.com/piasecki/ep398",
+   sluchaj:"https://soundcloud.com/piasecki/ep398", grany:3,
    gatunki:["House","Techno"],
    bpm_lo:104, bpm_hi:178, bpm_med:127, harm:12, skok:17.0,
    energia:.41, groove:.19, bas:.39, sety:6, szwy:92, utwory:104},
   {ksywa:"Catz 'n Dogz", zrodlo:"sety klubowe i podcasty", kolekcja:false,
    edycje:[],
-   sluchaj:"https://soundcloud.com/catzndogz/music-not-genres-by-catz-n-dogz-newonce-radio-25042020",
+   sluchaj:"https://soundcloud.com/catzndogz/music-not-genres-by-catz-n-dogz-newonce-radio-25042020", grany:0,
    gatunki:["House","Tech House"],
    bpm_lo:108, bpm_hi:171, bpm_med:124, harm:12, skok:6.0,
    energia:.41, groove:.41, bas:.42, sety:9, szwy:48, utwory:77},
@@ -329,6 +338,7 @@ function karta(d){
       <div class="warstwa-info" id="info-${d._i}"></div>
       ${d.sluchaj ? `<button class="posluchaj" id="pos-${d._i}" onclick="odsluch(${d._i})">▶ POSŁUCHAJ SETU</button>
       <button class="vol-i" id="voli-${d._i}" onclick="volToggle(${d._i})" title="głośność">♪</button>
+      <button class="flip-i" id="flip-${d._i}" onclick="scWidok(${d._i})" title="obróć: klasyczny widok SoundCloud">⇄</button>
       <input type="range" class="glosnosc" id="vol-${d._i}" min="0" max="100" value="80"
         oninput="glosnosc(${d._i}, this.value)" title="głośność — grubość włókien">` : ""}</div>
     <div class="tempo">
@@ -393,7 +403,7 @@ function rnd(seed){let s=seed; return ()=>{s^=s<<13; s^=s>>>17; s^=s<<5; return 
 
 function portret(cv, d, czas = 0, frakcja = null, vol = null){
   // pomysł Janka: głośność = grubość włókien (0.8 głośności = grubość 1.0)
-  const gr = vol == null ? 1 : 0.35 + 1.55 * vol;
+  const gr = vol == null ? 1 : 0.3 + 2.2 * vol;
   const ctx = cv.getContext("2d");
   const W = cv.width = 600, H = cv.height = 208;
   if (d.wbudowie){
@@ -418,12 +428,14 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
   const t01 = v => Math.max(0, Math.min(1, (v-95)/95));
   const szwy = (SZWY[d.ksywa] || []);
 
-  if (szwy.length){
+  const grane = (frakcja != null && d.grany != null)
+    ? szwy.filter(s => s.set === d.grany) : szwy;
+  if (grane.length){
     // JEDWAB + CZAS (korekta Janka: poprzednia wersja niosła emocje —
     // wraca jedwab; czas zostaje jako NIEWIDZIALNA ścieżka nocy,
     // po której przez tkaninę wędruje światło-emocja i reaguje na to,
     // co DJ zrobił w tym miejscu setu).
-    const plan = planPortretu(d.ksywa, szwy, W, H, {cieplo, en, groove, bas, r});
+    const plan = planPortretu(d.ksywa + (grane === szwy ? "" : "#gra"), grane, W, H, {cieplo, en, groove, bas, r});
     // tło: cienka tkanina z charakteru DJ-a
     const T = 15, PODROZ = 0.86, KONIEC = 0.88;
     const faza = frakcja != null ? frakcja * PODROZ : (czas / T) % 1;
@@ -458,19 +470,24 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
     // do niej doszła; świeżo doczepiona wyrasta z linii przez chwilę
     ctx.save();
     ctx.globalAlpha = 1 - wyg * 0.85;
-    szwy.forEach((s, idx) => {
-      const xN = (idx + 0.5) / szwy.length * W;
+    grane.forEach((s, idx) => {
+      const xN = (idx + 0.5) / grane.length * W;
       if (xN > xs) return;
       const wzrost = Math.min(1, (xs - xN) / 26);
       const zaplon = 1 + 1.6 * (1 - wzrost);       // odkrycie = rozbłysk
+      // OŚ Z: przeszłość osuwa się w głąb — dawniej odkryte nici są
+      // mniejsze, ciemniejsze i wyżej (czas jako czwarty wymiar)
+      const zT = Math.max(0, Math.min(1, (xs - xN) / (W * 0.9)));
+      const skala = 1 - 0.45 * zT;
+      const glab = 1 - 0.5 * zT;
       const rt = rnd(hash(d.ksywa + ":" + idx));   // ziarno TEJ nitki
       const perf = s.h === "idealna";
       const czysty = ZG.has(s.h);
-      let x = (idx / szwy.length) * W + (rt()-0.5)*W*0.15;
-      let y = rt()*H;
+      let x = (idx / grane.length) * W + (rt()-0.5)*W*0.15;
+      let y = rt()*H - zT*16;
       if (perf){
-        ctx.strokeStyle = `rgba(${volt[0]},${volt[1]},${volt[2]},${Math.min(0.9, 0.4*zaplon).toFixed(2)})`;
-        ctx.lineWidth = 1.0 * gr;
+        ctx.strokeStyle = `rgba(${volt[0]},${volt[1]},${volt[2]},${(Math.min(0.9, 0.4*zaplon)*glab).toFixed(2)})`;
+        ctx.lineWidth = 1.0 * gr * skala;
         ctx.shadowColor = "rgba(214,245,73,0.25)"; ctx.shadowBlur = 2;
         ctx.beginPath();
         for (let i = 0; i < Math.round(120*wzrost); i++){
@@ -481,8 +498,8 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
         ctx.stroke(); ctx.shadowBlur = 0;
       } else if (czysty){
         const c = mix(t01((s.a + s.b) / 2));
-        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${Math.min(0.95,(0.4+rt()*0.2)*zaplon).toFixed(2)})`;
-        ctx.lineWidth = (1.0 + bas*1.8) * gr;
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(Math.min(0.95,(0.4+rt()*0.2)*zaplon)*glab).toFixed(2)})`;
+        ctx.lineWidth = (1.0 + bas*1.8) * gr * skala;
         ctx.beginPath();
         const dl = Math.round((55 + Math.min(Math.abs(s.d),30)*2.5)*wzrost);
         for (let i = 0; i < dl; i++){
@@ -493,8 +510,8 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
         ctx.stroke();
       } else {
         const c = mix(t01((s.a + s.b) / 2)).map(v => Math.round(v*0.55 + 60));
-        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${Math.min(0.8, 0.34*zaplon).toFixed(2)})`;
-        ctx.lineWidth = 0.7 * gr;
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${(Math.min(0.8, 0.34*zaplon)*glab).toFixed(2)})`;
+        ctx.lineWidth = 0.7 * gr * skala;
         for (let seg = 0; seg < Math.max(1, Math.round(3*wzrost)); seg++){
           ctx.beginPath();
           for (let i = 0; i < 6; i++){
@@ -509,8 +526,8 @@ function portret(cv, d, czas = 0, frakcja = null, vol = null){
     });
     ctx.restore();
     // iskry zapłonu: nitki odkryte w tej chwili świecą u nasady
-    szwy.forEach((s, idx) => {
-      const xN = (idx + 0.5) / szwy.length * W;
+    grane.forEach((s, idx) => {
+      const xN = (idx + 0.5) / grane.length * W;
       if (xN > xs || xs - xN > 26) return;
       const sila = 1 - (xs - xN) / 26;
       const yN = nicY(plan.nic, xN);
@@ -602,6 +619,12 @@ fetch("szwy.json").then(r=>r.json()).then(d=>{
 }).catch(()=>{});
 
 const PLAYERS = {};
+function scWidok(i){
+  // obrót karty: ten sam grający odtwarzacz, tylko widoczny klasycznie
+  const hero = document.getElementById(`hero-${i}`);
+  const fr = hero && hero.querySelector("iframe");
+  if (fr) fr.classList.toggle("sc-pelny");
+}
 function volToggle(i){
   document.getElementById(`vol-${i}`).classList.toggle("otwarta");
 }
@@ -632,6 +655,7 @@ function odsluch(i){
   const w = SC.Widget(fr);
   P = PLAYERS[i] = {widget: w, frac: 0, dur: 0, gra: false, vol: 0.8};
   document.getElementById(`voli-${i}`).classList.add("jest");
+  document.getElementById(`flip-${i}`).classList.add("jest");
   w.bind(SC.Widget.Events.READY, () => {
     w.getDuration(ms => P.dur = ms);
     w.setVolume(80);
@@ -685,7 +709,11 @@ function infoPortret(i){
       doczepionym utworem. Punkt światła to noc, która płynie: przed nim
       cisza, pod nim utwory zapalają się i zostają. Kształt wirów bierze
       się ze zmierzonego charakteru (energia, groove, skoki tempa).
-      Zero losowości: te same sety dają zawsze ten sam portret.`;
+      Zero losowości: te same sety dają zawsze ten sam portret.<br><br>
+      <b>Uwaga:</b> portret w spoczynku splata WSZYSTKIE sety tego DJ-a
+      z mapy. Gdy wciśniesz „Posłuchaj setu", kropka podróżuje po nićmi
+      tego JEDNEGO setu, który słychać — portret przełącza się na jego
+      własną noc.`;
   } else if (d.wbudowie){
     tekst = `<b>Czemu tu pusto</b><br>
       Mamy ${d.sety} set${d.sety===1?"":"y"} i ${d.szwy} przejść tego DJ-a,
