@@ -50,19 +50,22 @@
   .nazwa{font-size:19px; font-weight:600; margin-bottom:2px; letter-spacing:.3px}
   .zrodlo{font-size:11px; color:var(--przygaszony); margin-bottom:12px; letter-spacing:.4px; text-transform:uppercase}
 
-  .hero{height:104px; margin:0 0 14px; border-radius:var(--r); overflow:hidden;
+  .hero{height:120px; margin:0 0 14px; border-radius:var(--r); overflow:hidden;
     background:linear-gradient(180deg, #1b1a17, #211f1c); position:relative}
-  .hero canvas{width:100%; height:100%; display:block}
+  .hero canvas{width:100%; height:100%; display:block; transition:opacity .5s}
   .hero .podpis{position:absolute; right:8px; top:6px; font-size:9px; letter-spacing:.6px;
-    color:var(--slaby); text-transform:uppercase}
-  .posluchaj{position:absolute; left:8px; bottom:8px; background:rgba(23,22,20,.82);
+    color:var(--slaby); text-transform:uppercase; transition:opacity .5s}
+  /* metafora Janka: portret brzmienia ROZPŁYWA SIĘ w prawdziwy dźwięk —
+     crossfade w tym samym kadrze, kafelek nie zmienia rozmiaru */
+  .hero.gra canvas, .hero.gra .podpis{opacity:0}
+  .warstwa-sc{position:absolute; inset:0; opacity:0; transition:opacity .5s;
+    pointer-events:none}
+  .hero.gra .warstwa-sc{opacity:1; pointer-events:auto}
+  .warstwa-sc iframe{width:100%; height:100%; border:0}
+  .posluchaj{position:absolute; left:8px; bottom:8px; z-index:2; background:rgba(23,22,20,.82);
     border:1px solid var(--linia); border-radius:var(--r); color:var(--tekst);
     font-family:inherit; font-size:10.5px; letter-spacing:.6px; padding:5px 10px; cursor:pointer}
   .posluchaj:hover{border-color:var(--volt); color:var(--volt)}
-  .odsluch{margin:0 0 14px; display:none}
-  .odsluch.jest{display:block}
-  .odsluch iframe{width:100%; height:120px; border:0; border-radius:var(--r)}
-  .odsluch .zrodlo-linku{font-size:9.5px; color:var(--slaby); margin-top:4px}
 
   .tempo{margin-bottom:14px}
   .tempo-etykieta{display:flex; justify-content:space-between; font-size:11px; color:var(--przygaszony); margin-bottom:5px}
@@ -201,10 +204,9 @@ function karta(d){
     ${zn}
     <div class="nazwa">${d.ksywa}</div>
     <div class="zrodlo">${d.zrodlo}</div>
-    <div class="hero"><canvas class="portret" data-i="${d._i}"></canvas>
+    <div class="hero" id="hero-${d._i}"><canvas class="portret" data-i="${d._i}"></canvas>
       <span class="podpis">portret brzmienia — z pomiarów</span>
-      ${d.sluchaj ? `<button class="posluchaj" onclick="odsluch(${d._i})">▶ POSŁUCHAJ SETU</button>` : ""}</div>
-    <div class="odsluch" id="odsluch-${d._i}"></div>
+      ${d.sluchaj ? `<button class="posluchaj" id="pos-${d._i}" onclick="odsluch(${d._i})">▶ POSŁUCHAJ SETU</button>` : ""}</div>
     <div class="tempo">
       <div class="tempo-etykieta"><span>tempo (uderzenia na minutę)</span><span class="mono">mediana ${d.bpm_med}</span></div>
       <div class="tor">
@@ -309,14 +311,28 @@ function portret(cv, d){
    a set gra dopiero od kliknięcia w play (nigdy sam z siebie). Link
    to prawdziwy set z mapy (set_link z bazy Janka). */
 function odsluch(i){
-  const d = DJE[i], box = document.getElementById(`odsluch-${i}`);
-  if (box.classList.contains("jest")){ box.classList.remove("jest"); box.innerHTML = ""; return; }
-  const src = "https://w.soundcloud.com/player/?url=" + encodeURIComponent(d.sluchaj)
-    + "&color=%23d6f549&auto_play=false&hide_related=true&show_comments=false"
-    + "&show_reposts=false&visual=false";
-  box.innerHTML = `<iframe src="${src}" allow="autoplay"></iframe>
-    <div class="zrodlo-linku">set z mapy: ${d.sluchaj.replace("https://","")}</div>`;
-  box.classList.add("jest");
+  const d = DJE[i], hero = document.getElementById(`hero-${i}`);
+  const guzik = document.getElementById(`pos-${i}`);
+  if (hero.classList.contains("gra")){
+    hero.classList.remove("gra");
+    guzik.textContent = "▶ POSŁUCHAJ SETU";
+    // odtwarzacz znika PO crossfade — usunięcie iframe ucisza set,
+    // żeby muzyka nie grała spod portretu
+    setTimeout(() => { if (!hero.classList.contains("gra"))
+      hero.querySelector(".warstwa-sc")?.remove(); }, 520);
+    return;
+  }
+  if (!hero.querySelector(".warstwa-sc")){
+    const src = "https://w.soundcloud.com/player/?url=" + encodeURIComponent(d.sluchaj)
+      + "&color=%23d6f549&auto_play=false&hide_related=true&show_comments=false"
+      + "&show_reposts=false&visual=false";
+    const w = document.createElement("div");
+    w.className = "warstwa-sc";
+    w.innerHTML = `<iframe src="${src}" allow="autoplay" title="set z mapy: ${d.sluchaj}"></iframe>`;
+    hero.appendChild(w);
+  }
+  requestAnimationFrame(() => requestAnimationFrame(() => hero.classList.add("gra")));
+  guzik.textContent = "✕ PORTRET";
 }
 
 let t;
