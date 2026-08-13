@@ -76,7 +76,13 @@ def test_na_prawdziwym_pliku_daje_sekundy_i_etykiety():
         an, why = read_phrases(f, f.with_suffix(".DAT"))
         if an is None or an.mood not in BANKS or not an.phrases:
             continue
-        assert an.phrases[0].start_beat == 1, "pierwsza fraza zaczyna się na bicie 1"
+        # Bity liczymy OD JEDYNKI — i to jest tu sprawdzane. Wcześniej stało
+        # tu `== 1`, bo tak wyszło w pierwszej obejrzanej próbce; po ponownym
+        # Analyze (13.08) Rekordbox oddał utwór z pierwszą frazą na bicie 3
+        # i test padał na CUDZYCH danych, nie na naszym błędzie.
+        assert an.phrases[0].start_beat >= 1, "bity liczone od jedynki"
+        starty = [p.start_beat for p in an.phrases]
+        assert starty == sorted(starty), "frazy muszą iść po kolei"
         assert any(p.label for p in an.phrases), "żadna fraza nie dostała etykiety"
         assert any(p.start_sec is not None for p in an.phrases), "brak przeliczenia na sekundy"
         assert an.source == "rekordbox_phrase", "źródło musi być opisane jako cudze"
