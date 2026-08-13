@@ -250,31 +250,54 @@ function warstwaMozliwosci(ctx, k){
     // wejściem B — czyli możliwości, które dopiero nowy utwór otwiera
     const nb = F.b * (1 - 0.55 * F.a);
     cr += (109 - cr) * nb; cg += (179 - cg) * nb; cb += (201 - cb) * nb;
+    // włos wchodzący w sznur próbkujemy gęsto — inaczej ciasny splot
+    // rozsypuje się w szum; luźnemu wystarczy krok zgrubny
+    const wSznurze = k.wz && k.wz.st.wSznurze.has(w.i);
+    const KROK_X = wSznurze ? 4 : 14;
+    /* Rysujemy PASMAMI jednego koloru, nie odcinek po odcinku. Przy całej
+       drodze widocznej naraz wychodziło ~88 tys. osobnych pociągnięć na
+       klatkę i scena dławiła się na 21 klatkach. Barwa zmienia się tylko
+       z ciasnością splotu, więc dzielimy ją na sześć stopni i zamykamy
+       pociągnięcie dopiero przy zmianie stopnia. */
+    const STOPNIE = 6;
+    let stopien = -1;
+    const zamknij = (st) => {
+      const sc = Math.pow((st + 0.5) / STOPNIE, 1.7);
+      const sr = (st + 0.5) / STOPNIE;
+      // volt zostaje dla SAMEGO RDZENIA splotu — inaczej zjada bursztyn,
+      // bo oba są żółtawe i „co gra" przestaje się odróżniać od „zaplotło się"
+      const cR = Math.round(cr + (214 - cr) * sc);
+      const cG = Math.round(cg + (245 - cg) * sc);
+      const cB = Math.round(cb + (73 - cb) * sc);
+      // to, co dopiero się otwiera, ma być WIDAĆ — inaczej najciekawsza
+      // chwila jest najbledsza
+      // CO SIĘ ZAPLOTŁO, ZOSTAJE. Rama mówi, co jest możliwe TERAZ, ale
+      // przebyta droga już się wydarzyła — nie gaśnie dlatego, że gra
+      // coś innego. Więc sznur ma własną, niezależną od ramy jasność.
+      const wR = Math.max(wRamie, 0.45 + 1.25 * sr);
+      const a = (0.02 + w.g * 0.22) * (1 + sr * sr * 2.2) * wR
+              * (1 + 0.85 * nb);
+      ctx.strokeStyle = `rgba(${cR},${cG},${cB},${Math.min(0.8, a).toFixed(3)})`;
+      ctx.lineWidth = (0.4 + w.g * 1.8) * (1 + sr * 0.7) * GRUBOSC;
+      ctx.stroke();
+    };
     ctx.beginPath();
-    let start = true;
-    for (let x = -40; x <= W + 40; x += 12){
+    let ostX = 0, ostY = 0;
+    for (let x = -40; x <= W + 40; x += KROK_X){
       const u = x / W;
       const wlasna = w.y0
         + Math.sin(u * 5.2 + w.faza + czas * w.dryf) * w.amp
         + Math.sin(u * 11.7 + w.faza * 2 - czas * w.dryf * 0.6) * w.amp * 0.45;
-      // TEN SAM włos, tylko zagięty — jeśli akurat wchodzi w któryś węzeł
-      const [y, s] = zagnij(k, w, x, wlasna);
-      // volt zostaje dla SAMEGO RDZENIA splotu — inaczej zjada bursztyn,
-      // bo oba są żółtawe i „co gra" przestaje się odróżniać od „zaplotło się"
-      const sc = Math.pow(Math.min(1, s), 1.7);
-      const c = [Math.round(cr + (214 - cr) * sc),
-                 Math.round(cg + (245 - cg) * sc),
-                 Math.round(cb + (73 - cb) * sc)];
-      // to, co dopiero się otwiera, ma być WIDAĆ — inaczej najciekawsza
-      // chwila jest najbledsza
-      const a = (0.02 + w.g * 0.22) * (1 + s * s * 2.2) * wRamie * (1 + 0.85 * nb);
-      if (!start){
-        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${Math.min(0.8, a).toFixed(3)})`;
-        ctx.lineWidth = (0.4 + w.g * 1.8) * (1 + s * 0.7) * GRUBOSC;
-        ctx.lineTo(x, y); ctx.stroke();
-      }
-      ctx.beginPath(); ctx.moveTo(x, y); start = false;
+      // TEN SAM włos, tylko zagięty — jeśli akurat należy do sznura
+      const [y, s] = wSznurze ? zagnij(k, w, x, wlasna) : [wlasna, 0];
+      const st = Math.min(STOPNIE - 1, Math.floor(Math.min(1, s) * STOPNIE));
+      if (st !== stopien){
+        if (stopien >= 0){ ctx.lineTo(x, y); zamknij(stopien); }
+        ctx.beginPath(); ctx.moveTo(x, y); stopien = st;
+      } else ctx.lineTo(x, y);
+      ostX = x; ostY = y;
     }
+    if (stopien >= 0){ ctx.lineTo(ostX, ostY); zamknij(stopien); }
   }
 }
 WARSTWY.push(warstwaMozliwosci);
@@ -301,41 +324,36 @@ function przyleglosc(w, bpmCel, enCel, oknoBpm, zasEn){
   return zb * ze;
 }
 
-function wezly(k){
-  const {czas, W, H, szwy, n} = k;
-  if (!n) return null;
-  const ILE = Math.min(5, n);
-  // KOLEJNE przejścia setu, nie wyrywkowe: czytamy ciąg pięciu, a punkt
-  // idzie przez nie. GDY SET GRA, prowadzi go odtwarzacz — to samo miejsce
-  // w secie zawsze daje ten sam obraz, więc przewijanie i cofanie działa.
-  let baza, faza;
-  if (FRAKCJA != null){
-    const p = Math.max(0, Math.min(n - 0.0001, FRAKCJA * n));
-    const okno = Math.floor(p / ILE) * ILE;
-    baza = okno % n;
-    faza = (p - okno) / ILE;
-  } else {
-    const CYKL = 30;
-    faza = (czas % CYKL) / CYKL;
-    baza = (Math.floor(czas / CYKL) * ILE) % n;
-  }
-  const punktX = W * faza;                     // wędrówka DJ-a przez pasmo
+/* CAŁA DROGA (Janek 13.08: „chcę widzieć całość, teraz jesteśmy
+   z-zoomowani"). Węzły to WSZYSTKIE przejścia setu naraz, ułożone wzdłuż
+   ekranu w kolejności wieczoru. Sznur ciągnie się więc przez cały set, a
+   jego wysokość rysuje przebieg tempa nocy.
+
+   Geometria węzłów NIE zmienia się z klatki na klatkę (zależy od setu i
+   od rozmiaru okna), więc liczymy ją RAZ i chowamy. Co klatkę zmienia się
+   tylko dojrzałość — czyli to, dokąd doszła kropka. Bez tego 177 węzłów ×
+   358 włosów × każdy krok w poziomie zabiłoby płynność. */
+let WEZLY_PAM = null;
+function wezlyStatyczne(k){
+  const {W, H, szwy, n} = k;
+  if (WEZLY_PAM && WEZLY_PAM.kto === KTO && WEZLY_PAM.W === W
+      && WEZLY_PAM.H === H) return WEZLY_PAM;
   const lista = [];
-  for (let j = 0; j < ILE; j++){
-    const idx = (baza + j) % n;
-    const s = szwy[idx] || szwy[0];
-    const r = rnd(hash("wezel" + idx));
+  const rozstaw = n > 1 ? W * 0.92 / (n - 1) : W * 0.5;
+  for (let idx = 0; idx < n; idx++){
+    const s = szwy[idx];
     const C = s.C != null ? s.C : 0.4;
-    if (C < THETA) continue;                   // poniżej progu nic nie zaistnieje
-    const x = W * (0.10 + 0.80 * ((j + 0.5) / ILE)) + (r() - 0.5) * W * 0.06;
+    if (C < THETA) continue;               // poniżej progu nic nie zaistnieje
+    const r = rnd(hash("wezel" + KTO + idx));
+    const x = W * 0.04 + rozstaw * idx;
     const bpmCel = s.b || s.a || 128;
     const enCel = s.eb != null ? s.eb : 0.5;
-    // węzeł garnie WĄSKI pęk włosów — kilka pasm, nie pół biblioteki;
-    // silniejsze sprzężenie garnie ich trochę więcej
-    const oknoBpm = 9 + 26 * C;                // w uderzeniach na minutę
-    const zasEn = 0.18 + 0.26 * C;             // i w energii
-    const szer = W * (0.17 + 0.10 * C);        // długie dojście, ciasny splot
-    // środek ciężkości włosów, które ten węzeł faktycznie przygarnia
+    // węzeł garnie WĄSKI pęk włosów; silniejsze sprzężenie trochę więcej
+    const oknoBpm = 9 + 26 * C;
+    const zasEn = 0.18 + 0.26 * C;
+    // z daleka splot jest ciasny: szerokość i promień skalują się
+    // rozstawem przejść, nie ekranem
+    const szer = rozstaw * (1.1 + 1.5 * C);
     let sw = 0, sy = 0;
     for (const w of wlosy(H)){
       const z = przyleglosc(w, bpmCel, enCel, oknoBpm, zasEn);
@@ -344,73 +362,194 @@ function wezly(k){
       sw += wag; sy += wag * w.y0;
     }
     if (sw <= 0) continue;
-    // dojrzewanie: węzeł budzi się, gdy dochodzi do niego punkt
-    const dojrz = gladko((punktX - (x - szer * 1.8)) / (szer * 2.4));
-    lista.push({x, bpmA: s.a || bpmCel, bpmB: bpmCel,
-      bpmCel, enCel, C, oknoBpm, zasEn, szer, yOs: sy / sw, dojrz,
-      Syn: s.Syn || 0,
-      promien: H * (0.055 + 0.030 * (1 - C)),
-      skret: 2.0 + r() * 1.6, faz: r() * 6.283});
+    lista.push({idx, x, bpmA: s.a || bpmCel, bpmB: bpmCel,
+      bpmCel, enCel, C, oknoBpm, zasEn, szer,
+      yLuzne: sy / sw,                    // środek ciężkości przygarniętych
+      yOs: sy / sw, dojrz: 0, Syn: s.Syn || 0,
+      promien: Math.min(H * 0.045, rozstaw * 2.0) + H * 0.004,
+      skret: 0.8 + r() * 0.7, faz: r() * 6.283});
   }
-  if (!lista.length) return null;
-  // WĘZŁY ODDZIAŁUJĄ NA SIEBIE: im bardziej dojrzałe, tym mocniej ciągną
-  // się nawzajem. Dwa, które się spotkają, oddają swoje włosy w jeden sznur.
-  for (let it = 0; it < 3; it++){
-    const kopie = lista.map(w => w.yOs);
-    lista.forEach((a, ia) => {
+  // WĘZŁY ODDZIAŁUJĄ NA SIEBIE — sąsiedzi ciągną się nawzajem, aż powstaje
+  // jeden sznur. Liczone raz, do postaci „związanej"; w klatce mieszamy
+  // luźne ze związanym wg dojrzałości, więc schodzenie się widać w ruchu.
+  const zwiazane = lista.map(w => w.yLuzne);
+  for (let it = 0; it < 4; it++){
+    const kopie = zwiazane.slice();
+    for (let ia = 0; ia < lista.length; ia++){
       let sw = 0, sy = 0;
-      lista.forEach((b, ib) => {
-        if (ia === ib) return;
-        const dx = Math.abs(a.x - b.x) / (W * 0.45);
-        const dy = Math.abs(kopie[ia] - kopie[ib]) / (H * 0.34);
+      for (let ib = Math.max(0, ia - 8);
+           ib < Math.min(lista.length, ia + 9); ib++){
+        if (ia === ib) continue;
+        const dx = Math.abs(lista[ia].x - lista[ib].x) / (rozstaw * 9);
+        const dy = Math.abs(kopie[ia] - kopie[ib]) / (H * 0.30);
         const blisko = Math.max(0, 1 - Math.hypot(dx, dy));
-        if (blisko <= 0) return;
-        const wag = blisko * b.dojrz * (0.35 + b.C);
+        if (blisko <= 0) continue;
+        const wag = blisko * (0.35 + lista[ib].C);
         sw += wag; sy += wag * kopie[ib];
-      });
-      if (sw > 0)
-        a.yOs = kopie[ia] + (sy / sw - kopie[ia]) * 0.42 * a.dojrz;
-    });
+      }
+      if (sw > 0) zwiazane[ia] = kopie[ia] + (sy / sw - kopie[ia]) * 0.40;
+    }
   }
-  return {lista, punktX, faza};
+  lista.forEach((w, i) => { w.yZwiazane = zwiazane[i]; });
+
+  /* Z tej odległości jeden szew ma kilka pikseli — 162 osobnych warkoczy
+     nie da się narysować i nie o to chodzi. Widok całej drogi to JEDEN
+     sznur ciągnący się przez noc: zaciska się tam, gdzie DJ naprawdę się
+     wpiął, i rozluźnia tam, gdzie nie. Dlatego zamiast liczyć węzły w
+     każdej klatce, wypalamy RAZ profil sznura wzdłuż ekranu: gdzie leży
+     jego oś, jak jest ciasny i który włos do niego należy w którym
+     miejscu. Rysowanie to potem same odczyty z tablicy. */
+  const KROKX = 4, NX = Math.ceil((W + 80) / KROKX) + 1, X0 = -40;
+  const osLuzne = new Float32Array(NX), osZwiaz = new Float32Array(NX);
+  const cLok = new Float32Array(NX), wagaKol = new Float32Array(NX);
+  const wl = wlosy(H);
+  const rekrut = wl.map(() => new Float32Array(NX));
+  const indeks = new Map(); wl.forEach((w, i) => indeks.set(w.i, i));
+  for (const wz of lista){
+    const zas = wz.szer * 1.7;
+    const od = Math.max(0, Math.floor((wz.x - zas - X0) / KROKX));
+    const doo = Math.min(NX - 1, Math.ceil((wz.x + zas - X0) / KROKX));
+    for (let i = od; i <= doo; i++){
+      const x = X0 + i * KROKX;
+      const waga = gladko(1 - Math.abs(x - wz.x) / zas);
+      if (waga <= 0) continue;
+      wagaKol[i] += waga;
+      osLuzne[i] += waga * wz.yLuzne;
+      osZwiaz[i] += waga * wz.yZwiazane;
+      cLok[i] += waga * wz.C;
+    }
+  }
+  for (let i = 0; i < NX; i++){
+    if (wagaKol[i] > 0){
+      osLuzne[i] /= wagaKol[i]; osZwiaz[i] /= wagaKol[i]; cLok[i] /= wagaKol[i];
+    } else { osLuzne[i] = osZwiaz[i] = -1; }
+  }
+  /* SZNUR MA SZTYWNOŚĆ. Kolejne przejścia potrafią skoczyć ze 140 na 104
+     uderzeń, więc surowa oś jest piłą — a jeden sznur nie skręca o pół
+     ekranu na dziesięciu pikselach. Wygładzamy oś wzdłuż drogi; skoki
+     tempa zostają wtedy widoczne jako rozluźnienie splotu, nie jako
+     szarpnięcie w pionie. */
+  const wygladz = (tab, promien, razy) => {
+    for (let p = 0; p < razy; p++){
+      const kop = tab.slice();
+      for (let i = 0; i < NX; i++){
+        let sum = 0, ile = 0;
+        for (let j = Math.max(0, i - promien);
+             j <= Math.min(NX - 1, i + promien); j++){
+          if (kop[j] < 0) continue;
+          sum += kop[j]; ile++;
+        }
+        if (ile) tab[i] = sum / ile;
+      }
+    }
+  };
+  wygladz(osLuzne, 10, 3);
+  wygladz(osZwiaz, 16, 3);         // związany sznur jest jeszcze spokojniejszy
+  wygladz(cLok, 6, 2);
+  // który włos należy do sznura w którym miejscu drogi
+  for (const wz of lista){
+    const zas = wz.szer * 1.7;
+    const od = Math.max(0, Math.floor((wz.x - zas - X0) / KROKX));
+    const doo = Math.min(NX - 1, Math.ceil((wz.x + zas - X0) / KROKX));
+    for (let hi = 0; hi < wl.length; hi++){
+      const z = przyleglosc(wl[hi], wz.bpmCel, wz.enCel, wz.oknoBpm, wz.zasEn);
+      if (z <= 0.22) continue;
+      const moc = gladko((z - 0.22) / 0.42);
+      const tab = rekrut[hi];
+      for (let i = od; i <= doo; i++){
+        const x = X0 + i * KROKX;
+        const waga = gladko(1 - Math.abs(x - wz.x) / zas);
+        if (waga > 0) tab[i] = Math.min(1.4, tab[i] + waga * moc);
+      }
+    }
+  }
+  /* Przynależność włosa do sznura też musi być CIĄGŁA. Surowo liczona
+     skacze co przejście (sąsiednie szwy mają inne tempa), więc włos
+     wskakiwałby i wyskakiwał co kilka pikseli i cała lina wyglądała jak
+     piła. Pasmo wplecione w linę wchodzi w nią i wychodzi powoli. */
+  for (const tab of rekrut){
+    for (let p = 0; p < 2; p++){
+      const kop = tab.slice();
+      let suma = 0;
+      const R = 12;
+      for (let j = 0; j <= Math.min(NX - 1, R); j++) suma += kop[j];
+      for (let i = 0; i < NX; i++){
+        const od = Math.max(0, i - R), doo = Math.min(NX - 1, i + R);
+        tab[i] = suma / (doo - od + 1);
+        if (i + R + 1 < NX) suma += kop[i + R + 1];
+        if (i - R >= 0) suma -= kop[i - R];
+      }
+    }
+  }
+  // które włosy w ogóle wchodzą w sznur — tylko te trzeba próbkować gęsto
+  const wSznurze = new Set();
+  rekrut.forEach((tab, hi) => {
+    for (let i = 0; i < NX; i++) if (tab[i] > 0.02){ wSznurze.add(wl[hi].i); break; }
+  });
+  WEZLY_PAM = {kto: KTO, W, H, lista, rozstaw, wSznurze,
+               KROKX, NX, X0, osLuzne, osZwiaz, cLok, rekrut, indeks};
+  return WEZLY_PAM;
+}
+
+function wezly(k){
+  const {czas, W, n} = k;
+  if (!n) return null;
+  const st = wezlyStatyczne(k);
+  if (!st.lista.length) return null;
+  // kropka idzie przez CAŁY set. Gdy set gra, prowadzi ją odtwarzacz —
+  // to samo miejsce w secie zawsze daje ten sam obraz.
+  const CYKL = 180;                        // cały wieczór w spoczynku
+  const faza = FRAKCJA != null ? Math.max(0, Math.min(1, FRAKCJA))
+                               : (czas % CYKL) / CYKL;
+  const punktX = W * faza;
+  // dojrzałość sznura wzdłuż drogi: kropka odkrywa go, idąc
+  const OGON = Math.max(40, W * 0.05);
+  if (!st.dojrz || st.dojrz.length !== st.NX) st.dojrz = new Float32Array(st.NX);
+  for (let i = 0; i < st.NX; i++)
+    st.dojrz[i] = gladko((punktX - (st.X0 + i * st.KROKX) + OGON) / (OGON * 1.6));
+  for (const wz of st.lista){
+    wz.dojrz = gladko((punktX - wz.x + OGON) / (OGON * 1.6));
+    wz.yOs = wz.yLuzne + (wz.yZwiazane - wz.yLuzne) * wz.dojrz;
+  }
+  return {st, lista: st.lista, rozstaw: st.rozstaw, punktX, faza};
 }
 
 /* zagięcie pojedynczego włosa: suma wpływów wszystkich dojrzewających
    węzłów. Włos w zasięgu dwóch naraz trafia MIĘDZY nie — i to właśnie
    tam robi się grubszy sznur. */
+/* Zagięcie włosa w SZNUR — same odczyty z wypalonego profilu.
+   Trzy pasma przesunięte o 120° owijają wspólną oś; skręt biegnie
+   nieprzerwanie wzdłuż całej drogi, więc to jeden sznur, a nie sto
+   sześćdziesiąt osobnych warkoczy. Ciasność bierze się z lokalnego C. */
+const SKRET = 6.283 / 52;                  // jeden pełny oplot na ~52 px
 function zagnij(k, w, x, wlasna){
   const WZ = k.wz;
   if (!WZ) return [wlasna, 0];
-  const {czas, H} = k;
-  let sumaW = 0, sumaY = 0;
-  for (const wz of WZ.lista){
-    if (wz.dojrz <= 0.01) continue;
-    const z = przyleglosc(w, wz.bpmCel, wz.enCel, wz.oknoBpm, wz.zasEn);
-    if (z <= 0) continue;
-    const d = Math.abs(x - wz.x) / (wz.szer * 1.7);
-    if (d >= 1) continue;
-    // rozdzielamy DWIE rzeczy: kogo węzeł przygarnia (z) i jak mocno go
-    // wciąga (poniżej). Włos raz przygarnięty ma być naprawdę wpleciony —
-    // inaczej wszystko tylko delikatnie faluje i splotu nie widać.
-    const moc = gladko(1 - d) * gladko((z - 0.22) / 0.42) * wz.dojrz;
-    if (moc <= 0.002) continue;
-    const uu = (x - wz.x) / wz.szer;
-    // warkocz: trzy pasma przesunięte o 120°. Promień maleje ku środkowi
-    // węzła — z daleka włosy dopiero się zbliżają, w środku są splecione.
-    const promien = wz.promien * (1 - 0.55 * wz.dojrz)
-                  * (0.45 + 0.55 * Math.min(1, Math.abs(uu)));
-    const kat = uu * wz.skret * 3.14 + w.pasmo * 2.0944 + wz.faz;
-    const owin = Math.sin(kat) * promien
-               + Math.sin(kat * 2 + w.wpasmie * 6.283) * promien * 0.2;
-    const cel = wz.yOs + owin
-              + Math.sin(uu * 1.6 + czas * 0.15) * H * 0.010;
-    sumaW += moc; sumaY += moc * cel;
-  }
-  if (sumaW <= 0) return [wlasna, 0];
-  const przyciag = Math.min(1, sumaW);           // ile z drogi do celu
-  // sumaW > 1 = włos należy do DWÓCH węzłów naraz → tam sznur świeci mocniej
-  return [wlasna + (sumaY / sumaW - wlasna) * przyciag,
-          Math.min(1.4, sumaW)];
+  const st = WZ.st;
+  const i = Math.round((x - st.X0) / st.KROKX);
+  if (i < 0 || i >= st.NX) return [wlasna, 0];
+  const hi = st.indeks.get(w.i);
+  if (hi === undefined) return [wlasna, 0];
+  const nalezy = st.rekrut[hi][i];
+  if (nalezy <= 0.002) return [wlasna, 0];
+  const dojrz = st.dojrz[i];
+  if (dojrz <= 0.01) return [wlasna, 0];
+  const moc = nalezy * dojrz;
+  const os = st.osLuzne[i] + (st.osZwiaz[i] - st.osLuzne[i]) * dojrz;
+  if (os < 0) return [wlasna, 0];
+  // im mocniejsze sprzężenie w tym miejscu nocy, tym ciaśniej zwinięty sznur
+  const promien = k.H * 0.026 * (1.25 - 0.85 * st.cLok[i]) * (1 - 0.45 * dojrz);
+  const kat = x * SKRET + w.pasmo * 2.0944 + w.wpasmie * 6.283;
+  const owin = Math.sin(kat) * promien
+             + Math.sin(kat * 2 + w.wpasmie * 3.1) * promien * 0.22;
+  const cel = os + owin + Math.sin(x * 0.004 + k.czas * 0.15) * k.H * 0.008;
+  // NIE WYRYWAMY WŁOSA Z DRUGIEJ STRONY GŁOWY: im dalej włos leży od
+  // sznura, tym słabiej daje się w niego wpleść. Bez tego pojedyncze
+  // pasma strzelały przez pół ekranu.
+  const daleko = Math.abs(wlasna - cel) / (k.H * 0.13);
+  const kara = 1 / (1 + daleko * daleko);
+  const przyciag = Math.min(1, moc) * kara;
+  return [wlasna + (cel - wlasna) * przyciag, Math.min(1.4, moc * kara)];
 }
 
 /* ── WARSTWA 3 · RAMA (moment przejścia) ──────────────────────────────
@@ -438,12 +577,18 @@ function rama(k){
   // co gra TERAZ: po minionym szwie gra jego B, przed pierwszym — jego A
   const grajacy = poprz ? poprz.bpmB : (nast ? nast.bpmA : null);
   const nadchodzi = nast ? nast.bpmB : null;
-  // jak blisko decyzji jesteśmy — stąd ostrość ramy
+  /* Widać CAŁĄ noc naraz, więc przejścia leżą kilka pikseli od siebie i
+     kropka jest praktycznie zawsze przy którymś. Gdyby rama oddychała
+     przy każdym z osobna, pas bursztynu migałby kilka razy na sekundę i
+     przestałby cokolwiek znaczyć. Więc przy widoku całej drogi ostrość
+     jest stała — pas pokazuje spokojnie, co przez noc było osiągalne —
+     a moment przejścia niesie sam BŁĘKIT: krótki puls, jeden na szew. */
+  const gesto = WZ.rozstaw < k.W * 0.04;
+  const oknoSzwu = gesto ? WZ.rozstaw * 0.15 : (nast ? nast.szer * 0.85 : 1);
   const blisko = nast
-    ? 1 - Math.min(1, Math.abs(x - nast.x) / (nast.szer * 1.7)) : 0;
-  const wSzwie = nast
-    ? gladko(1 - Math.abs(x - nast.x) / (nast.szer * 0.85)) : 0;
-  const ostrosc = 0.35 + 1.40 * blisko;     // daleko od szwu pole oddycha
+    ? 1 - Math.min(1, Math.abs(x - nast.x) / ((nast.szer || 1) * 1.7)) : 0;
+  const wSzwie = nast ? gladko(1 - Math.abs(x - nast.x) / oknoSzwu) : 0;
+  const ostrosc = gesto ? 1.0 : 0.35 + 1.40 * blisko;
   const kres = (v) => Math.pow(Math.max(0, Math.min(1, v)), ostrosc);
   return {grajacy, nadchodzi, blisko, wSzwie, ostrosc,
     /* zwraca OSOBNO osiągalność z tego, co gra, i z tego, co wchodzi —
@@ -533,20 +678,26 @@ function odsluch(){
          + "&auto_play=false&visual=false";
   document.body.appendChild(fr);
   const wid = SC.Widget(fr);
-  GRACZ = {widget: wid, frac: 0, dur: 0, gra: false};
+  const stan = {widget: wid, frac: 0, dur: 0, gra: false};
+  GRACZ = stan;
+  // po zmianie DJ-a stary odtwarzacz bywa już wyzerowany, a jego callbacki
+  // wciąż dolatują — każdy musi sprawdzić, czy to nadal ON gra
+  const moj = () => GRACZ === stan;
   wid.bind(SC.Widget.Events.READY, () => {
-    wid.getDuration(ms => GRACZ.dur = ms);
+    if (!moj()) return;
+    wid.getDuration(ms => { if (moj()) stan.dur = ms; });
     wid.setVolume(VOL * 100);
     wid.play();                       // gra dopiero po TWOIM kliknięciu
   });
-  wid.bind(SC.Widget.Events.PLAY,  () => { GRACZ.gra = true;
-    guzikGraj.textContent = "⏸ PAUZA"; });
-  wid.bind(SC.Widget.Events.PAUSE, () => { GRACZ.gra = false;
-    guzikGraj.textContent = "▶ WZNÓW"; });
+  wid.bind(SC.Widget.Events.PLAY,  () => { if (!moj()) return;
+    stan.gra = true;  guzikGraj.textContent = "⏸ PAUZA"; });
+  wid.bind(SC.Widget.Events.PAUSE, () => { if (!moj()) return;
+    stan.gra = false; guzikGraj.textContent = "▶ WZNÓW"; });
   wid.bind(SC.Widget.Events.PLAY_PROGRESS, e => {
-    if (GRACZ.dur) GRACZ.frac = e.currentPosition / GRACZ.dur;
-    else wid.getDuration(ms => GRACZ.dur = ms);
-    pasekPostep.style.width = (GRACZ.frac * 100).toFixed(2) + "%";
+    if (!moj()) return;
+    if (stan.dur) stan.frac = e.currentPosition / stan.dur;
+    else wid.getDuration(ms => { if (moj()) stan.dur = ms; });
+    pasekPostep.style.width = (stan.frac * 100).toFixed(2) + "%";
   });
   document.getElementById("voli").classList.add("jest");
   guzikGraj.textContent = "⏸ PAUZA";
@@ -596,7 +747,7 @@ addEventListener("pointermove", () => {
 function opisz(){
   const n = (SZWY[KTO] || []).length;
   document.getElementById("stan").innerHTML =
-    `<b>${KTO}</b> · ${n} przejść z profilem In Between<br>` +
+    `<b>${KTO}</b> · cała droga: ${n} przejść jednego wieczoru<br>` +
     `pole możliwości · splatanie · rama<br>` +
     `<span style="color:#e0a458">bursztyn</span> = co gra · ` +
     `<span style="color:#6db3c9">błękit</span> = co wchodzi · ` +
