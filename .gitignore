@@ -19,7 +19,18 @@ data/reports/real_e2e_*/transition_preview.*
 .DS_Store
 
 # --- large data & derived artifacts (regenerable via scripts, iCloud-backed) ---
-data/reports/
+# (pattern is data/reports/* rather than data/reports/ so the exception below
+#  can work at all — git never descends into an excluded directory)
+data/reports/*
+# ...except the measured corpus priors, which the decision layer reads at
+# runtime. The blanket rule swept them up, so a clean clone silently fell back
+# to defaults and ranked transitions differently from a developer machine —
+# the engine's own measured result was missing from the shipped product.
+# 1.5 kB of aggregates only: relation percentages, medians, quintiles. No track
+# ids, no paths, nothing identifying a recording, so it carries the same weight
+# as the figures already published in docs/EVALUATION.md.
+!data/reports/corpus_priors/
+!data/reports/corpus_priors/priors_v1.json
 data/processed/
 data/cache/
 data/exports/

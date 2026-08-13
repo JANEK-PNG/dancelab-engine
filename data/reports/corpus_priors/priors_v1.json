@@ -1,0 +1,75 @@
+{
+  "schema_version": "corpus-priors-v1",
+  "n_transitions_joined": 6144,
+  "n_baseline_pairs": 6144,
+  "camelot_relation_pct": {
+    "real_djs": {
+      "risky": 63.2,
+      "cautious": 12.2,
+      "exact": 11.0,
+      "adjacent_same_mode": 9.5,
+      "relative_major_minor": 4.1
+    },
+    "chance_baseline": {
+      "risky": 69.8,
+      "cautious": 11.0,
+      "exact": 8.8,
+      "adjacent_same_mode": 7.0,
+      "relative_major_minor": 3.5
+    }
+  },
+  "bpm_delta_folded_pct": {
+    "real_djs": {
+      "0-2%": 62.9,
+      "2-4%": 17.3,
+      "4-6%": 6.9,
+      "6-10%": 4.3,
+      ">10%": 8.6
+    },
+    "chance_baseline": {
+      "0-2%": 51.6,
+      "2-4%": 19.1,
+      "4-6%": 7.0,
+      "6-10%": 5.1,
+      ">10%": 17.1
+    }
+  },
+  "bpm_delta_median": {
+    "real_djs": 1.55,
+    "chance": 1.69
+  },
+  "energy_delta_median": {
+    "real_djs": 0.0,
+    "chance": 0.0
+  },
+  "energy_delta_quintiles": {
+    "quintile_edges": [
+      -0.0608,
+      -0.0171,
+      0.0161,
+      0.0578
+    ],
+    "real_djs": {
+      "du\u017cy spadek": 18.8,
+      "spadek": 20.8,
+      "p\u0142asko": 20.2,
+      "wzrost": 20.7,
+      "du\u017cy wzrost": 19.6
+    },
+    "chance_baseline": {
+      "du\u017cy spadek": 20.0,
+      "spadek": 20.0,
+      "p\u0142asko": 20.0,
+      "wzrost": 20.0,
+      "du\u017cy wzrost": 20.0
+    },
+    "lift": {
+      "du\u017cy spadek": 0.94,
+      "spadek": 1.04,
+      "p\u0142asko": 1.01,
+      "wzrost": 1.035,
+      "du\u017cy wzrost": 0.98
+    }
+  },
+  "transition_length_beats_median": 94
+}
