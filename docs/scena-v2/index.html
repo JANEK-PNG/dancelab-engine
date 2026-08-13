@@ -498,9 +498,12 @@ function wezly(k){
   if (!st.lista.length) return null;
   // kropka idzie przez CAŁY set. Gdy set gra, prowadzi ją odtwarzacz —
   // to samo miejsce w secie zawsze daje ten sam obraz.
-  const CYKL = 180;                        // cały wieczór w spoczynku
+  // cały wieczór w spoczynku. Pętla NIE startuje od zera: na samym
+  // początku setu nic nie jest jeszcze zaplecione i ekran wygląda pusto,
+  // więc wchodzimy w środek drogi — od razu widać, o co chodzi.
+  const CYKL = 180, START = 0.38;
   const faza = FRAKCJA != null ? Math.max(0, Math.min(1, FRAKCJA))
-                               : (czas % CYKL) / CYKL;
+                               : ((czas / CYKL) + START) % 1;
   const punktX = W * faza;
   // dojrzałość sznura wzdłuż drogi: kropka odkrywa go, idąc
   const OGON = Math.max(40, W * 0.05);
@@ -797,13 +800,30 @@ addEventListener("keydown", ev => {
   if (ev.key === "Escape") document.getElementById("okno").classList.remove("jest");
 });
 
-/* interfejs znika, gdy patrzysz */
-let cichoT;
-addEventListener("pointermove", () => {
+/* Interfejs znika, gdy patrzysz — ale NIE zaraz po wejściu. Wystarczał
+   jeden przypadkowy ruch myszy, żeby wszystko zgasło, i strona wyglądała
+   jak zepsuta: czarne płótno bez guzików (Janek 13.08: „nie działa
+   strona"). Więc: przez pierwsze sekundy nic nie gaśnie, a potem chowamy
+   się dopiero po dłuższym bezruchu. Klik i klawisz zawsze przywracają. */
+let cichoT, ruszyl = false, ostX = null, ostY = null;
+function pokazUI(){
   document.body.classList.remove("spokoj");
   clearTimeout(cichoT);
-  cichoT = setTimeout(() => document.body.classList.add("spokoj"), 2600);
+  if (!ruszyl) return;                  // patrzysz i nic nie robisz — zostaje
+  cichoT = setTimeout(() => document.body.classList.add("spokoj"), 4000);
+}
+/* Chowanie włącza dopiero REALNE przesunięcie kursora. Samo zdarzenie nie
+   wystarcza: okno podglądu wysyła je samo, a wtedy interfejs znikał komuś,
+   kto tylko patrzy — i strona wyglądała na zepsutą. */
+addEventListener("pointermove", ev => {
+  if (ostX !== null && Math.hypot(ev.clientX - ostX, ev.clientY - ostY) > 6)
+    ruszyl = true;
+  ostX = ev.clientX; ostY = ev.clientY;
+  pokazUI();
 });
+addEventListener("pointerdown", () => { ruszyl = true; pokazUI(); });
+addEventListener("keydown", () => { ruszyl = true; pokazUI(); });
+pokazUI();
 
 function opisz(){
   const n = (SZWY[KTO] || []).length;
