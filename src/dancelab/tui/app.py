@@ -2264,6 +2264,11 @@ class DanceLabTUI(App):
         from dancelab.tui.user_store import resolve_tracks
         table = self.query_one("#lib-table", DataTable)
         cursor = table.cursor_row if keep_cursor else None
+        # Zapamiętaj PRZEWINIĘCIE, nie tylko kursor. Tabela jest przebudowywana
+        # od zera przy każdym zakończeniu pracy w tle (LUFS, okładki), a to
+        # zeruje pozycję przewinięcia — przy 200 wierszach widać to jako
+        # przeskok w trakcie scrollowania (Janek 13.08).
+        przewiniecie = table.scroll_y if keep_cursor else None
         self._render_w_toku = True
         if self._auto_timer is not None:
             self._auto_timer.stop()
@@ -2373,6 +2378,11 @@ class DanceLabTUI(App):
             table.move_cursor(row=wiersz_granego)
         elif cursor is not None and rows:
             table.move_cursor(row=min(cursor, len(rows) - 1))
+            if przewiniecie:
+                try:
+                    table.scroll_to(y=przewiniecie, animate=False)
+                except Exception:  # noqa: BLE001 — przewinięcie to wygoda, nie stan
+                    pass
         # zdarzenia podświetlenia przychodzą PO tym kodzie — flaga schodzi
         # dopiero po przetworzeniu odświeżenia
         self.call_after_refresh(setattr, self, "_render_w_toku", False)
