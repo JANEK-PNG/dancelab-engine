@@ -795,9 +795,16 @@ class DanceLabTUI(App):
                     with Horizontal(id="set-main"):
                         with VerticalScroll(id="form"):
                             yield Label("Pula", classes="field-label")
-                            yield Select([("Biblioteka (cache analiz)", "library"),
+                            # Źródło rozstrzyga, czy set DA SIĘ ZAGRAĆ: utwory
+                            # z Apple Music Rekordbox pokazuje, ale nie ładuje
+                            # na deck. Janek 13.08, po secie pełnym
+                            # `apple-music:` — wybór jest tu, przy budowie.
+                            yield Select([("▣ Tylko z dysku (grywalne)", "library-dysk"),
+                                          ("☁ Tylko Apple Music", "library-apple"),
+                                          ("MIX — wszystko", "library"),
                                           ("Folder…", "folder")],
-                                         value="library", id="pool", allow_blank=False)
+                                         value="library", id="pool",
+                                         allow_blank=False)
                             yield Input(placeholder="ścieżka folderu (tryb Folder)",
                                         id="folder")
                             yield Label("Długość [min]", classes="field-label")
@@ -3052,6 +3059,17 @@ class DanceLabTUI(App):
             analyses, hygiene = self._library_analyses()
             for note in hygiene:
                 ui(self._note, note)
+        # ŹRÓDŁO PULI. Utwory z Apple Music Rekordbox pokazuje, ale nie ładuje
+        # na deck — set z nich wygląda dobrze i nie da się go zagrać. Wybór
+        # jest jawny w polu „Pula", a odrzucenie zawsze z liczbą.
+        if p["pool"] in ("library-dysk", "library-apple"):
+            from dancelab.tui import zrodlo as Z
+            chce = Z.DYSK if p["pool"] == "library-dysk" else Z.APPLE
+            przed = len(analyses)
+            analyses = [a for a in analyses
+                        if Z.zrodlo(a.track.source_path) == chce]
+            ui(self._note, f"pula {Z.NAZWA[chce].lower()}: {len(analyses)} "
+                           f"z {przed} utworów")
         if self._stop.is_set():
             raise ValueError("anulowane")
         if not analyses:
