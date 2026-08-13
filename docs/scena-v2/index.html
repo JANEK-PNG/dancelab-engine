@@ -48,10 +48,28 @@ function wymiary(){
 }
 addEventListener("resize", wymiary); wymiary();
 
-/* deterministyczna losowość — ziarno z tekstu, nigdy Math.random */
-function hash(s){let h=7; for(const c of s) h=(h*31+c.charCodeAt(0))|0; return h>>>0||1}
-function rnd(seed){let s=seed; return ()=>{s^=s<<13; s^=s>>>17; s^=s<<5;
-  return (s>>>0)/4294967296}}
+/* deterministyczna losowość — ziarno z tekstu, nigdy Math.random.
+   UWAGA (13.08): pierwotna wersja brała PIERWSZĄ liczbę zaraz po
+   zaszczepieniu. Ziarna kolejnych włosów różnią się regularnie, więc ta
+   pierwsza liczba przyjmowała ledwie kilka wartości — pole możliwości
+   miało włosy tylko w pięciu kępkach tempa (110–139 i 180–199, między
+   140 a 179 ZERO) i udawało, że próbkuje bibliotekę. Stąd rozbicie
+   ziarna na końcu (lawina) i rozgrzanie generatora przed użyciem. */
+function hash(s){
+  let h = 2166136261;
+  for (const c of s){ h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); }
+  h ^= h >>> 15; h = Math.imul(h, 2246822507);
+  h ^= h >>> 13; h = Math.imul(h, 3266489909);
+  h ^= h >>> 16;
+  return (h >>> 0) || 1;
+}
+function rnd(seed){
+  let s = seed >>> 0 || 1;
+  const krok = () => { s ^= s << 13; s ^= s >>> 17; s ^= s << 5;
+                       return (s >>> 0) / 4294967296; };
+  for (let i = 0; i < 6; i++) krok();          // rozgrzewka
+  return krok;
+}
 const gladko = (v) => { const u = Math.max(0, Math.min(1, v));
                         return u * u * (3 - 2 * u); };
 
@@ -73,6 +91,19 @@ const WARSTWY = [];
    (Janek 13.08). Warstwa 1 je rysuje, warstwa 2 tylko je ZAGINA. */
 let POLE = null;
 fetch("mozliwosci.json?v=" + Date.now()).then(r => r.json()).then(d => POLE = d);
+
+/* osiągalność tempa policzona PRZEZ SILNIK (set_builder.bpm_score),
+   świadoma oktawy: z 140 osiągalne jest 128 (0,29), 105 wcale (0,00),
+   ale 70 tak (0,10) — bo to ta sama rodzina temp, tylko przygaszona */
+let ZASIEG = null;
+fetch("zasieg_tempa.json?v=" + Date.now()).then(r => r.json()).then(d => ZASIEG = d);
+
+function zasieg(bpmA, bpmB){
+  if (!ZASIEG || bpmA == null || bpmB == null) return 1;
+  const i = Math.round(Math.max(ZASIEG.od, Math.min(ZASIEG.do, bpmA))) - ZASIEG.od;
+  const j = Math.round(Math.max(ZASIEG.od, Math.min(ZASIEG.do, bpmB))) - ZASIEG.od;
+  return ZASIEG.siatka[i][j];
+}
 
 function gestosc(bpm, en){
   if (!POLE) return 0;
@@ -117,6 +148,12 @@ function warstwaMozliwosci(ctx, k){
   const {czas, W, H} = k;
   const lista = wlosy(H);
   for (const w of lista){
+    // RAMA: ile z tego włosa jest teraz w ogóle osiągalne (warstwa 3).
+    // Nic nie znika — nieosiągalne zostaje szarym cieniem.
+    const R = k.rama ? k.rama.jasnosc(w) : 1;
+    // ściągnięcie ramy PRZENOSI jasność, nie gasi obrazu: osiągalne
+    // jaśnieją, nieosiągalne zostaje czytelnym szarym cieniem
+    const wRamie = 0.34 + 1.90 * R;
     ctx.beginPath();
     let start = true;
     for (let x = -40; x <= W + 40; x += 12){
@@ -127,9 +164,12 @@ function warstwaMozliwosci(ctx, k){
       // TEN SAM włos, tylko zagięty — jeśli akurat wchodzi w któryś węzeł
       const [y, s] = zagnij(k, w, x, wlasna);
       const sc = Math.min(1, s);
-      const c = [Math.round(206 + 49 * sc), Math.round(202 + 26 * sc),
-                 Math.round(192 - 62 * sc)];
-      const a = (0.02 + w.g * 0.22) * (1 + s * s * 2.2);
+      // poza ramą włos jest zimny i przygaszony, w ramie jasny; splot
+      // dokłada ciepło na wierzch
+      const c = [Math.round(118 + 96 * R + 49 * sc),
+                 Math.round(122 + 88 * R + 26 * sc),
+                 Math.round(130 + 68 * R - 62 * sc)];
+      const a = (0.02 + w.g * 0.22) * (1 + s * s * 2.2) * wRamie;
       if (!start){
         ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${Math.min(0.7, a).toFixed(3)})`;
         ctx.lineWidth = (0.4 + w.g * 1.8) * (1 + s * 0.7);
@@ -155,8 +195,8 @@ WARSTWY.push(warstwaMozliwosci);
    gdzie się spotkają, ich włosy wchodzą w jeden, grubszy sznur. */
 /* czy ten włos jest w zasięgu tego węzła: liczy się i tempo, i energia —
    te same dwie cechy, z których silnik liczy zgodność przejścia */
-function przyleglosc(w, bpmCel, enCel, zasieg, zasEn){
-  const zb = 1 - Math.min(1, Math.abs(w.bpm - bpmCel) / zasieg);
+function przyleglosc(w, bpmCel, enCel, oknoBpm, zasEn){
+  const zb = 1 - Math.min(1, Math.abs(w.bpm - bpmCel) / oknoBpm);
   if (zb <= 0) return 0;
   const ze = 1 - Math.min(1, Math.abs(w.en - enCel) / zasEn);
   if (ze <= 0) return 0;
@@ -169,9 +209,12 @@ function wezly(k){
   const CYKL = 30, faza = (czas % CYKL) / CYKL;
   const punktX = W * faza;                     // wędrówka DJ-a przez pasmo
   const ILE = Math.min(5, n);
+  // KOLEJNE przejścia setu, nie wyrywkowe: przez jeden cykl czytamy jeden
+  // ciąg pięciu szwów, a każdy następny cykl bierze pięć następnych
+  const baza = (Math.floor(czas / CYKL) * ILE) % n;
   const lista = [];
   for (let j = 0; j < ILE; j++){
-    const idx = Math.floor((j + 0.5) / ILE * n);
+    const idx = (baza + j) % n;
     const s = szwy[idx] || szwy[0];
     const r = rnd(hash("wezel" + idx));
     const C = s.C != null ? s.C : 0.4;
@@ -181,13 +224,13 @@ function wezly(k){
     const enCel = s.eb != null ? s.eb : 0.5;
     // węzeł garnie WĄSKI pęk włosów — kilka pasm, nie pół biblioteki;
     // silniejsze sprzężenie garnie ich trochę więcej
-    const zasieg = 9 + 26 * C;                 // w uderzeniach na minutę
+    const oknoBpm = 9 + 26 * C;                // w uderzeniach na minutę
     const zasEn = 0.18 + 0.26 * C;             // i w energii
     const szer = W * (0.17 + 0.10 * C);        // długie dojście, ciasny splot
     // środek ciężkości włosów, które ten węzeł faktycznie przygarnia
     let sw = 0, sy = 0;
     for (const w of wlosy(H)){
-      const z = przyleglosc(w, bpmCel, enCel, zasieg, zasEn);
+      const z = przyleglosc(w, bpmCel, enCel, oknoBpm, zasEn);
       if (z <= 0) continue;
       const wag = z * (0.3 + w.g);
       sw += wag; sy += wag * w.y0;
@@ -195,7 +238,8 @@ function wezly(k){
     if (sw <= 0) continue;
     // dojrzewanie: węzeł budzi się, gdy dochodzi do niego punkt
     const dojrz = gladko((punktX - (x - szer * 1.8)) / (szer * 2.4));
-    lista.push({x, bpmCel, enCel, C, zasieg, zasEn, szer, yOs: sy / sw, dojrz,
+    lista.push({x, bpmA: s.a || bpmCel, bpmB: bpmCel,
+      bpmCel, enCel, C, oknoBpm, zasEn, szer, yOs: sy / sw, dojrz,
       Syn: s.Syn || 0,
       promien: H * (0.055 + 0.030 * (1 - C)),
       skret: 2.0 + r() * 1.6, faz: r() * 6.283});
@@ -233,7 +277,7 @@ function zagnij(k, w, x, wlasna){
   let sumaW = 0, sumaY = 0;
   for (const wz of WZ.lista){
     if (wz.dojrz <= 0.01) continue;
-    const z = przyleglosc(w, wz.bpmCel, wz.enCel, wz.zasieg, wz.zasEn);
+    const z = przyleglosc(w, wz.bpmCel, wz.enCel, wz.oknoBpm, wz.zasEn);
     if (z <= 0) continue;
     const d = Math.abs(x - wz.x) / (wz.szer * 1.7);
     if (d >= 1) continue;
@@ -259,6 +303,50 @@ function zagnij(k, w, x, wlasna){
   // sumaW > 1 = włos należy do DWÓCH węzłów naraz → tam sznur świeci mocniej
   return [wlasna + (sumaY / sumaW - wlasna) * przyciag,
           Math.min(1.4, sumaW)];
+}
+
+/* ── WARSTWA 3 · RAMA (moment przejścia) ──────────────────────────────
+   „Przejście to chwila, w której CAŁE pole możliwości się przelicza"
+   (Janek 13.08). Gdy A gra, możliwe nie jest już wszystko — możliwe jest
+   to, co osiągalne STĄD. Im bliżej decyzji, tym ostrzej pole się ściąga;
+   w samym szwie grają OBA utwory, więc na moment osiągalne jest to, co
+   osiągalne z A LUB z B — pole się rozszerza. Po szwie zaciska się na
+   nowo, ale już wokół B. Środek się przesunął.
+
+   Osiągalność liczy silnik (`set_builder.bpm_score`, świadomy oktawy).
+   Harmonii tu jeszcze nie ma — mapa nie ma uczciwych tonacji do czasu
+   odczytu Rekordboxa. Energia NIE gasi pola świadomie: przy zmierzonym
+   łuku „off" człon energii w silniku jest neutralny. Nic nie gaśnie do
+   zera — nieosiągalne zostaje szarym cieniem, bo dalej istnieje. */
+function rama(k){
+  const WZ = k.wz;
+  if (!WZ || !ZASIEG || !WZ.lista.length) return null;
+  const x = WZ.punktX;
+  let nast = null, poprz = null;
+  for (const wz of WZ.lista){
+    if (wz.x >= x){ if (!nast || wz.x < nast.x) nast = wz; }
+    else          { if (!poprz || wz.x > poprz.x) poprz = wz; }
+  }
+  // co gra TERAZ: po minionym szwie gra jego B, przed pierwszym — jego A
+  const grajacy = poprz ? poprz.bpmB : (nast ? nast.bpmA : null);
+  const nadchodzi = nast ? nast.bpmB : null;
+  // jak blisko decyzji jesteśmy — stąd ostrość ramy
+  const blisko = nast
+    ? 1 - Math.min(1, Math.abs(x - nast.x) / (nast.szer * 1.7)) : 0;
+  const wSzwie = nast
+    ? gladko(1 - Math.abs(x - nast.x) / (nast.szer * 0.85)) : 0;
+  const ostrosc = 0.35 + 1.40 * blisko;     // daleko od szwu pole oddycha
+  return {grajacy, nadchodzi, blisko, wSzwie, ostrosc,
+    jasnosc(w){
+      if (grajacy == null) return 1;
+      let r = zasieg(grajacy, w.bpm);
+      if (nadchodzi != null && wSzwie > 0){
+        // w szwie grają oba — rama jest sumą dwóch ram, nie jedną z nich
+        const rb = zasieg(nadchodzi, w.bpm);
+        r = r * (1 - wSzwie) + Math.max(r, rb) * wSzwie;
+      }
+      return Math.pow(Math.max(0, Math.min(1, r)), ostrosc);
+    }};
 }
 
 function warstwaSplatanie(ctx, k){
@@ -297,6 +385,7 @@ function kontekst(czas){
              poprz: szwy[i - 1] || szwy[i] || null,
              cx: W / 2, cy: H / 2, W, H, MIN, hash, rnd};
   k.wz = wezly(k);                    // węzły liczone RAZ na klatkę
+  k.rama = rama(k);                   // rama F: co jest osiągalne teraz
   return k;
 }
 
@@ -322,8 +411,10 @@ fetch("szwy.json?v=" + Date.now()).then(r => r.json()).then(d => {
   const n = (SZWY[KTO] || []).length;
   document.getElementById("stan").innerHTML =
     `scena v2 · czyste płótno<br><b>${KTO}</b> · ${n} przejść z profilem ` +
-    `In Between<br>warstwa 1: <b>pole możliwości</b> · warstwa 2: <b>splatanie</b><br>` +
-    `węzły splotu: 5 przejść z C ≥ ${THETA}`;
+    `In Between<br>warstwa 1: <b>pole możliwości</b> · warstwa 2: <b>splatanie</b>` +
+    ` · warstwa 3: <b>rama</b><br>` +
+    `pięć KOLEJNYCH przejść setu, C ≥ ${THETA} · osiągalność z silnika ` +
+    `(świadoma oktawy)`;
 });
 </script>
 </body>
