@@ -546,11 +546,15 @@ function zagnij(k, w, x, wlasna, R){
   if (nalezy <= 0.002) return [wlasna, 0];
   const dojrz = st.dojrz[i];
   if (dojrz <= 0.01) return [wlasna, 0];
-  /* POTRZEBNA znaczy też OSIĄGALNA. Sama przynależność do sznura nie
-     wystarcza: nić, której z grającego utworu nie da się teraz zagrać,
-     nie jest do niczego potrzebna i ma przejść obok nietknięta. Bez tego
-     magnes szarpał w pionie także pasma spoza ramy. */
-  const moc = nalezy * dojrz * (0.15 + 0.85 * (R == null ? 1 : R));
+  /* POTRZEBNA znaczy też OSIĄGALNA — ale TYLKO TAM, GDZIE WŁAŚNIE ZAPADA
+     DECYZJA. Osiągalność mówi o tym, co możliwe TERAZ; droga już przebyta
+     jest historią i nie ma prawa rozplatać się wstecz dlatego, że DJ
+     wszedł na tempo, z którego mało co widać. Wcześniej brama działała
+     na całej długości i cały sznur znikał (Janek: „chwilę później zmienia
+     się całkowicie wizualizacja"). */
+  const swieze = gladko(1 - (WZ.punktX - x) / (WZ.promienMagnesu * 3));
+  const brama = 1 - swieze * (0.85 - 0.85 * (R == null ? 1 : R));
+  const moc = nalezy * dojrz * brama;
   const os = st.osLuzne[i] + (st.osZwiaz[i] - st.osLuzne[i]) * dojrz;
   if (os < 0) return [wlasna, 0];
   // im mocniejsze sprzężenie w tym miejscu nocy, tym ciaśniej zwinięty sznur
@@ -582,8 +586,10 @@ function zagnij(k, w, x, wlasna, R){
   /* Agresja magnesu ma siedzieć w OSTROŚCI zejścia, nie w tym, jak daleko
      sięga. Wcześniej sięgał w pionie na ćwierć ekranu i wyrywał nici
      leżące bardzo daleko — to one rysowały pionową ścianę przy kropce. */
+  // wygaszanie musi być ŁAGODNE — stromy próg zostawiał na włosach
+  // widoczne schodki tam, gdzie przyciąganie nagle znikało
   const zasiegRek = k.H * (0.10 + 0.02 * magnes);
-  const kara = 1 - gladko((d - zasiegRek) / (zasiegRek * 0.45));
+  const kara = 1 - gladko((d - zasiegRek) / (zasiegRek * 0.95));
   if (kara <= 0) return [wlasna, 0];
   const przyciag = Math.min(1, moc * 1.45 + magnes * 0.9) * kara;
   return [wlasna + (cel - wlasna) * przyciag,
@@ -627,7 +633,22 @@ function rama(k){
     ? 1 - Math.min(1, Math.abs(x - nast.x) / ((nast.szer || 1) * 1.7)) : 0;
   const wSzwie = nast ? gladko(1 - Math.abs(x - nast.x) / oknoSzwu) : 0;
   const ostrosc = gesto ? 1.0 : 0.35 + 1.40 * blisko;
-  const kres = (v) => Math.pow(Math.max(0, Math.min(1, v)), ostrosc);
+  /* POLE NIE MOŻE ZGASNĄĆ CAŁE. Bezwzględna osiągalność potrafi spaść
+     do zera dla wszystkiego naraz — gdy DJ wchodzi na tempo, z którego
+     w bibliotece prawie nic nie leży. Formalnie to prawda, ale obraz
+     wygląda wtedy jak awaria, a pytanie brzmi „co jest osiągalne STĄD",
+     nie „ile tego jest". Więc skalujemy do najlepszego, co jest teraz
+     dostępne: przy zwykłym tempie nic to nie zmienia, przy rzadkim
+     zostaje wąski, ale widoczny pas. */
+  let szczyt = 0;
+  if (grajacy != null)
+    for (const w of wlosy(k.H)){
+      const v = zasieg(grajacy, w.bpm);
+      if (v > szczyt) szczyt = v;
+    }
+  const skala = 1 / Math.max(0.30, szczyt);
+  const kres = (v) =>
+    Math.pow(Math.max(0, Math.min(1, v * skala)), ostrosc);
   return {grajacy, nadchodzi, blisko, wSzwie, ostrosc,
     /* zwraca OSOBNO osiągalność z tego, co gra, i z tego, co wchodzi —
        bo to dwie różne rzeczy i mają dwa różne kolory talii */
