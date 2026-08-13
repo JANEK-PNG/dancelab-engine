@@ -34,6 +34,15 @@ audio = [
     "scikit-learn>=1.5",
     "soundfile>=0.12",
 ]
+# The terminal application. Textual itself was never declared — only
+# `textual-image` — so a clean clone installed exactly as the README says and
+# then died on `dancelab tui` with ModuleNotFoundError. It worked on the
+# author's machine only because textual had been installed there by hand.
+tui = [
+    "textual>=8.2,<9",
+    "rich-pixels>=3.0",
+    "textual-image>=0.6",
+]
 # Direct Rekordbox cue writing is optional, but must be explicitly installed.
 # Keeping it separate avoids pulling SQLCipher into analysis-only deployments.
 rekordbox = ["pyrekordbox>=0.4.4,<0.5"]

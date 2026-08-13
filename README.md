@@ -26,7 +26,7 @@ Copy **5–10 electronic tracks** — MP3, WAV, AIFF or FLAC — into a folder f
 git clone https://github.com/JANEK-PNG/dancelab-engine.git
 cd dancelab-engine
 python3.12 -m venv .venv
-./.venv/bin/python -m pip install -e ".[dev,audio,rekordbox]"
+./.venv/bin/python -m pip install -e ".[dev,audio,rekordbox,tui]"
 
 # 1. Does it run?
 ./.venv/bin/dancelab version
@@ -110,7 +110,7 @@ Python 3.11+ is required. From a repository checkout:
 ```bash
 python3.12 -m venv .venv
 ./.venv/bin/python -m pip install --upgrade pip
-./.venv/bin/python -m pip install -e ".[dev,audio,rekordbox]"
+./.venv/bin/python -m pip install -e ".[dev,audio,rekordbox,tui]"
 PYTHONPATH=src ./.venv/bin/dancelab --help
 ```
 
