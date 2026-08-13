@@ -71,6 +71,46 @@ def test_timing_noise_that_derails_a_tracker_leaves_the_grid_alone():
     assert got.bpm == pytest.approx(136.0)
 
 
+def sustained_track(bpm, seconds=30.0, sr=SR, length=0.30, freq=70.0, seed=5):
+    """Slow material with long, booming low notes instead of a tight kick.
+
+    Ambient, dub and rock — which is what the doubling defect actually hit. The
+    long decay smears the onset envelope until the grid at twice the tempo scores
+    almost as well as the truth.
+    """
+    rng = np.random.default_rng(seed)
+    y = rng.normal(0.0, 0.003, int(seconds * sr))
+    period = 60.0 / bpm
+    for k in range(int(seconds / period)):
+        at = 0.11 + k * period
+        i, n = int(at * sr), int(length * sr)
+        if i + n > y.size:
+            break
+        t = np.arange(n) / sr
+        y[i:i + n] += (np.sin(2 * np.pi * freq * t)
+                       * (1 - np.exp(-t / 0.002)) * np.exp(-t / (length / 3)))
+    return y
+
+
+@pytest.mark.parametrize("bpm", [74.0, 90.0, 96.0])
+def test_slow_records_are_not_read_at_twice_their_tempo(bpm):
+    # Measured against full-track Rekordbox analyses: 38.3% of records whose true
+    # tempo is 80-99 came back doubled, and 20.6% of those at 60-79, against
+    # 1.2-1.5% above 120. Fast records were safe only because their double lands
+    # past BPM_HI and is never scanned; nothing protected the slow ones.
+    got = fit_rigid_grid(sustained_track(bpm), SR)
+    assert got.bpm == pytest.approx(bpm, abs=1.0)
+
+
+@pytest.mark.parametrize("bpm,hats", [(174.0, 0.6), (160.0, 0.6), (128.0, 0.0)])
+def test_genuinely_fast_records_survive_the_doubling_fix(bpm, hats):
+    # The other half of the bargain: loosening the doubling test must not demote
+    # jungle to 87 or house to 64. Folding at half the truth catches every other
+    # beat and scores about 0.5, nowhere near the threshold.
+    got = fit_rigid_grid(click_track(bpm, seconds=30.0, hats=hats), SR)
+    assert got.bpm == pytest.approx(bpm, abs=1.0)
+
+
 def test_music_with_no_steady_pulse_scores_low_rather_than_guessing():
     rng = np.random.default_rng(11)
     noise = rng.normal(0.0, 0.1, SR * 40)
