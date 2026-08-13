@@ -2364,7 +2364,12 @@ class DanceLabTUI(App):
         grany = self._odtwarzacz.sciezka
         wiersz_granego = next((i for i, a in enumerate(rows)
                                if a.track.source_path == grany), None)             if grany else None
-        if wiersz_granego is not None:
+        # ...ale TYLKO gdy lista naprawdę się zmieniła. Przy zwykłym
+        # odświeżeniu (keep_cursor) skok na grany utwór wyrywał kursor spod
+        # palca w trakcie przewijania — Janek 13.08: „czemu jak scroluję to
+        # skacze". Odświeżenia lecą w tle (LUFS, okładki), więc widok wracał
+        # co chwilę na grany wiersz.
+        if wiersz_granego is not None and not keep_cursor:
             table.move_cursor(row=wiersz_granego)
         elif cursor is not None and rows:
             table.move_cursor(row=min(cursor, len(rows) - 1))
