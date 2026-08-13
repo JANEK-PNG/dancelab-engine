@@ -539,7 +539,7 @@ def test_s_pyta_o_nazwe_a_o_pokazuje_bogaty_opis_i_x_usuwa(tmp_path,
                                     "dj": "Ben UFO"})
             app._order = ["a", "b"]
             app._engine_order = ["a", "b"]
-            await pilot.press("s")
+            await pilot.press("ctrl+s")   # zapis planu przeniesiony z S (S = szew)
             await pilot.pause()
             from dancelab.tui.app import NazwaPlanuScreen
             assert isinstance(app.screen, NazwaPlanuScreen), "S pyta o nazwę"

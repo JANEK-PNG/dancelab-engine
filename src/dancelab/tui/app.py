@@ -647,7 +647,11 @@ class DanceLabTUI(App):
         Binding("a", "add", "Dopisz"),
         Binding("shift+up", "move_up", "przesuń ▲", show=False),
         Binding("shift+down", "move_down", "przesuń ▼", show=False),
-        Binding("s", "save_plan", "Zapisz plan"),
+        # Ctrl+S zapisuje plan, a samo S gra SZEW — „S jak Set"
+        # (decyzja Janka 14.08). W Eksport/Cue S dalej gra szew
+        # z TWOICH padów; tu gra to, co proponuje silnik.
+        Binding("ctrl+s", "save_plan", "Zapisz plan"),
+        Binding("s", "graj_szew_setu", "Szew"),
         Binding("o", "load_plan", "Wczytaj plan"),
         Binding("space", "preview_seam", "Graj/Pauza", priority=True),
         Binding("p", "preview_seam", "Posłuchaj", show=False),
@@ -2445,6 +2449,32 @@ class DanceLabTUI(App):
 
     def action_toggle_fav(self) -> None:
         self._lib_toggle("ulubione_utwory", "♥")
+
+    def action_graj_szew_setu(self) -> None:
+        """S w zakładce Set: posłuchaj SZWU pod kursorem.
+
+        Szew powstaje z propozycji silnika (w Secie nie ma jeszcze Twoich
+        padów — te są w Eksport/Cue i tam S gra szew z nich). Korzystamy
+        z tej samej, sprawdzonej ścieżki odsłuchu, żeby nie mnożyć dróg
+        do dźwięku. Dźwięk startuje WYŁĄCZNIE z jawnego klawisza.
+        """
+        if self.query_one("#tabs", TabbedContent).active != "tab-set":
+            return
+        if not self._order:
+            self._note("szew: najpierw zbuduj set (B)")
+            return
+        tabela = self.query_one("#set", DataTable)
+        i = tabela.cursor_row
+        if i is None or i + 1 >= len(self._order):
+            self._note("szew: ustaw kursor na utworze, po którym coś jeszcze gra")
+            return
+        self.query_one("#tabs", TabbedContent).active = "tab-cue"
+        self._cue_track = self._order[i]
+        self._note(f"szew #{i + 1}→#{i + 2} — S gra, Esc wraca")
+        try:
+            self._cue_graj_szew()
+        except Exception as exc:  # noqa: BLE001 — brak padów to stan, nie awaria
+            self._note(f"szew: {exc}")
 
     def action_toggle_filar(self) -> None:
         """F: w Bibliotece otwiera wybór ROLI filara (otwarcie / buildup /
