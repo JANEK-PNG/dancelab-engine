@@ -71,22 +71,6 @@ OCTAVE_WINDOW_SEC = 60.0
 # evidence for the exact number; the thousand negatives below it are not.
 OCTAVE_RELATIVES = (2.0, 1.5, 4.0 / 3.0)
 OCTAVE_MARGIN = 1.27
-# ...but every record behind that number sits between 120 and 140, and the margin
-# was measured on the dotted and triplet relations. Applying it to plain doubling
-# as well left slow material reading at twice its tempo, and the map says how much:
-# against full-track Rekordbox analyses, 38.3% of records whose true tempo is 80-99
-# came out doubled, and 20.6% of those at 60-79, against 1.2-1.5% above 120. Fast
-# records are safe only by accident — their double lands past BPM_HI and is never
-# scanned, so nothing had to decide.
-#
-# Doubling is a different question from a dotted or triplet relation, and it
-# separates cleanly: folding at half the truth can only ever catch every other
-# beat. Measured on synthetic material of both kinds, records we wrongly doubled
-# score 0.99-1.06 for the slower grid — ambient and rock, where long low notes
-# smear the envelope until both grids look alike — while genuine jungle at 174,
-# drum and bass at 160 and house at 128 all score 0.51-0.55. The threshold sits in
-# that gap, so a real fast record is never demoted and the smeared slow one is.
-DOUBLE_MARGIN = 0.80
 
 
 @dataclass(frozen=True)
@@ -207,8 +191,7 @@ def _settle_relatives(bpm: float, env: np.ndarray, times: np.ndarray) -> float:
         cand = bpm / div
         if cand < BPM_LO:
             continue
-        margin = DOUBLE_MARGIN if div == 2.0 else OCTAVE_MARGIN
-        if _fold(env, times, cand)[0] >= margin * base:
+        if _fold(env, times, cand)[0] >= OCTAVE_MARGIN * base:
             return cand
     return bpm
 
