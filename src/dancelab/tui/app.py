@@ -918,7 +918,7 @@ class DanceLabTUI(App):
             for lbl, w in ((" ", 8), ("♥", None), ("F", None), ("BPM", 10),
                            ("ton", 8), ("pew.", None), ("energia", None),
                            ("LUFS", 7), ("gatunek", None), ("min", None),
-                           ("wykonawca", None), ("tytuł", None), ("źr.", 4))]
+                           ("wykonawca", None), ("tytuł", None), ("źr.", 5))]
         lib.cursor_type = "row"
         cue = self.query_one("#cue-table", DataTable)
         for lbl, w in (("#", 3), ("utwór", 30), ("oś utworu", 38),
@@ -2272,6 +2272,12 @@ class DanceLabTUI(App):
         search, key, lo, hi, err = self._lib_filters()
         rows = filter_library(self._lib, search=search, key=key,
                               bpm_lo=lo, bpm_hi=hi)
+        # Ten sam utwór leży w kilku folderach naraz i ma bliźniaka z Apple
+        # Music: 1914 analiz to 1690 utworów. Scalamy WIDOK — pliki, analizy,
+        # ulubione i filary zostają nietknięte, a licznik mówi ile scalono.
+        from dancelab.tui import duplikaty as D
+        kopie = D.ile_kopii(rows)
+        rows, scalonych = D.scal(rows)
         from dancelab.tui.user_store import filary_wpisy
         by_id = {a.track.track_id: a for a in self._lib}
         favs, _ = resolve_tracks(self._user_state["ulubione_utwory"], by_id)
@@ -2326,7 +2332,10 @@ class DanceLabTUI(App):
                 f"{dur/60:4.1f}",
                 _wykonawca_tytul(t)[0][:24],
                 _wykonawca_tytul(t)[1][:36],
-                Z.ikona(t.source_path),
+                # ikona źródła, a przy scalonych kopiach ich liczba
+                Z.ikona(t.source_path)
+                + (f"×{kopie[t.track_id]}" if kopie.get(t.track_id, 1) > 1
+                   else ""),
                 height=3 if galeria else 1,
             )
         self._lib_view = rows
@@ -2337,8 +2346,10 @@ class DanceLabTUI(App):
         filary_info = (f"playlista: {pl_akt['nazwa'][:22]} · filary: "
                        f"{len(pl_akt['filary'])} (min 3, max 10)"
                        if pl_akt else "filary: brak playlisty (＋ po lewej)")
-        info = (f"{sekcja}: {len(rows)} z {len(self._lib)} utworów   ·   "
-                f"{filary_info}"
+        info = (f"{sekcja}: {len(rows)} z {len(self._lib)} utworów"
+                + (f" (scalono {scalonych} kopii — pliki zostają)"
+                   if scalonych else "")
+                + f"   ·   {filary_info}"
                 f"   ·   ♥ {len(self._user_state['ulubione_utwory'])}"
                 f"   ·   U=♥  F=filar  G=filary do Set  K=okładki  ·  "
                 + (f"sort: {self._SORT_NAMES[self._lib_sort[0]]}"
