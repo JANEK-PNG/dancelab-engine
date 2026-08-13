@@ -2093,8 +2093,11 @@ class DanceLabTUI(App):
             self._lib_lufs = wczytaj_cache()
         except Exception:  # noqa: BLE001
             self._lib_lufs = {}
-        if analyses:
-            self._lufs_worker()
+        # LUFS NIE liczy się sam na starcie (Janek 13.08: „na start masz
+        # wrażenie, że aplikacja jest zjebana"). Każdy zmierzony utwór
+        # przebudowywał tabelę, więc pierwsze sekundy w Bibliotece były
+        # nie do przewinięcia. To, co już policzone, czyta się z cache
+        # natychmiast; reszta pokazuje „…" i nikomu to nie przeszkadza.
         raw = {a.track.track_id: _energy_raw(a) for a in analyses}
         known = [v for v in raw.values() if v is not None]
         lo, hi = (min(known), max(known)) if known else (0.0, 1.0)
