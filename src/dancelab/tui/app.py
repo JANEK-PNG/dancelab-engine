@@ -2770,9 +2770,19 @@ class DanceLabTUI(App):
             # setów nie mamy (test person 09.08 — Kuba gra jak Amelie Lens,
             # której tam nie ma). Ulubione działają dla każdego.
             options = [(f"{MOJE_ULUBIONE} — z Twoich ♥", MOJE_ULUBIONE)]
-            options += _opcje_kotwic(
-                list_anchors(limit=500),
-                kolekcja_djow(getattr(self, "_user_state", {}) or {}))
+            # Księga DJ-ów jest liczona z korpusu i NIE jedzie z repozytorium,
+            # więc na świeżej instalce jej po prostu nie ma. Wcześniej jej brak
+            # wywracał całą funkcję — wyjątek leciał wyżej i pole „Brzmi jak…"
+            # zostawało PUSTE, także bez „moje ulubione", które przecież żadnej
+            # księgi nie potrzebuje. Kotwica z ulubionych ma działać od
+            # pierwszego uruchomienia.
+            try:
+                options += _opcje_kotwic(
+                    list_anchors(limit=500),
+                    kolekcja_djow(getattr(self, "_user_state", {}) or {}))
+            except Exception as exc:  # noqa: BLE001 — brak księgi to stan, nie awaria
+                self._note(f"księga DJ-ów niedostępna ({exc}); "
+                           "zostaje kotwica z Twoich ulubionych")
             pole = self.query_one("#dj", Select)
             try:
                 biezacy = pole.value
