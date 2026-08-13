@@ -6,23 +6,104 @@
 <title>DanceLab — scena v2 (start od zera)</title>
 <script src="https://w.soundcloud.com/player/api.js"></script>
 <style>
+  /* paleta TERRAIN — ta sama, którą ma aplikacja */
   :root{--tlo:#141312; --tekst:#e8e4da; --przygaszony:#8f8a7e; --slaby:#5c5850;
-    --volt:#d6f549; --linia:#3a3730; --r:3px}
+    --volt:#d6f549; --bursztyn:#e0a458; --blekit:#6db3c9; --linia:#3a3730;
+    --r:3px}
   *{box-sizing:border-box; margin:0; padding:0}
   html,body{height:100%; overflow:hidden}
   body{background:var(--tlo); color:var(--tekst);
     font-family:"Space Grotesk", system-ui, sans-serif}
-  #plotno{position:fixed; inset:0; width:100vw; height:100vh; display:block}
+  #plotno{position:fixed; inset:0; width:100vw; height:100vh; display:block;
+    cursor:ew-resize}
   .ui{position:fixed; z-index:5; transition:opacity .5s}
   body.spokoj .ui{opacity:0; pointer-events:none}
   #stan{top:14px; left:16px; font-size:11px; color:var(--slaby);
     letter-spacing:.4px; line-height:1.7}
   #stan b{color:var(--przygaszony); font-weight:500}
+  #wybor{top:14px; right:56px; display:flex; gap:8px}
+  .dj{border:1px solid var(--linia); border-radius:var(--r); padding:5px 12px;
+    font-size:12px; color:var(--przygaszony); cursor:pointer;
+    background:rgba(20,19,18,.72); font-family:inherit}
+  .dj:hover{border-color:var(--przygaszony); color:var(--tekst)}
+  .dj.on{border-color:var(--volt); color:var(--volt)}
+  #graj{bottom:22px; left:16px; border:1px solid var(--linia);
+    border-radius:var(--r); background:rgba(20,19,18,.72); color:var(--tekst);
+    font-family:inherit; font-size:12px; letter-spacing:.6px;
+    padding:8px 15px; cursor:pointer}
+  #graj:hover{border-color:var(--volt); color:var(--volt)}
+  #vol{bottom:26px; right:56px; width:84px; height:10px; display:none;
+    accent-color:var(--volt); cursor:pointer}
+  #vol.jest{display:block}
+  #voli, #info{width:24px; height:24px; border-radius:50%;
+    border:1px solid var(--linia); color:var(--przygaszony);
+    background:rgba(20,19,18,.72); font-size:12px; font-family:inherit;
+    cursor:pointer; line-height:1}
+  #voli:hover, #info:hover{border-color:var(--volt); color:var(--volt)}
+  #voli{bottom:20px; right:16px}
+  #info{top:14px; right:16px; font-style:italic}
+  #okno{display:none; top:0; left:0; right:0; bottom:0; z-index:9;
+    background:rgba(12,11,10,.93); padding:6vh 8vw; overflow:auto}
+  #okno.jest{display:block}
+  #okno h2{font-size:15px; letter-spacing:1.2px; color:var(--volt);
+    font-weight:500; margin-bottom:14px}
+  #okno p{font-size:13px; line-height:1.85; color:var(--tekst);
+    max-width:62ch; margin-bottom:11px}
+  #okno .prog{color:var(--przygaszony)}
+  #okno b.a{color:var(--bursztyn); font-weight:500}
+  #okno b.b{color:var(--blekit); font-weight:500}
+  #okno b.v{color:var(--volt); font-weight:500}
+  #zamknij{margin-top:14px; border:1px solid var(--linia); color:var(--tekst);
+    background:none; border-radius:var(--r); padding:7px 14px; font-size:12px;
+    font-family:inherit; cursor:pointer}
+  #zamknij:hover{border-color:var(--volt); color:var(--volt)}
+  #pasek{position:fixed; left:0; right:0; bottom:0; height:18px; z-index:4;
+    cursor:ew-resize}
+  #pasek::after{content:""; position:absolute; left:0; right:0; bottom:0;
+    height:2px; background:var(--linia)}
+  #postep{position:absolute; left:0; bottom:0; height:2px; width:0;
+    background:var(--volt)}
+  .sc-ukryty{position:fixed; width:1px; height:1px; opacity:0;
+    pointer-events:none; border:0}
 </style>
 </head>
 <body>
 <canvas id="plotno"></canvas>
 <div id="stan" class="ui">scena v2 · czyste płótno<br>czekam na pierwszą warstwę</div>
+<div id="wybor" class="ui"></div>
+<button id="info" class="ui" title="jak powstał ten obraz">i</button>
+<button id="graj" class="ui">▶ POSŁUCHAJ SETU</button>
+<input type="range" id="vol" class="ui" min="0" max="100" value="80"
+  title="głośność — im głośniej, tym grubsze włókna">
+<button id="voli" class="ui" title="głośność">♪</button>
+<div id="pasek"><div id="postep"></div></div>
+
+<div id="okno">
+  <h2>JAK POWSTAŁ TEN OBRAZ</h2>
+  <p>Tu nic nie jest ozdobą. Każda linia to pomiar z bazy utworów zagranych
+     na festiwalach — 9&nbsp;750 utworów i kolejność, w jakiej naprawdę
+     poszły po sobie.</p>
+  <p><b>Każde włókno to jeden utwór.</b> To, jak wysoko leży, mówi o jego
+     tempie i energii. Im więcej podobnych utworów w bazie, tym wyraźniejsze
+     włókno.</p>
+  <p><b>Jasne są te utwory, które da się zagrać teraz</b> — po tym, co
+     właśnie leci. Liczy to ta sama część programu, która podpowiada Ci
+     następny utwór. Dlatego zapala się też utwór o połowie tempa: dla
+     programu to wciąż ta sama rodzina, tylko przygaszona.</p>
+  <p><b class="a">Bursztynowe</b> jest to, co osiągalne z utworu, który
+     GRA. <b class="b">Błękitne</b> — z tego, który właśnie WCHODZI. Przez
+     chwilę są oba naraz i wtedy możliwości jest <b>więcej</b>, nie mniej.
+     To jest ten moment, o który w tym wszystkim chodzi.</p>
+  <p>Gdy połączenie jest dość mocne, żeby w ogóle zaistniało, włókna zaczynają
+     się do siebie zbliżać i splatają w jeden gruby sznur —
+     <b class="v">w kolorze aplikacji</b>. Kropka to Ty w chwili decyzji:
+     idzie przez wieczór i po drodze budzi kolejne połączenia.</p>
+  <p class="prog">Czego tu nie ma i dlaczego: nie rysujemy, jak długo trwało
+     łączenie ani czy DJ przytrzymał bas. Baza tego nie wie — są w niej
+     utwory i ich kolejność, nie nagranie. Żeby to pokazać uczciwie,
+     trzeba posłuchać nagrań, a nie dorysować.</p>
+  <button id="zamknij">zamknij</button>
+</div>
 
 <script>
 /* SCENA v2 — start od zera (Janek 13.08).
@@ -77,8 +158,10 @@ const gladko = (v) => { const u = Math.max(0, Math.min(1, v));
    (C, D, Syn, U, K, okreslone) oraz pętla DJ↔muzyka (iDJ, iM, Cdj, Ddj) */
 let SZWY = {};
 let KTO = "Tim Reaper";
-let GRACZ = null;               // odtwarzacz dojdzie, gdy powiesz
+let GRACZ = null;               // odtwarzacz SoundCloud (ukryty)
 let FRAKCJA = null;             // pozycja w secie: null = pętla własna
+let VOL = 0.8;                  // głośność — i GRUBOŚĆ włókien
+let GRUBOSC = 1;                // 1 w spoczynku, do 2× przy pełnej głośności
 const THETA = 0.18;             // próg z definicji In Between
 
 /* WARSTWY: każda to funkcja (ctx, k) → rysuje jedną rzecz.
@@ -150,10 +233,23 @@ function warstwaMozliwosci(ctx, k){
   for (const w of lista){
     // RAMA: ile z tego włosa jest teraz w ogóle osiągalne (warstwa 3).
     // Nic nie znika — nieosiągalne zostaje szarym cieniem.
-    const R = k.rama ? k.rama.jasnosc(w) : 1;
+    const F = k.rama ? k.rama.dlaWlosa(w) : {R: 1, a: 1, b: 0};
     // ściągnięcie ramy PRZENOSI jasność, nie gasi obrazu: osiągalne
     // jaśnieją, nieosiągalne zostaje czytelnym szarym cieniem
-    const wRamie = 0.34 + 1.90 * R;
+    const wRamie = 0.34 + 1.90 * F.R;
+    /* KOLOR NIESIE ZNACZENIE, nie ozdobę — i mówi językiem aplikacji
+       (paleta TERRAIN, ta sama co w TUI):
+         zimny grafit — poza ramą: stąd tego nie zagrasz
+         bursztyn     — osiągalne z tego, co GRA        (talia A)
+         błękit       — osiągalne z tego, co WCHODZI    (talia B)
+         volt         — wplecione w sznur: to zaistniało */
+    let cr = 112 + (224 - 112) * F.a;
+    let cg = 118 + (164 - 118) * F.a;
+    let cb = 132 + (88 - 132) * F.a;
+    // błękit bierze przede wszystkim to, czego NIE dało się zagrać przed
+    // wejściem B — czyli możliwości, które dopiero nowy utwór otwiera
+    const nb = F.b * (1 - 0.55 * F.a);
+    cr += (109 - cr) * nb; cg += (179 - cg) * nb; cb += (201 - cb) * nb;
     ctx.beginPath();
     let start = true;
     for (let x = -40; x <= W + 40; x += 12){
@@ -163,16 +259,18 @@ function warstwaMozliwosci(ctx, k){
         + Math.sin(u * 11.7 + w.faza * 2 - czas * w.dryf * 0.6) * w.amp * 0.45;
       // TEN SAM włos, tylko zagięty — jeśli akurat wchodzi w któryś węzeł
       const [y, s] = zagnij(k, w, x, wlasna);
-      const sc = Math.min(1, s);
-      // poza ramą włos jest zimny i przygaszony, w ramie jasny; splot
-      // dokłada ciepło na wierzch
-      const c = [Math.round(118 + 96 * R + 49 * sc),
-                 Math.round(122 + 88 * R + 26 * sc),
-                 Math.round(130 + 68 * R - 62 * sc)];
-      const a = (0.02 + w.g * 0.22) * (1 + s * s * 2.2) * wRamie;
+      // volt zostaje dla SAMEGO RDZENIA splotu — inaczej zjada bursztyn,
+      // bo oba są żółtawe i „co gra" przestaje się odróżniać od „zaplotło się"
+      const sc = Math.pow(Math.min(1, s), 1.7);
+      const c = [Math.round(cr + (214 - cr) * sc),
+                 Math.round(cg + (245 - cg) * sc),
+                 Math.round(cb + (73 - cb) * sc)];
+      // to, co dopiero się otwiera, ma być WIDAĆ — inaczej najciekawsza
+      // chwila jest najbledsza
+      const a = (0.02 + w.g * 0.22) * (1 + s * s * 2.2) * wRamie * (1 + 0.85 * nb);
       if (!start){
-        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${Math.min(0.7, a).toFixed(3)})`;
-        ctx.lineWidth = (0.4 + w.g * 1.8) * (1 + s * 0.7);
+        ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},${Math.min(0.8, a).toFixed(3)})`;
+        ctx.lineWidth = (0.4 + w.g * 1.8) * (1 + s * 0.7) * GRUBOSC;
         ctx.lineTo(x, y); ctx.stroke();
       }
       ctx.beginPath(); ctx.moveTo(x, y); start = false;
@@ -206,12 +304,22 @@ function przyleglosc(w, bpmCel, enCel, oknoBpm, zasEn){
 function wezly(k){
   const {czas, W, H, szwy, n} = k;
   if (!n) return null;
-  const CYKL = 30, faza = (czas % CYKL) / CYKL;
-  const punktX = W * faza;                     // wędrówka DJ-a przez pasmo
   const ILE = Math.min(5, n);
-  // KOLEJNE przejścia setu, nie wyrywkowe: przez jeden cykl czytamy jeden
-  // ciąg pięciu szwów, a każdy następny cykl bierze pięć następnych
-  const baza = (Math.floor(czas / CYKL) * ILE) % n;
+  // KOLEJNE przejścia setu, nie wyrywkowe: czytamy ciąg pięciu, a punkt
+  // idzie przez nie. GDY SET GRA, prowadzi go odtwarzacz — to samo miejsce
+  // w secie zawsze daje ten sam obraz, więc przewijanie i cofanie działa.
+  let baza, faza;
+  if (FRAKCJA != null){
+    const p = Math.max(0, Math.min(n - 0.0001, FRAKCJA * n));
+    const okno = Math.floor(p / ILE) * ILE;
+    baza = okno % n;
+    faza = (p - okno) / ILE;
+  } else {
+    const CYKL = 30;
+    faza = (czas % CYKL) / CYKL;
+    baza = (Math.floor(czas / CYKL) * ILE) % n;
+  }
+  const punktX = W * faza;                     // wędrówka DJ-a przez pasmo
   const lista = [];
   for (let j = 0; j < ILE; j++){
     const idx = (baza + j) % n;
@@ -336,16 +444,17 @@ function rama(k){
   const wSzwie = nast
     ? gladko(1 - Math.abs(x - nast.x) / (nast.szer * 0.85)) : 0;
   const ostrosc = 0.35 + 1.40 * blisko;     // daleko od szwu pole oddycha
+  const kres = (v) => Math.pow(Math.max(0, Math.min(1, v)), ostrosc);
   return {grajacy, nadchodzi, blisko, wSzwie, ostrosc,
-    jasnosc(w){
-      if (grajacy == null) return 1;
-      let r = zasieg(grajacy, w.bpm);
-      if (nadchodzi != null && wSzwie > 0){
-        // w szwie grają oba — rama jest sumą dwóch ram, nie jedną z nich
-        const rb = zasieg(nadchodzi, w.bpm);
-        r = r * (1 - wSzwie) + Math.max(r, rb) * wSzwie;
-      }
-      return Math.pow(Math.max(0, Math.min(1, r)), ostrosc);
+    /* zwraca OSOBNO osiągalność z tego, co gra, i z tego, co wchodzi —
+       bo to dwie różne rzeczy i mają dwa różne kolory talii */
+    dlaWlosa(w){
+      if (grajacy == null) return {R: 1, a: 1, b: 0};
+      const ra = kres(zasieg(grajacy, w.bpm));
+      // w szwie grają OBA — rama jest sumą dwóch ram, nie jedną z nich
+      const rb = (nadchodzi != null && wSzwie > 0)
+        ? kres(zasieg(nadchodzi, w.bpm)) * wSzwie : 0;
+      return {R: Math.max(ra, rb), a: ra, b: rb};
     }};
 }
 
@@ -391,12 +500,90 @@ function kontekst(czas){
 
 function klatka(ts){
   const czas = ts / 1000;
+  // głośność steruje GRUBOŚCIĄ włókien: przy maksimum są dwa razy grubsze
+  GRUBOSC = GRACZ ? (0.7 + 1.3 * VOL) : 1;
+  if (GRACZ) FRAKCJA = GRACZ.frac;
   ctx.clearRect(0, 0, W, H);
   const k = kontekst(czas);
   for (const warstwa of WARSTWY) warstwa(ctx, k);
   requestAnimationFrame(klatka);
 }
 requestAnimationFrame(klatka);
+
+/* ── ODTWARZACZ ───────────────────────────────────────────────────────
+   Set gra z SoundClouda w ukrytej ramce — widoczny jest sam obraz, a
+   sterowanie to kropka i pasek. Pozycja w secie prowadzi scenę, więc
+   przewinięcie w tył pokazuje DOKŁADNIE to samo, co za pierwszym razem. */
+const DJE = {
+  "Tim Reaper": "https://soundcloud.com/resident-advisor/ra1000-timreaper",
+  "Piasecki": "https://soundcloud.com/piasecki/ep398",
+  "Catz 'n Dogz": "https://soundcloud.com/catzndogz/music-not-genres-by-catz-n-dogz-newonce-radio-25042020",
+};
+const guzikGraj = document.getElementById("graj");
+const pasekPostep = document.getElementById("postep");
+
+function odsluch(){
+  if (GRACZ && !document.querySelector("iframe.sc-ukryty")) GRACZ = null;
+  if (GRACZ){ GRACZ.gra ? GRACZ.widget.pause() : GRACZ.widget.play(); return; }
+  const adres = DJE[KTO];
+  if (!adres || typeof SC === "undefined") return;
+  const fr = document.createElement("iframe");
+  fr.className = "sc-ukryty"; fr.allow = "autoplay";
+  fr.src = "https://w.soundcloud.com/player/?url=" + encodeURIComponent(adres)
+         + "&auto_play=false&visual=false";
+  document.body.appendChild(fr);
+  const wid = SC.Widget(fr);
+  GRACZ = {widget: wid, frac: 0, dur: 0, gra: false};
+  wid.bind(SC.Widget.Events.READY, () => {
+    wid.getDuration(ms => GRACZ.dur = ms);
+    wid.setVolume(VOL * 100);
+    wid.play();                       // gra dopiero po TWOIM kliknięciu
+  });
+  wid.bind(SC.Widget.Events.PLAY,  () => { GRACZ.gra = true;
+    guzikGraj.textContent = "⏸ PAUZA"; });
+  wid.bind(SC.Widget.Events.PAUSE, () => { GRACZ.gra = false;
+    guzikGraj.textContent = "▶ WZNÓW"; });
+  wid.bind(SC.Widget.Events.PLAY_PROGRESS, e => {
+    if (GRACZ.dur) GRACZ.frac = e.currentPosition / GRACZ.dur;
+    else wid.getDuration(ms => GRACZ.dur = ms);
+    pasekPostep.style.width = (GRACZ.frac * 100).toFixed(2) + "%";
+  });
+  document.getElementById("voli").classList.add("jest");
+  guzikGraj.textContent = "⏸ PAUZA";
+}
+guzikGraj.onclick = odsluch;
+
+document.getElementById("vol").oninput = function(){
+  VOL = this.value / 100;
+  if (GRACZ) GRACZ.widget.setVolume(+this.value);
+};
+document.getElementById("voli").onclick = () =>
+  document.getElementById("vol").classList.toggle("jest");
+document.getElementById("info").onclick = () =>
+  document.getElementById("okno").classList.add("jest");
+document.getElementById("zamknij").onclick = () =>
+  document.getElementById("okno").classList.remove("jest");
+
+/* przewijanie: ciągnięcie po scenie albo po pasku */
+let ciagnie = false, ostatniSkok = 0;
+function przewin(ev){
+  if (!GRACZ) return;
+  const frac = Math.max(0, Math.min(1, ev.clientX / innerWidth));
+  GRACZ.frac = frac;
+  pasekPostep.style.width = (frac * 100).toFixed(2) + "%";
+  const teraz = performance.now();
+  if (GRACZ.dur && teraz - ostatniSkok > 140){
+    ostatniSkok = teraz; GRACZ.widget.seekTo(frac * GRACZ.dur);
+  }
+}
+for (const el of [cv, document.getElementById("pasek")])
+  el.addEventListener("pointerdown", ev => { ciagnie = true; przewin(ev); });
+addEventListener("pointermove", ev => { if (ciagnie) przewin(ev); });
+addEventListener("pointerup", () => ciagnie = false);
+addEventListener("keydown", ev => {
+  if (ev.key === " "){ ev.preventDefault(); odsluch(); }
+  if (ev.key === "Escape") document.getElementById("okno").classList.remove("jest");
+});
 
 /* interfejs znika, gdy patrzysz */
 let cichoT;
@@ -406,15 +593,36 @@ addEventListener("pointermove", () => {
   cichoT = setTimeout(() => document.body.classList.add("spokoj"), 2600);
 });
 
-fetch("szwy.json?v=" + Date.now()).then(r => r.json()).then(d => {
-  SZWY = d;
+function opisz(){
   const n = (SZWY[KTO] || []).length;
   document.getElementById("stan").innerHTML =
-    `scena v2 · czyste płótno<br><b>${KTO}</b> · ${n} przejść z profilem ` +
-    `In Between<br>warstwa 1: <b>pole możliwości</b> · warstwa 2: <b>splatanie</b>` +
-    ` · warstwa 3: <b>rama</b><br>` +
-    `pięć KOLEJNYCH przejść setu, C ≥ ${THETA} · osiągalność z silnika ` +
-    `(świadoma oktawy)`;
+    `<b>${KTO}</b> · ${n} przejść z profilem In Between<br>` +
+    `pole możliwości · splatanie · rama<br>` +
+    `<span style="color:#e0a458">bursztyn</span> = co gra · ` +
+    `<span style="color:#6db3c9">błękit</span> = co wchodzi · ` +
+    `<span style="color:#d6f549">volt</span> = co się zaplotło`;
+}
+
+fetch("szwy.json?v=" + Date.now()).then(r => r.json()).then(d => {
+  SZWY = d;
+  const wyb = document.getElementById("wybor");
+  Object.keys(d).forEach((ksywa, i) => {
+    const b = document.createElement("button");
+    b.className = "dj" + (ksywa === KTO ? " on" : "");
+    b.textContent = ksywa;
+    b.onclick = () => {
+      if (GRACZ) GRACZ.widget.pause();
+      document.querySelectorAll("iframe.sc-ukryty").forEach(f => f.remove());
+      GRACZ = null; FRAKCJA = null; KTO = ksywa;
+      guzikGraj.textContent = "▶ POSŁUCHAJ SETU";
+      pasekPostep.style.width = "0%";
+      document.querySelectorAll(".dj").forEach(x =>
+        x.classList.toggle("on", x.textContent === ksywa));
+      opisz();
+    };
+    wyb.appendChild(b);
+  });
+  opisz();
 });
 </script>
 </body>
