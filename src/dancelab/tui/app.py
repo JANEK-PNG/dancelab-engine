@@ -36,6 +36,7 @@ from textual.screen import ModalScreen
 from textual.widgets import OptionList
 from textual.widgets.option_list import Option
 
+from dancelab.tui import zrodlo as Z
 from dancelab.tui.pasek import PasekOdtwarzacza
 from textual.widgets import (
     Button,
@@ -690,6 +691,11 @@ class DanceLabTUI(App):
         self._stop = threading.Event()
         # notatki zgłoszone, zanim ekran się zmontował — patrz `_note`
         self._notatki_przed_startem: list[str] = []
+        # Ściana kart DJ-ów. MUSI istnieć od początku: `_render_dj_tab`
+        # wychodzi wcześniej, gdy nie ma księgi kotwic (czyli na każdej
+        # świeżej instalce), a filtr sięgał po tę listę i wywracał aplikację
+        # — Janek trafił na to przy pierwszym uruchomieniu z czystego klonu.
+        self._dj_karty: list = []
         self._artwork_przerwij = threading.Event()
         self._artwork_programowo = False   # lustrzane ustawianie przełącznika
         self._plan_paths: list[str] = []
@@ -906,10 +912,13 @@ class DanceLabTUI(App):
         lib = self.query_one("#lib-table", DataTable)
         self._lib_col_keys = [
             lib.add_column(lbl, width=w)
+            # „źr." NA KOŃCU celowo: numery kolumn są twardo zapisane
+            # w sortowaniu (_lib_sort_missing, _lib_sort_key), więc wstawienie
+            # czegokolwiek w środek przesuwa je wszystkie.
             for lbl, w in ((" ", 8), ("♥", None), ("F", None), ("BPM", 10),
                            ("ton", 8), ("pew.", None), ("energia", None),
                            ("LUFS", 7), ("gatunek", None), ("min", None),
-                           ("wykonawca", None), ("tytuł", None))]
+                           ("wykonawca", None), ("tytuł", None), ("źr.", 4))]
         lib.cursor_type = "row"
         cue = self.query_one("#cue-table", DataTable)
         for lbl, w in (("#", 3), ("utwór", 30), ("oś utworu", 38),
@@ -1732,8 +1741,9 @@ class DanceLabTUI(App):
             if isinstance(b, Button):
                 b.variant = "primary" if b.id == guzik_id else "default"
         self._render_dj_tab()
-        if self._dj_karty:
-            self._dj_karty[0].focus()
+        karty = getattr(self, "_dj_karty", [])
+        if karty:
+            karty[0].focus()
 
     def _kolekcja_z_karty_sciennej(self, dj: str) -> None:
         self._kolekcja_przelacz(dj)
@@ -2164,10 +2174,21 @@ class DanceLabTUI(App):
         side.add_option(Option("Cała biblioteka", id="all"))
         side.add_option(Option("♥ Ulubione utwory", id="fav"))
         side.add_option(Option("⚑ Filary (playlisty)", id="filary"))
+        # skąd bierze się utwór (Janek 13.08). Kategorie są TRZY, nie dwie:
+        # „niedostępne" to pliki lokalne na odpiętym dysku, a nie streaming —
+        # i to jest rzecz, którą DJ chce zobaczyć PRZED setem.
+        for sek, etyk in (("zr:dysk", f"{Z.IKONA[Z.DYSK]} Na dysku"),
+                          ("zr:apple", f"{Z.IKONA[Z.APPLE]} Apple Music"),
+                          ("zr:brak", f"{Z.IKONA[Z.BRAK]} Niedostępne")):
+            side.add_option(Option(etyk, id=sek))
+        # ile wierszy zajmują SEKCJE — playlisty zaczynają się za nimi.
+        # Liczone, nie wpisane na sztywno: dołożenie sekcji przesuwało
+        # podświetlenie aktywnej playlisty na przypadkowy wiersz.
+        pierwsza_playlista = side.option_count
         aktywny_wiersz = None
         for i, pl in enumerate(self._user_state.get("playlisty", [])):
             if aktywna_playlista(self._user_state) is pl:
-                znak, aktywny_wiersz = "▸ ", 3 + i
+                znak, aktywny_wiersz = "▸ ", pierwsza_playlista + i
             else:
                 znak = "  "
             n_utw = len(pl.get("utwory", []))
@@ -2277,6 +2298,9 @@ class DanceLabTUI(App):
             rows = [a for a in rows if a.track.track_id in favs]
         elif section == "filary":
             rows = [a for a in rows if a.track.track_id in filary]
+        elif section.startswith("zr:"):
+            chce = section.split(":", 1)[1]
+            rows = [a for a in rows if Z.zrodlo(a.track.source_path) == chce]
         galeria = bool(self._user_state.get("okladki_w_liscie"))
         if galeria:
             from dancelab.tui.okladki import mozaika
@@ -2302,6 +2326,7 @@ class DanceLabTUI(App):
                 f"{dur/60:4.1f}",
                 _wykonawca_tytul(t)[0][:24],
                 _wykonawca_tytul(t)[1][:36],
+                Z.ikona(t.source_path),
                 height=3 if galeria else 1,
             )
         self._lib_view = rows
@@ -2516,7 +2541,7 @@ class DanceLabTUI(App):
     # największej"): klik 1 = ↓ od małego do większego, klik 2 = ↑ odwrotnie,
     # klik 3 = reset i strzałka znika.
     _SORT_NAMES = (" ", "♥", "F", "BPM", "ton", "pew.", "energia", "LUFS",
-                   "gatunek", "min", "wykonawca", "tytuł")
+                   "gatunek", "min", "wykonawca", "tytuł", "źr.")
 
     def _cycle_sort(self, col: int) -> None:
         if col == 0:
