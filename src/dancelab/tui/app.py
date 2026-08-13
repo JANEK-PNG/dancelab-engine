@@ -688,6 +688,8 @@ class DanceLabTUI(App):
         super().__init__()
         self.processed_dir = processed_dir
         self._stop = threading.Event()
+        # notatki zgłoszone, zanim ekran się zmontował — patrz `_note`
+        self._notatki_przed_startem: list[str] = []
         self._artwork_przerwij = threading.Event()
         self._artwork_programowo = False   # lustrzane ustawianie przełącznika
         self._plan_paths: list[str] = []
@@ -2833,8 +2835,24 @@ class DanceLabTUI(App):
         guzik.disabled = not aktywny
 
     def _note(self, line: str) -> None:
+        # Notatka NIGDY nie może położyć aplikacji. Wołają ją też wątki robocze
+        # startujące zanim ekran się zmontuje — wtedy `#warnings` jeszcze nie
+        # istnieje i `query_one` rzuca NoMatches, co ubijało workera i cały
+        # start (złapane na czystym klonie: brak księgi DJ-ów → notatka →
+        # wywrotka). Wiadomość zostaje w buforze i trafi na ekran, gdy będzie
+        # dokąd.
         from dancelab.tui.po_polsku import po_polsku
-        self.query_one("#warnings", Log).write_line(f"· {po_polsku(line)}")
+        tekst = f"· {po_polsku(line)}"
+        try:
+            log = self.query_one("#warnings", Log)
+        except Exception:  # noqa: BLE001 — brak widżetu to etap startu, nie błąd
+            self._notatki_przed_startem.append(tekst)
+            self._n_notes += 1
+            return
+        for zalegla in self._notatki_przed_startem:
+            log.write_line(zalegla)
+        self._notatki_przed_startem.clear()
+        log.write_line(tekst)
         self._n_notes += 1
         self._refresh_status()
 
