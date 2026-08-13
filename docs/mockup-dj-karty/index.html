@@ -6,6 +6,8 @@
 <title>DanceLab — DJ-e (mockup kart)</title>
 <script src="https://w.soundcloud.com/player/api.js"></script>
 <script src="portret.js"></script>
+<!-- PORTRET · system VJ — ten sam silnik, co scena pełnoekranowa -->
+<script src="portret-vj.js"></script>
 <style>
   :root{
     --tlo:#171614; --karta:#211f1c; --karta-2:#26241f; --linia:#3a3730;
@@ -351,7 +353,23 @@ function rysuj(filtr){
       `W pełnej mapie ten filtr ma swoich DJ-ów (Garbicz 2026: dziesięciu) — ` +
       `makieta pokazuje tylko 6 kart.`;
   } else pusto.style.display = "none";
-  document.querySelectorAll(".portret").forEach(cv => portret(cv, DJE[+cv.dataset.i]));
+  document.querySelectorAll(".portret").forEach(cv => rysujPortret(cv, 0));
+}
+
+/* ── PORTRET · system VJ na kartach ───────────────────────────────────
+   Karta pokazuje DOKŁADNIE ten sam portret, co scena pełnoekranowa —
+   ten sam silnik z portret-vj.js, tylko mniejsze płótno. Instancja jest
+   per płótno (WeakMap), bo każda karta wypala własny profil sznura, a
+   ściana kart przebudowuje DOM przy każdym filtrze. */
+const VJ = new WeakMap();
+function rysujPortret(cv, czasSek, stan){
+  const dj = DJE[+cv.dataset.i];
+  const dane = PortretVJ.dane;
+  if (!dane.SZWY || !dane.SZWY[dj.ksywa]) return false;   // profil w budowie
+  let p = VJ.get(cv);
+  if (!p){ p = PortretVJ.stworz(cv, {ksywa: dj.ksywa, cykl: 75}); VJ.set(cv, p); }
+  p.rysuj(czasSek, stan || {});
+  return true;
 }
 document.getElementById("filtry").addEventListener("click", e => {
   const b = e.target.closest(".filtr"); if (!b) return;
@@ -371,11 +389,10 @@ function zyj(ts){
     document.querySelectorAll(".portret").forEach(cv => {
       const b = cv.getBoundingClientRect();
       if (b.bottom <= 0 || b.top >= innerHeight) return;
-      const czas = ts/1000*0.35;
-      const dd = DJE[+cv.dataset.i];
       const gracz = PLAYERS[+cv.dataset.i];
-      portret(cv, dd, czas, gracz ? gracz.frac : null,
-              gracz ? gracz.vol : null);
+      rysujPortret(cv, ts / 1000, {
+        frakcja: gracz ? gracz.frac : null,
+        glosnosc: gracz ? gracz.vol : null});
     });
   }
   requestAnimationFrame(zyj);
@@ -386,6 +403,11 @@ fetch("szwy.json?v=" + Date.now()).then(r=>r.json()).then(d=>{
   const aktywny = document.querySelector(".filtr.on")?.dataset.f || "all";
   rysuj(aktywny);                      // przerysuj portrety już z szwami
 }).catch(()=>{});
+// pomiary dla systemu VJ (pole możliwości + osiągalność tempa z silnika)
+PortretVJ.wczytaj("./").then(() => {
+  const aktywny = document.querySelector(".filtr.on")?.dataset.f || "all";
+  rysuj(aktywny);
+}).catch(err => console.warn("system VJ bez pomiarów:", err.message));
 
 const PLAYERS = {};
 function scWidok(i){
