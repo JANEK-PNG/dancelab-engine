@@ -8,9 +8,15 @@ kończy się odmową, nie zmyśloną krzywą.
 from __future__ import annotations
 
 import numpy as np
-import soundfile as sf
+import pytest
 
-from dancelab.stems.envelopes import STEMS, stem_envelopes
+# `soundfile` należy do profilu [audio]. Bez tej bramki cały plik wywracał
+# ZBIERANIE testów w bezdźwiękowym profilu CI, więc padał nie jeden test,
+# tylko wszystkie. Każdy inny plik sięgający po soundfile robi to tak samo —
+# ten był jedynym wyjątkiem.
+sf = pytest.importorskip("soundfile")
+
+from dancelab.stems.envelopes import STEMS, stem_envelopes  # noqa: E402
 
 SR = 8000
 

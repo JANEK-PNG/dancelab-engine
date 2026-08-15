@@ -14,7 +14,15 @@ from functools import lru_cache
 
 
 def _bajty_okladki(path: str) -> bytes | None:
-    import mutagen
+    try:
+        import mutagen
+    except ModuleNotFoundError:
+        # `mutagen` mieszka w profilu [audio], a interfejs działa też bez
+        # niego. Umowa tego pliku brzmi „brak okładki = None, rysujemy
+        # pustkę" — brak biblioteki to po prostu jeszcze jeden powód braku
+        # okładki, a nie powód, żeby wywrócić odtwarzacz. Złapane 15.08
+        # przy odtworzeniu bezdźwiękowego profilu CI.
+        return None
     try:
         plik = mutagen.File(path)
     except Exception:  # noqa: BLE001 — chory tag to brak okładki, nie awaria

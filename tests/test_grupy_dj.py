@@ -8,7 +8,14 @@ to jej najbardziej typowi członkowie — żadnych wymyślonych nazw gatunków.
 
 import asyncio
 
-from dancelab.tui import grupy_dj as G
+import pytest
+
+# Ten plik potrzebuje profilu [audio]. Bez tej bramki wywracał ZBIERANIE
+# testów w bezdźwiękowym profilu CI, czyli padał nie jeden test, tylko
+# cały plik. Wzorzec taki sam jak w test_preprocessing i test_beatgrid.
+pytest.importorskip("librosa")
+
+from dancelab.tui import grupy_dj as G  # noqa: E402
 
 
 def _ksiazka(n_na_grupe=6):

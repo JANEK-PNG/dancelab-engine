@@ -34,8 +34,21 @@ _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
 
 
 def _http(url: str) -> bytes:
+    """Pobierz okładkę. WYŁĄCZNIE http i https.
+
+    Bez tego sprawdzenia `urlopen` przyjmuje także `file:` — czyli adres
+    podany przez cudze metadane mógłby kazać nam odczytać dowolny plik
+    z dysku i wysłać go dalej jako „okładkę" (bandit B310, CWE-22).
+    Źródłem adresu są tu dane z zewnątrz, więc schemat sprawdzamy zawsze.
+    """
+    schemat = urllib.parse.urlparse(url).scheme.lower()
+    if schemat not in ("http", "https"):
+        raise ValueError(f"okładka tylko przez http/https, dostałem: {schemat or 'brak'}")
     zapytanie = urllib.request.Request(url, headers={"User-Agent": _UA})
-    with urllib.request.urlopen(zapytanie, timeout=20) as odp:
+    # nosec B310 — schemat sprawdzony trzy linie wyżej; to jest dokładnie
+    # ta rzecz, o którą pyta ten wpis audytu, i jest zrobiona w kodzie,
+    # a nie wyciszona.
+    with urllib.request.urlopen(zapytanie, timeout=20) as odp:  # nosec B310
         return odp.read()
 
 

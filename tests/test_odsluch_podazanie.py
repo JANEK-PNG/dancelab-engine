@@ -78,6 +78,21 @@ async def _set_dwoch(app, pilot, by_id):
     return tabela
 
 
+async def _czekaj_az(pilot, warunek, *, kroki: int = 60, krok: float = 0.05):
+    """Czekaj na WARUNEK, nie na ustaloną liczbę tyknięć.
+
+    Pierwsza wersja tych testów zakładała, że jedno `pause()` wystarczy na
+    start odtwarzania. Na mojej maszynie wystarczało, w wolniejszym profilu
+    CI już nie — i test zaczynał migotać. Test, który mierzy czas zamiast
+    stanu, mierzy prędkość maszyny.
+    """
+    for _ in range(kroki):
+        if warunek():
+            return True
+        await pilot.pause(krok)
+    return warunek()
+
+
 def test_kursor_na_utworze_ktory_jest_w_odtwarzaczu_nie_startuje_go_znowu(
         tmp_path, monkeypatch):
     """Sedno regresji: gdy plik spod kursora siedzi już w odtwarzaczu,
@@ -91,12 +106,14 @@ def test_kursor_na_utworze_ktory_jest_w_odtwarzaczu_nie_startuje_go_znowu(
             by_id = _pula("A", "B")
             await _set_dwoch(app, pilot, by_id)
             await pilot.press("space")            # gra A
-            await pilot.pause()
+            assert await _czekaj_az(pilot, lambda: len(started) >= 1), \
+                "spacja nie uruchomiła odtwarzania"
             assert len(started) == 1
 
             started[0].zakonczony = True          # A skończył się SAM
             app._tick_player()                    # → gra B, kursor na B
-            await pilot.pause()
+            assert await _czekaj_az(pilot, lambda: len(started) >= 2), \
+                "koniec A miał uruchomić B"
             assert len(started) == 2
 
             # kluczowy moment: B kończy się w oknie debounce'u (0,12 s)
@@ -120,14 +137,13 @@ def test_ruch_kursora_dj_a_przelacza_odsluch(tmp_path, monkeypatch):
             by_id = _pula("A", "B")
             tabela = await _set_dwoch(app, pilot, by_id)
             await pilot.press("space")            # gra A
-            await pilot.pause()
+            assert await _czekaj_az(pilot, lambda: len(started) >= 1), \
+                "spacja nie uruchomiła odtwarzania"
             assert started[0].cmd[-1] == "/m/A.mp3"
 
             tabela.move_cursor(row=1)             # DJ przesuwa kursor na B
-            for _ in range(30):
-                await pilot.pause(0.05)
-                if len(started) > 1:
-                    break
+            assert await _czekaj_az(pilot, lambda: len(started) >= 2), \
+                "kursor na nowym utworze miał go puścić"
             assert len(started) == 2, "kursor na nowym utworze = ten utwór gra"
             assert started[1].cmd[-1] == "/m/B.mp3"
 

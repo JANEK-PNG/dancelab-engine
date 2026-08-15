@@ -10,6 +10,13 @@ from __future__ import annotations
 
 import io
 import json
+
+import pytest
+
+# Ten plik potrzebuje profilu [audio]. Bez tej bramki wywracał ZBIERANIE
+# testów w bezdźwiękowym profilu CI, czyli padał nie jeden test, tylko
+# cały plik. Wzorzec taki sam jak w test_preprocessing i test_beatgrid.
+pytest.importorskip("mutagen")
 import os
 import wave
 
