@@ -18,8 +18,6 @@ from dancelab.api.schemas import (
     NextTrackRecommendation,
     RecommendNextRequest,
     RecommendSequenceRequest,
-    RekordboxExportRequest,
-    RekordboxExportResponse,
     SequenceDecision,
     SmartPlaylistFailureResponse,
     SmartPlaylistRequest,
@@ -27,11 +25,10 @@ from dancelab.api.schemas import (
 )
 from dancelab.api.security import ApiPathPolicy, heavy_job_slot
 from dancelab.core.config import load_config, load_weights
-from dancelab.core.models import SetPlan, TransitionWindowInput
+from dancelab.core.models import SetPlan
 from dancelab.decision.next_track import recommend_next as recommend_next_engine
 from dancelab.decision.sequence import recommend_sequence as recommend_sequence_engine
 from dancelab.decision.set_builder import build_set as build_set_engine
-from dancelab.decision.transition_windows import detect_transition_windows
 from dancelab.storage.repositories import FileAnalysisRepository
 from dancelab.workflows.smart_playlist import build_smart_playlist_from_folder
 

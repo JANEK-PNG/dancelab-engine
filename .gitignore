@@ -64,3 +64,6 @@ tmp/
 # is tracked so the convention survives; nothing else ever leaves this machine.
 experiments_priv/*
 !experiments_priv/README.md
+
+# katalog roboczy asystenta: ustawienia lokalne + kopie robocze drzewa
+.claude/

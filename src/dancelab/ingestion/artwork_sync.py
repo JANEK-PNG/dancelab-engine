@@ -20,7 +20,6 @@ HTTP i osadzanie są wstrzykiwalne — testy nie dotykają sieci ani plików.
 
 from __future__ import annotations
 
-import io
 import json
 import os
 import pathlib
@@ -81,7 +80,7 @@ def osadz_okladke(path: str, obraz: bytes) -> str | None:
     Zwraca powód błędu albo None."""
     import mutagen
     from mutagen.flac import FLAC, Picture
-    from mutagen.id3 import APIC, ID3, ID3NoHeaderError
+    from mutagen.id3 import APIC, ID3NoHeaderError
     from mutagen.mp4 import MP4, MP4Cover
 
     st = os.stat(path)

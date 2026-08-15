@@ -368,7 +368,7 @@ def test_parsowanie_czasu_i_kwantyzacja():
 
 
 def test_t_wpisuje_czas_pada_i_dociaga(tmp_path, monkeypatch):
-    from textual.widgets import DataTable, Input, TabbedContent
+    from textual.widgets import DataTable, TabbedContent
 
     from dancelab.core.models import BeatGrid
     from dancelab.tui.app import DanceLabTUI
@@ -412,7 +412,7 @@ def test_t_wpisuje_czas_pada_i_dociaga(tmp_path, monkeypatch):
 def test_esc_zamyka_pole_czasu_bez_zmiany(tmp_path, monkeypatch):
     """Pole czasu przy padach (weto Janka na okienko): Esc chowa je
     i oddaje fokus liście, nie ruszając pada."""
-    from textual.widgets import DataTable, Input, TabbedContent
+    from textual.widgets import DataTable, TabbedContent
 
     from dancelab.tui.app import DanceLabTUI
 

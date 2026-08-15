@@ -13,7 +13,7 @@ import asyncio
 import pytest
 
 from dancelab.tui.app import (
-    DanceLabTUI, _TAB_ORDER, _filary_for_build, filter_library)
+    DanceLabTUI, _filary_for_build, filter_library)
 
 
 class _T:
@@ -511,7 +511,7 @@ def test_c_otwiera_pasek_szwu_i_zamyka(tmp_path, monkeypatch):
             await pilot.pause()
             await pilot.press("c")
             await pilot.pause()
-            lines = " ".join(str(l) for l in app.query_one("#warnings").lines)
+            lines = " ".join(str(ln) for ln in app.query_one("#warnings").lines)
             assert "ostatni utwór nie ma następnika" in lines
     asyncio.run(go())
 

@@ -21,6 +21,7 @@ import re
 import unicodedata
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -47,6 +48,11 @@ from dancelab.decision.mixability import (
     compute_mixability,
     precompute_mixability_inputs,
 )
+
+if TYPE_CHECKING:
+    # Imported lazily at runtime (see `_build_order`) — declared here so the
+    # quoted annotations below resolve for type checkers and linters.
+    from dancelab.decision.steering import SoundSteering
 
 MODEL_VERSION = "set_builder_v0.2"
 PLANNER_MODE_SMART = "smart"

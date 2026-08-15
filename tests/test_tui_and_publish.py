@@ -94,7 +94,7 @@ def test_tui_edycje_bez_setu_odmawiaja_z_powodem():
             for key in ("x", "a", "s", "z", "i"):   # V wyleciało 09.08
                 await pilot.press(key)
                 await pilot.pause()
-            lines = " ".join(str(l) for l in app.query_one("#warnings").lines)
+            lines = " ".join(str(ln) for ln in app.query_one("#warnings").lines)
             assert lines.count("najpierw zbuduj") >= 5
     asyncio.run(go())
 
@@ -185,7 +185,7 @@ def test_tui_budowa_bez_kotwicy_nie_pada_na_noselection():
             await pilot.press("b")
             for _ in range(40):
                 await pilot.pause(0.1)
-                lines = " ".join(str(l) for l in app.query_one("#warnings").lines)
+                lines = " ".join(str(ln) for ln in app.query_one("#warnings").lines)
                 if "ODMOWA" in lines:
                     break
             assert "NoSelection" not in lines
@@ -204,7 +204,7 @@ def test_tui_odmowa_budowy_pokazuje_powod():
             await pilot.press("b")
             for _ in range(40):                    # worker w wątku — czekamy krótko
                 await pilot.pause(0.1)
-                lines = " ".join(str(l) for l in app.query_one("#warnings").lines)
+                lines = " ".join(str(ln) for ln in app.query_one("#warnings").lines)
                 if "ODMOWA" in lines:
                     break
             assert "ODMOWA" in lines
@@ -402,7 +402,7 @@ def test_pasek_odtwarzacza_jak_apple_music(tmp_path, monkeypatch):
     async def go():
         app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
         async with app.run_test() as pilot:
-            from textual.widgets import Button, DataTable, Static, TabbedContent
+            from textual.widgets import DataTable, TabbedContent
             app.query_one("#tabs", TabbedContent).active = "tab-set"
             await pilot.pause()
             by_id = _fake_pool("A", "B")
@@ -496,7 +496,7 @@ def test_koniec_utworu_gra_nastepny_a_koniec_listy_cisza(tmp_path,
             app._tick_player()
             await pilot.pause()
             assert len(started) == 2, "koniec listy = cisza, nie pętla"
-            lines = " ".join(str(l) for l in app.query_one("#warnings").lines)
+            lines = " ".join(str(ln) for ln in app.query_one("#warnings").lines)
             assert "koniec listy" in lines
     asyncio.run(go())
 

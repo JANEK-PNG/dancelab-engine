@@ -102,8 +102,12 @@ def test_analyze_track_prefers_source_backed_vocal_stem(monkeypatch):
             ),
         ),
     )
+    # 14.08: te trzy testy podmieniały `estimate_beatgrid` — nazwę, której
+    # pipeline przestał wołać, gdy weszła sztywna siatka. Atrapa nigdy się
+    # nie odpalała i liczyła się PRAWDZIWA siatka; testy przechodziły
+    # przypadkiem. Podmieniamy to, co kod naprawdę woła.
     monkeypatch.setattr(
-        "dancelab.core.pipeline.estimate_beatgrid",
+        "dancelab.core.pipeline.estimate_beatgrid_best",
         lambda *args, **kwargs: BeatGrid(bpm=128.0, beat_times_sec=[0.0, 0.5, 1.0]),
     )
     monkeypatch.setattr(
@@ -168,7 +172,7 @@ def test_analyze_track_falls_back_to_hpss_when_stems_unavailable(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        "dancelab.core.pipeline.estimate_beatgrid",
+        "dancelab.core.pipeline.estimate_beatgrid_best",
         lambda *args, **kwargs: BeatGrid(bpm=128.0, beat_times_sec=[0.0, 0.5, 1.0]),
     )
     monkeypatch.setattr(
