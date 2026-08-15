@@ -2920,12 +2920,19 @@ class DanceLabTUI(App):
             self._note(f"kotwice niedostępne: {exc}")
 
     def _refresh_status(self) -> None:
+        # Ten sam wzorzec co w `_biezacy_track`: zegar chodzi co 5 sekund
+        # i potrafi trafić w moment, gdy ekranu już (albo jeszcze) nie ma.
+        # `query_one` rzucałoby wtedy `NoMatches` i wywracało tik razem
+        # z workerem. Brak ekranu to nie awaria — nie ma czego odświeżać.
+        pasek = self.query("#status")
+        if not pasek:
+            return
         from dancelab.ingestion.playlist_publish import BACKUP_DIR, rekordbox_running
         otwarty = rekordbox_running()
         rb = "⛔ Rekordbox OTWARTY — zapis W zablokowany" if otwarty \
             else "✅ Rekordbox zamknięty — W dostępne"
         n_bak = len(list(BACKUP_DIR.glob("*.db"))) if BACKUP_DIR.exists() else 0
-        self.query_one("#status", Static).update(
+        pasek.first(Static).update(
             f"{rb}   ·   backupy: {n_bak}   ·   notki: {self._n_notes} (L)"
             + f"   ·   pula: {self.processed_dir}")
         self._odswiez_guzik_cue(otwarty)
