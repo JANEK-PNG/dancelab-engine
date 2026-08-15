@@ -1,6 +1,6 @@
 """Szkielet pod dane z analiz — wszystko poza samą analizą.
 
-Janek 2026-08-10: „BPM, wszystkie analizy, czasy, tonacje i szwy zostawmy na
+Janek 2026-08-14: „BPM, wszystkie analizy, czasy, tonacje i szwy zostawmy na
 inny czat do tego dostosowany. Cała machineria ma zostać. My przygotujmy tego
 excela tak, żeby tam później wpisać wszystkie brakujące elementy. Sami
 uzupełnijmy wszystko bez liczenia i zróbmy super szkielet pod dane z analiz".
