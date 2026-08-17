@@ -1,0 +1,39 @@
+{
+  "schema_version": "priors-validation-v2",
+  "hand_weights": {
+    "n_all": 1604,
+    "pct_rank_mean": 0.442,
+    "n_ge5": 333,
+    "top1_pct": 20.7,
+    "mrr": 0.45
+  },
+  "measured_priors": {
+    "n_all": 1604,
+    "pct_rank_mean": 0.427,
+    "n_ge5": 333,
+    "top1_pct": 24.3,
+    "mrr": 0.471
+  },
+  "random_floor": {
+    "n_all": 1604,
+    "pct_rank_mean": 0.49,
+    "n_ge5": 333,
+    "top1_pct": 14.4,
+    "mrr": 0.387
+  },
+  "p_measured_beats_hand": 0.1193,
+  "harm_lift": {
+    "exact": 1.25,
+    "relative_major_minor": 1.1714285714285713,
+    "cautious": 1.1090909090909091,
+    "adjacent_same_mode": 1.3571428571428572,
+    "risky": 0.9054441260744986
+  },
+  "bpm_lift": {
+    "0-2%": 1.2189922480620154,
+    ">10%": 0.5029239766081871,
+    "4-6%": 0.9857142857142858,
+    "6-10%": 0.8431372549019608,
+    "2-4%": 0.9057591623036649
+  }
+}

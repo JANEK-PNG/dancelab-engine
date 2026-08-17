@@ -1,0 +1,112 @@
+{
+  "schema_version": "triplet-validation-v1",
+  "n_cases": 895,
+  "bieg1_pula_miksowa": {
+    "results": {
+      "para (r\u0119czne)": {
+        "n_all": 895,
+        "pct_rank_mean": 0.433,
+        "top1_wymienny_pct": 45.5,
+        "n_ge5": 215,
+        "top1_pct": 23.7,
+        "mrr": 0.475
+      },
+      "para (zmierzone)": {
+        "n_all": 895,
+        "pct_rank_mean": 0.4,
+        "top1_wymienny_pct": 49.8,
+        "n_ge5": 215,
+        "top1_pct": 29.8,
+        "mrr": 0.51
+      },
+      "TRIPLET (r\u0119czne)": {
+        "n_all": 895,
+        "pct_rank_mean": 0.454,
+        "top1_wymienny_pct": 42.9,
+        "n_ge5": 215,
+        "top1_pct": 23.3,
+        "mrr": 0.47
+      },
+      "TRIPLET (zmierzone)": {
+        "n_all": 895,
+        "pct_rank_mean": 0.392,
+        "top1_wymienny_pct": 50.1,
+        "n_ge5": 215,
+        "top1_pct": 27.9,
+        "mrr": 0.506
+      },
+      "tylko przysz\u0142o\u015b\u0107": {
+        "n_all": 895,
+        "pct_rank_mean": 0.428,
+        "top1_wymienny_pct": 45.5,
+        "n_ge5": 215,
+        "top1_pct": 23.3,
+        "mrr": 0.469
+      },
+      "losowo (pod\u0142oga)": {
+        "n_all": 895,
+        "pct_rank_mean": 0.469,
+        "top1_wymienny_pct": 41.1,
+        "n_ge5": 215,
+        "top1_pct": 17.2,
+        "mrr": 0.393
+      }
+    },
+    "p_triplet_beats_pair_hand": 0.9743,
+    "p_triplet_beats_pair_measured": 0.2457
+  },
+  "bieg2_pula_25": {
+    "results": {
+      "para (r\u0119czne)": {
+        "n_all": 895,
+        "pct_rank_mean": 0.239,
+        "top1_wymienny_pct": 21.1,
+        "n_ge5": 895,
+        "top1_pct": 15.5,
+        "mrr": 0.337
+      },
+      "para (zmierzone)": {
+        "n_all": 895,
+        "pct_rank_mean": 0.198,
+        "top1_wymienny_pct": 23.7,
+        "n_ge5": 895,
+        "top1_pct": 22.0,
+        "mrr": 0.398
+      },
+      "TRIPLET (r\u0119czne)": {
+        "n_all": 895,
+        "pct_rank_mean": 0.207,
+        "top1_wymienny_pct": 24.0,
+        "n_ge5": 895,
+        "top1_pct": 19.6,
+        "mrr": 0.38
+      },
+      "TRIPLET (zmierzone)": {
+        "n_all": 895,
+        "pct_rank_mean": 0.191,
+        "top1_wymienny_pct": 26.8,
+        "n_ge5": 895,
+        "top1_pct": 25.0,
+        "mrr": 0.423
+      },
+      "tylko przysz\u0142o\u015b\u0107": {
+        "n_all": 895,
+        "pct_rank_mean": 0.197,
+        "top1_wymienny_pct": 22.8,
+        "n_ge5": 895,
+        "top1_pct": 21.5,
+        "mrr": 0.392
+      },
+      "losowo (pod\u0142oga)": {
+        "n_all": 895,
+        "pct_rank_mean": 0.497,
+        "top1_wymienny_pct": 6.5,
+        "n_ge5": 895,
+        "top1_pct": 4.4,
+        "mrr": 0.155
+      }
+    },
+    "p_triplet_beats_pair_hand": 0.0,
+    "p_triplet_beats_pair_measured": 0.082
+  }
+}

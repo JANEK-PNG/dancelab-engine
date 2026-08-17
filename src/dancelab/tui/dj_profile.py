@@ -66,8 +66,10 @@ def pasek_tempa(lo: float, med: float, hi: float, szer: int = 34,
                 os_lo: float = 95, os_hi: float = 190) -> str:
     """Oś temp jak na karcie GUI: zakres p10–p90 na wspólnej osi 95–190,
     chłodna połowa → ciepła połowa, kreska mediany."""
-    poz = lambda v: max(0, min(szer - 1, round(
-        (v - os_lo) / (os_hi - os_lo) * (szer - 1))))
+    def poz(v: float) -> int:
+        return max(0, min(szer - 1, round(
+            (v - os_lo) / (os_hi - os_lo) * (szer - 1))))
+
     a, m, b = poz(lo), poz(med), poz(hi)
     znaki = []
     for i in range(szer):

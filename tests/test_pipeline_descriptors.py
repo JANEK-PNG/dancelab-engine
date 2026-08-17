@@ -32,8 +32,12 @@ def test_analyze_track_populates_descriptor_proxies(monkeypatch):
         "dancelab.core.pipeline.estimate_key",
         lambda *args, **kwargs: ("A minor", "8A", 0.9),
     )
+    # 14.08: te trzy testy podmieniały `estimate_beatgrid` — nazwę, której
+    # pipeline przestał wołać, gdy weszła sztywna siatka. Atrapa nigdy się
+    # nie odpalała i liczyła się PRAWDZIWA siatka; testy przechodziły
+    # przypadkiem. Podmieniamy to, co kod naprawdę woła.
     monkeypatch.setattr(
-        "dancelab.core.pipeline.estimate_beatgrid",
+        "dancelab.core.pipeline.estimate_beatgrid_best",
         lambda *args, **kwargs: BeatGrid(
             bpm=128.0,
             beat_times_sec=[i * 0.5 for i in range(40)],

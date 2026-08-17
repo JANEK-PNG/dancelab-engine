@@ -224,7 +224,12 @@ def attach_rekordbox_keys(
         track.key_estimate = cam
         track.camelot_number = num
         track.camelot_mode = mode
-        track.key_confidence = 1.0
+        # Pewność zostaje NIEZMIERZONA (None), a nie 1.0. Nigdy nie
+        # sprawdziliśmy, jak często Rekordbox ma rację — wiemy tylko, że nasz
+        # detektor zgadza się z nim w 47% na 191 wspólnych plikach, a to mówi,
+        # że któryś z dwóch się myli, nie który. Wpisanie 1.0 było
+        # deklaracją bez pomiaru; `key_detection_source` niesie proweniencję.
+        track.key_confidence = None
         track.key_detection_source = "rekordbox"
         attached += 1
     if missing:

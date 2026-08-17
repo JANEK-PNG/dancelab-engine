@@ -94,7 +94,7 @@ def test_zakladka_z_setem_liczy_podglad_i_deklaruje_brak_zapisu():
 
     async def go():
         app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
-        async with app.run_test() as pilot:
+        async with app.run_test():
             app._ctx = {"by_id": {"A": _analysis("A", title="Alfa"),
                                   "B": _analysis("B", title="Beta")},
                         "weights": None}

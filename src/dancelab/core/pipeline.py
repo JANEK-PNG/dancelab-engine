@@ -32,7 +32,6 @@ from dancelab.features.vocals import _demucs_available, vocal_activity
 from dancelab.ingestion.loader import load_audio
 from dancelab.ingestion.metadata import build_track
 from dancelab.ingestion.tags import read_audio_tags
-from dancelab.preprocessing.beatgrid import estimate_beatgrid
 from dancelab.preprocessing.rigid_beatgrid import estimate_beatgrid_best
 from dancelab.preprocessing.segmentation import segment_track
 from dancelab.stems import (

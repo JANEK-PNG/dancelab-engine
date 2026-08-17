@@ -210,7 +210,9 @@ def analiza_z_wiersza(wiersz, kamelot: dict[str, str],
         rozbite = parse_camelot(cam)
         utwor.key_estimate = cam
         utwor.key_detection_source = "rekordbox"
-        utwor.key_confidence = 1.0
+        # NIEZMIERZONA, nie 1.0 — patrz analysis_enrichment. Proweniencja
+        # jest zapisana wyżej i to ona mówi, skąd ta tonacja pochodzi.
+        utwor.key_confidence = None
         if rozbite:
             utwor.camelot_number, utwor.camelot_mode = rozbite
     return AnalysisResult(engine_version=WERSJA, track=utwor, beatgrid=siatka,

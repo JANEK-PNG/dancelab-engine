@@ -9,7 +9,6 @@ w nie ugryzie. Uruchamiacz wstrzykiwalny — testy nie wołają ffprobe.
 from __future__ import annotations
 
 import json
-import pathlib
 import subprocess
 
 

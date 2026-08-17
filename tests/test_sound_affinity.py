@@ -1,6 +1,5 @@
 """Brzmienie w ocenie przejścia — i granice, w których wolno mu działać."""
 
-import numpy as np
 import pytest
 
 from dancelab.decision.sound_affinity import blend, cosine_affinity

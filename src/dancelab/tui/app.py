@@ -651,7 +651,7 @@ class DanceLabTUI(App):
         # (decyzja Janka 14.08). W Eksport/Cue S dalej gra szew
         # z TWOICH padów; tu gra to, co proponuje silnik.
         Binding("ctrl+s", "save_plan", "Zapisz plan"),
-        Binding("s", "graj_szew_setu", "Szew"),
+        Binding("s", "graj_szew_setu", "Zagraj szew"),
         Binding("o", "load_plan", "Wczytaj plan"),
         Binding("space", "preview_seam", "Graj/Pauza", priority=True),
         Binding("p", "preview_seam", "Posłuchaj", show=False),
@@ -1264,7 +1264,7 @@ class DanceLabTUI(App):
     def _szew_z_padow_worker(self, tid_a: str, tid_b: str,
                              cue_a: float, cue_b: float) -> None:
         """Render szwu jest CICHY (plik w cache); dźwięk rusza dopiero
-        w `_zagraj_szew_z_padow` na wątku UI, po Twoim S."""
+        w `_zagraj_szew` na wątku UI, po Twoim S."""
         from dancelab.tui.seam_preview import zbuduj_szew_z_padow
         ui = self.call_from_thread
         by_id = self._ctx["by_id"]
@@ -1277,17 +1277,20 @@ class DanceLabTUI(App):
             ui(self.notify, f"szew nie wyszedł: {exc}",
                severity="warning", timeout=6)
             return
-        ui(self._zagraj_szew_z_padow, info, tid_a, tid_b)
+        ui(self._zagraj_szew, info, tid_a, tid_b, "szew z Twoich padów")
 
-    def _zagraj_szew_z_padow(self, info: dict, tid_a: str,
-                             tid_b: str) -> None:
+    def _zagraj_szew(self, info: dict, tid_a: str, tid_b: str,
+                     etykieta: str = "szew z Twoich padów") -> None:
+        """Jedna droga do dźwięku dla obu szwów — z padów (Eksport/Cue)
+        i z propozycji silnika (Set). `etykieta` mówi, czego słuchasz,
+        bo to są dwa różne szwy tej samej pary."""
         blad = self._odtwarzacz.graj_od_zera(str(info["output"]), info["bpm"])
         if blad:
             self.notify(f"odsłuch szwu nie wyszedł: {blad}",
                         severity="warning", timeout=6)
             self._note(f"odsłuch szwu nie wyszedł: {blad}")
             return
-        self._gra_meta = ("szew z Twoich padów",
+        self._gra_meta = (etykieta,
                           f"{self._cue_nazwa(tid_a)[:22]} → "
                           f"{self._cue_nazwa(tid_b)[:22]}")
         from rich.text import Text
@@ -1295,7 +1298,7 @@ class DanceLabTUI(App):
             art_w.update(Text(""))
         ma, sa = divmod(int(info["cue_a_sec"]), 60)
         mb, sb = divmod(int(info["cue_b_sec"]), 60)
-        self._note(f"szew Z TWOICH PADÓW: wyjście {ma}:{sa:02d} → wejście "
+        self._note(f"{etykieta.upper()}: wyjście {ma}:{sa:02d} → wejście "
                    f"{mb}:{sb:02d} · {info['beats']} uderzeń "
                    f"@ {info['bpm']:.1f} BPM · P zatrzymuje")
         self._tick_player()
@@ -2331,7 +2334,6 @@ class DanceLabTUI(App):
             from dancelab.tui.okladki import mozaika
         for a in rows:
             t = a.track
-            conf = t.key_confidence
             en = self._lib_energy.get(t.track_id)
             dur = t.duration_sec or 0
             art_cell = (mozaika(str(t.source_path), 7, 3) or ""
@@ -2451,12 +2453,19 @@ class DanceLabTUI(App):
         self._lib_toggle("ulubione_utwory", "♥")
 
     def action_graj_szew_setu(self) -> None:
-        """S w zakładce Set: posłuchaj SZWU pod kursorem.
+        """S w zakładce Set: posłuchaj SZWU pod kursorem — TU, bez skoku.
 
-        Szew powstaje z propozycji silnika (w Secie nie ma jeszcze Twoich
-        padów — te są w Eksport/Cue i tam S gra szew z nich). Korzystamy
-        z tej samej, sprawdzonej ścieżki odsłuchu, żeby nie mnożyć dróg
-        do dźwięku. Dźwięk startuje WYŁĄCZNIE z jawnego klawisza.
+        Szew powstaje z PROPOZYCJI SILNIKA (`zaplanuj_szew` → okna przejść),
+        bo w Secie nie ma jeszcze Twoich padów; te mieszkają w Eksport/Cue
+        i tam S gra szew z nich. To dwa różne szwy tej samej pary i tak mają
+        być: w Secie słychać, co proponuje silnik, w Eksporcie — co pojedzie
+        na CDJ-e.
+
+        Zakładka NIE jest przełączana. Poprzednia wersja skakała na
+        „tab-cue" — zakładki o takim identyfikatorze nie ma (`_TAB_ORDER`),
+        więc Textual rzucał `ValueError` i ubijał aplikację.
+
+        Dźwięk startuje WYŁĄCZNIE z jawnego klawisza.
         """
         if self.query_one("#tabs", TabbedContent).active != "tab-set":
             return
@@ -2468,13 +2477,35 @@ class DanceLabTUI(App):
         if i is None or i + 1 >= len(self._order):
             self._note("szew: ustaw kursor na utworze, po którym coś jeszcze gra")
             return
-        self.query_one("#tabs", TabbedContent).active = "tab-cue"
-        self._cue_track = self._order[i]
-        self._note(f"szew #{i + 1}→#{i + 2} — S gra, Esc wraca")
+        a, b = self._order[i], self._order[i + 1]
+        by_id = (self._ctx or {}).get("by_id", {})
+        if a not in by_id or b not in by_id:
+            self._note("szew: brak analizy jednego z utworów pary")
+            return
+        for tid in (a, b):
+            powod = self._bez_pliku(by_id[tid].track)
+            if powod:
+                self._note(f"szew: {powod}")
+                return
+        self._note(f"szew #{i + 1}→#{i + 2} — renderuję, P zatrzymuje")
+        self._szew_setu_worker(a, b)
+
+    @work(thread=True, exclusive=True, group="seam")
+    def _szew_setu_worker(self, tid_a: str, tid_b: str) -> None:
+        """Render szwu z propozycji silnika jest CICHY (plik ląduje w cache);
+        dźwięk rusza dopiero w `_zagraj_szew` na wątku UI."""
+        from dancelab.tui.seam_preview import zbuduj_szew
+        ui = self.call_from_thread
+        by_id = self._ctx["by_id"]
         try:
-            self._cue_graj_szew()
-        except Exception as exc:  # noqa: BLE001 — brak padów to stan, nie awaria
-            self._note(f"szew: {exc}")
+            info = zbuduj_szew(by_id[tid_a], by_id[tid_b],
+                               self._ctx.get("weights"))
+        except Exception as exc:  # noqa: BLE001 — powód, nie traceback
+            ui(self._note, f"szew nie wyszedł: {exc}")
+            ui(self.notify, f"szew nie wyszedł: {exc}",
+               severity="warning", timeout=6)
+            return
+        ui(self._zagraj_szew, info, tid_a, tid_b, "szew z propozycji silnika")
 
     def action_toggle_filar(self) -> None:
         """F: w Bibliotece otwiera wybór ROLI filara (otwarcie / buildup /
@@ -2889,12 +2920,19 @@ class DanceLabTUI(App):
             self._note(f"kotwice niedostępne: {exc}")
 
     def _refresh_status(self) -> None:
+        # Ten sam wzorzec co w `_biezacy_track`: zegar chodzi co 5 sekund
+        # i potrafi trafić w moment, gdy ekranu już (albo jeszcze) nie ma.
+        # `query_one` rzucałoby wtedy `NoMatches` i wywracało tik razem
+        # z workerem. Brak ekranu to nie awaria — nie ma czego odświeżać.
+        pasek = self.query("#status")
+        if not pasek:
+            return
         from dancelab.ingestion.playlist_publish import BACKUP_DIR, rekordbox_running
         otwarty = rekordbox_running()
         rb = "⛔ Rekordbox OTWARTY — zapis W zablokowany" if otwarty \
             else "✅ Rekordbox zamknięty — W dostępne"
         n_bak = len(list(BACKUP_DIR.glob("*.db"))) if BACKUP_DIR.exists() else 0
-        self.query_one("#status", Static).update(
+        pasek.first(Static).update(
             f"{rb}   ·   backupy: {n_bak}   ·   notki: {self._n_notes} (L)"
             + f"   ·   pula: {self.processed_dir}")
         self._odswiez_guzik_cue(otwarty)
@@ -3311,7 +3349,6 @@ class DanceLabTUI(App):
         for i, tid in enumerate(self._order, 1):
             t = by_id[tid].track
             total += t.duration_sec or 0
-            conf = t.key_confidence
             name = pathlib.Path(t.source_path).stem[:46]
             is_filar = tid in filary
             nr = f"⚑{i}" if is_filar else str(i)
@@ -3819,8 +3856,17 @@ class DanceLabTUI(App):
         self._odtwarzacz.stop()
 
     def _biezacy_track(self):
-        """Utwór pod kursorem AKTYWNEJ tabeli (Set albo Biblioteka)."""
-        if self.query_one("#tabs", TabbedContent).active == "tab-lib":
+        """Utwór pod kursorem AKTYWNEJ tabeli (Set albo Biblioteka).
+
+        Zegar `_tick_player` chodzi co sekundę i woła tę funkcję, więc może
+        trafić w moment, gdy ekranu już (albo jeszcze) nie ma — wtedy nie ma
+        też kursora ani utworu pod nim. `query_one` rzucałoby wtedy
+        `NoMatches` i wywracało cały tik; brak ekranu to nie awaria, tylko
+        odpowiedź „żaden utwór"."""
+        tabs = self.query("#tabs")
+        if not tabs:
+            return None
+        if tabs.first(TabbedContent).active == "tab-lib":
             table = self.query_one("#lib-table", DataTable)
             idx = table.cursor_row
             view = getattr(self, "_lib_view", [])
@@ -4027,12 +4073,23 @@ class DanceLabTUI(App):
         self._auto_timer = self.set_timer(0.12, self._auto_graj)
 
     def _auto_graj(self) -> None:
+        """Podążanie za kursorem: 0,12 s po ruchu kursora gra utwór, na
+        którym stanął. Zegar uzbraja się TYLKO wtedy, gdy coś już grało.
+
+        Kluczowy warunek: utwór spod kursora, który jest JUŻ załadowany
+        w odtwarzaczu, nie jest puszczany drugi raz — niezależnie od tego,
+        czy w tej chwili gra. Wcześniej dochodził tu warunek `.gra()` i
+        wystarczyło, żeby utwór skończył się w te 0,12 s, a ten sam plik
+        ruszał od zera. Właśnie tak powstawał trzeci proces odtwarzacza
+        przy automatycznym przejściu na dwuutworowym secie: koniec A →
+        `_nastepny` puszcza B i przesuwa kursor → ruch kursora uzbraja ten
+        zegar → 0,12 s później B nie gra jeszcze/już → B startuje ponownie.
+        """
         track = self._biezacy_track()
         if track is None:
             return
-        if str(track.source_path) == self._odtwarzacz.sciezka \
-                and self._odtwarzacz.gra():
-            return   # ten utwór JUŻ gra (np. kursor odnalazł go po renderze)
+        if str(track.source_path) == self._odtwarzacz.sciezka:
+            return   # ten utwór jest już w odtwarzaczu — nie startuj od nowa
         blad = self._odtwarzacz.graj_od_zera(str(track.source_path),
                                              track.bpm_estimate)
         if blad:

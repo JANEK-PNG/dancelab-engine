@@ -52,6 +52,8 @@ def test_klawisze_mowia_co_robia_i_z_czym():
     etykiety = dict(re.findall(
         r'Binding\("([^"]+)", "[^"]+", "([^"]+)"', ZRODLO))
     assert etykiety["o"] == "Wczytaj plan"
-    assert etykiety["s"] == "Zapisz plan"
+    # 13.08 zapis planu przeniesiony na Ctrl+S, bo S w Secie gra szew
+    assert etykiety["ctrl+s"] == "Zapisz plan"
+    assert etykiety["s"] == "Zagraj szew"
     assert etykiety["w"] == "Wyślij do RB"
     assert etykiety["l"] == "Notki", "panel i klawisz muszą mówić tak samo"

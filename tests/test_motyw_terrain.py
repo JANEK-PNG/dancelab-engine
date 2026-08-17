@@ -14,7 +14,7 @@ from dancelab.tui.app import DanceLabTUI
 def test_tui_wstaje_w_palecie_terrain():
     async def go():
         app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
-        async with app.run_test() as pilot:
+        async with app.run_test():
             assert app.theme == "dancelab-terrain"
             motyw = app.available_themes["dancelab-terrain"]
             assert str(motyw.primary).lower() == "#d6f549"      # volt

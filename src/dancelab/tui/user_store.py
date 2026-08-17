@@ -39,8 +39,11 @@ def sciezka_stanu(pula: str | None = None) -> pathlib.Path:
         return STATE_PATH
     import hashlib
 
+    # SHA-1 służy tu wyłącznie za KLUCZ NAZWY PLIKU dla stanu przypisanego do
+    # puli — nie chroni niczego i nie jest podpisem. `usedforsecurity=False`
+    # mówi to wprost, także audytowi bezpieczeństwa (bandit B324).
     klucz = hashlib.sha1(str(pathlib.Path(pula).expanduser().resolve(
-        strict=False)).encode()).hexdigest()[:12]
+        strict=False)).encode(), usedforsecurity=False).hexdigest()[:12]
     return STATE_PATH.with_name(f"tui_stan__{klucz}.json")
 MIN_FILARY = 3
 MAX_FILARY = 10

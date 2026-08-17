@@ -62,5 +62,16 @@ tmp/
 # --- private experiment data: own recordings, licensed audio, stem caches ---
 # Everything here is either Janek's own material or derived from it. The README
 # is tracked so the convention survives; nothing else ever leaves this machine.
-experiments_priv/*
-!experiments_priv/README.md
+# Katalog eksperymentów: WYNIKI I DANE zostają na dysku (są ogromne),
+# ale PRZEPISY — skrypty i opisy — jadą z repozytorium.
+# Decyzja Janka 17.08. Powód: dwa razy przejechaliśmy się na tym, że
+# policzona praca istniała tylko na jednej maszynie — priors_v1.json
+# pod zbiorczą regułą i profil_in_between.py, o którym audyt napisał,
+# że nie istnieje, bo nie było go w gicie.
+experiments_priv/**
+!experiments_priv/**/
+!experiments_priv/**/*.py
+!experiments_priv/**/*.md
+
+# katalog roboczy asystenta: ustawienia lokalne + kopie robocze drzewa
+.claude/
