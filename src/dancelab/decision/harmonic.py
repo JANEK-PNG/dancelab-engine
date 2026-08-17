@@ -109,8 +109,18 @@ def harmonic_compatibility(
       Higher exposure amplifies the risk of a risky relation; percussion-only
       (low exposure) masks it. None → neutral 0.5.
     """
-    conf_min = min(conf_a if conf_a is not None else 1.0,
-                   conf_b if conf_b is not None else 1.0)
+    # Brak pewności to NIE jest pewność. Do 17.08 `None` zamieniało się tu
+    # po cichu na 1.0 — czyli „nikt nie zmierzył" znaczyło „jestem absolutnie
+    # pewien", i to w członie o najwyższej wadze w całym silniku. Domyślną
+    # wartością jest teraz 0.5: ani nie ufamy, ani nie odrzucamy.
+    # Skutek zmierzony na samej funkcji: rozpiętość ocen między najlepszą
+    # a najgorszą relacją spada z 0,850 na 0,425, czyli człon harmoniczny
+    # przestaje rozstrzygać, a zaczyna doradzać. Kierunek zgodny z korpusem:
+    # prawdziwi DJ-e rozciągają oś Camelota na 1,50×, silnik rozciągał ją
+    # na 6,7× i po tej zmianie schodzi do 2,3×.
+    NIEZMIERZONA = 0.5
+    conf_min = min(conf_a if conf_a is not None else NIEZMIERZONA,
+                   conf_b if conf_b is not None else NIEZMIERZONA)
     exp = 0.5 if exposure is None else max(0.0, min(1.0, exposure))
 
     rel = harmonic_relation(cam_a, cam_b)

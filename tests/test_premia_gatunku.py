@@ -67,10 +67,20 @@ def test_podsumowanie_liczy_trafienia():
 def _stol():
     """Stolik do testów wyboru: start + dwaj kandydaci o ZMIERZONYCH ocenach.
 
-    „z_idealny" (8A→10A) dostaje 0,957, „a_gatunek" (8A→8A, ale 124 BPM)
-    0,892 — różnica 0,065 leży w zasięgu premii 0,15. Nazwy dobrane tak, by
+    „z_idealny" (8A→10A) dostaje 0,932, „a_gatunek" (8A→8A, ale 125 BPM)
+    0,796 — różnica 0,135 leży w zasięgu premii 0,15. Nazwy dobrane tak, by
     ALFABET sprzyjał gorszemu kandydatowi: gdyby premia nie działała, remis
     rozstrzygnąłby się na jego korzyść i test nic by nie mierzył.
+
+    PRZELICZONE 17.08, gdy „nie wiem" o tonacji przestało znaczyć 1,0.
+    Utwory testowe nie podają pewności tonacji, więc dostają domyślne 0,5 —
+    i to jest właściwe, bo taki jest teraz produkcyjny stan 96,7% biblioteki.
+    Przy dawnej jedynce te same utwory dawały 0,957 i 0,883, różnica 0,074.
+    Zmiana uderzyła MOCNIEJ w kandydata z tą samą tonacją (−0,108) niż
+    w tego z odległą (−0,026) — czyli dokładnie tak, jak zamierzono: ta sama
+    tonacja przestaje być kartą atutową. Tempo przesunięte 124 → 125, żeby
+    różnica z powrotem zmieściła się w zasięgu premii i test mierzył PREMIĘ,
+    a nie przypadek.
     """
     from dancelab.core.config import load_weights
     from dancelab.core.models import BeatGrid
@@ -87,7 +97,7 @@ def _stol():
     by_id = {
         "start": utwor("start", "Techno", "8A", 128.0),
         "z_idealny": utwor("z_idealny", "Techno", "10A", 128.0),
-        "a_gatunek": utwor("a_gatunek", "House", "8A", 124.0),
+        "a_gatunek": utwor("a_gatunek", "House", "8A", 125.0),
     }
     return dict(
         by_id=by_id, weights=load_weights("configs/descriptor_weights.yaml"),

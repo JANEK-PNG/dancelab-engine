@@ -174,7 +174,10 @@ def test_tonacja_rekordboxa_zastepuje_slaby_detektor():
     a = _key_track(cam="3B", conf=0.12, source="detector")
     report = attach_rekordbox_keys([a], key_map={"/m/x.mp3": "8A"})
     t = a.track
-    assert (t.key_estimate, t.key_confidence) == ("8A", 1.0)
+    # Pewność zostaje NIEZMIERZONA: nigdy nie sprawdziliśmy, jak często
+    # Rekordbox ma rację. Zapisujemy PROWENIENCJĘ (skąd tonacja), a nie
+    # deklarację pewności — 1.0 było umową, nie pomiarem (zmiana 17.08).
+    assert (t.key_estimate, t.key_confidence) == ("8A", None)
     assert t.key_detection_source == "rekordbox"
     assert (t.camelot_number, t.camelot_mode) == (8, "A")
     assert report.attached == 1
