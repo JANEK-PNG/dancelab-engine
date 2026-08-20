@@ -67,7 +67,7 @@
 <footer>
   <span><b style="color:var(--a)">—</b> utwór, który gra (A)</span>
   <span><b style="color:var(--b)">—</b> utwór, który wchodzi (B)</span>
-  <span>surowe wartości z pomiaru, bez wygładzania · 1,0 = tak głośno jak w oryginale</span>
+  <span>surowe wartości z pomiaru, bez wygładzania · 1,0 = tak głośno jak w oryginale · skala ścięta na 2,0, ▲ = ramka poza skalą</span>
   <span>świadomie jeszcze nie rysujemy: resztki rąk, zdarzeń wejścia/wyjścia</span>
   <span class="znacznik" id="znacznik"></span>
 </footer>
@@ -80,7 +80,7 @@
      porównywać), z uczciwą kreską na 1,0;
    - kolor mówi, czyj to głos (A/B), piętro mówi pozycja i podpis. */
 
-const BUILD = "w1-2026-08-20a";
+const BUILD = "w1-2026-08-20c";
 document.getElementById("znacznik").textContent = BUILD;
 console.log("płótno szwu, build", BUILD);
 
@@ -116,14 +116,11 @@ function rysuj() {
   const t0 = s.window[0], t1 = s.window[1];
   const x = t => lewy + (t - t0) / (t1 - t0) * (W - lewy - prawy);
 
-  /* wspólna skala Y: maksimum z obu głosów po wszystkich piętrach */
-  let maxY = 1.0;
-  for (const p of PIETRA) {
-    const b = s.bands[p];
-    for (const v of b.a) if (v > maxY) maxY = v;
-    for (const v of b.b) if (v > maxY) maxY = v;
-  }
-  maxY *= 1.05;
+  /* wspólna skala Y przycięta na SUFIT (decyzja Janka 20.08): ramki powyżej
+     rysujemy jawnym znacznikiem u sufitu z licznikiem, zamiast pozwolić
+     jednemu artefaktowi zgnieść cały przebieg. Dane zostają nietknięte. */
+  const SUFIT = 2.0;
+  const maxY = SUFIT * 1.05;
 
   ctx.font = "11px -apple-system, system-ui, sans-serif";
 
@@ -149,19 +146,50 @@ function rysuj() {
     ctx.fillStyle = "#8a8a96";
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
-    ctx.fillText(p.toUpperCase(), lewy - 10, y0 + hPietra / 2);
     ctx.fillText("1,0", lewy - 10, y(1));
+    ctx.fillText("2,0", lewy - 10, y(SUFIT));
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText(p.toUpperCase(), lewy + 8, y0 + 6);
+    ctx.textBaseline = "middle";
 
-    /* dwie surowe linie: A i B */
+    /* dwie surowe linie: A i B; wartości ponad SUFIT — przycięte do sufitu
+       i oznaczone trójkątem, z licznikiem i prawdziwym maksimum w rogu pasa */
+    let notaY = y1 - 16;   /* liczniki przy dole pasa — sufit bywa pełen znaczników */
     for (const [glos, kolor] of [["a", KOLOR.a], ["b", KOLOR.b]]) {
+      const poza = [];
+      let maksPoza = 0;
       ctx.strokeStyle = kolor;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       for (let i = 0; i < b.t.length; i++) {
-        const px = x(b.t[i]), py = y(b[glos][i]);
+        const v = b[glos][i];
+        if (v > SUFIT) { poza.push(b.t[i]); if (v > maksPoza) maksPoza = v; }
+        const px = x(b.t[i]), py = y(Math.min(v, SUFIT));
         if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
       }
       ctx.stroke();
+      if (poza.length) {
+        ctx.fillStyle = kolor;
+        for (const t of poza) {
+          const px = x(t);
+          ctx.beginPath();
+          ctx.moveTo(px, y0 + 2);
+          ctx.lineTo(px - 3.5, y0 + 9);
+          ctx.lineTo(px + 3.5, y0 + 9);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.textAlign = "right";
+        ctx.textBaseline = "top";
+        const n = poza.length;
+        const forma = n === 1 ? "ramka"
+          : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? "ramki" : "ramek";
+        const ile = `${n} ${forma}`;
+        ctx.fillText(`▲ ${ile} poza skalą (maks ${maksPoza.toFixed(1).replace(".", ",")})`,
+                     W - prawy - 8, notaY);
+        notaY -= 14;
+      }
     }
   });
 
