@@ -60,7 +60,7 @@
 </head>
 <body>
 <header>
-  <h1>PŁÓTNO SZWU · warstwy: 1 obecność · 2 zdarzenia</h1>
+  <h1>PŁÓTNO SZWU · warstwy: 1 obecność · 2 zdarzenia · 3 reszta</h1>
   <select id="wybor" aria-label="Wybór szwu"></select>
   <span class="para" id="para"></span>
 </header>
@@ -71,7 +71,7 @@
   <span>surowe wartości z pomiaru, bez wygładzania · 1,0 = tak głośno jak w oryginale · ▲ = ramka nad górną krawędzią widoku</span>
   <span>przeciągnij = pan · kółko = zoom · Shift+kółko = oś X · Alt+kółko = oś Y · Ctrl+przeciągnij = skala kierunkowa · dwuklik / Home = całość · Esc / 0 = widok 2,0</span>
   <span>│ pionowe kreski = wejście B / wyjście A · jasne podkreślenie = zszycie · przerywane przy dole basu = zmierzone ruchy gałki (bas B trzymany, A ścieniony)</span>
-  <span>świadomie jeszcze nie rysujemy: resztki rąk</span>
+  <span>wstęga „reszta" pod piętrem = ułamek energii miksu, którego nie tłumaczy żaden z utworów (czerń 0 → biel 1): sampler, efekty, powietrze</span>
   <span class="znacznik" id="znacznik"></span>
 </footer>
 <script>
@@ -85,7 +85,7 @@
      „wartość nad górną krawędzią widoku" i znika, gdy zoom ją obejmie;
    - kolor mówi, czyj to głos (A/B), piętro mówi pozycja i podpis. */
 
-const BUILD = "w2-2026-08-20a";
+const BUILD = "w3-2026-08-20a";
 document.getElementById("znacznik").textContent = BUILD;
 console.log("płótno szwu, build", BUILD);
 
@@ -104,12 +104,14 @@ const ctx = canvas.getContext("2d");
 
 /* ————— geometria płótna ————— */
 const MARGINES = { lewy: 64, prawy: 12, gora: 8, dol: 26, przerwa: 18 };
+const WSTEGA = 12;   /* wstęga reszty pod każdym piętrem (Research 02) */
 
 function wymiary() {
   const box = canvas.parentElement.getBoundingClientRect();
   const W = box.width, H = box.height;
   const hPietra = (H - MARGINES.gora - MARGINES.dol
-                   - MARGINES.przerwa * (PIETRA.length - 1)) / PIETRA.length;
+                   - (MARGINES.przerwa + WSTEGA) * PIETRA.length + MARGINES.przerwa)
+                  / PIETRA.length;
   return { W, H, hPietra };
 }
 
@@ -173,7 +175,7 @@ function rysuj() {
   ctx.font = "11px -apple-system, system-ui, sans-serif";
 
   PIETRA.forEach((p, idx) => {
-    const y0 = gora + idx * (hPietra + przerwa);
+    const y0 = gora + idx * (hPietra + WSTEGA + przerwa);
     const y1 = y0 + hPietra;
     const y = v => y1 - (v - widok.y0) / spanY * hPietra;
     const b = s.bands[p];
@@ -305,6 +307,32 @@ function rysuj() {
       }
     }
     ctx.restore();
+
+    /* ——— warstwa 3: wstęga reszty (Research 02) ———
+       luminancja = ułamek energii miksu niewyjaśniony przez ŻADEN z utworów
+       (0 = czerń, 1 = biel); skala stała 0–1, reaguje tylko na oś czasu */
+    const wy = y1 + 1;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(lewy, wy, W - lewy - prawy, WSTEGA - 2);
+    ctx.clip();
+    const rt = b.t, rr = b.residual;
+    for (let i = 0; i < rt.length; i++) {
+      const x0r = x(i === 0 ? rt[0] : (rt[i - 1] + rt[i]) / 2);
+      const x1r = x(i === rt.length - 1 ? rt[i] : (rt[i] + rt[i + 1]) / 2);
+      if (x1r < lewy || x0r > W - prawy) continue;
+      ctx.fillStyle = `rgba(235,235,242,${Math.max(0, Math.min(1, rr[i]))})`;
+      ctx.fillRect(x0r, wy, x1r - x0r + 0.5, WSTEGA - 2);
+    }
+    ctx.restore();
+    ctx.strokeStyle = "#2a2a33";
+    ctx.strokeRect(lewy, wy, W - lewy - prawy, WSTEGA - 2);
+    ctx.fillStyle = "#8a8a96";
+    ctx.font = "9px -apple-system, system-ui, sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText("reszta", lewy - 10, wy + (WSTEGA - 2) / 2);
+    ctx.font = "11px -apple-system, system-ui, sans-serif";
   });
 
   /* oś czasu */
@@ -328,7 +356,7 @@ function punktWidoku(px, py) {
   const t = widok.x0 + (px - lewy) / (W - lewy - prawy) * (widok.x1 - widok.x0);
   let v = (widok.y0 + widok.y1) / 2;
   for (let i = 0; i < PIETRA.length; i++) {
-    const y0 = gora + i * (hPietra + przerwa), y1 = y0 + hPietra;
+    const y0 = gora + i * (hPietra + WSTEGA + przerwa), y1 = y0 + hPietra;
     if (py >= y0 && py <= y1) {
       v = widok.y1 - (py - y0) / hPietra * (widok.y1 - widok.y0);
       break;
