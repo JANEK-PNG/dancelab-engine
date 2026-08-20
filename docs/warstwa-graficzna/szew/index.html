@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Płótno szwu · warstwa 1</title>
+<title>Płótno szwu</title>
 <style>
   :root {
     --tlo: #101014;            /* grafit sceny */
@@ -60,7 +60,7 @@
 </head>
 <body>
 <header>
-  <h1>PŁÓTNO SZWU · warstwa 1 — zmierzona obecność</h1>
+  <h1>PŁÓTNO SZWU · warstwy: 1 obecność · 2 zdarzenia</h1>
   <select id="wybor" aria-label="Wybór szwu"></select>
   <span class="para" id="para"></span>
 </header>
@@ -70,7 +70,8 @@
   <span><b style="color:var(--b)">—</b> utwór, który wchodzi (B)</span>
   <span>surowe wartości z pomiaru, bez wygładzania · 1,0 = tak głośno jak w oryginale · ▲ = ramka nad górną krawędzią widoku</span>
   <span>przeciągnij = pan · kółko = zoom · Shift+kółko = oś X · Alt+kółko = oś Y · Ctrl+przeciągnij = skala kierunkowa · dwuklik / Home = całość · Esc / 0 = widok 2,0</span>
-  <span>świadomie jeszcze nie rysujemy: resztki rąk, zdarzeń wejścia/wyjścia</span>
+  <span>│ pionowe kreski = wejście B / wyjście A · jasne podkreślenie = zszycie · przerywane przy dole basu = zmierzone ruchy gałki (bas B trzymany, A ścieniony)</span>
+  <span>świadomie jeszcze nie rysujemy: resztki rąk</span>
   <span class="znacznik" id="znacznik"></span>
 </footer>
 <script>
@@ -84,7 +85,7 @@
      „wartość nad górną krawędzią widoku" i znika, gdy zoom ją obejmie;
    - kolor mówi, czyj to głos (A/B), piętro mówi pozycja i podpis. */
 
-const BUILD = "w1-2026-08-20d";
+const BUILD = "w2-2026-08-20a";
 document.getElementById("znacznik").textContent = BUILD;
 console.log("płótno szwu, build", BUILD);
 
@@ -250,6 +251,59 @@ function rysuj() {
         notaY -= 14;
       }
     }
+
+    /* ——— warstwa 2: zdarzenia szwu (wewnątrz klipu pasa) ——— */
+    if (s.b_in_sec != null && s.a_out_sec != null) {
+      const xIn = x(s.b_in_sec), xOut = x(s.a_out_sec);
+
+      /* zszycie: PODKREŚLENIE, nie zamalowanie (lekcja panelu TUI 08-06) */
+      ctx.fillStyle = "rgba(214,214,222,0.35)";
+      ctx.fillRect(xIn, y1 - 3, xOut - xIn, 2);
+
+      /* pionowe kreski wejścia/wyjścia */
+      ctx.lineWidth = 1;
+      ctx.setLineDash([5, 3]);
+      ctx.strokeStyle = KOLOR.b;
+      ctx.beginPath(); ctx.moveTo(xIn, y0); ctx.lineTo(xIn, y1); ctx.stroke();
+      ctx.strokeStyle = KOLOR.a;
+      ctx.beginPath(); ctx.moveTo(xOut, y0); ctx.lineTo(xOut, y1); ctx.stroke();
+      ctx.setLineDash([]);
+
+      if (idx === 0) {   /* podpisy raz, w górnym pasie */
+        ctx.textBaseline = "top";
+        ctx.fillStyle = KOLOR.b;
+        ctx.textAlign = "left";
+        ctx.fillText(`B wchodzi ${mmss(s.b_in_sec)}`, xIn + 5, y0 + 6);
+        ctx.fillStyle = KOLOR.a;
+        ctx.textAlign = "right";
+        ctx.fillText(`A wychodzi ${mmss(s.a_out_sec)}`, xOut - 5, y0 + 6);
+      }
+
+      if (p === "bas") {  /* zmierzone ruchy gałki — tylko piętro basu */
+        ctx.lineWidth = 2;
+        ctx.setLineDash([2, 3]);
+        if (s.b_bass_hold_is_hand && s.b_bass_held_sec > 0 && s.b_bass_held_at_sec != null) {
+          const x0h = x(s.b_bass_held_at_sec), x1h = x(s.b_bass_held_at_sec + s.b_bass_held_sec);
+          ctx.strokeStyle = KOLOR.b;
+          ctx.beginPath(); ctx.moveTo(x0h, y1 - 8); ctx.lineTo(x1h, y1 - 8); ctx.stroke();
+          ctx.fillStyle = KOLOR.b;
+          ctx.textAlign = "left";
+          ctx.textBaseline = "bottom";
+          ctx.fillText(`bas B trzymany ${s.b_bass_held_sec.toFixed(0)} s`, x0h + 2, y1 - 11);
+        }
+        if (s.a_thinned_sec > 0) {
+          const x0c = x(s.a_out_sec - s.a_thinned_sec);
+          ctx.strokeStyle = KOLOR.a;
+          ctx.beginPath(); ctx.moveTo(x0c, y1 - 14); ctx.lineTo(xOut, y1 - 14); ctx.stroke();
+          ctx.fillStyle = KOLOR.a;
+          ctx.textAlign = "right";
+          ctx.textBaseline = "bottom";
+          ctx.fillText(`A ścieniony ${s.a_thinned_sec.toFixed(1).replace(".", ",")} s`, xOut - 4, y1 - 17);
+        }
+        ctx.setLineDash([]);
+        ctx.lineWidth = 1;
+      }
+    }
     ctx.restore();
   });
 
@@ -353,8 +407,11 @@ function pokaz(idx) {
     for (const v of s.bands[p].a) if (v > maksDanych) maksDanych = v;
     for (const v of s.bands[p].b) if (v > maksDanych) maksDanych = v;
   }
+  const zdarzenia = (s.b_in_sec != null && s.a_out_sec != null)
+    ? `zszycie ${s.blend_sec.toFixed(1).replace(".", ",")} s`
+    : `<span style="color:#8a8a96">zdarzenia niezmierzone dla tego szwu</span>`;
   document.getElementById("para").innerHTML =
-    `<b>${s.from}</b> → <b>${s.to}</b> · okno ${mmss(s.window[0])}–${mmss(s.window[1])}`;
+    `<b>${s.from}</b> → <b>${s.to}</b> · okno ${mmss(s.window[0])}–${mmss(s.window[1])} · ${zdarzenia}`;
   widokDomyslny();
 }
 
