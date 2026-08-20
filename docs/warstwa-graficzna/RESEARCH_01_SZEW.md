@@ -99,6 +99,29 @@ Uncertainty** (darmowa książka: https://clauswilke.com/dataviz/) oraz
 - Bibliografia Brennan (Wattenberger, Kowalski, Krehel) — do przejścia przed
   decyzjami o RUCHU na scenie, nie o statyce.
 
+### Baza „ui-ux-pro-max" (skill z katalogiem norm; przejrzana 20.08 na życzenie Janka)
+
+Lokalna baza: 50+ stylów, 161 palet, 99 wytycznych UX. Werdykt po odpytaniu
+pod nasz kontekst („music DJ analysis tool dark data visualization"):
+
+- **Odrzucamy warstwę katalogową.** Silnik zaproponował gotowy styl
+  „Cyberpunk UI" (neonowe poświaty, glitch, scanlines, font Orbitron) — to
+  dokładnie mebel ze sklepu, a sama baza uczciwie przyznaje przy nim
+  „Accessibility: Limited". Glitch i scanline to dekoracja udająca
+  informację — wprost przeciwko prawu koloru PORTRETU (kolor mówi, nie
+  zdobi). Mamy własne, zmierzone DNA (grafit / bursztyn / błękit / volt) —
+  nie podmieniamy go katalogiem.
+- **Bierzemy warstwę rzemieślniczą** — normy, które nie są stylem, tylko
+  fizjologią czytania i dotyku: kontrast tekstu ≥ 4,5:1 (sprawdzić volt
+  #d6f549 i bursztyn #e0a458 na grafitowych tłach osobno dla trybu ciemnego);
+  poszanowanie `prefers-reduced-motion`; mikroanimacje 150–300 ms, wyjście
+  krótsze niż wejście, animacje przerywalne i nigdy nieblokujące wejścia;
+  zakaz wiecznych animacji dekoracyjnych (u nas ruch = dane, więc naturalnie
+  zgodne); ikony wektorowe, nigdy emoji; cele dotykowe ≥ 44 pt, gdy dojdzie
+  ekran dotykowy.
+- Te normy zasilą przejścia 1–2 naszego rytuału krytyki (uczciwość →
+  hierarchia), jako lista kontrolna, nie jako styl.
+
 ## Co z tego wynika dla warstwy 1 płótna szwu
 
 1. Trzy piętra pasm to sufit percepcji (Heer) — trzymamy bas/środek/górę.
