@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Płótno szwu · warstwa 1</title>
+<style>
+  :root {
+    --tlo: #101014;            /* grafit sceny */
+    --panel: #17171d;
+    --linia: #2a2a33;
+    --tekst: #d6d6de;
+    --tekst-cichy: #8a8a96;
+    --a: #e0a458;              /* bursztyn — utwór, który GRA (talia A) */
+    --b: #6db3c9;              /* błękit — utwór, który WCHODZI (talia B) */
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--tlo);
+    color: var(--tekst);
+    font: 14px/1.5 -apple-system, system-ui, sans-serif;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 14px 20px 10px;
+  }
+  header h1 { font-size: 14px; font-weight: 600; letter-spacing: 0.02em; }
+  header .para { color: var(--tekst-cichy); }
+  header .para b { color: var(--tekst); font-weight: 600; }
+  select {
+    background: var(--panel);
+    color: var(--tekst);
+    border: 1px solid var(--linia);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font: inherit;
+    max-width: 60ch;
+    cursor: pointer;
+  }
+  select:focus-visible { outline: 2px solid var(--b); outline-offset: 2px; }
+  #plotno { flex: 1; min-height: 0; padding: 0 20px; }
+  canvas { display: block; width: 100%; height: 100%; }
+  footer {
+    padding: 8px 20px 12px;
+    color: var(--tekst-cichy);
+    font-size: 12px;
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  footer .znacznik { margin-left: auto; opacity: 0.6; }
+</style>
+</head>
+<body>
+<header>
+  <h1>PŁÓTNO SZWU · warstwa 1 — zmierzona obecność</h1>
+  <select id="wybor" aria-label="Wybór szwu"></select>
+  <span class="para" id="para"></span>
+</header>
+<div id="plotno"><canvas id="c"></canvas></div>
+<footer>
+  <span><b style="color:var(--a)">—</b> utwór, który gra (A)</span>
+  <span><b style="color:var(--b)">—</b> utwór, który wchodzi (B)</span>
+  <span>surowe wartości z pomiaru, bez wygładzania · 1,0 = tak głośno jak w oryginale</span>
+  <span>świadomie jeszcze nie rysujemy: resztki rąk, zdarzeń wejścia/wyjścia</span>
+  <span class="znacznik" id="znacznik"></span>
+</footer>
+<script>
+"use strict";
+/* Warstwa 1: trzy piętra pasm (góra/środek/bas), w każdym dwie surowe linie —
+   zmierzona obecność utworu A i utworu B w miksie. Nic więcej. Zasady:
+   - zero wygładzania: poszarpany pomiar = poszarpana linia;
+   - wspólna skala Y dla wszystkich pięter jednego szwu (piętra da się
+     porównywać), z uczciwą kreską na 1,0;
+   - kolor mówi, czyj to głos (A/B), piętro mówi pozycja i podpis. */
+
+const BUILD = "w1-2026-08-20a";
+document.getElementById("znacznik").textContent = BUILD;
+console.log("płótno szwu, build", BUILD);
+
+const PIETRA = ["góra", "środek", "bas"];      // od góry ekranu w dół
+const KOLOR = { a: getComputedStyle(document.documentElement).getPropertyValue("--a").trim(),
+                b: getComputedStyle(document.documentElement).getPropertyValue("--b").trim() };
+
+let SZWY = [];
+let biezacy = null;
+
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+
+function mmss(s) {
+  const m = Math.floor(s / 60), r = Math.floor(s % 60);
+  return `${m}:${String(r).padStart(2, "0")}`;
+}
+
+function rysuj() {
+  if (!biezacy) return;
+  const box = canvas.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(box.width * dpr);
+  canvas.height = Math.round(box.height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = box.width, H = box.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const s = biezacy;
+  const lewy = 64, prawy = 12, gora = 8, dol = 26, przerwa = 18;
+  const hPietra = (H - gora - dol - przerwa * (PIETRA.length - 1)) / PIETRA.length;
+
+  const t0 = s.window[0], t1 = s.window[1];
+  const x = t => lewy + (t - t0) / (t1 - t0) * (W - lewy - prawy);
+
+  /* wspólna skala Y: maksimum z obu głosów po wszystkich piętrach */
+  let maxY = 1.0;
+  for (const p of PIETRA) {
+    const b = s.bands[p];
+    for (const v of b.a) if (v > maxY) maxY = v;
+    for (const v of b.b) if (v > maxY) maxY = v;
+  }
+  maxY *= 1.05;
+
+  ctx.font = "11px -apple-system, system-ui, sans-serif";
+
+  PIETRA.forEach((p, idx) => {
+    const y0 = gora + idx * (hPietra + przerwa);       // góra pasa
+    const y1 = y0 + hPietra;                            // dół pasa (wartość 0)
+    const y = v => y1 - (v / maxY) * hPietra;
+    const b = s.bands[p];
+
+    /* rama pasa i kreska 1,0 */
+    ctx.strokeStyle = "#2a2a33";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(lewy, y0, W - lewy - prawy, hPietra);
+    ctx.strokeStyle = "#3a3a46";
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    ctx.moveTo(lewy, y(1));
+    ctx.lineTo(W - prawy, y(1));
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    /* podpisy */
+    ctx.fillStyle = "#8a8a96";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillText(p.toUpperCase(), lewy - 10, y0 + hPietra / 2);
+    ctx.fillText("1,0", lewy - 10, y(1));
+
+    /* dwie surowe linie: A i B */
+    for (const [glos, kolor] of [["a", KOLOR.a], ["b", KOLOR.b]]) {
+      ctx.strokeStyle = kolor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i < b.t.length; i++) {
+        const px = x(b.t[i]), py = y(b[glos][i]);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+  });
+
+  /* oś czasu: minuty miksu */
+  ctx.fillStyle = "#8a8a96";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  const krok = (t1 - t0) > 180 ? 60 : 30;
+  for (let t = Math.ceil(t0 / krok) * krok; t <= t1; t += krok) {
+    ctx.fillText(mmss(t), x(t), H - dol + 8);
+  }
+}
+
+function pokaz(idx) {
+  biezacy = SZWY[idx];
+  const s = biezacy;
+  document.getElementById("para").innerHTML =
+    `<b>${s.from}</b> → <b>${s.to}</b> · okno ${mmss(s.window[0])}–${mmss(s.window[1])}`;
+  rysuj();
+}
+
+async function start() {
+  const odp = await fetch("dane/szwy.json", { cache: "reload" });
+  SZWY = (await odp.json()).szwy;
+  const wybor = document.getElementById("wybor");
+  SZWY.forEach((s, i) => {
+    const o = document.createElement("option");
+    o.value = i;
+    o.textContent = `${s.set} · szew ${String(s.i).padStart(2, "0")} · ${s.from} → ${s.to}`;
+    wybor.appendChild(o);
+  });
+  wybor.addEventListener("change", e => pokaz(+e.target.value));
+  window.addEventListener("resize", rysuj);
+  pokaz(0);
+}
+start();
+</script>
+</body>
+</html>
