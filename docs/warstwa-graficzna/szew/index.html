@@ -45,7 +45,8 @@
   }
   select:focus-visible { outline: 2px solid var(--b); outline-offset: 2px; }
   #plotno { flex: 1; min-height: 0; padding: 0 20px; }
-  canvas { display: block; width: 100%; height: 100%; }
+  canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+  canvas.ciagnie { cursor: grabbing; }
   footer {
     padding: 8px 20px 12px;
     color: var(--tekst-cichy);
@@ -67,95 +68,151 @@
 <footer>
   <span><b style="color:var(--a)">—</b> utwór, który gra (A)</span>
   <span><b style="color:var(--b)">—</b> utwór, który wchodzi (B)</span>
-  <span>surowe wartości z pomiaru, bez wygładzania · 1,0 = tak głośno jak w oryginale · skala ścięta na 2,0, ▲ = ramka poza skalą</span>
+  <span>surowe wartości z pomiaru, bez wygładzania · 1,0 = tak głośno jak w oryginale · ▲ = ramka nad górną krawędzią widoku</span>
+  <span>przeciągnij = pan · kółko = zoom · Shift+kółko = oś X · Alt+kółko = oś Y · Ctrl+przeciągnij = skala kierunkowa · dwuklik / Home = całość · Esc / 0 = widok 2,0</span>
   <span>świadomie jeszcze nie rysujemy: resztki rąk, zdarzeń wejścia/wyjścia</span>
   <span class="znacznik" id="znacznik"></span>
 </footer>
 <script>
 "use strict";
-/* Warstwa 1: trzy piętra pasm (góra/środek/bas), w każdym dwie surowe linie —
-   zmierzona obecność utworu A i utworu B w miksie. Nic więcej. Zasady:
+/* Warstwa 1 + nawigacja (mapa: NAWIGACJA.md — z manuala Blendera bierzemy
+   czytanie, nie edycję). Trzy piętra pasm, w każdym surowe linie A i B.
+   Zasady:
    - zero wygładzania: poszarpany pomiar = poszarpana linia;
-   - wspólna skala Y dla wszystkich pięter jednego szwu (piętra da się
-     porównywać), z uczciwą kreską na 1,0;
+   - wspólny widok Y dla wszystkich pięter (piętra porównywalne przy każdym
+     zoomie); sufit 2,0 to własność WIDOKU domyślnego, nie danych — ▲ znaczy
+     „wartość nad górną krawędzią widoku" i znika, gdy zoom ją obejmie;
    - kolor mówi, czyj to głos (A/B), piętro mówi pozycja i podpis. */
 
-const BUILD = "w1-2026-08-20c";
+const BUILD = "w1-2026-08-20d";
 document.getElementById("znacznik").textContent = BUILD;
 console.log("płótno szwu, build", BUILD);
 
 const PIETRA = ["góra", "środek", "bas"];      // od góry ekranu w dół
 const KOLOR = { a: getComputedStyle(document.documentElement).getPropertyValue("--a").trim(),
                 b: getComputedStyle(document.documentElement).getPropertyValue("--b").trim() };
+const SUFIT = 2.0;                              // widok domyślny (decyzja 20.08)
 
 let SZWY = [];
 let biezacy = null;
+let maksDanych = 1;                             // maksimum A/B bieżącego szwu
+let widok = { x0: 0, x1: 1, y0: 0, y1: SUFIT * 1.05 };
 
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
+
+/* ————— geometria płótna ————— */
+const MARGINES = { lewy: 64, prawy: 12, gora: 8, dol: 26, przerwa: 18 };
+
+function wymiary() {
+  const box = canvas.parentElement.getBoundingClientRect();
+  const W = box.width, H = box.height;
+  const hPietra = (H - MARGINES.gora - MARGINES.dol
+                   - MARGINES.przerwa * (PIETRA.length - 1)) / PIETRA.length;
+  return { W, H, hPietra };
+}
 
 function mmss(s) {
   const m = Math.floor(s / 60), r = Math.floor(s % 60);
   return `${m}:${String(r).padStart(2, "0")}`;
 }
 
+/* ————— widoki ————— */
+function widokDomyslny() {
+  widok = { x0: biezacy.window[0], x1: biezacy.window[1], y0: 0, y1: SUFIT * 1.05 };
+  rysuj();
+}
+function widokCalosc() {
+  widok = { x0: biezacy.window[0], x1: biezacy.window[1], y0: 0, y1: maksDanych * 1.05 };
+  rysuj();
+}
+function przytnijWidok() {
+  const okno = biezacy.window, wSpan = okno[1] - okno[0];
+  let sx = widok.x1 - widok.x0;
+  sx = Math.min(Math.max(sx, 2), wSpan * 1.2);
+  const luz = wSpan * 0.2;
+  widok.x0 = Math.min(Math.max(widok.x0, okno[0] - luz), okno[1] + luz - sx);
+  widok.x1 = widok.x0 + sx;
+
+  let sy = widok.y1 - widok.y0;
+  sy = Math.min(Math.max(sy, 0.2), maksDanych * 1.2);
+  widok.y0 = Math.max(widok.y0, 0);
+  widok.y1 = widok.y0 + sy;
+  const sufitY = maksDanych * 1.2;
+  if (widok.y1 > sufitY) { widok.y1 = sufitY; widok.y0 = Math.max(0, widok.y1 - sy); }
+}
+
+/* ————— podziałki ————— */
+function krokCzasu(spanSek, px) {
+  for (const k of [1, 2, 5, 10, 15, 30, 60, 120])
+    if (px / (spanSek / k) >= 60) return k;
+  return 120;
+}
+function krokWartosci(spanV, px) {
+  for (const k of [0.1, 0.2, 0.25, 0.5, 1, 2])
+    if (px / (spanV / k) >= 26) return k;
+  return 2;
+}
+
+/* ————— rysowanie ————— */
 function rysuj() {
   if (!biezacy) return;
-  const box = canvas.parentElement.getBoundingClientRect();
+  const { W, H, hPietra } = wymiary();
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.round(box.width * dpr);
-  canvas.height = Math.round(box.height * dpr);
+  canvas.width = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const W = box.width, H = box.height;
   ctx.clearRect(0, 0, W, H);
 
   const s = biezacy;
-  const lewy = 64, prawy = 12, gora = 8, dol = 26, przerwa = 18;
-  const hPietra = (H - gora - dol - przerwa * (PIETRA.length - 1)) / PIETRA.length;
-
-  const t0 = s.window[0], t1 = s.window[1];
-  const x = t => lewy + (t - t0) / (t1 - t0) * (W - lewy - prawy);
-
-  /* wspólna skala Y przycięta na SUFIT (decyzja Janka 20.08): ramki powyżej
-     rysujemy jawnym znacznikiem u sufitu z licznikiem, zamiast pozwolić
-     jednemu artefaktowi zgnieść cały przebieg. Dane zostają nietknięte. */
-  const SUFIT = 2.0;
-  const maxY = SUFIT * 1.05;
+  const { lewy, prawy, gora, dol, przerwa } = MARGINES;
+  const x = t => lewy + (t - widok.x0) / (widok.x1 - widok.x0) * (W - lewy - prawy);
+  const spanY = widok.y1 - widok.y0;
 
   ctx.font = "11px -apple-system, system-ui, sans-serif";
 
   PIETRA.forEach((p, idx) => {
-    const y0 = gora + idx * (hPietra + przerwa);       // góra pasa
-    const y1 = y0 + hPietra;                            // dół pasa (wartość 0)
-    const y = v => y1 - (v / maxY) * hPietra;
+    const y0 = gora + idx * (hPietra + przerwa);
+    const y1 = y0 + hPietra;
+    const y = v => y1 - (v - widok.y0) / spanY * hPietra;
     const b = s.bands[p];
 
-    /* rama pasa i kreska 1,0 */
+    /* rama pasa */
     ctx.strokeStyle = "#2a2a33";
     ctx.lineWidth = 1;
     ctx.strokeRect(lewy, y0, W - lewy - prawy, hPietra);
-    ctx.strokeStyle = "#3a3a46";
-    ctx.setLineDash([3, 4]);
-    ctx.beginPath();
-    ctx.moveTo(lewy, y(1));
-    ctx.lineTo(W - prawy, y(1));
-    ctx.stroke();
-    ctx.setLineDash([]);
 
-    /* podpisy */
-    ctx.fillStyle = "#8a8a96";
+    /* siatka wartości + podpisy z lewej */
+    const kV = krokWartosci(spanY, hPietra);
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
-    ctx.fillText("1,0", lewy - 10, y(1));
-    ctx.fillText("2,0", lewy - 10, y(SUFIT));
+    for (let v = Math.ceil(widok.y0 / kV) * kV; v <= widok.y1 + 1e-9; v += kV) {
+      const py = y(v);
+      if (py < y0 + 4 || py > y1 - 4) continue;
+      ctx.strokeStyle = Math.abs(v - 1) < 1e-9 ? "#3a3a46" : "#22222b";
+      ctx.setLineDash(Math.abs(v - 1) < 1e-9 ? [3, 4] : [1, 5]);
+      ctx.beginPath();
+      ctx.moveTo(lewy, py);
+      ctx.lineTo(W - prawy, py);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#8a8a96";
+      ctx.fillText(v.toFixed(kV < 0.25 ? 2 : 1).replace(".", ","), lewy - 10, py);
+    }
+
+    /* podpis piętra we wnętrzu */
+    ctx.fillStyle = "#8a8a96";
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     ctx.fillText(p.toUpperCase(), lewy + 8, y0 + 6);
-    ctx.textBaseline = "middle";
 
-    /* dwie surowe linie: A i B; wartości ponad SUFIT — przycięte do sufitu
-       i oznaczone trójkątem, z licznikiem i prawdziwym maksimum w rogu pasa */
-    let notaY = y1 - 16;   /* liczniki przy dole pasa — sufit bywa pełen znaczników */
+    /* linie A i B, przycięte do pasa; ▲ dla ramek nad górną krawędzią widoku */
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(lewy, y0, W - lewy - prawy, hPietra);
+    ctx.clip();
+
+    let notaY = y1 - 16;
     for (const [glos, kolor] of [["a", KOLOR.a], ["b", KOLOR.b]]) {
       const poza = [];
       let maksPoza = 0;
@@ -164,8 +221,11 @@ function rysuj() {
       ctx.beginPath();
       for (let i = 0; i < b.t.length; i++) {
         const v = b[glos][i];
-        if (v > SUFIT) { poza.push(b.t[i]); if (v > maksPoza) maksPoza = v; }
-        const px = x(b.t[i]), py = y(Math.min(v, SUFIT));
+        if (v > widok.y1 && b.t[i] >= widok.x0 && b.t[i] <= widok.x1) {
+          poza.push(b.t[i]);
+          if (v > maksPoza) maksPoza = v;
+        }
+        const px = x(b.t[i]), py = y(v);
         if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
       }
       ctx.stroke();
@@ -185,30 +245,117 @@ function rysuj() {
         const n = poza.length;
         const forma = n === 1 ? "ramka"
           : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)) ? "ramki" : "ramek";
-        const ile = `${n} ${forma}`;
-        ctx.fillText(`▲ ${ile} poza skalą (maks ${maksPoza.toFixed(1).replace(".", ",")})`,
+        ctx.fillText(`▲ ${n} ${forma} nad widokiem (maks ${maksPoza.toFixed(1).replace(".", ",")})`,
                      W - prawy - 8, notaY);
         notaY -= 14;
       }
     }
+    ctx.restore();
   });
 
-  /* oś czasu: minuty miksu */
+  /* oś czasu */
   ctx.fillStyle = "#8a8a96";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
-  const krok = (t1 - t0) > 180 ? 60 : 30;
-  for (let t = Math.ceil(t0 / krok) * krok; t <= t1; t += krok) {
-    ctx.fillText(mmss(t), x(t), H - dol + 8);
+  const kT = krokCzasu(widok.x1 - widok.x0, W - lewy - prawy);
+  for (let t = Math.ceil(widok.x0 / kT) * kT; t <= widok.x1; t += kT) {
+    const px = x(t);
+    if (px < lewy || px > W - prawy) continue;
+    ctx.fillText(kT < 5 ? `${mmss(t)},${String(Math.round(t % 1 * 10))}`.replace(/,0$/, "") : mmss(t),
+                 px, H - dol + 8);
   }
 }
 
+/* ————— interakcja (mapa: NAWIGACJA.md) ————— */
+function punktWidoku(px, py) {
+  /* piksel → współrzędne danych; wartość liczona w pasie pod kursorem */
+  const { W, hPietra } = wymiary();
+  const { lewy, prawy, gora, przerwa } = MARGINES;
+  const t = widok.x0 + (px - lewy) / (W - lewy - prawy) * (widok.x1 - widok.x0);
+  let v = (widok.y0 + widok.y1) / 2;
+  for (let i = 0; i < PIETRA.length; i++) {
+    const y0 = gora + i * (hPietra + przerwa), y1 = y0 + hPietra;
+    if (py >= y0 && py <= y1) {
+      v = widok.y1 - (py - y0) / hPietra * (widok.y1 - widok.y0);
+      break;
+    }
+  }
+  return { t, v };
+}
+
+function zoom(fx, fy, kotwica) {
+  widok.x0 = kotwica.t - (kotwica.t - widok.x0) * fx;
+  widok.x1 = kotwica.t + (widok.x1 - kotwica.t) * fx;
+  widok.y0 = kotwica.v - (kotwica.v - widok.y0) * fy;
+  widok.y1 = kotwica.v + (widok.y1 - kotwica.v) * fy;
+  przytnijWidok();
+  rysuj();
+}
+
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect();
+  const kotwica = punktWidoku(e.clientX - r.left, e.clientY - r.top);
+  const f = Math.exp((e.deltaY > 0 ? 1 : -1) * 0.12);
+  if (e.shiftKey)      zoom(f, 1, kotwica);   /* sama oś X */
+  else if (e.altKey)   zoom(1, f, kotwica);   /* sama oś Y */
+  else                 zoom(f, f, kotwica);
+}, { passive: false });
+
+let ciag = null;   /* stan przeciągania: pan albo skala kierunkowa */
+canvas.addEventListener("pointerdown", e => {
+  const r = canvas.getBoundingClientRect();
+  ciag = {
+    tryb: e.ctrlKey ? "skala" : "pan",
+    px: e.clientX, py: e.clientY,
+    kotwica: punktWidoku(e.clientX - r.left, e.clientY - r.top),
+  };
+  canvas.setPointerCapture(e.pointerId);
+  canvas.classList.add("ciagnie");
+});
+canvas.addEventListener("pointermove", e => {
+  if (!ciag) return;
+  const { W, hPietra } = wymiary();
+  const { lewy, prawy } = MARGINES;
+  const dx = e.clientX - ciag.px, dy = e.clientY - ciag.py;
+  ciag.px = e.clientX; ciag.py = e.clientY;
+  if (ciag.tryb === "pan") {
+    const sx = dx / (W - lewy - prawy) * (widok.x1 - widok.x0);
+    const sy = dy / hPietra * (widok.y1 - widok.y0);
+    widok.x0 -= sx; widok.x1 -= sx;
+    widok.y0 += sy; widok.y1 += sy;
+    przytnijWidok();
+    rysuj();
+  } else {
+    /* wiernie za Ctrl+MMB Blendera: ruch poziomy skaluje X, pionowy Y */
+    const fx = Math.exp(-dx * 0.005), fy = Math.exp(dy * 0.005);
+    zoom(fx, fy, ciag.kotwica);
+  }
+});
+["pointerup", "pointercancel"].forEach(ev => canvas.addEventListener(ev, () => {
+  ciag = null;
+  canvas.classList.remove("ciagnie");
+}));
+
+canvas.addEventListener("dblclick", widokCalosc);
+window.addEventListener("keydown", e => {
+  if (e.target.tagName === "SELECT") return;
+  if (e.key === "Home") { e.preventDefault(); widokCalosc(); }
+  else if (e.key === "Escape" || e.key === "0") widokDomyslny();
+});
+
+/* ————— dane i start ————— */
 function pokaz(idx) {
   biezacy = SZWY[idx];
   const s = biezacy;
+  maksDanych = 1;
+  for (const p of PIETRA) {
+    for (const v of s.bands[p].a) if (v > maksDanych) maksDanych = v;
+    for (const v of s.bands[p].b) if (v > maksDanych) maksDanych = v;
+  }
   document.getElementById("para").innerHTML =
     `<b>${s.from}</b> → <b>${s.to}</b> · okno ${mmss(s.window[0])}–${mmss(s.window[1])}`;
-  rysuj();
+  widokDomyslny();
 }
 
 async function start() {
