@@ -16,7 +16,7 @@ bierzemy **edycji** — pomiaru nie przesuwa się ręką.
 | Frame All (Home) | dopasowuje widok do wszystkich danych | **TERAZ** — Home i dwuklik; UWAGA: uczciwie obejmuje też ramki „poza skalą" (artefakt 9,9 staje się widoczny w całości) |
 | Frame Scene/Preview Range | wraca do zakresu sceny | **TERAZ** jako „widok domyślny" (Esc lub 0): okno szwu × sufit 2,0 |
 | Frame Selected (Numpad.) | dopasowuje do zaznaczenia | PÓŹNIEJ — nie ma jeszcze zaznaczania |
-| Local View (/) — izolacja krzywych | pokazuje tylko wybrane krzywe | PÓŹNIEJ — jako izolacja głosu A/B albo piętra (klik w legendę); dobry kandydat na następną warstwę |
+| Local View (/) — izolacja krzywych | pokazuje tylko wybrane krzywe | **TERAZ** (wdrożone 20.08) — klik w legendę albo klawisze A/B chowa/pokazuje głos, `/` przywraca oba (jak w Blenderze); nigdy pusty ekran (wyłączenie obu = powrót obu); ukrycie JAWNE: pozycja legendy wygaszona i przekreślona; zdarzenia szwu i wstęga reszty zostają, bo są własnością szwu, nie głosu; liczniki ▲ tylko dla widocznych głosów |
 | Playhead + 2D Cursor | kursor czasu i wartości, oś odczytu | PÓŹNIEJ — kursor czasu z odczytem wartości pod spodem TAK (bez dźwięku — dźwięk w panelu zakazany); pivot do rotacji NIE (nie edytujemy) |
 | Set/Clear Preview Range (P) | ogranicza odtwarzanie do zakresu | PÓŹNIEJ — u nas jako „zakres porównania", nie odtwarzania |
 | Normalize (+Auto) | każda krzywa osobno skalowana do −1..1, reszta przyciemniona | ODRZUCONE na teraz — per-krzywa skala łamie wspólną skalę pięter (nasza norma); jeśli kiedyś wróci, to z jawnym przyciemnieniem jak w Blenderze |

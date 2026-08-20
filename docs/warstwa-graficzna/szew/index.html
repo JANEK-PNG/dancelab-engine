@@ -56,6 +56,16 @@
     flex-wrap: wrap;
   }
   footer .znacznik { margin-left: auto; opacity: 0.6; }
+  footer button.glos {
+    background: none;
+    border: none;
+    color: var(--tekst-cichy);
+    font: inherit;
+    padding: 0;
+    cursor: pointer;
+  }
+  footer button.glos:focus-visible { outline: 2px solid var(--b); outline-offset: 2px; }
+  footer button.glos.ukryty { opacity: 0.35; text-decoration: line-through; }
 </style>
 </head>
 <body>
@@ -66,10 +76,10 @@
 </header>
 <div id="plotno"><canvas id="c"></canvas></div>
 <footer>
-  <span><b style="color:var(--a)">—</b> utwór, który gra (A)</span>
-  <span><b style="color:var(--b)">—</b> utwór, który wchodzi (B)</span>
+  <button class="glos" id="leg-a" aria-pressed="true"><b style="color:var(--a)">—</b> utwór, który gra (A)</button>
+  <button class="glos" id="leg-b" aria-pressed="true"><b style="color:var(--b)">—</b> utwór, który wchodzi (B)</button>
   <span>surowe wartości z pomiaru, bez wygładzania · 1,0 = tak głośno jak w oryginale · ▲ = ramka nad górną krawędzią widoku</span>
-  <span>przeciągnij = pan · kółko = zoom · Shift+kółko = oś X · Alt+kółko = oś Y · Ctrl+przeciągnij = skala kierunkowa · dwuklik / Home = całość · Esc / 0 = widok 2,0</span>
+  <span>przeciągnij = pan · kółko = zoom · Shift+kółko = oś X · Alt+kółko = oś Y · Ctrl+przeciągnij = skala kierunkowa · dwuklik / Home = całość · Esc / 0 = widok 2,0 · klik w legendę / klawisze A, B = izolacja głosu · / = oba głosy</span>
   <span>│ pionowe kreski = wejście B / wyjście A · jasne podkreślenie = zszycie · przerywane przy dole basu = zmierzone ruchy gałki (bas B trzymany, A ścieniony)</span>
   <span>wstęga „reszta" pod piętrem = ułamek energii miksu, którego nie tłumaczy żaden z utworów (czerń 0 → biel 1): sampler, efekty, powietrze</span>
   <span class="znacznik" id="znacznik"></span>
@@ -85,7 +95,7 @@
      „wartość nad górną krawędzią widoku" i znika, gdy zoom ją obejmie;
    - kolor mówi, czyj to głos (A/B), piętro mówi pozycja i podpis. */
 
-const BUILD = "w3-2026-08-20a";
+const BUILD = "w3-2026-08-20b";
 document.getElementById("znacznik").textContent = BUILD;
 console.log("płótno szwu, build", BUILD);
 
@@ -96,6 +106,9 @@ const SUFIT = 2.0;                              // widok domyślny (decyzja 20.0
 
 let SZWY = [];
 let biezacy = null;
+/* izolacja głosów (odpowiednik Local View z Blendera — NAWIGACJA.md);
+   ukrywa JAWNIE: stan widać w legendzie, zdarzenia szwu i reszta zostają */
+const widoczne = { a: true, b: true };
 let maksDanych = 1;                             // maksimum A/B bieżącego szwu
 let widok = { x0: 0, x1: 1, y0: 0, y1: SUFIT * 1.05 };
 
@@ -217,6 +230,7 @@ function rysuj() {
 
     let notaY = y1 - 16;
     for (const [glos, kolor] of [["a", KOLOR.a], ["b", KOLOR.b]]) {
+      if (!widoczne[glos]) continue;
       const poza = [];
       let maksPoza = 0;
       ctx.strokeStyle = kolor;
@@ -420,10 +434,31 @@ canvas.addEventListener("pointermove", e => {
 }));
 
 canvas.addEventListener("dblclick", widokCalosc);
+
+/* ————— izolacja głosów ————— */
+function przelaczGlos(g) {
+  widoczne[g] = !widoczne[g];
+  if (!widoczne.a && !widoczne.b) { widoczne.a = widoczne.b = true; }  /* nigdy pusty ekran */
+  for (const k of ["a", "b"]) {
+    const el = document.getElementById(`leg-${k}`);
+    el.classList.toggle("ukryty", !widoczne[k]);
+    el.setAttribute("aria-pressed", String(widoczne[k]));
+  }
+  rysuj();
+}
+document.getElementById("leg-a").addEventListener("click", () => przelaczGlos("a"));
+document.getElementById("leg-b").addEventListener("click", () => przelaczGlos("b"));
+
 window.addEventListener("keydown", e => {
   if (e.target.tagName === "SELECT") return;
   if (e.key === "Home") { e.preventDefault(); widokCalosc(); }
   else if (e.key === "Escape" || e.key === "0") widokDomyslny();
+  else if (e.key === "a" || e.key === "A") przelaczGlos("a");
+  else if (e.key === "b" || e.key === "B") przelaczGlos("b");
+  else if (e.key === "/") {
+    if (!widoczne.a) przelaczGlos("a");
+    if (!widoczne.b) przelaczGlos("b");
+  }
 });
 
 /* ————— dane i start ————— */
