@@ -72,6 +72,7 @@
 <header>
   <h1>PŁÓTNO SZWU · warstwy: 1 obecność · 2 zdarzenia · 3 reszta</h1>
   <select id="wybor" aria-label="Wybór szwu"></select>
+  <select id="duch" aria-label="Duch — drugi szew do porównania"></select>
   <span class="para" id="para"></span>
 </header>
 <div id="plotno"><canvas id="c"></canvas></div>
@@ -79,7 +80,7 @@
   <button class="glos" id="leg-a" aria-pressed="true"><b style="color:var(--a)">—</b> utwór, który gra (A)</button>
   <button class="glos" id="leg-b" aria-pressed="true"><b style="color:var(--b)">—</b> utwór, który wchodzi (B)</button>
   <span>surowe wartości z pomiaru, bez wygładzania · 1,0 = tak głośno jak w oryginale · ▲ = ramka nad górną krawędzią widoku</span>
-  <span>przeciągnij = pan · kółko = zoom · Shift+kółko = oś X · Alt+kółko = oś Y · Ctrl+przeciągnij = skala kierunkowa · dwuklik / Home = całość · Esc / 0 = widok 2,0 · klik w legendę / klawisze A, B = izolacja głosu · / = oba głosy · najedź = kursor z odczytem zmierzonej ramki</span>
+  <span>przeciągnij = pan · kółko = zoom · Shift+kółko = oś X · Alt+kółko = oś Y · Ctrl+przeciągnij = skala kierunkowa · dwuklik / Home = całość · Esc / 0 = widok 2,0 · klik w legendę / klawisze A, B = izolacja głosu · / = oba głosy · najedź = kursor z odczytem zmierzonej ramki · duch = drugi szew przygaszony w tle, wejścia B nałożone; G chowa</span>
   <span>│ pionowe kreski = wejście B / wyjście A · jasne podkreślenie = zszycie · przerywane przy dole basu = zmierzone ruchy gałki (bas B trzymany, A ścieniony)</span>
   <span>wstęga „reszta" pod piętrem = ułamek energii miksu, którego nie tłumaczy żaden z utworów (czerń 0 → biel 1): sampler, efekty, powietrze</span>
   <span class="znacznik" id="znacznik"></span>
@@ -95,7 +96,7 @@
      „wartość nad górną krawędzią widoku" i znika, gdy zoom ją obejmie;
    - kolor mówi, czyj to głos (A/B), piętro mówi pozycja i podpis. */
 
-const BUILD = "w3-2026-08-20c";
+const BUILD = "w3-2026-08-20d";
 document.getElementById("znacznik").textContent = BUILD;
 console.log("płótno szwu, build", BUILD);
 
@@ -112,6 +113,12 @@ const widoczne = { a: true, b: true };
 /* kursor czasu (czytający odpowiednik Playheada; bez dźwięku, bez pivota):
    odczyt PRZYCIĄGANY do najbliższej zmierzonej ramki — zero interpolacji */
 let kursorT = null;
+/* duch (adaptacja Ghost Curves z Blendera): tam zamrożona kopia tej samej
+   krzywej sprzed edycji; my nie edytujemy, więc duch = DRUGI zmierzony szew
+   przygaszony w tle, wyrównany do wejścia B (wspólny punkt każdego szwu) */
+let duch = null;
+let duchWidoczny = true;
+function kotwica(s) { return s.b_in_sec != null ? s.b_in_sec : s.window[0]; }
 let maksDanych = 1;                             // maksimum A/B bieżącego szwu
 let widok = { x0: 0, x1: 1, y0: 0, y1: SUFIT * 1.05 };
 
@@ -239,6 +246,41 @@ function rysuj() {
     ctx.beginPath();
     ctx.rect(lewy, y0, W - lewy - prawy, hPietra);
     ctx.clip();
+
+    /* ——— duch: drugi szew w tle, przesunięty tak, by wejścia B się pokryły ——— */
+    if (duch && duchWidoczny) {
+      const shift = kotwica(s) - kotwica(duch);
+      const db = duch.bands[p];
+      ctx.save();
+      ctx.globalAlpha = 0.38;
+      ctx.lineWidth = 1;
+      for (const [glos, kolor] of [["a", KOLOR.a], ["b", KOLOR.b]]) {
+        if (!widoczne[glos]) continue;
+        ctx.strokeStyle = kolor;
+        ctx.beginPath();
+        for (let i = 0; i < db.t.length; i++) {
+          const px = x(db.t[i] + shift), py = y(Math.min(db[glos][i], widok.y1));
+          if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+      if (duch.a_out_sec != null && s.b_in_sec != null && duch.b_in_sec != null) {
+        const xo = x(duch.a_out_sec + shift);        /* wyjście A ducha: porównanie długości zszycia */
+        ctx.strokeStyle = KOLOR.a;
+        ctx.setLineDash([2, 4]);
+        ctx.beginPath(); ctx.moveTo(xo, y0); ctx.lineTo(xo, y1); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      ctx.restore();
+      if (idx === 0) {
+        ctx.fillStyle = "#8a8a96";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        const jak = (s.b_in_sec != null && duch.b_in_sec != null) ? "wyrównany do wejścia B" : "wyrównany do początku okna (brak zmierzonego wejścia)";
+        const zsz = duch.blend_sec != null ? ` · zszycie ${duch.blend_sec.toFixed(1).replace(".", ",")} s` : "";
+        ctx.fillText(`duch: ${duch.from} → ${duch.to}${zsz} · ${jak}`, lewy + 8, y0 + 20);
+      }
+    }
 
     let notaY = y1 - 16;
     for (const [glos, kolor] of [["a", KOLOR.a], ["b", KOLOR.b]]) {
@@ -531,6 +573,7 @@ window.addEventListener("keydown", e => {
   else if (e.key === "Escape" || e.key === "0") widokDomyslny();
   else if (e.key === "a" || e.key === "A") przelaczGlos("a");
   else if (e.key === "b" || e.key === "B") przelaczGlos("b");
+  else if (e.key === "g" || e.key === "G") { duchWidoczny = !duchWidoczny; rysuj(); }
   else if (e.key === "/") {
     if (!widoczne.a) przelaczGlos("a");
     if (!widoczne.b) przelaczGlos("b");
@@ -565,6 +608,21 @@ async function start() {
     wybor.appendChild(o);
   });
   wybor.addEventListener("change", e => pokaz(+e.target.value));
+  const selDuch = document.getElementById("duch");
+  const pusty = document.createElement("option");
+  pusty.value = ""; pusty.textContent = "— bez ducha —";
+  selDuch.appendChild(pusty);
+  SZWY.forEach((s, i) => {
+    const o = document.createElement("option");
+    o.value = i;
+    o.textContent = `duch: ${s.set} · szew ${String(s.i).padStart(2, "0")} · ${s.from} → ${s.to}`;
+    selDuch.appendChild(o);
+  });
+  selDuch.addEventListener("change", e => {
+    duch = e.target.value === "" ? null : SZWY[+e.target.value];
+    duchWidoczny = true;
+    rysuj();
+  });
   window.addEventListener("resize", rysuj);
   pokaz(0);
 }
