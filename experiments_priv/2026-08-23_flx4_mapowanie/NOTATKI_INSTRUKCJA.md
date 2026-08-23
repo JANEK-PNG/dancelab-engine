@@ -203,3 +203,16 @@ kanału" nie zmieścił się w 2 minutach — do powtórki.)
 
 Do zrobienia: fader start (SHIFT + fader), nasłuch PRZY OTWARTYM Rekordboksie,
 tryb demo.
+
+## ZMIERZONE 23.08 c.d. — PRZY OTWARTYM REKORDBOKSIE (90 s, 3820 komunikatów)
+
+| Hipoteza | Wynik |
+|---|---|
+| Nasłuch (tylko wejście) działa równolegle z Rekordboxem | **TAK**: 3820 komunikatów dotarło, gdy Rekordbox trzymał urządzenie i grał. CoreMIDI rozdaje wejście wielu klientom; ostrzeżenie Pioneera dotyczy sterowania/diod, nie nasłuchu |
+| Fader start (SHIFT + fader kanału) | **TAK, co do bajtu**: SHIFT = nuta 63 ON przez cały czas trzymania; fader z dołu w górę → `90 66 7F` + `90 66 00` (PLAY, para w odstępie 0 ms); fader na sam dół → `90 52 7F` + `90 52 00` (CUE, para 0 ms). Powtórzone 8 razy, zawsze tak samo |
+| Nieznane komunikaty | **BRAK** (0 z 3820) |
+
+Wniosek: rejestrator ruchów rąk może działać obok Rekordboxa bez żadnej
+ingerencji — Janek gra normalnie, my słuchamy. Fader start i BEAT SYNC są
+zdarzeniami „bez czasu trzymania" (para ON/OFF w 0 ms) — w rejestratorze
+traktować jako impulsy, nie przedziały.
