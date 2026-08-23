@@ -87,6 +87,10 @@
       <div class="pasek"><div id="pokrycie-pasek"></div></div>
       <div id="brakuje"></div>
     </div>
+    <div class="karta" id="karta-nieznane" style="display:none">
+      <h2 style="color:var(--zle)">Nieznane komunikaty (spoza oficjalnej listy)</h2>
+      <div id="nieznane-lista" style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;line-height:1.5"></div>
+    </div>
     <div class="karta">
       <h2>Dziennik (surowe MIDI → nazwa)</h2>
       <div id="log"></div>
@@ -207,7 +211,7 @@ const NUTY_DECK = { 11: "play", 14: "play+", 12: "cue", 72: "cue+", 63: "shift",
   16: "in", 76: "in+", 17: "out", 78: "out+", 77: "beat4", 80: "beat4+", 81: "callL", 62: "callL+",
   83: "callR", 61: "callR+", 88: "sync", 92: "sync!", 96: "sync+", 27: "hotcue", 105: "hotcue+",
   30: "padfx1", 107: "padfx1+", 32: "beatjump", 109: "beatjump+", 34: "sampler", 111: "sampler+",
-  84: "chcue", 104: "chcue+", 102: "play~", 82: "cue~", 23: "vinyl" };
+  84: "chcue", 104: "chcue+", 102: "play~", 82: "cue~", 23: "vinyl", 18: "n18" };
 const CC_DECK = { 0: ["tempo", 1], 32: ["tempo", 0], 4: ["trim", 1], 36: ["trim", 0], 7: ["hi", 1], 39: ["hi", 0],
   11: ["mid", 1], 43: ["mid", 0], 15: ["low", 1], 47: ["low", 0], 19: ["chfader", 1], 51: ["chfader", 0],
   34: ["jog", "rel"], 35: ["jog", "rel"], 41: ["jog", "rel+"], 33: ["jog", "relbok"] };
@@ -217,7 +221,7 @@ const CC_GLOB = { 23: ["d1_cfx", 1], 55: ["d1_cfx", 0], 24: ["d2_cfx", 1], 56: [
   63: ["crossfader", 0], 8: ["master_level", 1], 40: ["master_level", 0], 5: ["mic_level", 1], 37: ["mic_level", 0],
   12: ["hp_mix", 1], 44: ["hp_mix", 0], 13: ["hp_level", 1], 45: ["hp_level", 0], 64: ["browse", "relb"], 100: ["browse", "relb+"] };
 const NUTY_FX = { 99: "fx_select", 100: "fx_select+", 74: "fx_beatL", 102: "fx_beatL+", 75: "fx_beatR", 107: "fx_beatR+",
-  71: "fx_onoff", 67: "fx_onoff+", 16: "fx_chsel", 17: "fx_chsel" };
+  71: "fx_onoff", 67: "fx_onoff+", 16: "fx_chsel", 17: "fx_chsel", 112: "fx_n112" };
 const TRYBY = { 0x00: ["HOT CUE", "#5ee0ff"], 0x10: ["PAD FX1", "#ff9f43"], 0x20: ["BEAT JUMP", "#6c8cff"],
   0x30: ["SAMPLER", "#ff5cc8"], 0x40: ["KEYBOARD", "#2ee6c5"], 0x50: ["PAD FX2", "#ffd166"],
   0x60: ["BEAT LOOP", "#a78bfa"], 0x70: ["KEY SHIFT", "#ff7ab8"] };
@@ -229,9 +233,11 @@ const NAZWY = { "play": "PLAY/PAUSE", "cue": "CUE", "shift": "SHIFT", "jog@": "J
   "smart_cfx": "SMART CFX", "smart_fader": "SMART FADER", "browse": "BROWSE", "load1": "LOAD 1", "load2": "LOAD 2",
   "mono_stereo": "MONO/STEREO", "d1_cfx": "CFX 1", "d2_cfx": "CFX 2", "crossfader": "CROSSFADER", "master_level": "MASTER LEVEL",
   "mic_level": "MIC LEVEL", "hp_mix": "HEADPHONES MIX", "hp_level": "HEADPHONES LEVEL", "fx_select": "FX SELECT",
-  "fx_beatL": "BEAT ◁", "fx_beatR": "BEAT ▷", "fx_onoff": "FX ON/OFF", "fx_chsel": "FX CH SELECT", "fx_level": "LEVEL/DEPTH" };
+  "fx_beatL": "BEAT ◁", "fx_beatR": "BEAT ▷", "fx_onoff": "FX ON/OFF", "fx_chsel": "FX CH SELECT", "fx_level": "LEVEL/DEPTH",
+  "n18": "⚠ nuta 18 — NIEUDOKUMENTOWANA (po 4BEAT/EXIT?)", "fx_n112": "⚠ nuta 112 — NIEUDOKUMENTOWANA (stan drugiej jednostki FX?)" };
 
 const fxsel = { 4: { 16: 0, 17: 0 }, 5: { 16: 0, 17: 0 } };
+const NIEZNANE = {};   // klucz → {n, raw} — trwałe podsumowanie, nie przewija się jak dziennik
 const stanShift = { 1: false, 2: false };
 let nieznanych = 0, licznik = 0;
 
@@ -344,7 +350,12 @@ function obsluz(ev) {
   const log = document.getElementById("log");
   const linia = document.createElement("div");
   if (!nazwa) { nieznanych++; document.getElementById("nieznane").textContent = nieznanych; linia.className = "nieznany";
-    nazwa = `NIEZNANY ${ev.type} ch${ch} d1=${ev.d1} d2=${ev.d2}`; }
+    nazwa = `NIEZNANY ${ev.type} ch${ch} d1=${ev.d1} d2=${ev.d2}`;
+    const klucz = `${ev.type} ch${ch} d1=${ev.d1}`; (NIEZNANE[klucz] ||= { n: 0, raw: ev.raw, min: ev.d2, max: ev.d2 }).n++;
+    NIEZNANE[klucz].min = Math.min(NIEZNANE[klucz].min, ev.d2); NIEZNANE[klucz].max = Math.max(NIEZNANE[klucz].max, ev.d2);
+    document.getElementById("karta-nieznane").style.display = "";
+    document.getElementById("nieznane-lista").innerHTML = Object.entries(NIEZNANE).sort((a, b) => b[1].n - a[1].n)
+      .map(([k, v]) => `${String(v.n).padStart(5)}×  ${k}  d2 ${v.min}–${v.max}  <span style="color:var(--przygaszony)">np. ${v.raw}</span>`).join("<br>"); }
   linia.innerHTML = `<span class="t">${ev.t.toFixed(3).padStart(9)}</span>  <span class="raw">${ev.raw.padEnd(9)}</span> ${nazwa}`;
   log.prepend(linia);
   while (log.childElementCount > 60) log.lastElementChild.remove();

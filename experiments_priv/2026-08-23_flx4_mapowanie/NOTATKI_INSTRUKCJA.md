@@ -216,3 +216,19 @@ Wniosek: rejestrator ruchów rąk może działać obok Rekordboxa bez żadnej
 ingerencji — Janek gra normalnie, my słuchamy. Fader start i BEAT SYNC są
 zdarzeniami „bez czasu trzymania" (para ON/OFF w 0 ms) — w rejestratorze
 traktować jako impulsy, nie przedziały.
+
+## NIEUDOKUMENTOWANE komunikaty (zebrane przy pokrywaniu mapy, 23.08 wieczór)
+
+Wszystkie przyszły z urządzenia (nasłuch tylko-wejście), żadnego nie ma w
+oficjalnej liście v1.0. Hipotezy, nie fakty:
+
+| Komunikat | Kiedy | Hipoteza |
+|---|---|---|
+| `94/95 70 xx` — nuta 112 na kanałach FX | przy przestawianiu FX CH SELECT i przy FX ON/OFF (np. `94 47 7F` → zaraz `95 70 00`) | stan włączenia DRUGIEJ jednostki efektów przekazywany przy zmianie trasy; wartość 0/127 |
+| `90 12 7F` — nuta 18 na decku 1, tylko ON, 20× | w serii naciśnięć 4BEAT/EXIT, co kilka sekund | wariant 4BEAT/EXIT (wyjście z aktywnej pętli? długie przytrzymanie?). W rodzinie DDJ-400 nuta 0x12 = RELOOP/EXIT. Do testu celowanego |
+| paczka ~70 komunikatów: na FX ch 4/5 CC 3/35, 4/36, 81, 82, 101, 102 i nuty 18–21, 113, 114; na ch 6 CC 22/54, 84 i nuta 116 | dokładnie przy pierwszym naciśnięciu SMART CFX (widziane w panelu strony, NIE w surowym pliku — zapis akurat się skończył) | zrzut stanu trybu Smart: pary MSB/LSB (3/35, 4/36, 22/54) wyglądają na wartości 14-bit gałek w trybie smart. **Do powtórzenia z nagraniem surowym**: SMART CFX + obrót CFX, SMART FADER + fadery |
+| `B4/B5 64 08`, `B4/B5 50 15` (CC 100, CC 80 na FX) + `96 6D 00` | raz, ~4,5 s po podłączeniu nasłuchu w pierwszym teście | „dzień dobry" urządzenia / zrzut stanu |
+
+Pokrycie po sesji Janka: 57/78 kontrolek. Niedotknięte: prawy deck —
+IN, OUT, CALL ◁ ▷, BEAT SYNC, SHIFT, 4 przyciski trybów, 8 padów; MASTER
+LEVEL, MASTER CUE; MONO/STEREO (tył, pomijalne).
