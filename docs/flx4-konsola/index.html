@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DDJ-FLX4 · model konsoli</title>
+<style>
+  :root {
+    --tlo: #0d0e11; --panel: #15171c; --krawedz: #262a33; --tekst: #d9dbe0;
+    --przygaszony: #7a8090; --akcent: #5ee0ff; --blysk: #ffd166; --zle: #ff5c7a;
+    --ok: #7ef0a8; --korpus: #1c1f26; --korpus2: #23272f; --guzik: #2c313b;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--tlo); color: var(--tekst);
+         font: 13px/1.4 -apple-system, "Helvetica Neue", system-ui, sans-serif; }
+  header { display: flex; gap: 18px; align-items: baseline; padding: 10px 16px;
+           border-bottom: 1px solid var(--krawedz); }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .02em; }
+  header .stan { color: var(--przygaszony); }
+  header .stan b { color: var(--tekst); font-weight: 500; }
+  #polacz { width: 8px; height: 8px; border-radius: 50%; background: var(--zle);
+            display: inline-block; margin-right: 6px; vertical-align: middle; }
+  #polacz.ok { background: var(--ok); }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; padding: 14px 16px; }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
+  .karta { background: var(--panel); border: 1px solid var(--krawedz); border-radius: 10px; padding: 10px 12px; }
+  .karta h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .12em;
+              color: var(--przygaszony); margin: 0 0 8px; font-weight: 600; }
+  svg { width: 100%; height: auto; display: block; }
+  .boczny { display: flex; flex-direction: column; gap: 14px; }
+  #log { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; max-height: 360px;
+         overflow: auto; white-space: pre; line-height: 1.45; }
+  #log .nieznany { color: var(--zle); }
+  #log .t { color: var(--przygaszony); }
+  #log .raw { color: var(--akcent); }
+  #pokrycie { font-size: 12px; }
+  #pokrycie .pasek { height: 6px; background: var(--krawedz); border-radius: 3px; margin: 6px 0 8px; overflow: hidden; }
+  #pokrycie .pasek div { height: 100%; background: var(--ok); width: 0; transition: width .3s; }
+  #brakuje { color: var(--przygaszony); line-height: 1.6; }
+  #brakuje span { display: inline-block; margin: 0 6px 2px 0; }
+  #ostatni { font-size: 14px; min-height: 22px; }
+  #ostatni b { color: var(--blysk); font-weight: 600; }
+  /* elementy SVG */
+  .etyk { fill: var(--przygaszony); font-size: 4.2px; text-anchor: middle;
+          font-family: -apple-system, system-ui, sans-serif; letter-spacing: .03em; }
+  .etyk.duza { font-size: 5px; fill: var(--tekst); }
+  .guzik { fill: var(--guzik); stroke: #3a404c; stroke-width: .6; transition: fill .08s, stroke .08s; }
+  .guzik.on { fill: var(--akcent); stroke: #fff; }
+  .guzik.blysk { fill: var(--blysk); stroke: #fff; }
+  .guzik.shift { fill: #a78bfa; stroke: #fff; }
+  .galka { fill: var(--guzik); stroke: #3a404c; stroke-width: .6; }
+  .galka-wsk { stroke: var(--tekst); stroke-width: 1.2; stroke-linecap: round; }
+  .galka-wsk.on { stroke: var(--akcent); }
+  .tor { fill: #0a0b0e; stroke: #30353f; stroke-width: .5; }
+  .uchwyt { fill: #3a404c; stroke: #5a6170; stroke-width: .5; }
+  .uchwyt.on { fill: var(--akcent); }
+  .jog { fill: var(--korpus2); stroke: #3a404c; stroke-width: .8; }
+  .jog-srodek { fill: #101217; stroke: #3a404c; stroke-width: .5; }
+  .jog-wsk { stroke: var(--tekst); stroke-width: 1.4; stroke-linecap: round; }
+  .jog-pierscien { fill: none; stroke: transparent; stroke-width: 3; }
+  .jog-pierscien.on { stroke: var(--akcent); }
+  .pad { fill: #2a2430; stroke: #4a4255; stroke-width: .5; rx: 1.5; }
+  .wart { fill: var(--akcent); font-size: 3.6px; text-anchor: middle; font-family: ui-monospace, Menlo, monospace; }
+</style>
+</head>
+<body>
+<header>
+  <h1>DDJ-FLX4 · cyfrowy model konsoli</h1>
+  <span class="stan"><span id="polacz"></span>port MIDI: <b id="port">—</b></span>
+  <span class="stan">komunikatów: <b id="licznik">0</b></span>
+  <span class="stan">nieznanych: <b id="nieznane">0</b></span>
+</header>
+<main>
+  <div>
+    <div class="karta" style="padding:8px">
+      <svg id="konsola" viewBox="0 0 482 273" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="karta" style="margin-top:14px">
+      <h2>Ostatni ruch</h2>
+      <div id="ostatni">czekam na kontroler…</div>
+    </div>
+  </div>
+  <aside class="boczny">
+    <div class="karta" id="pokrycie">
+      <h2>Pokrycie mapowania</h2>
+      <div id="pokrycie-tekst">0 / 0 kontrolek widzianych</div>
+      <div class="pasek"><div id="pokrycie-pasek"></div></div>
+      <div id="brakuje"></div>
+    </div>
+    <div class="karta">
+      <h2>Dziennik (surowe MIDI → nazwa)</h2>
+      <div id="log"></div>
+    </div>
+  </aside>
+</main>
+
+<script>
+// ---------- układ fizyczny (mm, panel 482 × 273; z oficjalnego rysunku) ----------
+const NS = "http://www.w3.org/2000/svg";
+const svg = document.getElementById("konsola");
+const el = (tag, attrs, parent = svg) => {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  parent.appendChild(n); return n;
+};
+const KONTROLKI = {};   // id → {kind, nodes..., seen}
+const M = x => x + 312; // deck 2 = PRZESUNIĘTA kopia decka 1 (oficjalny rysunek), nie lustro
+
+el("rect", { x: 0, y: 0, width: 482, height: 273, rx: 6, fill: "var(--korpus)" });
+[[170, 0, 142, 273]].forEach(([x, y, w, h]) => el("rect", { x, y, width: w, height: h, fill: "#181b21" }));
+
+function etyk(x, y, t, duza = false) { const n = el("text", { x, y, class: "etyk" + (duza ? " duza" : "") }); n.textContent = t; return n; }
+
+function guzik(id, x, y, label, r = 5, shape = "circle") {
+  const n = shape === "circle" ? el("circle", { cx: x, cy: y, r, class: "guzik" })
+                               : el("rect", { x: x - r * 1.6, y: y - r * .55, width: r * 3.2, height: r * 1.1, rx: 1, class: "guzik" });
+  etyk(x, y + r + 5, label);
+  KONTROLKI[id] = { kind: "guzik", n, seen: false, label };
+}
+function galka(id, x, y, label, r = 6) {
+  el("circle", { cx: x, cy: y, r, class: "galka" });
+  const w = el("line", { x1: x, y1: y, x2: x, y2: y - r + 1.2, class: "galka-wsk" });
+  const v = el("text", { x, y: y + r + 9, class: "wart" }); v.textContent = "";
+  etyk(x, y + r + 5, label);
+  KONTROLKI[id] = { kind: "galka", w, v, x, y, seen: false, label, msb: 0 };
+}
+function suwak(id, x, y1, y2, label, poziomy = false, odwroc = false) {
+  if (!poziomy) {
+    el("rect", { x: x - 1.2, y: y1, width: 2.4, height: y2 - y1, class: "tor" });
+    const u = el("rect", { x: x - 5, y: (y1 + y2) / 2 - 2.5, width: 10, height: 5, rx: 1, class: "uchwyt" });
+    etyk(x, y2 + 6, label);
+    const v = el("text", { x, y: y1 - 3, class: "wart" });
+    KONTROLKI[id] = { kind: "suwak", u, v, x, y1, y2, poziomy, odwroc, seen: false, label, msb: 0 };
+  } else {
+    el("rect", { x: y1, y: x - 1.2, width: y2 - y1, height: 2.4, class: "tor" });
+    const u = el("rect", { x: (y1 + y2) / 2 - 2.5, y: x - 5, width: 5, height: 10, rx: 1, class: "uchwyt" });
+    etyk((y1 + y2) / 2, x + 10, label);
+    const v = el("text", { x: (y1 + y2) / 2, y: x - 7, class: "wart" });
+    KONTROLKI[id] = { kind: "suwak", u, v, x, y1, y2, poziomy, seen: false, label, msb: 0 };
+  }
+}
+function jog(id, x, y, r = 52) {
+  el("circle", { cx: x, cy: y, r, class: "jog" });
+  const p = el("circle", { cx: x, cy: y, r: r - 2, class: "jog-pierscien" });
+  el("circle", { cx: x, cy: y, r: r * .36, class: "jog-srodek" });
+  const w = el("line", { x1: x, y1: y - r * .45, x2: x, y2: y - r + 4, class: "jog-wsk" });
+  const v = el("text", { x, y: y + 2, class: "wart" });
+  KONTROLKI[id] = { kind: "jog", w, p, v, x, y, kat: 0, suma: 0, seen: false, label: "JOG" };
+}
+function pad(id, x, y, nr) {
+  const n = el("rect", { x: x - 9, y: y - 7.5, width: 18, height: 15, class: "pad" });
+  const t = el("text", { x, y: y + 1.5, class: "etyk" }); t.textContent = nr;
+  KONTROLKI[id] = { kind: "pad", n, t, seen: false, label: "PAD " + nr };
+}
+function przelacznik(id, x, y, label, opcje) {
+  el("rect", { x: x - 4, y: y - 6, width: 8, height: 12, rx: 1.5, class: "tor" });
+  const u = el("rect", { x: x - 3, y: y - 2, width: 6, height: 4, rx: .8, class: "uchwyt" });
+  etyk(x, y + 11, label);
+  KONTROLKI[id] = { kind: "przelacznik", u, x, y, opcje, seen: false, label };
+}
+
+function deck(d) {
+  const X = d === 1 ? (x => x) : M, p = `d${d}_`;
+  etyk(X(84), 176, `DECK ${d}`, true);
+  guzik(p + "in", X(22), 35, "IN"); guzik(p + "out", X(45), 35, "OUT");
+  guzik(p + "beat4", X(70), 35, "4 BEAT/EXIT", 4);
+  guzik(p + "callL", X(97), 35, "CALL ◁", 3.5); guzik(p + "callR", X(118), 35, "CALL ▷", 3.5);
+  guzik(p + "sync", X(141), 33, "BEAT SYNC", 5);
+  jog(p + "jog", X(84), 115);
+  guzik(p + "shift", X(22), 189, "SHIFT", 4, "rect");
+  guzik(p + "cue", X(24), 216, "CUE", 8); guzik(p + "play", X(24), 247, "PLAY/PAUSE", 8);
+  [["hotcue", 48, "HOT CUE"], ["padfx1", 69, "PAD FX1"], ["beatjump", 90, "BEAT JUMP"], ["sampler", 111, "SAMPLER"]]
+    .forEach(([id, x, l]) => guzik(p + id, X(x), 206, l, 4, "rect"));
+  const px = [48, 69, 91, 113];
+  for (let i = 0; i < 8; i++) pad(p + "pad" + (i + 1), X(px[i % 4]), i < 4 ? 227 : 250, i + 1);
+  const tryb = el("text", { x: X(80), y: 268, class: "etyk" }); tryb.textContent = "";
+  KONTROLKI[p + "tryb"] = { kind: "tekst", n: tryb };
+  suwak(p + "tempo", X(145), 194, 262, "TEMPO", false, true);
+  galka(p + "trim", d === 1 ? 220 : 261, 44, "TRIM");
+  galka(p + "hi", d === 1 ? 220 : 261, 68, "HI");
+  galka(p + "mid", d === 1 ? 220 : 261, 92, "MID");
+  galka(p + "low", d === 1 ? 220 : 261, 117, "LOW");
+  galka(p + "cfx", d === 1 ? 220 : 261, 145, "CFX");
+  guzik(p + "chcue", d === 1 ? 220 : 261, 170, "CUE", 3.5, "rect");
+  suwak(p + "chfader", d === 1 ? 220 : 261, 188, 240, `CH ${d}`);
+}
+deck(1); deck(2);
+// przeglądanie + mikser globalny
+guzik("load1", 208, 22, "LOAD 1", 4, "rect"); galka("browse", 241, 22, "BROWSE", 8); guzik("load2", 273, 22, "LOAD 2", 4, "rect");
+suwak("crossfader", 258, 222, 260, "CROSSFADER", true);
+galka("master_level", 298, 42, "MASTER LEVEL"); guzik("master_cue", 298, 68, "MASTER CUE", 3.5, "rect");
+galka("mic_level", 182, 92, "MIC LEVEL", 5);
+guzik("smart_cfx", 182, 143, "SMART CFX", 3.5, "rect");
+galka("hp_mix", 182, 176, "HP MIX", 5); galka("hp_level", 182, 200, "HP LEVEL", 5);
+guzik("smart_fader", 182, 227, "SMART FADER", 3.5, "rect");
+// efekty
+etyk(298, 100, "BEAT FX", true);
+przelacznik("fx_chsel", 295, 117, "1 · 2 · 1&2", ["CH1", "CH2", "CH1&2"]);
+guzik("fx_select", 295, 139, "FX SELECT", 3.5, "rect");
+guzik("fx_beatL", 289, 170, "BEAT ◁", 3); guzik("fx_beatR", 305, 170, "BEAT ▷", 3);
+galka("fx_level", 298, 200, "LEVEL/DEPTH", 7);
+guzik("fx_onoff", 295, 227, "FX ON/OFF", 6);
+guzik("mono_stereo", 241, 268, "tył: MONO/STEREO", 2.5, "rect");
+
+// ---------- mapa MIDI (kanały 0-based; oficjalna lista AlphaTheta, zmierzona 23.08.2026) ----------
+const NUTY_DECK = { 11: "play", 14: "play+", 12: "cue", 72: "cue+", 63: "shift", 54: "jog@", 103: "jog@+",
+  16: "in", 76: "in+", 17: "out", 78: "out+", 77: "beat4", 80: "beat4+", 81: "callL", 62: "callL+",
+  83: "callR", 61: "callR+", 88: "sync", 92: "sync!", 96: "sync+", 27: "hotcue", 105: "hotcue+",
+  30: "padfx1", 107: "padfx1+", 32: "beatjump", 109: "beatjump+", 34: "sampler", 111: "sampler+",
+  84: "chcue", 104: "chcue+", 102: "play~", 82: "cue~", 23: "vinyl" };
+const CC_DECK = { 0: ["tempo", 1], 32: ["tempo", 0], 4: ["trim", 1], 36: ["trim", 0], 7: ["hi", 1], 39: ["hi", 0],
+  11: ["mid", 1], 43: ["mid", 0], 15: ["low", 1], 47: ["low", 0], 19: ["chfader", 1], 51: ["chfader", 0],
+  34: ["jog", "rel"], 35: ["jog", "rel"], 41: ["jog", "rel+"], 33: ["jog", "relbok"] };
+const NUTY_GLOB = { 99: "master_cue", 120: "master_cue+", 0: "smart_cfx", 8: "smart_cfx+", 1: "smart_fader",
+  9: "smart_fader+", 65: "browse", 66: "browse+", 70: "load1", 104: "load1+", 71: "load2", 122: "load2+", 109: "mono_stereo" };
+const CC_GLOB = { 23: ["d1_cfx", 1], 55: ["d1_cfx", 0], 24: ["d2_cfx", 1], 56: ["d2_cfx", 0], 31: ["crossfader", 1],
+  63: ["crossfader", 0], 8: ["master_level", 1], 40: ["master_level", 0], 5: ["mic_level", 1], 37: ["mic_level", 0],
+  12: ["hp_mix", 1], 44: ["hp_mix", 0], 13: ["hp_level", 1], 45: ["hp_level", 0], 64: ["browse", "relb"], 100: ["browse", "relb+"] };
+const NUTY_FX = { 99: "fx_select", 100: "fx_select+", 74: "fx_beatL", 102: "fx_beatL+", 75: "fx_beatR", 107: "fx_beatR+",
+  71: "fx_onoff", 67: "fx_onoff+", 16: "fx_chsel", 17: "fx_chsel" };
+const TRYBY = { 0x00: ["HOT CUE", "#5ee0ff"], 0x10: ["PAD FX1", "#ff9f43"], 0x20: ["BEAT JUMP", "#6c8cff"],
+  0x30: ["SAMPLER", "#ff5cc8"], 0x40: ["KEYBOARD", "#2ee6c5"], 0x50: ["PAD FX2", "#ffd166"],
+  0x60: ["BEAT LOOP", "#a78bfa"], 0x70: ["KEY SHIFT", "#ff7ab8"] };
+const NAZWY = { "play": "PLAY/PAUSE", "cue": "CUE", "shift": "SHIFT", "jog@": "JOG dotyk", "in": "IN", "out": "OUT",
+  "beat4": "4 BEAT/EXIT", "callL": "CUE/LOOP CALL ◁", "callR": "CUE/LOOP CALL ▷", "sync": "BEAT SYNC", "hotcue": "HOT CUE mode",
+  "padfx1": "PAD FX1 mode", "beatjump": "BEAT JUMP mode", "sampler": "SAMPLER mode", "chcue": "CH CUE",
+  "play~": "FADER START → PLAY", "cue~": "FADER START → CUE", "vinyl": "VINYL (MIDI-OUT)", "tempo": "TEMPO", "trim": "TRIM",
+  "hi": "EQ HI", "mid": "EQ MID", "low": "EQ LOW", "chfader": "CH FADER", "jog": "JOG", "master_cue": "MASTER CUE",
+  "smart_cfx": "SMART CFX", "smart_fader": "SMART FADER", "browse": "BROWSE", "load1": "LOAD 1", "load2": "LOAD 2",
+  "mono_stereo": "MONO/STEREO", "d1_cfx": "CFX 1", "d2_cfx": "CFX 2", "crossfader": "CROSSFADER", "master_level": "MASTER LEVEL",
+  "mic_level": "MIC LEVEL", "hp_mix": "HEADPHONES MIX", "hp_level": "HEADPHONES LEVEL", "fx_select": "FX SELECT",
+  "fx_beatL": "BEAT ◁", "fx_beatR": "BEAT ▷", "fx_onoff": "FX ON/OFF", "fx_chsel": "FX CH SELECT", "fx_level": "LEVEL/DEPTH" };
+
+const fxsel = { 4: { 16: 0, 17: 0 }, 5: { 16: 0, 17: 0 } };
+const stanShift = { 1: false, 2: false };
+let nieznanych = 0, licznik = 0;
+
+function zobacz(id) { const k = KONTROLKI[id]; if (k && !k.seen) { k.seen = true; odswiezPokrycie(); } }
+function swiec(id, on, klasa = "on") {
+  const k = KONTROLKI[id]; if (!k) return; zobacz(id);
+  const n = k.n || k.u || k.p;
+  n.classList.toggle(klasa, on);
+  if (klasa !== "on" && on) setTimeout(() => n.classList.remove(klasa), 400);
+}
+function ustawWartosc(id, v14) {
+  const k = KONTROLKI[id]; if (!k) return; zobacz(id);
+  const f = v14 / 16383;
+  if (k.kind === "galka") {
+    const kat = -135 + 270 * f;
+    k.w.setAttribute("transform", `rotate(${kat} ${k.x} ${k.y})`);
+    k.w.classList.add("on"); k.v.textContent = v14;
+  } else if (k.kind === "suwak") {
+    if (!k.poziomy) {
+      const y = k.odwroc ? k.y1 + f * (k.y2 - k.y1) : k.y2 - f * (k.y2 - k.y1); // 0 = dół; TEMPO: 0 = góra („−"), zmierzone 23.08
+      k.u.setAttribute("y", y - 2.5);
+    } else {
+      const x = k.y1 + f * (k.y2 - k.y1);            // 0 = lewo
+      k.u.setAttribute("x", x - 2.5);
+    }
+    k.u.classList.add("on"); k.v.textContent = v14;
+  }
+}
+function obroc(id, delta, bok) {
+  const k = KONTROLKI[id]; if (!k) return; zobacz(id);
+  k.kat += delta * 3; k.suma += delta;
+  k.w.setAttribute("transform", `rotate(${k.kat} ${k.x} ${k.y})`);
+  k.v.textContent = (k.suma > 0 ? "+" : "") + k.suma + (bok ? " bok" : "");
+}
+function ustawPad(deck, nr, tryb, on, shift) {
+  const id = `d${deck}_pad${nr}`, k = KONTROLKI[id]; if (!k) return; zobacz(id);
+  const [nazwa, kolor] = TRYBY[tryb] || ["?", "#fff"];
+  k.n.style.fill = on ? kolor : ""; k.n.style.stroke = on ? "#fff" : "";
+  const t = KONTROLKI[`d${deck}_tryb`].n; t.textContent = `pady: ${nazwa}${shift ? " +SHIFT" : ""}`; t.style.fill = kolor;
+  return nazwa;
+}
+
+// 14-bit: MSB przychodzi pierwszy, LSB zaraz po nim (zmierzone 533/533)
+function cc14(id, czesc, v) {
+  const k = KONTROLKI[id]; if (!k) return;
+  if (czesc === 1) { k.msb = v; ustawWartosc(id, v << 7); }
+  else ustawWartosc(id, (k.msb << 7) | v);
+}
+
+function obsluz(ev) {
+  licznik++; document.getElementById("licznik").textContent = licznik;
+  let nazwa = null, id = null;
+  const on = ev.type === "note_on" && ev.d2 > 0;
+  const ch = ev.ch;
+  if (ev.type === "note_on" || ev.type === "note_off") {
+    if (ch === 0 || ch === 1) {
+      const d = ch + 1, kod = NUTY_DECK[ev.d1];
+      if (kod) {
+        const baza = kod.replace(/[+!~@]/g, ""), shift = kod.endsWith("+"), impuls = kod.endsWith("~"), dlugi = kod.endsWith("!");
+        if (baza === "shift") stanShift[d] = on;
+        id = `d${d}_${baza === "jog" ? "jog" : baza}`;
+        if (baza === "play" && impuls) { swiec(`d${d}_play`, true, "blysk"); swiec(`d${d}_chfader`, true, "blysk"); }
+        else if (baza === "cue" && impuls) { swiec(`d${d}_cue`, true, "blysk"); swiec(`d${d}_chfader`, true, "blysk"); }
+        else if (baza === "jog") swiec(`d${d}_jog`, on);
+        else if (baza === "sync") { swiec(id, true, dlugi || shift ? "shift" : "blysk"); }
+        else swiec(id, on, shift ? "shift" : "on");
+        nazwa = `deck ${d} · ${NAZWY[baza] || baza}${shift ? " +SHIFT" : ""}${dlugi ? " (długie)" : ""}`;
+      }
+    } else if (ch === 6) {
+      const kod = NUTY_GLOB[ev.d1];
+      if (kod) { const baza = kod.replace("+", ""), shift = kod.endsWith("+"); id = baza;
+        swiec(baza, on, shift ? "shift" : "on"); nazwa = `${NAZWY[baza] || baza}${shift ? " +SHIFT" : ""}`;
+        if (baza === "mono_stereo") nazwa += ev.d2 ? " = MONO" : " = STEREO"; }
+    } else if (ch === 4 || ch === 5) {
+      const kod = NUTY_FX[ev.d1];
+      if (kod) { const baza = kod.replace("+", ""), shift = kod.endsWith("+"); id = baza;
+        if (baza === "fx_chsel") {
+          fxsel[ch][ev.d1] = ev.d2; zobacz("fx_chsel");
+          const poz = fxsel[4][16] && fxsel[5][17] ? 2 : fxsel[5][17] ? 1 : 0;
+          KONTROLKI.fx_chsel.u.setAttribute("y", KONTROLKI.fx_chsel.y - 2 + (poz - 1) * 4);
+          nazwa = `FX CH SELECT → ${KONTROLKI.fx_chsel.opcje[poz]}`;
+        } else { swiec(baza, on, shift ? "shift" : "on"); nazwa = `${NAZWY[baza] || baza}${shift ? " +SHIFT" : ""} (jednostka ${ch - 3})`; }
+      }
+    } else if (ch >= 7 && ch <= 10) {
+      const d = ch <= 8 ? 1 : 2, shift = ch === 8 || ch === 10, nr = (ev.d1 & 0x0F) + 1, tryb = ev.d1 & 0x70;
+      const t = ustawPad(d, nr, tryb, on, shift); id = `d${d}_pad${nr}`;
+      nazwa = `deck ${d} · PAD ${nr} [${t}]${shift ? " +SHIFT" : ""}`;
+    }
+  } else if (ev.type === "control_change") {
+    if (ch === 0 || ch === 1) {
+      const d = ch + 1, m = CC_DECK[ev.d1];
+      if (m) { const [baza, czesc] = m; id = `d${d}_${baza}`;
+        if (baza === "jog") { obroc(id, ev.d2 - 64, czesc === "relbok"); nazwa = `deck ${d} · JOG ${czesc === "relbok" ? "bok" : "talerz"}${czesc === "rel+" ? " +SHIFT" : ""} ${ev.d2 >= 64 ? "→" : "←"} ${Math.abs(ev.d2 - 64)}`; }
+        else { cc14(id, czesc, ev.d2); nazwa = `deck ${d} · ${NAZWY[baza]} ${czesc ? "MSB" : "LSB"} = ${KONTROLKI[id].v.textContent}`; }
+      }
+    } else if (ch === 6) {
+      const m = CC_GLOB[ev.d1];
+      if (m) { const [baza, czesc] = m; id = baza;
+        if (baza === "browse") { const k = KONTROLKI.browse; zobacz("browse"); k.msb = (k.msb || 0) + (ev.d2 < 64 ? ev.d2 : ev.d2 - 128);
+          k.w.setAttribute("transform", `rotate(${k.msb * 15} ${k.x} ${k.y})`); k.w.classList.add("on"); k.v.textContent = k.msb;
+          nazwa = `BROWSE ${ev.d2 < 64 ? "→" : "←"}${czesc === "relb+" ? " +SHIFT" : ""}`; }
+        else { cc14(baza, czesc, ev.d2); nazwa = `${NAZWY[baza]} ${czesc ? "MSB" : "LSB"} = ${KONTROLKI[baza].v.textContent}`; }
+      }
+    } else if ((ch === 4 || ch === 5) && (ev.d1 === 2 || ev.d1 === 34)) {
+      id = "fx_level"; cc14("fx_level", ev.d1 === 2 ? 1 : 0, ev.d2);
+      nazwa = `LEVEL/DEPTH (kanał ${ch}) = ${KONTROLKI.fx_level.v.textContent}`;
+    }
+  } else nazwa = null;
+
+  const log = document.getElementById("log");
+  const linia = document.createElement("div");
+  if (!nazwa) { nieznanych++; document.getElementById("nieznane").textContent = nieznanych; linia.className = "nieznany";
+    nazwa = `NIEZNANY ${ev.type} ch${ch} d1=${ev.d1} d2=${ev.d2}`; }
+  linia.innerHTML = `<span class="t">${ev.t.toFixed(3).padStart(9)}</span>  <span class="raw">${ev.raw.padEnd(9)}</span> ${nazwa}`;
+  log.prepend(linia);
+  while (log.childElementCount > 60) log.lastElementChild.remove();
+  if (!/MSB|LSB|JOG/.test(nazwa) || licznik % 8 === 0) document.getElementById("ostatni").innerHTML = `<b>${nazwa}</b> <span style="color:var(--przygaszony)">${ev.raw}</span>`;
+}
+
+function odswiezPokrycie() {
+  const wszystkie = Object.entries(KONTROLKI).filter(([, k]) => k.kind !== "tekst");
+  const widziane = wszystkie.filter(([, k]) => k.seen);
+  document.getElementById("pokrycie-tekst").textContent = `${widziane.length} / ${wszystkie.length} kontrolek widzianych`;
+  document.getElementById("pokrycie-pasek").style.width = (100 * widziane.length / wszystkie.length) + "%";
+  const br = document.getElementById("brakuje");
+  br.innerHTML = wszystkie.filter(([, k]) => !k.seen).map(([id, k]) =>
+    `<span>${id.startsWith("d1_") ? "D1 " : id.startsWith("d2_") ? "D2 " : ""}${k.label}</span>`).join("");
+}
+odswiezPokrycie();
+
+// ---------- połączenie ----------
+function polacz() {
+  const es = new EventSource("/events");
+  es.onopen = () => document.getElementById("polacz").classList.add("ok");
+  es.onerror = () => { document.getElementById("polacz").classList.remove("ok"); };
+  es.onmessage = e => obsluz(JSON.parse(e.data));
+}
+polacz();
+setInterval(async () => {
+  try { const s = await (await fetch("/stan")).json();
+    document.getElementById("port").textContent = s.port_midi || "nie widzę DDJ-FLX4"; } catch {}
+}, 2000);
+</script>
+</body>
+</html>
