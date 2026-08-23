@@ -79,6 +79,18 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(tresc)))
             self.end_headers()
             self.wfile.write(tresc)
+        elif u.path == "/set":
+            import glob
+            pliki = sorted(glob.glob(str(KATALOG.parents[1] /
+                "experiments_priv/2026-08-23_set_rejestracja/widok_setu.html")))
+            if not pliki:
+                self.send_response(404); self.end_headers(); return
+            tresc = pathlib.Path(pliki[-1]).read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(tresc)))
+            self.end_headers()
+            self.wfile.write(tresc)
         elif u.path == "/stan":
             tresc = json.dumps(_stan).encode()
             self.send_response(200)
