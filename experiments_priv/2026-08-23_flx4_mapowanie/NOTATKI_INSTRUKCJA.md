@@ -183,3 +183,23 @@ zdradza tryb wprost (baza w górnych 4 bitach). To drugie jest pewniejsze.
 * Czy tryb demo emituje MIDI.
 * Który fizyczny koniec TEMPO to 0x00 (PDF: strona „−").
 * Czy LSB zawsze następuje po MSB i czy urządzenie wysyła LSB przy małych ruchach.
+
+## ZMIERZONE na sprzęcie 23.08.2026 (nasluch.py, 120 s, 5059 komunikatów, Rekordbox ZAMKNIĘTY)
+
+Choreografia Janka: PLAY, crossfader, TEMPO deck 1 góra→dół, LEVEL/DEPTH,
+HOT CUE + pad 1 i 3 na decku 2, jog deck 1, BEAT SYNC. (Krok „SHIFT + fader
+kanału" nie zmieścił się w 2 minutach — do powtórki.)
+
+| Hipoteza z papieru | Wynik |
+|---|---|
+| LSB zawsze po MSB | **TAK**: 533/533 par crossfadera w kolejności MSB→LSB; pełny zakres 14-bit 0–16383, lewo = 0 |
+| TEMPO: strona „−" = 0 | **TAK**: ruch suwaka W DÓŁ zwiększa wartość; góra (−) = 0, dół (+) = 16383, środek = 8192 |
+| LEVEL/DEPTH: kanał 6 czy status B4? | **OBA**: każdy ruch idzie na kanał 4 I 5 (0-based; `B4 02/22` i `B5 02/22`) z tą samą wartością. PDF ma błąd/uproszczenie |
+| BEAT SYNC wysyła przy puszczeniu (*3) | **TAK**: ON i OFF przychodzą w odstępie 0 ms (para przy puszczeniu). Dla porównania PLAY: ON przy naciśnięciu, OFF 140 ms później |
+| Jog względny 0x41 w prawo / 0x3F w lewo | **TAK**: CC 34 (vinyl ON) wartości 65/66/67 w prawo zależnie od prędkości, 63 przy drgnięciu w lewo; bok koła CC 33 tak samo; JOG touch nuta 54 ON/OFF |
+| Pady: nuta = baza trybu + pad | **TAK**: deck 2 = `0x99`, HOT CUE pad 1 = nuta 0, pad 3 = nuta 2 |
+| Przycisk trybu HOT CUE deck 2 | **TAK**: `91 1B 7F/00` |
+| Nieznane komunikaty podczas gestów | **BRAK** (0 z 5059). Jednorazowo w pierwszym 5-sekundowym teście: `96 6D 00` (MONO/STEREO = STEREO) + `B4/B5 64 08` i `B4/B5 50 15` (CC 100 i CC 80 na kanałach FX — NIE ma ich w oficjalnej liście; nie powtórzyły się) |
+
+Do zrobienia: fader start (SHIFT + fader), nasłuch PRZY OTWARTYM Rekordboksie,
+tryb demo.
