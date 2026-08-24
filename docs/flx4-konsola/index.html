@@ -183,16 +183,30 @@ defs.innerHTML = `
 el("rect", { x: 0, y: 0, width: 482, height: 273, rx: 8, fill: "url(#korpusG)",
              stroke: "#060709", "stroke-width": 1.2 });
 el("rect", { x: 164, y: 0, width: 116, height: 273, fill: "#181b21", opacity: .85 });
-function rowek(x) {
-  el("line", { x1: x, y1: 3, x2: x, y2: 270, stroke: "#0a0c10", "stroke-width": 1.1 });
-  el("line", { x1: x + .75, y1: 3, x2: x + .75, y2: 270, stroke: "#3c4350", "stroke-width": .35, opacity: .55 });
+function rowek(x, y0 = 3) {
+  el("line", { x1: x, y1: y0, x2: x, y2: 270, stroke: "#0a0c10", "stroke-width": 1.1 });
+  el("line", { x1: x + .75, y1: y0, x2: x + .75, y2: 270, stroke: "#3c4350", "stroke-width": .35, opacity: .55 });
 }
-rowek(164);          // deck 1 | kolumna MIC/SMART/HP
-rowek(200.5);        // kolumna MIC/SMART/HP | środek z EQ i miernikiem (sekcja MIDI)
-rowek(281);          // środek | kolumna MASTER LEVEL / BEAT FX
-rowek(317.5);        // kolumna MASTER / BEAT FX | deck 2
+rowek(164);              // deck 1 | kolumna MIC/SMART/HP (krawędź modułu — pełna wysokość)
+rowek(200.5, 31);        // kolumna MIC/SMART/HP | środek — zaczyna się POD rzędem LOAD/BROWSE
+rowek(281, 31);          // środek | kolumna MASTER LEVEL / BEAT FX — też pod rzędem
+rowek(317.5);            // kolumna MASTER / BEAT FX | deck 2 (krawędź — pełna wysokość)
+el("line", { x1: 166, y1: 30, x2: 279, y2: 30, stroke: "#0a0c10", "stroke-width": .9 });
+el("line", { x1: 166, y1: 30.7, x2: 279, y2: 30.7, stroke: "#3c4350", "stroke-width": .3, opacity: .5 });
 el("rect", { x: 0, y: 0, width: 482, height: 273, rx: 8, filter: "url(#szum)", "pointer-events": "none" });
-etykM(185, 52, "DDJ-FLX4");
+(function legenda() {
+  const linia = (y, t, rozm, waga, kolor) => {
+    const n = el("text", { x: 184, y, "text-anchor": "middle", fill: kolor,
+      "font-size": rozm, "font-weight": waga, "letter-spacing": ".08em",
+      "font-family": "-apple-system, system-ui, sans-serif" });
+    n.textContent = t;
+  };
+  linia(38, "PERFORMANCE", 2.4, 500, "#8d939f");
+  linia(41.4, "DJ CONTROLLER", 2.4, 500, "#8d939f");
+  linia(48, "DDJ-FLX4", 5.4, 700, "#c9cdd6");
+  linia(56, "⌾ rekordbox", 3.4, 600, "#aeb3bd");
+  linia(62, "serato", 3.6, 700, "#aeb3bd");
+})();
 
 function etyk(x, y, t, duza = false) { const n = el("text", { x, y, class: "etyk" + (duza ? " duza" : "") }); n.textContent = t; return n; }
 function etykM(x, y, t) { const n = el("text", { x, y, class: "etyk marka", "text-anchor": "middle" }); n.textContent = t; return n; }
@@ -344,12 +358,12 @@ for (const mx of [236.8, 245.2]) {
   for (let i = 0; i < 6; i++) el("line", { x1: mx - 1.5, y1: 110.6 - i * 8.6, x2: mx + 1.5, y2: 110.6 - i * 8.6, class: "seg" });
 }
 etyk(241, 119, "MIERNIK");
-galka("mic_level", 183.7, 85.5, "MIC LEVEL", 5.2);
+galka("mic_level", 184, 85.5, "MIC LEVEL", 5.2);
 galka("d1_cfx", 221.4, 136, "CFX"); galka("d2_cfx", 262, 136, "CFX");
-guzik("smart_cfx", 181, 133, "SMART CFX", 3.4);
+guzik("smart_cfx", 184, 133, "SMART CFX", 3.4);
 guzik("d1_chcue", 221.4, 161.4, "CUE", 3.4, "rect"); guzik("d2_chcue", 262, 161.4, "CUE", 3.4, "rect");
-galka("hp_mix", 185, 161.4, "HP MIX", 5.2);
-galka("hp_level", 185, 188, "HP LEVEL", 5.2);
+galka("hp_mix", 184, 161.4, "HP MIX", 5.2);
+galka("hp_level", 184, 188, "HP LEVEL", 5.2);
 
 guzik("smart_fader", 184, 219, "SMART FADER", 3.4);
 suwak("d1_chfader", 221.4, 179, 227, "CH 1"); suwak("d2_chfader", 262, 179, 227, "CH 2");
@@ -359,12 +373,12 @@ suwak("crossfader", 244.7, 217, 265, "CROSSFADER", true);
 galka("master_level", 298.3, 33.6, "MASTER LEVEL", 6.6);
 guzik("master_cue", 298.3, 62, "MASTER CUE", 3.4, "rect");
 etykM(298.3, 100, "BEAT FX");
-przelacznik("fx_chsel", 304.7, 113, "1 · 2 · 1&2", ["CH1", "CH2", "CH1&2"]);
-guzik("fx_select", 301, 136, "FX SELECT", 3.4, "rect");
+przelacznik("fx_chsel", 302, 113, "1 · 2 · 1&2", ["CH1", "CH2", "CH1&2"]);
+guzik("fx_select", 298.3, 136, "FX SELECT", 3.4, "rect");
 guzik("fx_beatL", 293.6, 161, "◁", 3.2); guzik("fx_beatR", 310.4, 161, "▷", 3.2);
 etyk(302, 150.5, "BEAT");
 galka("fx_level", 298.3, 189.6, "LEVEL/DEPTH", 7);
-guzik("fx_onoff", 297.5, 220.5, "ON/OFF", 6, "circle", true);
+guzik("fx_onoff", 298.3, 220.5, "ON/OFF", 6, "circle", true);
 guzik("mono_stereo", 218.5, 268, "", 2, "rect");
 etyk(247, 269.3, "TYŁ: MONO / STEREO");
 
