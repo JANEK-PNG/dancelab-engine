@@ -40,27 +40,34 @@
   #brakuje span { display: inline-block; margin: 0 6px 2px 0; }
   #ostatni { font-size: 14px; min-height: 22px; }
   #ostatni b { color: var(--blysk); font-weight: 600; }
-  /* elementy SVG */
-  .etyk { fill: var(--przygaszony); font-size: 4.2px; text-anchor: middle;
-          font-family: -apple-system, system-ui, sans-serif; letter-spacing: .03em; }
-  .etyk.duza { font-size: 5px; fill: var(--tekst); }
-  .guzik { fill: var(--guzik); stroke: #3a404c; stroke-width: .6; transition: fill .08s, stroke .08s; }
-  .guzik.on { fill: var(--akcent); stroke: #fff; }
-  .guzik.blysk { fill: var(--blysk); stroke: #fff; }
-  .guzik.shift { fill: #a78bfa; stroke: #fff; }
-  .galka { fill: var(--guzik); stroke: #3a404c; stroke-width: .6; }
-  .galka-wsk { stroke: var(--tekst); stroke-width: 1.2; stroke-linecap: round; }
-  .galka-wsk.on { stroke: var(--akcent); }
-  .tor { fill: #0a0b0e; stroke: #30353f; stroke-width: .5; }
-  .uchwyt { fill: #3a404c; stroke: #5a6170; stroke-width: .5; }
-  .uchwyt.on { fill: var(--akcent); }
-  .jog { fill: var(--korpus2); stroke: #3a404c; stroke-width: .8; }
-  .jog-srodek { fill: #101217; stroke: #3a404c; stroke-width: .5; }
-  .jog-wsk { stroke: var(--tekst); stroke-width: 1.4; stroke-linecap: round; }
-  .jog-pierscien { fill: none; stroke: transparent; stroke-width: 3; }
-  .jog-pierscien.on { stroke: var(--akcent); }
-  .pad { fill: #2a2430; stroke: #4a4255; stroke-width: .5; rx: 1.5; }
-  .wart { fill: var(--akcent); font-size: 3.6px; text-anchor: middle; font-family: ui-monospace, Menlo, monospace; }
+  /* elementy SVG — rzut wg oficjalnego rysunku (482×273 mm) */
+  .etyk { fill: #737b8c; font-size: 3.1px; text-anchor: middle; text-transform: uppercase;
+          font-family: -apple-system, system-ui, sans-serif; letter-spacing: .09em; font-weight: 500; }
+  .etyk.duza { font-size: 4.6px; fill: #9aa2b1; letter-spacing: .22em; }
+  .etyk.marka { font-size: 5.2px; fill: #b8bec9; letter-spacing: .14em; font-weight: 600; }
+  .guzik { fill: #20242c; stroke: #0c0e12; stroke-width: .7; transition: fill .1s; }
+  .guzik-obw { fill: none; stroke: #3b4250; stroke-width: .45; }
+  .guzik.on { fill: var(--akcent); filter: url(#lsn); }
+  .guzik.blysk { fill: var(--blysk); filter: url(#lsn); }
+  .guzik.shift { fill: #a78bfa; filter: url(#lsn); }
+  .galka { fill: #262b35; stroke: #0c0e12; stroke-width: .7; }
+  .galka-czapka { fill: #1b1f27; }
+  .galka-wsk { stroke: #c9cfda; stroke-width: 1; stroke-linecap: round; }
+  .galka-wsk.on { stroke: var(--akcent); filter: url(#lsn); }
+  .skala { stroke: #3b4250; stroke-width: .4; }
+  .tor { fill: #08090c; stroke: #2c313c; stroke-width: .45; }
+  .uchwyt { fill: #454c5a; stroke: #6a7280; stroke-width: .4; }
+  .uchwyt.on { fill: var(--akcent); filter: url(#lsn); }
+  .jog { fill: url(#jogG); stroke: #0c0e12; stroke-width: .9; }
+  .jog-raster { fill: none; stroke: #30364200; stroke-width: 6; }
+  .jog-srodek { fill: #0e1014; stroke: #2c313c; stroke-width: .5; }
+  .jog-wsk { stroke: #c9cfda; stroke-width: 1.3; stroke-linecap: round; }
+  .jog-pierscien { fill: none; stroke: transparent; stroke-width: 2.4; }
+  .jog-pierscien.on { stroke: var(--akcent); filter: url(#lsn); }
+  .pad { fill: #221e28; stroke: #0c0e12; stroke-width: .6; rx: 1.8; }
+  .pad-obw { fill: none; stroke: #4a4255; stroke-width: .4; rx: 1.8; }
+  .seg { fill: none; stroke: #262b35; stroke-width: 2.2; }
+  .wart { fill: var(--akcent); font-size: 3.2px; text-anchor: middle; font-family: ui-monospace, Menlo, monospace; }
 </style>
 </head>
 <body>
@@ -117,101 +124,166 @@ const el = (tag, attrs, parent = svg) => {
 const KONTROLKI = {};   // id → {kind, nodes..., seen}
 const M = x => x + 312; // deck 2 = PRZESUNIĘTA kopia decka 1 (oficjalny rysunek), nie lustro
 
-el("rect", { x: 0, y: 0, width: 482, height: 273, rx: 6, fill: "var(--korpus)" });
-[[170, 0, 142, 273]].forEach(([x, y, w, h]) => el("rect", { x, y, width: w, height: h, fill: "#181b21" }));
+// tło i defs — wymiary i pozycje zdjęte z oficjalnego rysunku (300 dpi)
+const defs = el("defs", {});
+defs.innerHTML = `
+  <linearGradient id="korpusG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#1d2027"/><stop offset="1" stop-color="#15171d"/></linearGradient>
+  <radialGradient id="jogG" cx=".5" cy=".42" r=".7">
+    <stop offset="0" stop-color="#262a33"/><stop offset=".8" stop-color="#1a1d24"/>
+    <stop offset="1" stop-color="#14161c"/></radialGradient>
+  <filter id="lsn" x="-60%" y="-60%" width="220%" height="220%">
+    <feGaussianBlur stdDeviation="1.1" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
+el("rect", { x: 0, y: 0, width: 482, height: 273, rx: 8, fill: "url(#korpusG)",
+             stroke: "#060709", "stroke-width": 1.2 });
+el("rect", { x: 164, y: 0, width: 116, height: 273, fill: "#181b21", opacity: .85 });
+[164, 280].forEach(x => el("line", { x1: x, y1: 2, x2: x, y2: 271, stroke: "#0c0e12", "stroke-width": .8 }));
+etykM(188, 27, "DDJ-FLX4");
 
 function etyk(x, y, t, duza = false) { const n = el("text", { x, y, class: "etyk" + (duza ? " duza" : "") }); n.textContent = t; return n; }
+function etykM(x, y, t) { const n = el("text", { x, y, class: "etyk marka", "text-anchor": "middle" }); n.textContent = t; return n; }
 
-function guzik(id, x, y, label, r = 5, shape = "circle") {
-  const n = shape === "circle" ? el("circle", { cx: x, cy: y, r, class: "guzik" })
-                               : el("rect", { x: x - r * 1.6, y: y - r * .55, width: r * 3.2, height: r * 1.1, rx: 1, class: "guzik" });
-  etyk(x, y + r + 5, label);
+function guzik(id, x, y, label, r = 5, shape = "circle", jasny = false) {
+  if (shape === "circle") {
+    el("circle", { cx: x, cy: y, r: r + 1.1, class: "guzik-obw" });
+    var n = el("circle", { cx: x, cy: y, r, class: "guzik" });
+    if (jasny) n.style.fill = "#3a4150";
+  } else {
+    var n = el("rect", { x: x - r * 1.7, y: y - r * .62, width: r * 3.4, height: r * 1.24, rx: .9, class: "guzik" });
+    el("rect", { x: x - r * 1.7 - .8, y: y - r * .62 - .8, width: r * 3.4 + 1.6, height: r * 1.24 + 1.6, rx: 1.2, class: "guzik-obw" });
+  }
+  etyk(x, y + (shape === "circle" ? r + 4.6 : r + 4), label);
   KONTROLKI[id] = { kind: "guzik", n, seen: false, label };
 }
 function galka(id, x, y, label, r = 6) {
+  // skala: kreski na −135° i +135° oraz środek
+  for (const kat of [-135, 0, 135]) {
+    const rad = (kat - 90) * Math.PI / 180;
+    el("line", { x1: x + Math.cos(rad) * (r + 1.6), y1: y + Math.sin(rad) * (r + 1.6),
+                 x2: x + Math.cos(rad) * (r + 3), y2: y + Math.sin(rad) * (r + 3), class: "skala" });
+  }
   el("circle", { cx: x, cy: y, r, class: "galka" });
-  const w = el("line", { x1: x, y1: y, x2: x, y2: y - r + 1.2, class: "galka-wsk" });
-  const v = el("text", { x, y: y + r + 9, class: "wart" }); v.textContent = "";
-  etyk(x, y + r + 5, label);
+  el("circle", { cx: x, cy: y, r: r * .62, class: "galka-czapka" });
+  const w = el("line", { x1: x, y1: y - r * .35, x2: x, y2: y - r + .9, class: "galka-wsk" });
+  const v = el("text", { x, y: y + r + 8.4, class: "wart" });
+  etyk(x, y + r + 4.8, label);
   KONTROLKI[id] = { kind: "galka", w, v, x, y, seen: false, label, msb: 0 };
 }
 function suwak(id, x, y1, y2, label, poziomy = false, odwroc = false) {
   if (!poziomy) {
-    el("rect", { x: x - 1.2, y: y1, width: 2.4, height: y2 - y1, class: "tor" });
-    const u = el("rect", { x: x - 5, y: (y1 + y2) / 2 - 2.5, width: 10, height: 5, rx: 1, class: "uchwyt" });
-    etyk(x, y2 + 6, label);
-    const v = el("text", { x, y: y1 - 3, class: "wart" });
+    el("rect", { x: x - 6.5, y: y1 - 3, width: 13, height: y2 - y1 + 6, rx: 1.4, fill: "#101318",
+                 stroke: "#0c0e12", "stroke-width": .5 });
+    el("rect", { x: x - 1, y: y1, width: 2, height: y2 - y1, class: "tor" });
+    el("line", { x1: x - 5, y1: (y1 + y2) / 2, x2: x - 2.4, y2: (y1 + y2) / 2, class: "skala" });
+    el("line", { x1: x + 2.4, y1: (y1 + y2) / 2, x2: x + 5, y2: (y1 + y2) / 2, class: "skala" });
+    const u = el("rect", { x: x - 5.4, y: (y1 + y2) / 2 - 2.2, width: 10.8, height: 4.4, rx: .8, class: "uchwyt" });
+    el("line", { x1: x - 5.4, y1: 0, x2: x + 5.4, y2: 0, stroke: "#0c0e12", "stroke-width": .5,
+                 transform: `translate(0 ${(y1 + y2) / 2})`, class: "uchwyt-kreska" });
+    etyk(x, y2 + 7, label);
+    const v = el("text", { x, y: y1 - 4.4, class: "wart" });
     KONTROLKI[id] = { kind: "suwak", u, v, x, y1, y2, poziomy, odwroc, seen: false, label, msb: 0 };
   } else {
-    el("rect", { x: y1, y: x - 1.2, width: y2 - y1, height: 2.4, class: "tor" });
-    const u = el("rect", { x: (y1 + y2) / 2 - 2.5, y: x - 5, width: 5, height: 10, rx: 1, class: "uchwyt" });
-    etyk((y1 + y2) / 2, x + 10, label);
-    const v = el("text", { x: (y1 + y2) / 2, y: x - 7, class: "wart" });
+    el("rect", { x: y1 - 3, y: x - 6.5, width: y2 - y1 + 6, height: 13, rx: 1.4, fill: "#101318",
+                 stroke: "#0c0e12", "stroke-width": .5 });
+    el("rect", { x: y1, y: x - 1, width: y2 - y1, height: 2, class: "tor" });
+    const u = el("rect", { x: (y1 + y2) / 2 - 2.2, y: x - 5.4, width: 4.4, height: 10.8, rx: .8, class: "uchwyt" });
+    etyk((y1 + y2) / 2, x + 12, label);
+    const v = el("text", { x: (y1 + y2) / 2, y: x - 8.4, class: "wart" });
     KONTROLKI[id] = { kind: "suwak", u, v, x, y1, y2, poziomy, seen: false, label, msb: 0 };
   }
 }
-function jog(id, x, y, r = 52) {
+function jog(id, x, y, r = 70) {
   el("circle", { cx: x, cy: y, r, class: "jog" });
-  const p = el("circle", { cx: x, cy: y, r: r - 2, class: "jog-pierscien" });
-  el("circle", { cx: x, cy: y, r: r * .36, class: "jog-srodek" });
-  const w = el("line", { x1: x, y1: y - r * .45, x2: x, y2: y - r + 4, class: "jog-wsk" });
-  const v = el("text", { x, y: y + 2, class: "wart" });
+  el("circle", { cx: x, cy: y, r: r - 3.2, fill: "none", stroke: "#0c0e12", "stroke-width": .6 });
+  // radełko: krótkie promienie po obwodzie
+  for (let i = 0; i < 72; i++) {
+    const rad = i / 72 * 2 * Math.PI;
+    el("line", { x1: x + Math.cos(rad) * (r - 2.8), y1: y + Math.sin(rad) * (r - 2.8),
+                 x2: x + Math.cos(rad) * (r - .6), y2: y + Math.sin(rad) * (r - .6),
+                 stroke: "#262b35", "stroke-width": .5 });
+  }
+  const p = el("circle", { cx: x, cy: y, r: r - 5.5, class: "jog-pierscien" });
+  el("circle", { cx: x, cy: y, r: r * .38, class: "jog-srodek" });
+  el("circle", { cx: x, cy: y, r: r * .12, fill: "#1a1d24", stroke: "#2c313c", "stroke-width": .4 });
+  const w = el("line", { x1: x, y1: y - r * .18, x2: x, y2: y - r * .36, class: "jog-wsk" });
+  const v = el("text", { x, y: y + r * .55, class: "wart" });
   KONTROLKI[id] = { kind: "jog", w, p, v, x, y, kat: 0, suma: 0, seen: false, label: "JOG" };
 }
 function pad(id, x, y, nr) {
-  const n = el("rect", { x: x - 9, y: y - 7.5, width: 18, height: 15, class: "pad" });
-  const t = el("text", { x, y: y + 1.5, class: "etyk" }); t.textContent = nr;
+  el("rect", { x: x - 10.4, y: y - 9.4, width: 20.8, height: 18.8, rx: 1.8, class: "pad-obw" });
+  const n = el("rect", { x: x - 10, y: y - 9, width: 20, height: 18, rx: 1.6, class: "pad" });
+  const t = el("text", { x, y: y + 1.4, class: "etyk" }); t.textContent = nr;
   KONTROLKI[id] = { kind: "pad", n, t, seen: false, label: "PAD " + nr };
 }
 function przelacznik(id, x, y, label, opcje) {
-  el("rect", { x: x - 4, y: y - 6, width: 8, height: 12, rx: 1.5, class: "tor" });
-  const u = el("rect", { x: x - 3, y: y - 2, width: 6, height: 4, rx: .8, class: "uchwyt" });
-  etyk(x, y + 11, label);
+  el("rect", { x: x - 8, y: y - 3.2, width: 16, height: 6.4, rx: 1.2, class: "tor" });
+  [-4.5, 0, 4.5].forEach(dx => el("line", { x1: x + dx, y1: y - 5.2, x2: x + dx, y2: y - 3.8, class: "skala" }));
+  const u = el("rect", { x: x - 6.6, y: y - 2.2, width: 4.4, height: 4.4, rx: .8, class: "uchwyt" });
+  etyk(x, y + 7.4, label);
   KONTROLKI[id] = { kind: "przelacznik", u, x, y, opcje, seen: false, label };
 }
 
+// ---- geometria z rysunku: deck 2 = deck 1 przesunięty o 316,5 mm ----
+const D2 = 316.5;
 function deck(d) {
-  const X = d === 1 ? (x => x) : M, p = `d${d}_`;
-  etyk(X(84), 176, `DECK ${d}`, true);
-  guzik(p + "in", X(22), 35, "IN"); guzik(p + "out", X(45), 35, "OUT");
-  guzik(p + "beat4", X(70), 35, "4 BEAT/EXIT", 4);
-  guzik(p + "callL", X(97), 35, "CALL ◁", 3.5); guzik(p + "callR", X(118), 35, "CALL ▷", 3.5);
-  guzik(p + "sync", X(141), 33, "BEAT SYNC", 5);
-  jog(p + "jog", X(84), 115);
-  guzik(p + "shift", X(22), 189, "SHIFT", 4, "rect");
-  guzik(p + "cue", X(24), 216, "CUE", 8); guzik(p + "play", X(24), 247, "PLAY/PAUSE", 8);
-  [["hotcue", 48, "HOT CUE"], ["padfx1", 69, "PAD FX1"], ["beatjump", 90, "BEAT JUMP"], ["sampler", 111, "SAMPLER"]]
-    .forEach(([id, x, l]) => guzik(p + id, X(x), 206, l, 4, "rect"));
-  const px = [48, 69, 91, 113];
-  for (let i = 0; i < 8; i++) pad(p + "pad" + (i + 1), X(px[i % 4]), i < 4 ? 227 : 250, i + 1);
-  const tryb = el("text", { x: X(80), y: 268, class: "etyk" }); tryb.textContent = "";
+  const X = d === 1 ? (x => x) : (x => x + D2), p = `d${d}_`;
+  guzik(p + "in", X(21.5), 26.4, "IN", 7);
+  guzik(p + "out", X(46.7), 26.4, "OUT", 7);
+  guzik(p + "beat4", X(71.8), 26.4, "4 BEAT/EXIT", 5.2);
+  guzik(p + "callL", X(99), 26, "◁", 3.6); guzik(p + "callR", X(121), 26, "▷", 3.6);
+  etyk(X(110), 15.5, "CUE/LOOP CALL");
+  guzik(p + "sync", X(144.5), 26.4, "BEAT SYNC", 5.2);
+  jog(p + "jog", X(80), 109, 70);
+  guzik(p + "shift", X(21.5), 187, "SHIFT", 3.6, "rect");
+  guzik(p + "cue", X(20), 209, "CUE", 8.6);
+  guzik(p + "play", X(20), 238, "PLAY/PAUSE", 9.6);
+  [["hotcue", 48.6, "HOT CUE"], ["padfx1", 71.8, "PAD FX1"], ["beatjump", 95.1, "BEAT JUMP"], ["sampler", 118, "SAMPLER"]]
+    .forEach(([id, x, l]) => guzik(p + id, X(x), 197.7, l, 3.4, "rect"));
+  const px = [48.6, 71.8, 95.1, 118];
+  for (let i = 0; i < 8; i++) pad(p + "pad" + (i + 1), X(px[i % 4]), i < 4 ? 219.2 : 240.7, i + 1);
+  const tryb = el("text", { x: X(83), y: 262.5, class: "etyk" }); tryb.textContent = "";
   KONTROLKI[p + "tryb"] = { kind: "tekst", n: tryb };
-  suwak(p + "tempo", X(145), 194, 262, "TEMPO", false, true);
-  galka(p + "trim", d === 1 ? 220 : 261, 44, "TRIM");
-  galka(p + "hi", d === 1 ? 220 : 261, 68, "HI");
-  galka(p + "mid", d === 1 ? 220 : 261, 92, "MID");
-  galka(p + "low", d === 1 ? 220 : 261, 117, "LOW");
-  galka(p + "cfx", d === 1 ? 220 : 261, 145, "CFX");
-  guzik(p + "chcue", d === 1 ? 220 : 261, 170, "CUE", 3.5, "rect");
-  suwak(p + "chfader", d === 1 ? 220 : 261, 188, 240, `CH ${d}`);
+  suwak(p + "tempo", X(145.4), 180, 253, "TEMPO", false, true);
 }
 deck(1); deck(2);
-// przeglądanie + mikser globalny
-guzik("load1", 208, 22, "LOAD 1", 4, "rect"); galka("browse", 241, 22, "BROWSE", 8); guzik("load2", 273, 22, "LOAD 2", 4, "rect");
-suwak("crossfader", 258, 222, 260, "CROSSFADER", true);
-galka("master_level", 298, 42, "MASTER LEVEL"); guzik("master_cue", 298, 68, "MASTER CUE", 3.5, "rect");
-galka("mic_level", 182, 92, "MIC LEVEL", 5);
-guzik("smart_cfx", 182, 143, "SMART CFX", 3.5, "rect");
-galka("hp_mix", 182, 176, "HP MIX", 5); galka("hp_level", 182, 200, "HP LEVEL", 5);
-guzik("smart_fader", 182, 227, "SMART FADER", 3.5, "rect");
-// efekty
-etyk(298, 100, "BEAT FX", true);
-przelacznik("fx_chsel", 295, 117, "1 · 2 · 1&2", ["CH1", "CH2", "CH1&2"]);
-guzik("fx_select", 295, 139, "FX SELECT", 3.5, "rect");
-guzik("fx_beatL", 289, 170, "BEAT ◁", 3); guzik("fx_beatR", 305, 170, "BEAT ▷", 3);
-galka("fx_level", 298, 200, "LEVEL/DEPTH", 7);
-guzik("fx_onoff", 295, 227, "FX ON/OFF", 6);
-guzik("mono_stereo", 241, 268, "tył: MONO/STEREO", 2.5, "rect");
+
+// ---- moduł środkowy (mikser) ----
+guzik("load1", 208.8, 15.6, "LOAD 1", 4, "rect");
+galka("browse", 241, 14, "BROWSE", 7.6);
+guzik("load2", 274.6, 15.6, "LOAD 2", 4, "rect");
+galka("d1_trim", 221.4, 37, "TRIM"); galka("d2_trim", 262, 37, "TRIM");
+galka("d1_hi", 221.4, 62, "HI");     galka("d2_hi", 262, 62, "HI");
+galka("d1_mid", 221.4, 86, "MID");   galka("d2_mid", 262, 86, "MID");
+galka("d1_low", 221.4, 110, "LOW");  galka("d2_low", 262, 110, "LOW");
+// mierniki poziomu: świecą TYLKO od aplikacji (MIDI-OUT) — my ich nie widzimy; rysowane jako wygaszone
+for (const mx of [236.8, 245.2]) {
+  for (let i = 0; i < 6; i++) el("line", { x1: mx - 1.6, y1: 112 - i * 8.6, x2: mx + 1.6, y2: 112 - i * 8.6, class: "seg" });
+}
+etyk(241, 63.5, "MIERNIK");
+galka("mic_level", 183.7, 85.5, "MIC LEVEL", 5.2);
+galka("d1_cfx", 221.4, 136, "CFX"); galka("d2_cfx", 262, 136, "CFX");
+guzik("smart_cfx", 181, 133, "SMART CFX", 3.4);
+guzik("d1_chcue", 221.4, 161.4, "CUE", 3.4, "rect"); guzik("d2_chcue", 262, 161.4, "CUE", 3.4, "rect");
+galka("hp_mix", 185, 161.4, "MIX", 5.2);
+galka("hp_level", 185, 188, "LEVEL", 5.2);
+etyk(185, 152.8, "SŁUCHAWKI");
+guzik("smart_fader", 184, 219, "SMART FADER", 3.4);
+suwak("d1_chfader", 221.4, 179, 227, "CH 1"); suwak("d2_chfader", 262, 179, 227, "CH 2");
+suwak("crossfader", 244.7, 217, 265, "CROSSFADER", true);
+
+// ---- BEAT FX (przy prawym decku) + master ----
+galka("master_level", 298.3, 33.6, "MASTER LEVEL", 6.6);
+guzik("master_cue", 298.3, 62, "MASTER CUE", 3.4, "rect");
+etykM(298.3, 100, "BEAT FX");
+przelacznik("fx_chsel", 304.7, 113, "1 · 2 · 1&2", ["CH1", "CH2", "CH1&2"]);
+guzik("fx_select", 301, 136, "FX SELECT", 3.4, "rect");
+guzik("fx_beatL", 293.6, 161, "◁", 3.2); guzik("fx_beatR", 310.4, 161, "▷", 3.2);
+etyk(302, 150.5, "BEAT");
+galka("fx_level", 298.3, 189.6, "LEVEL/DEPTH", 7);
+guzik("fx_onoff", 297.5, 220.5, "ON/OFF", 6, "circle", true);
+guzik("mono_stereo", 241, 268.2, "", 2, "rect");
+etyk(241, 261.5, "tył: MONO/STEREO");
 
 // ---------- mapa MIDI (kanały 0-based; oficjalna lista AlphaTheta, zmierzona 23.08.2026) ----------
 const NUTY_DECK = { 11: "play", 14: "play+", 12: "cue", 72: "cue+", 63: "shift", 54: "jog@", 103: "jog@+",
@@ -326,7 +398,7 @@ function obsluz(ev) {
         if (baza === "fx_chsel") {
           fxsel[ch][ev.d1] = ev.d2; zobacz("fx_chsel");
           const poz = fxsel[4][16] && fxsel[5][17] ? 2 : fxsel[5][17] ? 1 : 0;
-          KONTROLKI.fx_chsel.u.setAttribute("y", KONTROLKI.fx_chsel.y - 2 + (poz - 1) * 4);
+          KONTROLKI.fx_chsel.u.setAttribute("x", KONTROLKI.fx_chsel.x - 6.6 + poz * 4.5);
           nazwa = `FX CH SELECT → ${KONTROLKI.fx_chsel.opcje[poz]}`;
         } else { swiec(baza, on, shift ? "shift" : "on"); nazwa = `${NAZWY[baza] || baza}${shift ? " +SHIFT" : ""} (jednostka ${ch - 3})`; }
       }
