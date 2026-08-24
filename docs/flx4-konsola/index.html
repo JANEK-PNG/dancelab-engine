@@ -392,12 +392,12 @@ function deck(d) {
 deck(1); deck(2);
 
 // ---------- RZĄD LOAD / BROWSE (y ~18) ----------
-etyk(208.8, 11, "LOAD"); etyk(273.7, 11, "LOAD");
-guzik("load1", 208.8, 18.9, "", 4.4, "rect");
-galka("browse", 240.5, 17, "", 8.8);
-guzik("load2", 273.7, 18.9, "", 4.4, "rect");
+etyk(209.55, 11, "LOAD"); etyk(274.45, 11, "LOAD");
+guzik("load1", 209.55, 18.9, "", 4.4, "rect");
+galka("browse", 242, 17, "", 8.8);
+guzik("load2", 274.45, 18.9, "", 4.4, "rect");
 KONTROLKI.load1.label = "LOAD 1"; KONTROLKI.load2.label = "LOAD 2"; KONTROLKI.browse.label = "BROWSE";
-ramka(208.8, 25.6, "♪"); ramka(240.5, 28.4, "BACK"); ramka(273.7, 25.6, "VIEW");
+ramka(209.55, 25.6, "♪"); ramka(242, 28.4, "BACK"); ramka(274.45, 25.6, "VIEW");
 
 // ---------- LEWA KOLUMNA (oś x = 184) ----------
 napis(184.65, 34.6, "PERFORMANCE", 2.5, 500, "#8d939f");
@@ -416,7 +416,7 @@ galka("hp_level", 184.65, 194.6, "", 6.8, ["−∞", "0"]); KONTROLKI.hp_level.l
 guzik("smart_fader", 184.65, 223.3, "", 5.6, "circle", false, "SMART FADER");
 
 // ---------- KANAŁY 1 i 2 (osie 221 / 260,6) ----------
-for (const [d, cx] of [[1, 221], [2, 260.6]]) {
+for (const [d, cx] of [[1, 222.1], [2, 261.7]]) {
   etyk(cx, 29.1, "TRIM");
   galka(`d${d}_trim`, cx, 40.4, "", 7.3, ["−∞", "+9"]); KONTROLKI[`d${d}_trim`].label = "TRIM";
   etyk(cx, 52.4, "HI");
@@ -433,18 +433,18 @@ for (const [d, cx] of [[1, 221], [2, 260.6]]) {
   KONTROLKI[`d${d}_chfader`].label = "CH FADER";
 }
 // miernik (5 segmentów na kolumnę) + wskaźniki MIDI i Bluetooth
-el("path", { d: "M 241.7 43.9 L 241.7 48.9 M 240 44.8 L 243.4 48 L 241.7 48.9 M 240 48 L 243.4 44.8 L 241.7 43.9",
+el("path", { d: "M 241.9 43.9 L 241.9 48.9 M 240.2 44.8 L 243.6 48 L 241.9 48.9 M 240.2 48 L 243.6 44.8 L 241.9 43.9",
              stroke: "#8d939f", "stroke-width": .45, fill: "none" });
-napis(241.7, 52.6, "MIDI", 2.4, 600, "#9aa2b1");
-el("rect", { x: 238.9, y: 54.9, width: 5.6, height: 2.6, rx: .7, fill: "none", stroke: "#8d939f", "stroke-width": .45 });
-for (const mx of [237, 245.5]) {
+napis(241.9, 52.6, "MIDI", 2.4, 600, "#9aa2b1");
+el("rect", { x: 239.1, y: 54.9, width: 5.6, height: 2.6, rx: .7, fill: "none", stroke: "#8d939f", "stroke-width": .45 });
+for (const mx of [237.65, 246.15]) {
   for (let i = 0; i < 5; i++)
     el("rect", { x: mx - 1.1, y: 69 + i * 8.4, width: 2.2, height: 5.4, rx: 1,
                  fill: "none", stroke: "#454c59", "stroke-width": .5 });
 }
 // Pioneer DJ + crossfader przy krawędzi (y 261)
-napis(240.5, 240.4, "Pioneer DJ", 5, 700, "#b8bec9", ".06em");
-suwak("crossfader", 261, 217.7, 265.3, "", true, false, [21, 8]);
+napis(241.9, 240.4, "Pioneer DJ", 5, 700, "#b8bec9", ".06em");
+suwak("crossfader", 261, 218.2, 265.6, "", true, false, [21, 8]);
 KONTROLKI.crossfader.label = "CROSSFADER";
 // MONO/STEREO (tył) — dyskretnie nad crossfaderem po lewej
 guzik("mono_stereo", 184.65, 236.5, "", 1.8, "rect"); KONTROLKI.mono_stereo.label = "MONO/STEREO (tył)";
