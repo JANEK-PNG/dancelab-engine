@@ -11,13 +11,20 @@ CO JEST ODTWARZANE (bo mamy to zmierzone w rejestrze):
   * EQ trzypasmowy jako IZOLATOR: skala z panelu FLX4 (−26 dB … +6 dB,
     na samym minimum kill), granice pasm 200 Hz / 3 kHz jak w automiksie,
   * TRIM jako wzmocnienie wejścia,
-  * TEMPO (suwak) jako zmiana prędkości odtwarzania.
+  * TEMPO (suwak) jako zmiana prędkości odtwarzania,
+  * HOT CUE: naciśnięcie pada przeskakuje do zapisanego punktu (pozycje
+    czytane z bazy Rekordboxa przez --hotcue),
+  * CFX (Sound Color FX) jako filtr: w lewo od środka ścina górę, w prawo dół,
+  * BEAT FX ECHO: włączenie/wyłączenie, głębokość z gałki LEVEL/DEPTH i wybór
+    kanału z przełącznika. Długość echa podaje się przez --echo-beats (Janek:
+    3/4 bitu); z samego MIDI da się odczytać TYLKO zmiany (BEAT ◁ ▷), bo
+    urządzenie nie mówi, na jakim podziale startuje.
 
 CZEGO ŚWIADOMIE NIE UDAJEMY (i dlatego nie zmyślamy):
   * JOG — scratch i pitch bend przesuwają FAZĘ utworu; odtworzenie tego
     wymagałoby modelu bezwładności talerza. Ruchy jogiem są w rejestrze i są
     RAPORTOWANE (ile, kiedy, którym deckiem), ale nie zmieniają dźwięku.
-  * Efekty (BEAT FX, Smart CFX) — to procesory Rekordboxa, nie nasze.
+  * Smart CFX — pakiet efektów Rekordboxa sterowany jedną gałką.
   * Smart Fader — gdy był włączony, Rekordbox sam ruszał EQ i echem, a tego
     w MIDI nie widać (patrz NOTATKI_INSTRUKCJA). Skrypt ostrzega, gdy wykryje
     włączenie w rejestrze.
@@ -48,9 +55,13 @@ PELNA = 16383
 
 # ---- mapa MIDI (0-based, zmierzona 23.08) ----
 CC_DECK = {0: "tempo", 4: "trim", 7: "hi", 11: "mid", 15: "low", 19: "fader"}
-CC_GLOB = {31: "crossfader"}
+CC_GLOB = {31: "crossfader", 23: "d1_cfx", 24: "d2_cfx"}
 NUTY_DECK = {11: "play", 12: "cue"}
 JOG_CC = {33, 34, 35, 41}
+FX_KANALY = (4, 5)          # jednostki efektów
+FX_ONOFF, FX_BEAT_MNIEJ, FX_BEAT_WIECEJ = 71, 74, 75
+FX_CH_BIT16, FX_CH_BIT17 = 16, 17
+PADY_KANALY = {7: 1, 8: 1, 9: 2, 10: 2}     # kanał → deck (8/10 = z SHIFT-em)
 
 
 def wczytaj(sciezka: pathlib.Path) -> list[dict]:
@@ -65,6 +76,8 @@ def automatyka(zdarzenia: list[dict]) -> dict:
     jog = {1: 0, 2: 0}
     smart = []
     msb: dict[tuple, int] = {}
+    fx = {"on": [], "beat": [], "kanal": [], "glebokosc": []}
+    bity = {16: 0, 17: 0}
 
     def dopisz(nazwa: str, t: float, v: float) -> None:
         tor.setdefault(nazwa, []).append((t - t0, v))
@@ -85,6 +98,22 @@ def automatyka(zdarzenia: list[dict]) -> dict:
                     msb[(ch, d1)] = d2
                 elif (d1 - 32) in CC_GLOB and (ch, d1 - 32) in msb:
                     dopisz(CC_GLOB[d1 - 32], t, ((msb[(ch, d1 - 32)] << 7) | d2) / PELNA)
+        if r["type"] == "control_change" and ch in FX_KANALY and d1 in (2, 34):
+            if d1 == 2:
+                msb[(ch, 2)] = d2
+            elif (ch, 2) in msb and ch == 4:        # gałka leci na obu kanałach — bierzemy jeden
+                fx["glebokosc"].append((t - t0, ((msb[(ch, 2)] << 7) | d2) / PELNA))
+        elif r["type"] == "note_on" and ch in FX_KANALY and d2 > 0:
+            if d1 == FX_ONOFF:
+                fx["on"].append(t - t0)
+            elif d1 in (FX_BEAT_MNIEJ, FX_BEAT_WIECEJ):
+                fx["beat"].append((t - t0, -1 if d1 == FX_BEAT_MNIEJ else +1))
+            elif d1 in (FX_CH_BIT16, FX_CH_BIT17):
+                bity[d1] = d2
+                poz = "CH1&2" if bity[16] and bity[17] else "CH2" if bity[17] else "CH1"
+                fx["kanal"].append((t - t0, poz))
+        elif r["type"] == "note_on" and ch in PADY_KANALY and d2 > 0 and (d1 & 0x70) == 0:
+            zdarz.append((t - t0, PADY_KANALY[ch], f"hotcue{(d1 & 0x0F) + 1}"))
         elif r["type"] == "note_on":
             if ch in (0, 1) and d1 in NUTY_DECK:
                 if d2 > 0:
@@ -96,7 +125,8 @@ def automatyka(zdarzenia: list[dict]) -> dict:
             elif ch == 6 and d1 in (0, 1):
                 smart.append((t - t0, "SMART CFX" if d1 == 0 else "SMART FADER"))
     dlugosc = zdarzenia[-1]["t"] - t0
-    return {"tor": tor, "zdarzenia": zdarz, "jog": jog, "smart": smart, "dlugosc": dlugosc}
+    return {"tor": tor, "zdarzenia": zdarz, "jog": jog, "smart": smart, "dlugosc": dlugosc,
+            "fx": fx}
 
 
 def probkuj(punkty: list[tuple[float, float]] | None, czasy: np.ndarray,
@@ -118,6 +148,37 @@ def db_z_pozycji(poz: np.ndarray, min_db: float, max_db: float,
     wzm = np.where(dol, min_db * (srodek - poz) / srodek, max_db * (poz - srodek) / srodek)
     g = 10.0 ** (wzm / 20.0)
     return np.where(poz <= kill_ponizej, 0.0, g).astype(np.float32)
+
+
+def filtr_cfx(y: np.ndarray, poz: np.ndarray, czasy: np.ndarray) -> np.ndarray:
+    """CFX = filtr: środek nic nie robi, w lewo dolnoprzepustowy, w prawo górno.
+
+    Liczone bankiem: pozycja kwantyzowana do 24 poziomów, każdy użyty poziom
+    filtruje CAŁY sygnał raz, potem bloki sklejane — inaczej 27 tys. filtrów
+    na jeden render.
+    """
+    from scipy.signal import butter, sosfiltfilt
+    if poz is None or np.all(np.abs(poz - 0.5) < 0.03):
+        return y
+    poziomy = np.clip(np.round(poz * 24).astype(int), 0, 24)
+    out = y.copy()
+    for lv in np.unique(poziomy):
+        p = lv / 24.0
+        if abs(p - 0.5) < 0.03:
+            continue
+        if p < 0.5:                       # dolnoprzepustowy: 20 kHz → 200 Hz
+            f = 200.0 * (20000.0 / 200.0) ** (p / 0.5)
+            sos = butter(4, min(f, 20000.0) / (SR / 2), btype="lowpass", output="sos")
+        else:                             # górnoprzepustowy: 20 Hz → 8 kHz
+            f = 20.0 * (8000.0 / 20.0) ** ((p - 0.5) / 0.5)
+            sos = butter(4, max(f, 20.0) / (SR / 2), btype="highpass", output="sos")
+        przef = sosfiltfilt(sos, y, axis=0).astype(np.float32)
+        maska = poziomy == lv
+        for k in np.flatnonzero(maska):
+            a0, a1 = k * BLOK, (k + 1) * BLOK
+            if a0 < len(out):
+                out[a0:min(a1, len(out))] = przef[a0:min(a1, len(out))]
+    return out
 
 
 def pasma(y: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -149,7 +210,9 @@ def wczytaj_audio(sciezka: str) -> np.ndarray:
 
 
 def render(a: dict, sciezki: dict[int, str], wyjscie: pathlib.Path,
-           start: dict[int, float]) -> dict:
+           start: dict[int, float], echo_beats: float = 0.0,
+           bpm: float = 126.0, hotcue: dict | None = None) -> dict:
+    hotcue = hotcue or {}
     import soundfile as sf
     n_krokow = int(np.ceil(a["dlugosc"] * SR / BLOK)) + 1
     czasy = np.arange(n_krokow) * BLOK / SR
@@ -159,6 +222,11 @@ def render(a: dict, sciezki: dict[int, str], wyjscie: pathlib.Path,
     raport = {}
     for deck, sciezka in sciezki.items():
         y = wczytaj_audio(sciezka)
+        # CFX działa na CAŁYM kanale przed EQ — jak w mikserze
+        poz_cfx = a["tor"].get(f"d{deck}_cfx")
+        if poz_cfx:
+            czasy_pr = np.arange(len(y) // BLOK + 1) * BLOK / SR
+            y = filtr_cfx(y, probkuj(poz_cfx, czasy_pr, 0.5), czasy_pr)
         low, mid, hi = pasma(y)
         g_fader = probkuj(a["tor"].get(f"d{deck}_fader"), czasy, 1.0)
         # TRIM jest liniowy w GŁOŚNOŚCI, nie w decybelach: środek = jedność,
@@ -202,6 +270,10 @@ def render(a: dict, sciezki: dict[int, str], wyjscie: pathlib.Path,
                     poz = cue; gra = True      # trzymany CUE gra od punktu
                 elif co == "cue_off":
                     gra = False; poz = cue     # puszczony wraca i staje
+                elif co.startswith("hotcue"):
+                    cel = hotcue.get(deck, {}).get(int(co[6:]))
+                    if cel is not None:        # skok do zapisanego punktu i granie
+                        poz = cel * SR; gra = True
                 i_zd += 1
             if not gra:
                 continue
@@ -234,6 +306,32 @@ def render(a: dict, sciezki: dict[int, str], wyjscie: pathlib.Path,
         raport[deck] = {"plik": pathlib.Path(sciezka).name,
                         "grał_sekund": round(grane_kroki * BLOK / SR, 1)}
 
+    # ---- BEAT FX ECHO (włączane/wyłączane, głębokość z gałki) ----
+    fx = a.get("fx", {})
+    if fx.get("on") and echo_beats:
+        wl = np.zeros(n_krokow, dtype=bool)          # kiedy efekt był włączony
+        stan = False; i = 0
+        chwile = sorted(fx["on"])
+        for k in range(n_krokow):
+            while i < len(chwile) and chwile[i] <= czasy[k]:
+                stan = not stan; i += 1
+            wl[k] = stan
+        glebokosc = probkuj(fx.get("glebokosc"), czasy, 0.0)
+        opoznienie = int(round(60.0 / bpm * echo_beats * SR))
+        if opoznienie > 0:
+            sucho = mix.copy()
+            ogon = np.zeros_like(mix)
+            waga = 1.0
+            for powtorka in range(1, 7):             # kolejne odbicia, coraz cichsze
+                waga *= 0.55
+                przes = opoznienie * powtorka
+                if przes >= len(mix):
+                    break
+                ogon[przes:] += sucho[:-przes] * waga
+            # głębokość steruje ilością ogona, tylko gdy efekt włączony
+            ile = (glebokosc * wl.astype(np.float32)).repeat(BLOK)[:len(mix), None]
+            mix = sucho + ogon * ile * 0.9
+
     szczyt = float(np.abs(mix).max())
     if szczyt > 1.0:                                 # tylko zapobiegawczo, bez kompresji
         mix /= szczyt
@@ -251,6 +349,11 @@ def main() -> int:
     ap.add_argument("--start1", type=float, default=0.0, help="sekunda startu utworu na decku 1")
     ap.add_argument("--start2", type=float, default=0.0)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--echo-beats", type=float, default=0.0,
+                    help="długość echa w bitach (np. 0.75 = 3/4); 0 = bez echa")
+    ap.add_argument("--bpm", type=float, default=126.0, help="tempo setu dla echa")
+    ap.add_argument("--hotcue1", default="", help="pady decka 1, np. 1:183.15,2:300")
+    ap.add_argument("--hotcue2", default="", help="pady decka 2")
     args = ap.parse_args()
 
     p = pathlib.Path(args.rejestr)
@@ -269,6 +372,13 @@ def main() -> int:
     for d, ile in a["jog"].items():
         if ile:
             print(f"   ⚠ deck {d}: jog {ile} tyknięć — NIE odtwarzane (scratch/bend zmienia fazę)")
+    fx = a.get("fx", {})
+    if fx.get("on"):
+        print(f"   BEAT FX: {len(fx['on'])} przełączeń (pierwsze {fx['on'][0]:.1f}s), "
+              f"{len(fx.get('glebokosc', []))} ruchów gałki LEVEL/DEPTH, "
+              f"{len(fx.get('beat', []))} zmian długości")
+        if not any(True for _ in ()):
+            pass
     for t, co in a["smart"]:
         print(f"   ⚠ {t:.1f}s {co} — Rekordbox robił wtedy coś, czego MIDI nie pokazuje")
 
@@ -279,7 +389,15 @@ def main() -> int:
     sciezki = {d: s for d, s in ((1, args.deck1), (2, args.deck2)) if s}
     out = pathlib.Path(args.out or (p.parent / (p.stem + "_odtworzony.wav")))
     print(f"\nrenderuję → {out.name}")
-    raport = render(a, sciezki, out, {1: args.start1, 2: args.start2})
+    def mapa(txt):
+        out2 = {}
+        for kawalek in filter(None, txt.split(",")):
+            nr, sek = kawalek.split(":")
+            out2[int(nr)] = float(sek)
+        return out2
+    hot = {1: mapa(args.hotcue1), 2: mapa(args.hotcue2)}
+    raport = render(a, sciezki, out, {1: args.start1, 2: args.start2},
+                    echo_beats=args.echo_beats, bpm=args.bpm, hotcue=hot)
     print(json.dumps(raport, ensure_ascii=False, indent=1))
     return 0
 
