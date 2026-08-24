@@ -85,9 +85,14 @@ def automatyka(zdarzenia: list[dict]) -> dict:
                     msb[(ch, d1)] = d2
                 elif (d1 - 32) in CC_GLOB and (ch, d1 - 32) in msb:
                     dopisz(CC_GLOB[d1 - 32], t, ((msb[(ch, d1 - 32)] << 7) | d2) / PELNA)
-        elif r["type"] == "note_on" and d2 > 0:
+        elif r["type"] == "note_on":
             if ch in (0, 1) and d1 in NUTY_DECK:
-                zdarz.append((t - t0, ch + 1, NUTY_DECK[d1]))
+                if d2 > 0:
+                    zdarz.append((t - t0, ch + 1, NUTY_DECK[d1]))
+                elif d1 == 12:      # CUE puszczony: powrót do punktu i pauza (Cue Point Sampler)
+                    zdarz.append((t - t0, ch + 1, "cue_off"))
+            elif d2 == 0:
+                continue
             elif ch == 6 and d1 in (0, 1):
                 smart.append((t - t0, "SMART CFX" if d1 == 0 else "SMART FADER"))
     dlugosc = zdarzenia[-1]["t"] - t0
@@ -126,9 +131,16 @@ def pasma(y: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
 
 
 def wczytaj_audio(sciezka: str) -> np.ndarray:
+    import warnings
     import librosa
-    import soundfile as sf
-    dane, sr = sf.read(sciezka, dtype="float32", always_2d=True)
+    try:
+        import soundfile as sf
+        dane, sr = sf.read(sciezka, dtype="float32", always_2d=True)
+    except Exception:            # m4a/aac — soundfile nie umie, librosa przez audioread
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            y, sr = librosa.load(sciezka, sr=None, mono=False)
+        dane = (y.T if y.ndim == 2 else np.column_stack([y, y])).astype(np.float32)
     if dane.shape[1] == 1:
         dane = np.repeat(dane, 2, axis=1)
     if sr != SR:
@@ -149,15 +161,26 @@ def render(a: dict, sciezki: dict[int, str], wyjscie: pathlib.Path,
         y = wczytaj_audio(sciezka)
         low, mid, hi = pasma(y)
         g_fader = probkuj(a["tor"].get(f"d{deck}_fader"), czasy, 1.0)
-        g_trim = db_z_pozycji(probkuj(a["tor"].get(f"d{deck}_trim"), czasy, 0.5),
-                              TRIM_MIN_DB, TRIM_MAX_DB, kill_ponizej=0.0)
+        # TRIM jest liniowy w GŁOŚNOŚCI, nie w decybelach: środek = jedność,
+        # dół = cisza, góra = +9 dB. Wcześniej liczony jak EQ (−60 dB w dole),
+        # przez co trim Janka na 21 % dawał −35 dB i cały deck 2 ginął
+        # (bas w renderze był o 15 dB cichszy niż w jego nagraniu).
+        poz_trim = probkuj(a["tor"].get(f"d{deck}_trim"), czasy, 0.5)
+        g_trim = np.where(poz_trim <= 0.5, poz_trim / 0.5,
+                          1.0 + (poz_trim - 0.5) / 0.5 * (10 ** (TRIM_MAX_DB / 20) - 1)
+                          ).astype(np.float32)
         g_low = db_z_pozycji(probkuj(a["tor"].get(f"d{deck}_low"), czasy, 0.5), EQ_MIN_DB, EQ_MAX_DB)
         g_mid = db_z_pozycji(probkuj(a["tor"].get(f"d{deck}_mid"), czasy, 0.5), EQ_MIN_DB, EQ_MAX_DB)
         g_hi = db_z_pozycji(probkuj(a["tor"].get(f"d{deck}_hi"), czasy, 0.5), EQ_MIN_DB, EQ_MAX_DB)
         # crossfader równomocowy: deck 1 z lewej, deck 2 z prawej
         g_cross = np.cos(cross * np.pi / 2) if deck == 1 else np.sin(cross * np.pi / 2)
         tempo = probkuj(a["tor"].get(f"d{deck}_tempo"), czasy, 0.5)
-        predkosc = 1.0 + (0.5 - tempo) * 0.16       # ±8 % jak zakres pitch fadera
+        # Zakres pitch FLX4 domyślnie ±6 % (instrukcja s. 17). Kierunek zmierzony
+        # 23.08: góra suwaka = „−" = 0, dół = „+" = pełna skala.
+        # Sprawdzian na rejestrze Janka: suwak 43 % → −0,84 % → 127 BPM staje się
+        # 125,9 — dokładnie tempo utworu z decku 1 (126). Wcześniej znak był
+        # odwrócony i utwór przyspieszał zamiast zwalniać.
+        predkosc = 1.0 + (tempo - 0.5) * 0.12
 
         # wzmocnienia zmieniają się PŁYNNIE wewnątrz bloku — inaczej każdy ruch
         # fadera czy EQ dawałby trzask na styku bloków (11,6 ms to słyszalny skok)
@@ -176,7 +199,9 @@ def render(a: dict, sciezki: dict[int, str], wyjscie: pathlib.Path,
                 if co == "play":
                     gra = not gra
                 elif co == "cue":
-                    gra = False; poz = cue
+                    poz = cue; gra = True      # trzymany CUE gra od punktu
+                elif co == "cue_off":
+                    gra = False; poz = cue     # puszczony wraca i staje
                 i_zd += 1
             if not gra:
                 continue
