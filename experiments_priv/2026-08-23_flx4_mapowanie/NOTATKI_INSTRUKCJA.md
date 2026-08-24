@@ -232,3 +232,29 @@ oficjalnej liście v1.0. Hipotezy, nie fakty:
 Pokrycie po sesji Janka: 57/78 kontrolek. Niedotknięte: prawy deck —
 IN, OUT, CALL ◁ ▷, BEAT SYNC, SHIFT, 4 przyciski trybów, 8 padów; MASTER
 LEVEL, MASTER CUE; MONO/STEREO (tył, pomijalne).
+
+## POMIAR GEOMETRII z płaskiego rzutu (instrukcja s. 11, siatka mm, 24.08)
+
+Metoda: render strony 11 w 1000 dpi, krawędzie panelu wykryte progowaniem,
+siatka co 10 mm naniesiona programowo (skrypt w sesji), odczyt pozycji
+każdej kontrolki z siatki. UWAGA: rysunek w liście MIDI to ujęcie POD KĄTEM
+— do wymiarów nadaje się tylko płaski rzut z instrukcji.
+
+Kluczowe współrzędne (mm; deck 2 = deck 1 + 316,5):
+jog (85,4 · 112,7) R 72, 16 wgłębień, pierścienie kresek 27,6/23,6, obręcz 17,
+logo R 8 · górny rząd y 28,4 (IN 22,8 · OUT 47,9 · 4BEAT 73,8 · CALL 98,9/120,5
+· SYNC 144,3), ramki podpisów y 39,4 · SHIFT (22,8 · 186) · CUE (22,8 · 213,3)
+R 12 · PLAY (22,8 · 242,4) R 13,2 · chipy trybów y 199,2 (x 50/72,4/94,6/117),
+podpisy 205,7 · pady y 222/242,1, 18,4×17 · TEMPO x 144,2, tor 181,6–246, „0"
+z lewej · LOAD 208,8/273,7 y 18,9, BROWSE (240,5 · 17) R 8,8 · lewa kolumna oś
+184 (MIC 88,2 · SMART CFX 138 · MIX 168,1 · LEVEL 194,6 · SMART FADER 223,3) ·
+kanały osie 221/260,6 (TRIM 40,4 · HI 63,7 · MID 87,8 · LOW 113 · CFX 139 ·
+CH CUE 163,4 · cyfra 174,2 · fader 181,8–229,2, kapa 21×7,6) · miernik 5
+segmentów x 237/245,5 y 69–106, MIDI+BT nad nim · Pioneer DJ (240,5 · 240,4) ·
+CROSSFADER y 261 (!), 217,7–265,3 · kolumna FX oś 297,7 (MASTER 40,1 · CUE 64,7
+· przełącznik 113,9 · FX SELECT 138 · BEAT 163,4 · LEVEL/DEPTH 192,5 · ON/OFF
+220,7) — wszystko z ramkowanymi podpisami jak na panelu.
+
+Diody-stany (z natury sprzętu): chip trybu padów = grupa RADIOWA (aktywny
+świeci na stałe, domyślnie HOT CUE); PLAY zielony podczas grania; CUE/CH CUE/
+MASTER CUE/SMART×2/BEAT SYNC = przełączniki; hot cue pady trzymają do SHIFT.
