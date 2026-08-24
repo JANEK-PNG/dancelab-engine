@@ -583,7 +583,7 @@ function obroc(id, delta, bok) {
     !stanDotykuJoga[id === "d1_jog" ? 1 : 2];   // talerz obraca się siłą rozpędu, bez ręki
   k.suma += delta;
   if (!dokrecaSie) {                            // wskazówka pokazuje RĘKĘ, nie bezwładność
-    k.kat += delta * 3;
+    k.kat += delta * (bok ? 0.7 : 3);           // bok = subtelne muśnięcia, wskazówka idzie za nimi łagodnie
     k.w.setAttribute("transform", `rotate(${k.kat} ${k.x} ${k.y})`);
   }
   k.v.textContent = (k.suma > 0 ? "+" : "") + k.suma + (bok ? " bok" : "");
