@@ -579,8 +579,13 @@ function obroc(id, delta, bok) {
       k[klucz] = setTimeout(() => cel.classList.remove("on"), 350);
     }
   }
-  k.kat += delta * 3; k.suma += delta;
-  k.w.setAttribute("transform", `rotate(${k.kat} ${k.x} ${k.y})`);
+  const dokrecaSie = k.bokEl && !bok &&
+    !stanDotykuJoga[id === "d1_jog" ? 1 : 2];   // talerz obraca się siłą rozpędu, bez ręki
+  k.suma += delta;
+  if (!dokrecaSie) {                            // wskazówka pokazuje RĘKĘ, nie bezwładność
+    k.kat += delta * 3;
+    k.w.setAttribute("transform", `rotate(${k.kat} ${k.x} ${k.y})`);
+  }
   k.v.textContent = (k.suma > 0 ? "+" : "") + k.suma + (bok ? " bok" : "");
 }
 function ustawPad(deck, nr, tryb, on, shift) {
