@@ -47,6 +47,10 @@
   .etyk.duza { font-size: 4.6px; fill: #a8aeb9; letter-spacing: .22em; }
   .etyk.marka { font-size: 5.2px; fill: #c3c8d1; letter-spacing: .14em; font-weight: 600; }
   .guzik { fill: url(#guzikG); stroke: #08090c; stroke-width: .6; }
+  .guzik.jasny { fill: #454c59; }
+  @keyframes migaj { 50% { fill: #3a4150; filter: none; } }
+  .guzik.miga { fill: var(--led); filter: url(#lsn); animation: migaj .45s steps(2) infinite; }
+  @media (prefers-reduced-motion: reduce) { .guzik.miga { animation: none; } }
   .guzik-obw { fill: none; stroke: #40485600; stroke-width: 0; }
   .bezel { fill: url(#bezelG); stroke: #060708; stroke-width: .5; }
   .guzik.on { fill: var(--led); filter: url(#lsn); }
@@ -225,7 +229,7 @@ function guzik(id, x, y, label, r = 5, shape = "circle", jasny = false, wewn = "
   if (shape === "circle") {
     el("circle", { cx: x, cy: y, r: r + 1.3, class: "bezel", filter: "url(#cien)" });
     n = el("circle", { cx: x, cy: y, r, class: "guzik" });
-    if (jasny) n.style.fill = "#454c59";
+    if (jasny) n.classList.add("jasny");
     if (wewn) {
       const slowa = wewn.split(" ");
       if (slowa.length === 2 && r < 10) {              // SMART CFX, BEAT SYNC… — dwie linie jak na sprzęcie
@@ -518,7 +522,7 @@ const stanShift = { 1: false, 2: false };
 const stanEmul = { cue: { 1: false, 2: false }, sync: { 1: false, 2: false },
                    play: { 1: false, 2: false },
                    chcue: { 1: false, 2: false }, masterCue: false,
-                   smart_cfx: false, smart_fader: false,
+                   smart_cfx: false, smart_fader: false, fxOn: false,
                    hotcue: { 1: new Set(), 2: new Set() } };
 let nieznanych = 0, licznik = 0;
 
@@ -634,6 +638,12 @@ function obsluz(ev) {
           const poz = fxsel[4][16] && fxsel[5][17] ? 2 : fxsel[5][17] ? 1 : 0;
           KONTROLKI.fx_chsel.u.setAttribute("x", KONTROLKI.fx_chsel.x - 6.6 + poz * 4.5);
           nazwa = `FX CH SELECT → ${KONTROLKI.fx_chsel.opcje[poz]}`;
+        } else if (baza === "fx_onoff" && !shift) {
+          if (on) stanEmul.fxOn = !stanEmul.fxOn;
+          const n = KONTROLKI.fx_onoff.n; zobacz("fx_onoff");
+          n.classList.remove("on", "miga");
+          n.classList.add(stanEmul.fxOn ? "miga" : "on");   // zawsze świeci; włączony efekt MIGA
+          nazwa = `FX ON/OFF → ${stanEmul.fxOn ? "WŁĄCZONY (miga)" : "czuwanie"}`;
         } else { swiec(baza, on, shift ? "shift" : "on"); nazwa = `${NAZWY[baza] || baza}${shift ? " +SHIFT" : ""} (jednostka ${ch - 3})`; }
       }
     } else if (ch >= 7 && ch <= 10) {
@@ -690,6 +700,7 @@ function odswiezPokrycie() {
 odswiezPokrycie();
 KONTROLKI.d1_hotcue.n.classList.add("on");
 KONTROLKI.d2_hotcue.n.classList.add("on");
+KONTROLKI.fx_onoff.n.classList.add("on");
 
 // ---------- wykresy na żywo (okno 90 s, pod modelem konsoli) ----------
 const OKNO = 90;                       // sekund
