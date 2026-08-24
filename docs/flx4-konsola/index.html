@@ -400,20 +400,20 @@ KONTROLKI.load1.label = "LOAD 1"; KONTROLKI.load2.label = "LOAD 2"; KONTROLKI.br
 ramka(208.8, 25.6, "♪"); ramka(240.5, 28.4, "BACK"); ramka(273.7, 25.6, "VIEW");
 
 // ---------- LEWA KOLUMNA (oś x = 184) ----------
-napis(184, 34.6, "PERFORMANCE", 2.5, 500, "#8d939f");
-napis(184, 38.2, "DJ CONTROLLER", 2.5, 500, "#8d939f");
-napis(184, 44.4, "DDJ-FLX4", 5.4, 700, "#c9cdd6", ".1em");
-napis(184, 54, "⌾ rekordbox", 3.5, 600, "#aeb3bd");
-napis(184, 62, "serato", 3.7, 700, "#aeb3bd");
-etyk(184, 76.8, "MIC LEVEL");
-galka("mic_level", 184, 88.2, "", 6.8, ["−∞", "0"]); KONTROLKI.mic_level.label = "MIC LEVEL";
-guzik("smart_cfx", 183.6, 138, "", 5.6, "circle", false, "SMART CFX");
-ramka(183.6, 148.9, "FX SELECT");
-sluchawki(178.4, 154.6); etyk(186.6, 155.6, "MIX");
-galka("hp_mix", 184, 168.1, "", 6.8, ["CUE", "MST"]); KONTROLKI.hp_mix.label = "HP MIX";
-sluchawki(176.6, 181.6); etyk(186.2, 182.6, "LEVEL");
-galka("hp_level", 184, 194.6, "", 6.8, ["−∞", "0"]); KONTROLKI.hp_level.label = "HP LEVEL";
-guzik("smart_fader", 183.6, 223.3, "", 5.6, "circle", false, "SMART FADER");
+napis(184.65, 34.6, "PERFORMANCE", 2.5, 500, "#8d939f");
+napis(184.65, 38.2, "DJ CONTROLLER", 2.5, 500, "#8d939f");
+napis(184.65, 44.4, "DDJ-FLX4", 5.4, 700, "#c9cdd6", ".1em");
+napis(184.65, 54, "⌾ rekordbox", 3.5, 600, "#aeb3bd");
+napis(184.65, 62, "serato", 3.7, 700, "#aeb3bd");
+etyk(184.65, 76.8, "MIC LEVEL");
+galka("mic_level", 184.65, 88.2, "", 6.8, ["−∞", "0"]); KONTROLKI.mic_level.label = "MIC LEVEL";
+guzik("smart_cfx", 184.65, 138, "", 5.6, "circle", false, "SMART CFX");
+ramka(184.65, 148.9, "FX SELECT");
+sluchawki(179.05, 154.6); etyk(187.25, 155.6, "MIX");
+galka("hp_mix", 184.65, 168.1, "", 6.8, ["CUE", "MST"]); KONTROLKI.hp_mix.label = "HP MIX";
+sluchawki(177.25, 181.6); etyk(186.85, 182.6, "LEVEL");
+galka("hp_level", 184.65, 194.6, "", 6.8, ["−∞", "0"]); KONTROLKI.hp_level.label = "HP LEVEL";
+guzik("smart_fader", 184.65, 223.3, "", 5.6, "circle", false, "SMART FADER");
 
 // ---------- KANAŁY 1 i 2 (osie 221 / 260,6) ----------
 for (const [d, cx] of [[1, 221], [2, 260.6]]) {
@@ -447,8 +447,8 @@ napis(240.5, 240.4, "Pioneer DJ", 5, 700, "#b8bec9", ".06em");
 suwak("crossfader", 261, 217.7, 265.3, "", true, false, [21, 8]);
 KONTROLKI.crossfader.label = "CROSSFADER";
 // MONO/STEREO (tył) — dyskretnie nad crossfaderem po lewej
-guzik("mono_stereo", 184, 236.5, "", 1.8, "rect"); KONTROLKI.mono_stereo.label = "MONO/STEREO (tył)";
-napis(184, 243, "tył: MONO/ST", 2, 500, "#5c6270");
+guzik("mono_stereo", 184.65, 236.5, "", 1.8, "rect"); KONTROLKI.mono_stereo.label = "MONO/STEREO (tył)";
+napis(184.65, 243, "tył: MONO/ST", 2, 500, "#5c6270");
 
 // ---------- KOLUMNA MASTER / BEAT FX (oś ~297,7) ----------
 etyk(297.7, 28.7, "MASTER LEVEL");
