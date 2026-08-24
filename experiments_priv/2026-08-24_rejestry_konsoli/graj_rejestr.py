@@ -211,7 +211,7 @@ def wczytaj_audio(sciezka: str) -> np.ndarray:
 
 def render(a: dict, sciezki: dict[int, str], wyjscie: pathlib.Path,
            start: dict[int, float], echo_beats: float = 0.0,
-           bpm: float = 126.0, hotcue: dict | None = None) -> dict:
+           bpm: float = 126.0, hotcue: dict | None = None, bez_cfx: bool = False) -> dict:
     hotcue = hotcue or {}
     import soundfile as sf
     n_krokow = int(np.ceil(a["dlugosc"] * SR / BLOK)) + 1
@@ -222,12 +222,12 @@ def render(a: dict, sciezki: dict[int, str], wyjscie: pathlib.Path,
     raport = {}
     for deck, sciezka in sciezki.items():
         y = wczytaj_audio(sciezka)
-        # CFX działa na CAŁYM kanale przed EQ — jak w mikserze
-        poz_cfx = a["tor"].get(f"d{deck}_cfx")
-        if poz_cfx:
-            czasy_pr = np.arange(len(y) // BLOK + 1) * BLOK / SR
-            y = filtr_cfx(y, probkuj(poz_cfx, czasy_pr, 0.5), czasy_pr)
         low, mid, hi = pasma(y)
+        # CFX filtruje kanał w OSI CZASU REJESTRU, nie pliku: po skoku hot cue
+        # te osie różnią się o dziesiątki sekund, więc filtr musi iść za ręką,
+        # nie za nagraniem. Liczony blokowo, tylko gdy gałka odbiega od środka.
+        poz_cfx = (np.full(n_krokow, 0.5, dtype=np.float32) if bez_cfx
+                   else probkuj(a["tor"].get(f"d{deck}_cfx"), czasy, 0.5))
         g_fader = probkuj(a["tor"].get(f"d{deck}_fader"), czasy, 1.0)
         # TRIM jest liniowy w GŁOŚNOŚCI, nie w decybelach: środek = jedność,
         # dół = cisza, góra = +9 dB. Wcześniej liczony jak EQ (−60 dB w dole),
@@ -291,6 +291,21 @@ def render(a: dict, sciezki: dict[int, str], wyjscie: pathlib.Path,
                 seg_h = hi[c] * (1 - f) + hi[c + 1] * f
             if len(seg_l) < BLOK:
                 break
+            p_cfx = float(poz_cfx[k])
+            if abs(p_cfx - 0.5) > 0.03:            # CFX czynny w tym bloku
+                from scipy.signal import butter, sosfilt
+                if p_cfx < 0.5:
+                    f = 200.0 * (20000.0 / 200.0) ** (p_cfx / 0.5)
+                    sos = butter(2, min(f, 20000.0) / (SR / 2), btype="lowpass", output="sos")
+                else:
+                    f = 20.0 * (8000.0 / 20.0) ** ((p_cfx - 0.5) / 0.5)
+                    sos = butter(2, max(f, 20.0) / (SR / 2), btype="highpass", output="sos")
+                kontekst = 4096
+                k0 = max(0, a0 - kontekst)
+                sur = y[k0:a0 + BLOK]
+                if len(sur) >= BLOK:
+                    przef = sosfilt(sos, sur, axis=0).astype(np.float32)[-BLOK:]
+                    seg_l, seg_m, seg_h = pasma(przef)
             g = float(g_fader[k] * g_trim[k] * g_cross[k])
             biez = {"low": float(g_low[k]), "mid": float(g_mid[k]), "hi": float(g_hi[k]), "sum": g}
             krzywe = {}
@@ -352,6 +367,7 @@ def main() -> int:
     ap.add_argument("--echo-beats", type=float, default=0.0,
                     help="długość echa w bitach (np. 0.75 = 3/4); 0 = bez echa")
     ap.add_argument("--bpm", type=float, default=126.0, help="tempo setu dla echa")
+    ap.add_argument("--bez-cfx", action="store_true", help="test: pomiń filtr CFX")
     ap.add_argument("--hotcue1", default="", help="pady decka 1, np. 1:183.15,2:300")
     ap.add_argument("--hotcue2", default="", help="pady decka 2")
     args = ap.parse_args()
@@ -397,7 +413,7 @@ def main() -> int:
         return out2
     hot = {1: mapa(args.hotcue1), 2: mapa(args.hotcue2)}
     raport = render(a, sciezki, out, {1: args.start1, 2: args.start2},
-                    echo_beats=args.echo_beats, bpm=args.bpm, hotcue=hot)
+                    echo_beats=args.echo_beats, bpm=args.bpm, hotcue=hot, bez_cfx=args.bez_cfx)
     print(json.dumps(raport, ensure_ascii=False, indent=1))
     return 0
 
