@@ -76,6 +76,8 @@
   .jog-blik { fill: url(#blikG); pointer-events: none; }
   .jog-wsk { stroke: #d8dbe1; stroke-width: 1.3; stroke-linecap: round; }
   .jog-pierscien { fill: none; stroke: transparent; stroke-width: 2.4; }
+  .jog-strefa { fill: none; stroke: transparent; stroke-width: 3.2; }
+  .jog-strefa.on { stroke: var(--led); opacity: .8; }
   .jog-pierscien.on { stroke: var(--led); filter: url(#lsn); }
   .pad { fill: url(#padG); stroke: #71767e; stroke-width: .5; }
   .pad-obw { fill: none; stroke: #0a0b0e; stroke-width: .9; }
@@ -99,7 +101,8 @@
       <svg id="konsola" viewBox="0 0 482 273" xmlns="http://www.w3.org/2000/svg"></svg>
       <p style="margin:6px 4px 0;font-size:11px;color:var(--przygaszony)">Diody pokazują <b>Twój dotyk</b> (świecą przy naciśnięciu) — prawdziwymi diodami steruje
       Rekordbox kanałem, którego nie podsłuchujemy. Trwałe są tylko: aktywny tryb padów,
-      ustawione hot cue (SHIFT+pad kasuje) i stała poświata FX ON/OFF. Klawisz <b>R</b> zeruje pady i tryby.</p>
+      ustawione hot cue (SHIFT+pad kasuje) i stała poświata FX ON/OFF. Dodatek ponad sprzęt: kręcenie TALERZEM joga podświetla
+      wewnętrzny krąg, kręcenie BOKIEM — zewnętrzny pierścień. Klawisz <b>R</b> zeruje pady i tryby.</p>
     </div>
     <div class="karta" style="margin-top:14px">
       <h2>Na żywo · ostatnie 90 s <span style="text-transform:none;letter-spacing:0;color:var(--przygaszony)">
@@ -333,9 +336,11 @@ function jog(id, x, y, r = 70) {
     szesc.push(`${x + Math.cos(a2) * 8.5},${y + Math.sin(a2) * 8.5}`); }
   el("polygon", { points: szesc.join(" "), fill: "none", stroke: "#9aa2b1", "stroke-width": 1.4, opacity: .8 });
   el("circle", { cx: x, cy: y, r: 3.1, fill: "none", stroke: "#9aa2b1", "stroke-width": 1.2, opacity: .8 });
+  const bokEl = el("circle", { cx: x, cy: y, r: r - 2.4, class: "jog-strefa" });   // bok opony (CC 33)
+  const goraEl = el("circle", { cx: x, cy: y, r: 30.2, class: "jog-strefa" });      // talerz (CC 34/35/41)
   const w = el("line", { x1: x, y1: y - 9.5, x2: x, y2: y - 13, class: "jog-wsk" });
   const v = el("text", { x, y: y + 38, class: "wart" });
-  KONTROLKI[id] = { kind: "jog", w, p, v, x, y, kat: 0, suma: 0, seen: false, label: "JOG" };
+  KONTROLKI[id] = { kind: "jog", w, p, v, bokEl, goraEl, x, y, kat: 0, suma: 0, seen: false, label: "JOG" };
 }
 function pad(id, x, y, nr) {
   el("rect", { x: x - 9.6, y: y - 8.9, width: 19.2, height: 17.8, rx: 2, class: "pad-obw", filter: "url(#cien)" });
@@ -562,6 +567,12 @@ function ustawWartosc(id, v14) {
 function obroc(id, delta, bok) {
   const k = KONTROLKI[id]; if (!k) return; zobacz(id);
   wykresJog(id, delta);
+  if (k.bokEl) {                        // celowy dodatek ponad sprzęt: widać, CZYM kręcisz
+    const cel = bok ? k.bokEl : k.goraEl, klucz = bok ? "_wb" : "_wg";
+    cel.classList.add("on");
+    clearTimeout(k[klucz]);
+    k[klucz] = setTimeout(() => cel.classList.remove("on"), 350);
+  }
   k.kat += delta * 3; k.suma += delta;
   k.w.setAttribute("transform", `rotate(${k.kat} ${k.x} ${k.y})`);
   k.v.textContent = (k.suma > 0 ? "+" : "") + k.suma + (bok ? " bok" : "");
