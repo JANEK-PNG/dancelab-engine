@@ -22,10 +22,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 KATALOG = pathlib.Path(__file__).parent
+REJESTRY = KATALOG.parents[1] / "experiments_priv/2026-08-24_rejestry_konsoli"
 START = time.monotonic()
 _klienci: list[queue.Queue] = []
 _lock = threading.Lock()
 _stan = {"port_midi": None, "komunikatow": 0}
+_rec = {"f": None, "plik": None, "nazwa": None, "start": None, "n": 0}
+_replay = {"watek": None, "stop": False, "plik": None, "poz": 0, "n": 0, "blad": None}
 
 
 def rozglos(msg) -> None:
@@ -40,6 +43,9 @@ def rozglos(msg) -> None:
         "raw": msg.hex(),
     }
     _stan["komunikatow"] += 1
+    if _rec["f"] is not None:
+        _rec["f"].write(json.dumps({**rek, "ts": round(time.time(), 4)}) + "\n")
+        _rec["n"] += 1
     with _lock:
         for q in list(_klienci):
             try:
@@ -70,6 +76,14 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):  # cisza w terminalu
         pass
 
+    def _json(self, obj):
+        tresc = json.dumps(obj, ensure_ascii=False).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(tresc)))
+        self.end_headers()
+        self.wfile.write(tresc)
+
     def do_GET(self):
         u = urlparse(self.path)
         if u.path in ("/", "/index.html"):
@@ -91,6 +105,99 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(tresc)))
             self.end_headers()
             self.wfile.write(tresc)
+        elif u.path == "/rec/start":
+            import re as _re
+            from datetime import datetime as _dt
+            if _rec["f"] is not None:
+                self._json({"blad": "nagrywanie już trwa"}); return
+            nazwa = _re.sub(r"[^\w-]+", "_", parse_qs(u.query).get("nazwa", [""])[0])[:40] or "bez_nazwy"
+            REJESTRY.mkdir(parents=True, exist_ok=True)
+            plik = REJESTRY / f"rejestr_{_dt.now():%Y%m%d_%H%M%S}_{nazwa}.jsonl"
+            _rec.update(f=open(plik, "w", encoding="utf-8", buffering=1),
+                        plik=plik.name, nazwa=nazwa, start=time.time(), n=0)
+            self._json({"ok": True, "plik": plik.name})
+        elif u.path == "/rec/stop":
+            if _rec["f"] is None:
+                self._json({"blad": "nic nie jest nagrywane"}); return
+            _rec["f"].close()
+            wynik = {"ok": True, "plik": _rec["plik"], "zdarzen": _rec["n"],
+                     "sekund": round(time.time() - _rec["start"], 1)}
+            _rec.update(f=None, plik=None, nazwa=None, start=None, n=0)
+            self._json(wynik)
+        elif u.path == "/rec/lista":
+            REJESTRY.mkdir(parents=True, exist_ok=True)
+            lista = []
+            for p2 in sorted(REJESTRY.glob("rejestr_*.jsonl"), reverse=True):
+                linie = p2.read_text(encoding="utf-8").splitlines()
+                dl = 0.0
+                if len(linie) >= 2:
+                    try:
+                        dl = json.loads(linie[-1])["t"] - json.loads(linie[0])["t"]
+                    except Exception:
+                        dl = 0.0
+                lista.append({"plik": p2.name, "zdarzen": len(linie), "sekund": round(dl, 1)})
+            self._json({"rejestry": lista, "nagrywa": _rec["plik"],
+                        "replay": _replay["plik"] if _replay["watek"] else None})
+        elif u.path == "/rec/dane":
+            plik = parse_qs(u.query).get("plik", [""])[0]
+            cel = (REJESTRY / plik).resolve()
+            if not plik.endswith(".jsonl") or REJESTRY.resolve() not in cel.parents or not cel.exists():
+                self.send_response(404); self.end_headers(); return
+            tresc = cel.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson")
+            self.send_header("Content-Length", str(len(tresc)))
+            self.end_headers()
+            self.wfile.write(tresc)
+        elif u.path == "/replay/start":
+            import mido
+            if _replay["watek"] is not None:
+                self._json({"blad": "replay już trwa"}); return
+            if any("FLX4" in n for n in mido.get_input_names()):
+                self._json({"blad": "odłącz prawdziwy kontroler — dwa porty DDJ-FLX4 "
+                                    "pomyliłyby Rekordboxa"}); return
+            plik = parse_qs(u.query).get("plik", [""])[0]
+            cel = (REJESTRY / plik).resolve()
+            if not plik.endswith(".jsonl") or REJESTRY.resolve() not in cel.parents or not cel.exists():
+                self._json({"blad": "nie ma takiego rejestru"}); return
+            linie = [json.loads(l) for l in cel.read_text(encoding="utf-8").splitlines()]
+            _replay.update(stop=False, plik=plik, poz=0, n=len(linie), blad=None)
+
+            def graj():
+                try:
+                    # port WIRTUALNY o nazwie kontrolera — Rekordbox widzi „DDJ-FLX4";
+                    # NIGDY nie otwieramy wyjścia do prawdziwego urządzenia
+                    with mido.open_output("DDJ-FLX4", virtual=True) as port:
+                        t0 = time.monotonic()
+                        start_t = linie[0]["t"] if linie else 0.0
+                        for i, rek2 in enumerate(linie):
+                            if _replay["stop"]:
+                                break
+                            cel_t = rek2["t"] - start_t
+                            while time.monotonic() - t0 < cel_t:
+                                if _replay["stop"]:
+                                    break
+                                time.sleep(0.001)
+                            msg = mido.Message.from_hex(rek2["raw"])
+                            port.send(msg)
+                            rozglos(msg)          # model animuje to, co gra
+                            _replay["poz"] = i + 1
+                except Exception as exc:  # noqa: BLE001
+                    _replay["blad"] = f"{type(exc).__name__}: {exc}"
+                finally:
+                    _replay["watek"] = None
+
+            w = threading.Thread(target=graj, daemon=True)
+            _replay["watek"] = w
+            w.start()
+            self._json({"ok": True, "zdarzen": len(linie)})
+        elif u.path == "/replay/stop":
+            _replay["stop"] = True
+            self._json({"ok": True})
+        elif u.path == "/replay/stan":
+            self._json({"gra": _replay["watek"] is not None, "plik": _replay["plik"],
+                        "poz": _replay["poz"], "n": _replay["n"], "blad": _replay["blad"],
+                        "nagrywa": _rec["plik"], "nagrano": _rec["n"]})
         elif u.path == "/stan":
             tresc = json.dumps(_stan).encode()
             self.send_response(200)

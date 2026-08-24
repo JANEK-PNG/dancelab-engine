@@ -112,6 +112,19 @@
       <canvas id="wykresy" style="width:100%;height:330px;display:block"></canvas>
     </div>
     <div class="karta" style="margin-top:14px">
+      <h2>Rejestrator <span style="text-transform:none;letter-spacing:0;color:var(--przygaszony)">— nagrywa to, co klikasz; replay udaje kontroler przed Rekordboxem</span></h2>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button id="rec-btn" style="background:#2c313b;color:#d9dbe0;border:1px solid #3a404c;border-radius:8px;padding:6px 14px;font:600 13px -apple-system,system-ui;cursor:pointer">● REC</button>
+        <input id="rec-nazwa" placeholder="nazwa nagrania (opcjonalnie)" style="background:#0d0e11;color:#d9dbe0;border:1px solid #262a33;border-radius:8px;padding:6px 10px;font:13px -apple-system,system-ui;width:220px">
+        <span id="rec-stan" style="color:var(--przygaszony)"></span>
+      </div>
+      <div id="rej-lista" style="margin-top:10px;font-size:12.5px"></div>
+      <canvas id="rej-podglad" style="width:100%;height:200px;display:none;margin-top:8px"></canvas>
+      <p id="replay-uwaga" style="display:none;margin:8px 0 0;font-size:11px;color:var(--przygaszony)">Replay: wirtualny port „DDJ-FLX4" — Rekordbox bierze go za kontroler.
+      Prawdziwy FLX4 musi być <b>odpięty</b>. Odtwarzamy ruchy rąk, nie stan biblioteki:
+      LOAD załaduje to, co będzie podświetlone w przeglądarce Rekordboxa.</p>
+    </div>
+    <div class="karta" style="margin-top:14px">
       <h2>Ostatni ruch</h2>
       <div id="ostatni">czekam na kontroler…</div>
     </div>
@@ -801,6 +814,89 @@ function polacz() {
   es.onerror = () => { document.getElementById("polacz").classList.remove("ok"); };
   es.onmessage = e => obsluz(JSON.parse(e.data));
 }
+// ---------- rejestrator ----------
+const rec = { nagrywa: false };
+const recBtn = document.getElementById("rec-btn"), recStan = document.getElementById("rec-stan");
+async function recOdswiez() {
+  const d = await (await fetch("/rec/lista")).json();
+  rec.nagrywa = !!d.nagrywa;
+  recBtn.textContent = rec.nagrywa ? "■ STOP" : "● REC";
+  recBtn.style.background = rec.nagrywa ? "#7a1f2e" : "#2c313b";
+  recStan.textContent = rec.nagrywa ? `nagrywam → ${d.nagrywa}` : "";
+  const el2 = document.getElementById("rej-lista");
+  el2.innerHTML = d.rejestry.length ? "" : "<span style='color:var(--przygaszony)'>brak nagrań — wciśnij ● REC i pograj</span>";
+  for (const r of d.rejestry) {
+    const w = document.createElement("div");
+    w.style.cssText = "display:flex;gap:10px;align-items:center;padding:3px 0;border-bottom:1px solid #1b1e24";
+    const gra = d.replay === r.plik;
+    w.innerHTML = `<span style="flex:1">${r.plik.replace("rejestr_","").replace(".jsonl","")}</span>
+      <span style="color:var(--przygaszony)">${r.zdarzen} zd. · ${r.sekund}s</span>
+      <a href="#" data-akcja="podglad" data-plik="${r.plik}" style="color:var(--akcent)">podgląd</a>
+      <a href="#" data-akcja="${gra ? "stop" : "replay"}" data-plik="${r.plik}" style="color:${gra ? "#ff5c7a" : "#7ef0a8"}">${gra ? "■ stop" : "▶ replay"}</a>`;
+    el2.appendChild(w);
+  }
+}
+recBtn.onclick = async () => {
+  if (rec.nagrywa) await fetch("/rec/stop");
+  else await fetch("/rec/start?nazwa=" + encodeURIComponent(document.getElementById("rec-nazwa").value));
+  recOdswiez();
+};
+document.getElementById("rej-lista").addEventListener("click", async e => {
+  const a = e.target.closest("a[data-akcja]"); if (!a) return;
+  e.preventDefault();
+  const plik = a.dataset.plik;
+  if (a.dataset.akcja === "podglad") rysujRejestr(plik);
+  else if (a.dataset.akcja === "replay") {
+    const d = await (await fetch("/replay/start?plik=" + encodeURIComponent(plik))).json();
+    if (d.blad) alert(d.blad);
+    document.getElementById("replay-uwaga").style.display = "";
+  } else await fetch("/replay/stop");
+  recOdswiez();
+});
+async function rysujRejestr(plik) {
+  const tekst = await (await fetch("/rec/dane?plik=" + encodeURIComponent(plik))).text();
+  const zd = tekst.trim().split("\n").filter(Boolean).map(l => JSON.parse(l));
+  if (!zd.length) return;
+  const c = document.getElementById("rej-podglad"); c.style.display = "block";
+  const dpr = window.devicePixelRatio || 1, szer = c.clientWidth, wys = 200;
+  c.width = szer * dpr; c.height = wys * dpr;
+  const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, szer, wys);
+  const t0 = zd[0].t, t1 = zd[zd.length - 1].t || t0 + 1;
+  const X = t => (t - t0) / (t1 - t0 || 1) * (szer - 10) + 5;
+  const hP = wys / 3;
+  const serie = {}; const msb = {};
+  for (const r of zd) {
+    if (r.type === "control_change") {
+      const kl = `${r.ch}:${r.d1}`;
+      if (r.ch <= 1 && [0,4,7,11,15,19].includes(r.d1) || r.ch === 6 && [31,23,24,8].includes(r.d1)) msb[kl] = r.d2;
+      else {
+        const bazowe = { "0:47":"d1_low","1:47":"d2_low","0:51":"d1_fader","1:51":"d2_fader","6:63":"cross" };
+        const b = bazowe[`${r.ch}:${r.d1}`];
+        if (b && msb[`${r.ch}:${r.d1 - 32}`] !== undefined)
+          (serie[b] ||= []).push([r.t, (msb[`${r.ch}:${r.d1 - 32}`] << 7) | r.d2]);
+      }
+    }
+  }
+  const pasy = { d1_low: [0, "#ff5c7a"], d1_fader: [0, "#d9dbe0"], d2_low: [1, "#ff5c7a"], d2_fader: [1, "#d9dbe0"], cross: [2, "#d9dbe0"] };
+  g.font = "10px -apple-system"; g.fillStyle = "#565c68";
+  ["DECK 1 (bas, fader)", "DECK 2", "CROSSFADER"].forEach((n, i) => { g.fillText(n, 6, i * hP + 12); g.strokeStyle = "#262a33"; g.beginPath(); g.moveTo(0, i * hP + .5); g.lineTo(szer, i * hP + .5); g.stroke(); });
+  for (const [id2, pts] of Object.entries(serie)) {
+    const [pas, kolor] = pasy[id2] || [null]; if (pas === null) continue;
+    const y1 = pas * hP + hP - 6;
+    g.strokeStyle = kolor; g.lineWidth = id2.includes("low") ? 2 : 1.2; g.beginPath();
+    let pv = pts[0][1]; g.moveTo(X(pts[0][0]), y1 - pv / 16383 * (hP - 24));
+    for (const [t, v] of pts) { g.lineTo(X(t), y1 - pv / 16383 * (hP - 24)); g.lineTo(X(t), y1 - v / 16383 * (hP - 24)); pv = v; }
+    g.stroke();
+  }
+  g.fillStyle = "#ffd166";
+  for (const r of zd) if (r.type === "note_on" && r.d2 > 0) {
+    const pas = r.ch <= 1 ? r.ch : (r.ch >= 7 && r.ch <= 10 ? (r.ch <= 8 ? 0 : 1) : 2);
+    g.beginPath(); g.arc(X(r.t), pas * hP + 20, 2.4, 0, 7); g.fill();
+  }
+}
+setInterval(recOdswiez, 3000); recOdswiez();
+
 polacz();
 // R = reset stanów wnioskowanych (gdy model rozjedzie się z prawdą, np. po zmianach myszką w Rekordboksie)
 document.addEventListener("keydown", e => {
