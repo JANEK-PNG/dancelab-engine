@@ -241,14 +241,16 @@ function guzik(id, x, y, label, r = 5, shape = "circle", jasny = false, wewn = "
   if (label) etyk(x, y + (shape === "circle" ? r + 4.6 : r + 4), label);
   KONTROLKI[id] = { kind: "guzik", n, seen: false, label: label || wewn || id };
 }
-function galka(id, x, y, label, r = 6, konce = null) {
-  const R = r + 2.4, k0 = (-225) * Math.PI / 180, k1 = (45) * Math.PI / 180;
-  el("path", { d: `M ${x + Math.cos(k0) * R} ${y + Math.sin(k0) * R} A ${R} ${R} 0 1 1 ${x + Math.cos(k1) * R} ${y + Math.sin(k1) * R}`,
-               fill: "none", stroke: "#4a5160", "stroke-width": .45 });
-  for (const kat of [-135, 0, 135]) {
-    const rad = (kat - 90) * Math.PI / 180;
-    el("line", { x1: x + Math.cos(rad) * (r + 1.6), y1: y + Math.sin(rad) * (r + 1.6),
-                 x2: x + Math.cos(rad) * (r + 3), y2: y + Math.sin(rad) * (r + 3), class: "skala" });
+function galka(id, x, y, label, r = 6, konce = null, enkoder = false) {
+  if (!enkoder) {
+    const R = r + 2.4, k0 = (-225) * Math.PI / 180, k1 = (45) * Math.PI / 180;
+    el("path", { d: `M ${x + Math.cos(k0) * R} ${y + Math.sin(k0) * R} A ${R} ${R} 0 1 1 ${x + Math.cos(k1) * R} ${y + Math.sin(k1) * R}`,
+                 fill: "none", stroke: "#4a5160", "stroke-width": .45 });
+    for (const kat of [-135, 0, 135]) {
+      const rad = (kat - 90) * Math.PI / 180;
+      el("line", { x1: x + Math.cos(rad) * (r + 1.6), y1: y + Math.sin(rad) * (r + 1.6),
+                   x2: x + Math.cos(rad) * (r + 3), y2: y + Math.sin(rad) * (r + 3), class: "skala" });
+    }
   }
   el("ellipse", { cx: x, cy: y + r * .28, rx: r * 1.06, ry: r * .92, fill: "#000", opacity: .35 });
   el("circle", { cx: x, cy: y, r, class: "galka" });
@@ -259,6 +261,7 @@ function galka(id, x, y, label, r = 6, konce = null) {
   }
   el("circle", { cx: x, cy: y, r: r * .58, class: "galka-czapka" });
   const w = el("line", { x1: x, y1: y - r * .3, x2: x, y2: y - r + .8, class: "galka-wsk" });
+  if (enkoder) w.style.opacity = "0";               // enkoder bez końca — bez kreski pozycji
   const v = el("text", { x, y: y + r + 8.4, class: "wart" });
   if (label) etyk(x, y - r - 5.4, label);           // etykieta NAD łukiem skali
   if (konce) { napis(x - r - 3.4, y + r + 2.4, konce[0], 2.3, 500, "#7d8494");
@@ -394,7 +397,7 @@ deck(1); deck(2);
 // ---------- RZĄD LOAD / BROWSE (y ~18) ----------
 etyk(209.55, 11, "LOAD"); etyk(274.45, 11, "LOAD");
 guzik("load1", 209.55, 18.9, "", 4.4, "rect");
-galka("browse", 242, 17, "", 8.8);
+galka("browse", 242, 17, "", 8.8, null, true);
 guzik("load2", 274.45, 18.9, "", 4.4, "rect");
 KONTROLKI.load1.label = "LOAD 1"; KONTROLKI.load2.label = "LOAD 2"; KONTROLKI.browse.label = "BROWSE";
 ramka(209.55, 25.6, "♪"); ramka(242, 28.4, "BACK"); ramka(274.45, 25.6, "VIEW");
