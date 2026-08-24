@@ -191,8 +191,7 @@ rowek(166.5);            // deck 1 | moduł środkowy (pełna wysokość)
 rowek(202.8, 33);        // kolumna MIC/SMART/HP | środek — zaczyna się POD rzędem LOAD/BROWSE
 rowek(281, 31);          // środek | kolumna MASTER LEVEL / BEAT FX
 rowek(317.5);            // kolumna MASTER / BEAT FX | deck 2 (krawędź — pełna wysokość)
-el("line", { x1: 168, y1: 29.5, x2: 279.5, y2: 29.5, stroke: "#0a0c10", "stroke-width": .9 });
-el("line", { x1: 168, y1: 30.2, x2: 279.5, y2: 30.2, stroke: "#3c4350", "stroke-width": .3, opacity: .5 });
+
 el("rect", { x: 0, y: 0, width: 482, height: 273, rx: 8, filter: "url(#szum)", "pointer-events": "none" });
 // ===== GEOMETRIA ZMIERZONA z płaskiego rzutu instrukcji (s. 11, siatka mm) =====
 function etyk(x, y, t, duza = false) { const n = el("text", { x, y, class: "etyk" + (duza ? " duza" : "") }); n.textContent = t; return n; }
