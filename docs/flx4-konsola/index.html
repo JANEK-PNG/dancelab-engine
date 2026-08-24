@@ -97,9 +97,9 @@
   <div>
     <div class="karta" style="padding:8px">
       <svg id="konsola" viewBox="0 0 482 273" xmlns="http://www.w3.org/2000/svg"></svg>
-      <p style="margin:6px 4px 0;font-size:11px;color:var(--przygaszony)">Stan CUE, BEAT SYNC
-      i hot cue jest <b>wnioskowany z naciśnięć</b> — diodami steruje Rekordbox (MIDI-OUT),
-      którego nie podsłuchujemy. Klawisz <b>R</b> zeruje stany wnioskowane, gdy rozjadą się z prawdą.</p>
+      <p style="margin:6px 4px 0;font-size:11px;color:var(--przygaszony)">Diody pokazują <b>Twój dotyk</b> (świecą przy naciśnięciu) — prawdziwymi diodami steruje
+      Rekordbox kanałem, którego nie podsłuchujemy. Trwałe są tylko: aktywny tryb padów,
+      ustawione hot cue (SHIFT+pad kasuje) i stała poświata FX ON/OFF. Klawisz <b>R</b> zeruje pady i tryby.</p>
     </div>
     <div class="karta" style="margin-top:14px">
       <h2>Na żywo · ostatnie 90 s <span style="text-transform:none;letter-spacing:0;color:var(--przygaszony)">
@@ -594,10 +594,6 @@ function obsluz(ev) {
         if (baza === "shift") stanShift[d] = on;
         id = `d${d}_${baza === "jog" ? "jog" : baza}`;
         if (baza === "play" && impuls) { swiec(`d${d}_play`, true, "blysk"); swiec(`d${d}_chfader`, true, "blysk"); }
-        else if (baza === "play" && !shift) {
-          if (on) stanEmul.play[d] = !stanEmul.play[d];
-          swiec(id, stanEmul.play[d]);
-        }
         else if (baza === "cue" && impuls) { swiec(`d${d}_cue`, true, "blysk"); swiec(`d${d}_chfader`, true, "blysk"); }
         else if (baza === "jog") swiec(`d${d}_jog`, on);
         else if (baza === "sync") {
@@ -623,11 +619,7 @@ function obsluz(ev) {
     } else if (ch === 6) {
       const kod = NUTY_GLOB[ev.d1];
       if (kod) { const baza = kod.replace("+", ""), shift = kod.endsWith("+"); id = baza;
-        if (!shift && (baza === "master_cue" || baza === "smart_cfx" || baza === "smart_fader")) {
-          const klucz = baza === "master_cue" ? "masterCue" : baza;
-          if (on) stanEmul[klucz] = !stanEmul[klucz];
-          swiec(baza, stanEmul[klucz]);
-        } else swiec(baza, on, shift ? "shift" : "on");
+        swiec(baza, on, shift ? "shift" : "on");
         nazwa = `${NAZWY[baza] || baza}${shift ? " +SHIFT" : ""}`;
         if (baza === "mono_stereo") nazwa += ev.d2 ? " = MONO" : " = STEREO"; }
     } else if (ch === 4 || ch === 5) {
@@ -639,11 +631,9 @@ function obsluz(ev) {
           KONTROLKI.fx_chsel.u.setAttribute("x", KONTROLKI.fx_chsel.x - 6.6 + poz * 4.5);
           nazwa = `FX CH SELECT → ${KONTROLKI.fx_chsel.opcje[poz]}`;
         } else if (baza === "fx_onoff" && !shift) {
-          if (on) stanEmul.fxOn = !stanEmul.fxOn;
-          const n = KONTROLKI.fx_onoff.n; zobacz("fx_onoff");
-          n.classList.remove("on", "miga");
-          n.classList.add(stanEmul.fxOn ? "miga" : "on");   // zawsze świeci; włączony efekt MIGA
-          nazwa = `FX ON/OFF → ${stanEmul.fxOn ? "WŁĄCZONY (miga)" : "czuwanie"}`;
+          zobacz("fx_onoff");
+          if (on) swiec("fx_onoff", true, "blysk");          // stała poświata + błysk dotyku
+          nazwa = "FX ON/OFF";
         } else { swiec(baza, on, shift ? "shift" : "on"); nazwa = `${NAZWY[baza] || baza}${shift ? " +SHIFT" : ""} (jednostka ${ch - 3})`; }
       }
     } else if (ch >= 7 && ch <= 10) {
