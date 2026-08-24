@@ -142,7 +142,7 @@ el("rect", { x: 0, y: 0, width: 482, height: 273, rx: 8, fill: "url(#korpusG)",
              stroke: "#060709", "stroke-width": 1.2 });
 el("rect", { x: 164, y: 0, width: 116, height: 273, fill: "#181b21", opacity: .85 });
 [164, 280].forEach(x => el("line", { x1: x, y1: 2, x2: x, y2: 271, stroke: "#0c0e12", "stroke-width": .8 }));
-etykM(188, 27, "DDJ-FLX4");
+etykM(185, 52, "DDJ-FLX4");
 
 function etyk(x, y, t, duza = false) { const n = el("text", { x, y, class: "etyk" + (duza ? " duza" : "") }); n.textContent = t; return n; }
 function etykM(x, y, t) { const n = el("text", { x, y, class: "etyk marka", "text-anchor": "middle" }); n.textContent = t; return n; }
@@ -261,16 +261,18 @@ galka("d1_mid", 221.4, 86, "MID");   galka("d2_mid", 262, 86, "MID");
 galka("d1_low", 221.4, 110, "LOW");  galka("d2_low", 262, 110, "LOW");
 // mierniki poziomu: świecą TYLKO od aplikacji (MIDI-OUT) — my ich nie widzimy; rysowane jako wygaszone
 for (const mx of [236.8, 245.2]) {
-  for (let i = 0; i < 6; i++) el("line", { x1: mx - 1.6, y1: 112 - i * 8.6, x2: mx + 1.6, y2: 112 - i * 8.6, class: "seg" });
+  el("rect", { x: mx - 2.6, y: 64, width: 5.2, height: 50, rx: 1.2, fill: "#101318",
+               stroke: "#2c313c", "stroke-width": .4 });
+  for (let i = 0; i < 6; i++) el("line", { x1: mx - 1.5, y1: 110.6 - i * 8.6, x2: mx + 1.5, y2: 110.6 - i * 8.6, class: "seg" });
 }
-etyk(241, 63.5, "MIERNIK");
+etyk(241, 119, "MIERNIK");
 galka("mic_level", 183.7, 85.5, "MIC LEVEL", 5.2);
 galka("d1_cfx", 221.4, 136, "CFX"); galka("d2_cfx", 262, 136, "CFX");
 guzik("smart_cfx", 181, 133, "SMART CFX", 3.4);
 guzik("d1_chcue", 221.4, 161.4, "CUE", 3.4, "rect"); guzik("d2_chcue", 262, 161.4, "CUE", 3.4, "rect");
-galka("hp_mix", 185, 161.4, "MIX", 5.2);
-galka("hp_level", 185, 188, "LEVEL", 5.2);
-etyk(185, 152.8, "SŁUCHAWKI");
+galka("hp_mix", 185, 161.4, "HP MIX", 5.2);
+galka("hp_level", 185, 188, "HP LEVEL", 5.2);
+
 guzik("smart_fader", 184, 219, "SMART FADER", 3.4);
 suwak("d1_chfader", 221.4, 179, 227, "CH 1"); suwak("d2_chfader", 262, 179, 227, "CH 2");
 suwak("crossfader", 244.7, 217, 265, "CROSSFADER", true);
@@ -285,8 +287,8 @@ guzik("fx_beatL", 293.6, 161, "◁", 3.2); guzik("fx_beatR", 310.4, 161, "▷", 
 etyk(302, 150.5, "BEAT");
 galka("fx_level", 298.3, 189.6, "LEVEL/DEPTH", 7);
 guzik("fx_onoff", 297.5, 220.5, "ON/OFF", 6, "circle", true);
-guzik("mono_stereo", 241, 268.2, "", 2, "rect");
-etyk(241, 261.5, "tył: MONO/STEREO");
+guzik("mono_stereo", 218.5, 268, "", 2, "rect");
+etyk(247, 269.3, "TYŁ: MONO / STEREO");
 
 // ---------- mapa MIDI (kanały 0-based; oficjalna lista AlphaTheta, zmierzona 23.08.2026) ----------
 const NUTY_DECK = { 11: "play", 14: "play+", 12: "cue", 72: "cue+", 63: "shift", 54: "jog@", 103: "jog@+",
