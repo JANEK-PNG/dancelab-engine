@@ -29,7 +29,8 @@ _lock = threading.Lock()
 _stan = {"port_midi": None, "komunikatow": 0}
 _rec = {"f": None, "plik": None, "nazwa": None, "start": None, "n": 0}
 _replay = {"watek": None, "stop": False, "plik": None, "poz": 0, "n": 0, "blad": None}
-_port_wirt = {"port": None}   # wirtualne „DDJ-FLX4" — wstaje raz i ZOSTAJE, żeby Rekordbox się nie odpinał
+_port_wirt = {"port": None, "we": None}   # wirtualne „DDJ-FLX4": źródło + CEL (Rekordbox musi móc mówić do „urządzenia")
+_od_rb = []                                # co Rekordbox wysłał do naszego wirtualnego kontrolera
 
 
 def rozglos(msg) -> None:
@@ -171,6 +172,12 @@ class Handler(BaseHTTPRequestHandler):
                     # Port wstaje raz i zostaje otwarty między odtworzeniami.
                     if _port_wirt["port"] is None:
                         _port_wirt["port"] = mido.open_output("DDJ-FLX4", virtual=True)
+                        def od_rb(m):
+                            _od_rb.append({"ts": round(time.time(), 3), "raw": m.hex(),
+                                           "type": m.type})
+                            del _od_rb[:-200]
+                        _port_wirt["we"] = mido.open_input("DDJ-FLX4", virtual=True,
+                                                           callback=od_rb)
                     port = _port_wirt["port"]
                     t0 = time.monotonic()
                     start_t = linie[0]["t"] if linie else 0.0
@@ -198,6 +205,11 @@ class Handler(BaseHTTPRequestHandler):
         elif u.path == "/replay/stop":
             _replay["stop"] = True
             self._json({"ok": True})
+        elif u.path == "/emulacja/stan":
+            self._json({"port_zrodlo": _port_wirt["port"] is not None,
+                        "port_cel": _port_wirt["we"] is not None,
+                        "od_rekordboxa": _od_rb[-30:],
+                        "odebrano_od_rb": len(_od_rb)})
         elif u.path == "/replay/stan":
             self._json({"gra": _replay["watek"] is not None, "plik": _replay["plik"],
                         "poz": _replay["poz"], "n": _replay["n"], "blad": _replay["blad"],
