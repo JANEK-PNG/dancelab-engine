@@ -76,6 +76,13 @@
       <svg id="konsola" viewBox="0 0 482 273" xmlns="http://www.w3.org/2000/svg"></svg>
     </div>
     <div class="karta" style="margin-top:14px">
+      <h2>Na żywo · ostatnie 90 s <span style="text-transform:none;letter-spacing:0;color:var(--przygaszony)">
+        — <span style="color:#ff5c7a">bas</span> · <span style="color:#a78bfa">środek</span> ·
+        <span style="color:#2ee6c5">góra</span> · <span style="color:#d9dbe0">fader</span> ·
+        szare słupki = jog · żółte kropki = przyciski</span></h2>
+      <canvas id="wykresy" style="width:100%;height:330px;display:block"></canvas>
+    </div>
+    <div class="karta" style="margin-top:14px">
       <h2>Ostatni ruch</h2>
       <div id="ostatni">czekam na kontroler…</div>
     </div>
@@ -250,6 +257,7 @@ function swiec(id, on, klasa = "on") {
 }
 function ustawWartosc(id, v14) {
   const k = KONTROLKI[id]; if (!k) return; zobacz(id);
+  wykresPunkt(id, v14);
   const f = v14 / 16383;
   if (k.kind === "galka") {
     const kat = -135 + 270 * f;
@@ -268,6 +276,7 @@ function ustawWartosc(id, v14) {
 }
 function obroc(id, delta, bok) {
   const k = KONTROLKI[id]; if (!k) return; zobacz(id);
+  wykresJog(id, delta);
   k.kat += delta * 3; k.suma += delta;
   k.w.setAttribute("transform", `rotate(${k.kat} ${k.x} ${k.y})`);
   k.v.textContent = (k.suma > 0 ? "+" : "") + k.suma + (bok ? " bok" : "");
@@ -356,6 +365,7 @@ function obsluz(ev) {
     document.getElementById("karta-nieznane").style.display = "";
     document.getElementById("nieznane-lista").innerHTML = Object.entries(NIEZNANE).sort((a, b) => b[1].n - a[1].n)
       .map(([k, v]) => `${String(v.n).padStart(5)}×  ${k}  d2 ${v.min}–${v.max}  <span style="color:var(--przygaszony)">np. ${v.raw}</span>`).join("<br>"); }
+  if (on && id && !id.includes("shift")) wykresPrzycisk(id, nazwa);
   linia.innerHTML = `<span class="t">${ev.t.toFixed(3).padStart(9)}</span>  <span class="raw">${ev.raw.padEnd(9)}</span> ${nazwa}`;
   log.prepend(linia);
   while (log.childElementCount > 60) log.lastElementChild.remove();
@@ -372,6 +382,81 @@ function odswiezPokrycie() {
     `<span>${id.startsWith("d1_") ? "D1 " : id.startsWith("d2_") ? "D2 " : ""}${k.label}</span>`).join("");
 }
 odswiezPokrycie();
+
+// ---------- wykresy na żywo (okno 90 s, pod modelem konsoli) ----------
+const OKNO = 90;                       // sekund
+const SERIE_DEF = {                    // id kontrolki → pas, kolor, grubość
+  d1_low: [0, "#ff5c7a", 2], d1_mid: [0, "#a78bfa", 1], d1_hi: [0, "#2ee6c5", 1], d1_chfader: [0, "#d9dbe0", 1.5],
+  d2_low: [1, "#ff5c7a", 2], d2_mid: [1, "#a78bfa", 1], d2_hi: [1, "#2ee6c5", 1], d2_chfader: [1, "#d9dbe0", 1.5],
+  crossfader: [2, "#d9dbe0", 2], d1_cfx: [2, "#5ee0ff", 1], d2_cfx: [2, "#ff9f43", 1], fx_level: [2, "#ffd166", 1],
+};
+const PASY = ["DECK 1", "DECK 2", "CROSSFADER · CFX · FX"];
+const SERIE_W = {};                    // id → [[t, v14], …]
+const JOG_W = { d1_jog: {}, d2_jog: {} };   // sekunda → suma |delta|
+const PRZYCISKI_W = [];                // [t, pas, etykieta]
+const teraz = () => performance.now() / 1000;
+
+function wykresPunkt(id, v14) {
+  if (!(id in SERIE_DEF)) return;
+  (SERIE_W[id] ||= []).push([teraz(), v14]);
+}
+function wykresJog(id, delta) {
+  if (!(id in JOG_W)) return;
+  const s = Math.floor(teraz());
+  JOG_W[id][s] = (JOG_W[id][s] || 0) + Math.abs(delta);
+}
+function wykresPrzycisk(id, nazwa) {
+  const pas = id.startsWith("d1_") ? 0 : id.startsWith("d2_") ? 1 : 2;
+  const kratka = nazwa.replace(/^deck \d · /, "").replace(/ \(jednostka \d\)/, "");
+  PRZYCISKI_W.push([teraz(), pas, kratka]);
+}
+
+const plotno = document.getElementById("wykresy");
+const ctx = plotno.getContext("2d");
+function rysuj() {
+  const dpr = window.devicePixelRatio || 1;
+  const szer = plotno.clientWidth, wys = plotno.clientHeight;
+  if (plotno.width !== szer * dpr) { plotno.width = szer * dpr; plotno.height = wys * dpr; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, szer, wys);
+  const t1 = teraz(), t0 = t1 - OKNO;
+  const X = t => (t - t0) / OKNO * szer;
+  const hPasa = wys / 3;
+
+  for (let p = 0; p < 3; p++) {
+    const y0 = p * hPasa, y1 = y0 + hPasa - 6;
+    ctx.strokeStyle = "#262a33"; ctx.beginPath(); ctx.moveTo(0, y0 + .5); ctx.lineTo(szer, y0 + .5); ctx.stroke();
+    ctx.fillStyle = "#565c68"; ctx.font = "10px -apple-system, system-ui"; ctx.fillText(PASY[p], 6, y0 + 13);
+    const Y = v => y1 - (v / 16383) * (hPasa - 30);
+    for (const [id, [pas, kolor, gr]] of Object.entries(SERIE_DEF)) {
+      if (pas !== p) continue;
+      const s = SERIE_W[id]; if (!s || !s.length) continue;
+      while (s.length > 2 && s[1][0] < t0) s.shift();   // przytnij okno, zostaw 1 punkt przed
+      ctx.strokeStyle = kolor; ctx.lineWidth = gr; ctx.beginPath();
+      let [pt, pv] = s[0]; ctx.moveTo(Math.max(0, X(pt)), Y(pv));
+      for (const [t, v] of s.slice(1)) { ctx.lineTo(X(t), Y(pv)); ctx.lineTo(X(t), Y(v)); pv = v; }
+      ctx.lineTo(szer, Y(pv)); ctx.stroke();
+    }
+    if (p < 2) {                                        // jog jako słupki u dołu pasa decka
+      const kubly = JOG_W[p === 0 ? "d1_jog" : "d2_jog"];
+      ctx.fillStyle = "#565c68";
+      for (const [sek, suma] of Object.entries(kubly)) {
+        if (+sek < t0 - 2) { delete kubly[sek]; continue; }
+        const h = Math.min(suma / 400, 1) * 18;
+        ctx.fillRect(X(+sek), y1 - h, Math.max(szer / OKNO, 2), h);
+      }
+    }
+  }
+  while (PRZYCISKI_W.length && PRZYCISKI_W[0][0] < t0) PRZYCISKI_W.shift();
+  ctx.font = "9px -apple-system, system-ui";
+  for (const [t, pas, etyk] of PRZYCISKI_W) {
+    const y = pas * hPasa + 24;
+    ctx.fillStyle = "#ffd166"; ctx.beginPath(); ctx.arc(X(t), y, 3, 0, 7); ctx.fill();
+    ctx.fillText(etyk, X(t) + 5, y + 3);
+  }
+  requestAnimationFrame(rysuj);
+}
+requestAnimationFrame(rysuj);
 
 // ---------- połączenie ----------
 function polacz() {
