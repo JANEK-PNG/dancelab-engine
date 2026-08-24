@@ -59,6 +59,10 @@ def rozglos(msg) -> None:
 def watek_midi() -> None:
     import mido
     while True:
+        if _port_wirt["port"] is not None:      # tryb emulacji: nie podpinaj się pod własną podróbkę
+            _stan["port_midi"] = "emulacja (wirtualny DDJ-FLX4)"
+            time.sleep(2.0)
+            continue
         nazwa = next((n for n in mido.get_input_names() if "FLX4" in n), None)
         if not nazwa:
             _stan["port_midi"] = None
@@ -155,7 +159,8 @@ class Handler(BaseHTTPRequestHandler):
             import mido
             if _replay["watek"] is not None:
                 self._json({"blad": "replay już trwa"}); return
-            if any("FLX4" in n for n in mido.get_input_names()):
+            obce = sum(1 for n in mido.get_input_names() if "FLX4" in n)                    - (1 if _port_wirt["port"] is not None else 0)
+            if obce > 0:
                 self._json({"blad": "odłącz prawdziwy kontroler — dwa porty DDJ-FLX4 "
                                     "pomyliłyby Rekordboxa"}); return
             plik = parse_qs(u.query).get("plik", [""])[0]
@@ -205,6 +210,13 @@ class Handler(BaseHTTPRequestHandler):
         elif u.path == "/replay/stop":
             _replay["stop"] = True
             self._json({"ok": True})
+        elif u.path == "/emulacja/stop":
+            for k in ("port", "we"):
+                if _port_wirt[k] is not None:
+                    try: _port_wirt[k].close()
+                    except Exception: pass
+                    _port_wirt[k] = None
+            self._json({"ok": True, "info": "porty wirtualne zamknięte — wracam do nasłuchu"})
         elif u.path == "/emulacja/stan":
             self._json({"port_zrodlo": _port_wirt["port"] is not None,
                         "port_cel": _port_wirt["we"] is not None,
