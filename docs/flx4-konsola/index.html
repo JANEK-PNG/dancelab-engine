@@ -11,6 +11,10 @@
     --ok: #7ef0a8; --korpus: #1c1f26; --korpus2: #23272f; --guzik: #2c313b;
   }
   * { box-sizing: border-box; }
+  :focus-visible { outline: 2px solid var(--akcent); outline-offset: 2px; border-radius: 3px; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
   body { margin: 0; background: var(--tlo); color: var(--tekst);
          font: 13px/1.4 -apple-system, "Helvetica Neue", system-ui, sans-serif; }
   header { display: flex; gap: 10px 20px; align-items: baseline; flex-wrap: wrap;
@@ -97,13 +101,18 @@
 <body>
 <header>
   <h1>DDJ-FLX4 · cyfrowy model konsoli</h1>
-  <span class="port"><span id="polacz"></span><b id="port">—</b></span>
+  <span class="port" role="status" aria-live="polite"><span id="polacz" aria-hidden="true"></span><b id="port">—</b></span>
   <span class="liczniki"><span>komunikaty <b id="licznik">0</b></span><span>nieznane <b id="nieznane">0</b></span></span>
 </header>
 <main>
   <div>
     <div class="karta" style="padding:8px">
-      <svg id="konsola" viewBox="0 0 482 273" xmlns="http://www.w3.org/2000/svg"></svg>
+      <svg id="konsola" viewBox="0 0 482 273" role="img"
+           aria-labelledby="konsola-tytul konsola-opis" xmlns="http://www.w3.org/2000/svg">
+        <title id="konsola-tytul">Model kontrolera DDJ-FLX4</title>
+        <desc id="konsola-opis">Rysunek konsoli DJ-skiej: dwa decki z jogami, padami i suwakami tempa,
+        w środku mikser z korektorami i crossfaderem. Podświetla kontrolki dotykane na sprzęcie.</desc>
+      </svg>
       <details style="margin:8px 4px 0;font-size:11.5px;color:var(--przygaszony)">
         <summary style="cursor:pointer;list-style:none">Diody pokazują <b>Twój dotyk</b>, nie stan Rekordboxa
           <span style="color:var(--akcent)">— co to znaczy</span></summary>
@@ -129,7 +138,7 @@
       <h2>Rejestrator <span style="text-transform:none;letter-spacing:0;color:var(--przygaszony)">— nagrywa to, co klikasz; replay udaje kontroler przed Rekordboxem</span></h2>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <button id="rec-btn" style="background:#2c313b;color:#d9dbe0;border:1px solid #3a404c;border-radius:8px;padding:6px 14px;font:600 13px -apple-system,system-ui;cursor:pointer">● REC</button>
-        <input id="rec-nazwa" placeholder="nazwa nagrania (opcjonalnie)" style="background:#0d0e11;color:#d9dbe0;border:1px solid #262a33;border-radius:8px;padding:6px 10px;font:13px -apple-system,system-ui;width:220px">
+        <input id="rec-nazwa" aria-label="Nazwa nagrania" placeholder="nazwa nagrania (opcjonalnie)" style="background:#0d0e11;color:#d9dbe0;border:1px solid #262a33;border-radius:8px;padding:6px 10px;font:13px -apple-system,system-ui;width:220px">
         <span id="rec-stan" style="color:var(--przygaszony)"></span>
       </div>
       <div id="rej-lista" style="margin-top:10px;font-size:12.5px"></div>
@@ -140,7 +149,7 @@
     </div>
     <div class="karta" style="margin-top:14px">
       <h2>Ostatni ruch</h2>
-      <div id="ostatni">czekam na kontroler…</div>
+      <div id="ostatni" role="status" aria-live="polite">czekam na kontroler…</div>
     </div>
   </div>
   <aside class="boczny">
@@ -567,7 +576,10 @@ function dotknij(k, n) {                 // bursztyn tylko PODCZAS ruchu — po 
 }
 function swiec(id, on, klasa = "on") {
   const k = KONTROLKI[id]; if (!k) return; zobacz(id);
-  const n = k.n || k.u || k.p;
+  // gałki nie mają przycisku do podświetlenia — mają wskazówkę; bez tego
+  // naciśnięcie enkodera BROWSE wywalało obsługę zdarzeń (n był undefined)
+  const n = k.n || k.u || k.p || k.w;
+  if (!n) return;
   n.classList.toggle(klasa, on);
   if (klasa !== "on" && on) setTimeout(() => n.classList.remove(klasa), 400);
 }
