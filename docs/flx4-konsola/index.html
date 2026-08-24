@@ -523,6 +523,7 @@ const NAZWY = { "play": "PLAY/PAUSE", "cue": "CUE", "shift": "SHIFT", "jog@": "J
 const fxsel = { 4: { 16: 0, 17: 0 }, 5: { 16: 0, 17: 0 } };
 const NIEZNANE = {};   // klucz → {n, raw} — trwałe podsumowanie, nie przewija się jak dziennik
 const stanShift = { 1: false, 2: false };
+const stanDotykuJoga = { 1: false, 2: false };
 // stan WNIOSKOWANY z naciśnięć — diodami steruje Rekordbox (MIDI-OUT, nie podsłuchujemy)
 const stanEmul = { cue: { 1: false, 2: false }, sync: { 1: false, 2: false },
                    play: { 1: false, 2: false },
@@ -568,10 +569,15 @@ function obroc(id, delta, bok) {
   const k = KONTROLKI[id]; if (!k) return; zobacz(id);
   wykresJog(id, delta);
   if (k.bokEl) {                        // celowy dodatek ponad sprzęt: widać, CZYM kręcisz
-    const cel = bok ? k.bokEl : k.goraEl, klucz = bok ? "_wb" : "_wg";
-    cel.classList.add("on");
-    clearTimeout(k[klucz]);
-    k[klucz] = setTimeout(() => cel.classList.remove("on"), 350);
+    const deck = id === "d1_jog" ? 1 : 2;
+    if (!bok && !stanDotykuJoga[deck]) {      // talerz kręci się SAM (bezwładność) — nie świeć
+      k.goraEl.classList.remove("on");
+    } else {
+      const cel = bok ? k.bokEl : k.goraEl, klucz = bok ? "_wb" : "_wg";
+      cel.classList.add("on");
+      clearTimeout(k[klucz]);
+      k[klucz] = setTimeout(() => cel.classList.remove("on"), 350);
+    }
   }
   k.kat += delta * 3; k.suma += delta;
   k.w.setAttribute("transform", `rotate(${k.kat} ${k.x} ${k.y})`);
@@ -611,7 +617,7 @@ function obsluz(ev) {
         id = `d${d}_${baza === "jog" ? "jog" : baza}`;
         if (baza === "play" && impuls) { swiec(`d${d}_play`, true, "blysk"); swiec(`d${d}_chfader`, true, "blysk"); }
         else if (baza === "cue" && impuls) { swiec(`d${d}_cue`, true, "blysk"); swiec(`d${d}_chfader`, true, "blysk"); }
-        else if (baza === "jog") swiec(`d${d}_jog`, on);
+        else if (baza === "jog") { stanDotykuJoga[d] = on; swiec(`d${d}_jog`, on); }
         else if (baza === "sync") {
           if (dlugi) { stanEmul.sync[d] = true; swiec(id, true, "shift"); }
           else if (shift) swiec(id, true, "blysk");
