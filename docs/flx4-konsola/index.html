@@ -13,14 +13,20 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--tlo); color: var(--tekst);
          font: 13px/1.4 -apple-system, "Helvetica Neue", system-ui, sans-serif; }
-  header { display: flex; gap: 18px; align-items: baseline; padding: 10px 16px;
-           border-bottom: 1px solid var(--krawedz); }
-  header h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .02em; }
-  header .stan { color: var(--przygaszony); }
-  header .stan b { color: var(--tekst); font-weight: 500; }
+  header { display: flex; gap: 10px 20px; align-items: baseline; flex-wrap: wrap;
+           padding: 10px 16px; border-bottom: 1px solid var(--krawedz); }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .02em;
+              white-space: nowrap; }
+  header .port { color: var(--przygaszony); flex: 1 1 auto; min-width: 200px; }
+  header .liczniki { display: flex; gap: 14px; color: var(--przygaszony);
+                     font-variant-numeric: tabular-nums; white-space: nowrap; }
+  header b { color: var(--tekst); font-weight: 500; }
+  @media (max-width: 620px) { header h1 { white-space: normal; } }
   #polacz { width: 8px; height: 8px; border-radius: 50%; background: var(--zle);
-            display: inline-block; margin-right: 6px; vertical-align: middle; }
-  #polacz.ok { background: var(--ok); }
+            display: inline-block; margin-right: 6px; vertical-align: middle;
+            transition: background .2s; }
+  #polacz.strona { background: var(--blysk); }   /* strona połączona, sprzętu brak */
+  #polacz.sprzet { background: var(--ok); }      /* kontroler widziany */
   main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; padding: 14px 16px; }
   @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
   .karta { background: var(--panel); border: 1px solid var(--krawedz); border-radius: 10px; padding: 10px 12px; }
@@ -91,25 +97,33 @@
 <body>
 <header>
   <h1>DDJ-FLX4 · cyfrowy model konsoli</h1>
-  <span class="stan"><span id="polacz"></span>port MIDI: <b id="port">—</b></span>
-  <span class="stan">komunikatów: <b id="licznik">0</b></span>
-  <span class="stan">nieznanych: <b id="nieznane">0</b></span>
+  <span class="port"><span id="polacz"></span><b id="port">—</b></span>
+  <span class="liczniki"><span>komunikaty <b id="licznik">0</b></span><span>nieznane <b id="nieznane">0</b></span></span>
 </header>
 <main>
   <div>
     <div class="karta" style="padding:8px">
       <svg id="konsola" viewBox="0 0 482 273" xmlns="http://www.w3.org/2000/svg"></svg>
-      <p style="margin:6px 4px 0;font-size:11px;color:var(--przygaszony)">Diody pokazują <b>Twój dotyk</b> (świecą przy naciśnięciu) — prawdziwymi diodami steruje
-      Rekordbox kanałem, którego nie podsłuchujemy. Trwałe są tylko: aktywny tryb padów,
-      ustawione hot cue (SHIFT+pad kasuje) i stała poświata FX ON/OFF. Dodatek ponad sprzęt: kręcenie TALERZEM joga podświetla
-      wewnętrzny krąg, kręcenie BOKIEM — zewnętrzny pierścień. Klawisz <b>R</b> zeruje pady i tryby.</p>
+      <details style="margin:8px 4px 0;font-size:11.5px;color:var(--przygaszony)">
+        <summary style="cursor:pointer;list-style:none">Diody pokazują <b>Twój dotyk</b>, nie stan Rekordboxa
+          <span style="color:var(--akcent)">— co to znaczy</span></summary>
+        <div style="padding:8px 0 2px;line-height:1.55;border-top:1px solid var(--krawedz);margin-top:6px">
+          Prawdziwymi diodami steruje Rekordbox kanałem, którego nie podsłuchujemy, więc model
+          świeci tam, gdzie dotykasz. Trwale świecą tylko trzy rzeczy, które da się wywnioskować
+          z samych naciśnięć: aktywny tryb padów, ustawione hot cue (SHIFT + pad kasuje)
+          i stała poświata FX ON/OFF.<br>
+          <b>Dodatek ponad sprzęt:</b> kręcenie talerzem joga podświetla wewnętrzny krąg,
+          kręcenie bokiem — zewnętrzny pierścień, żeby było widać, czym kręcisz.<br>
+          Klawisz <b>R</b> zeruje pady i tryby, gdy model rozjedzie się z rzeczywistością.
+        </div>
+      </details>
     </div>
     <div class="karta" style="margin-top:14px">
-      <h2>Na żywo · ostatnie 90 s <span style="text-transform:none;letter-spacing:0;color:var(--przygaszony)">
-        — <span style="color:#ff5c7a">bas</span> · <span style="color:#a78bfa">środek</span> ·
-        <span style="color:#2ee6c5">góra</span> · <span style="color:#d9dbe0">fader</span> ·
-        szare słupki = jog · żółte kropki = przyciski</span></h2>
-      <canvas id="wykresy" style="width:100%;height:330px;display:block"></canvas>
+      <h2>Na żywo · ostatnie 90 s <span style="text-transform:none;letter-spacing:0;color:var(--przygaszony);font-weight:400">
+        <span style="color:#ff5c7a">bas</span> <span style="color:#a78bfa">środek</span>
+        <span style="color:#2ee6c5">góra</span> <span style="color:#d9dbe0">fader</span>
+        · jog · przyciski</span></h2>
+      <canvas id="wykresy" style="width:100%;height:330px;display:block;transition:height .25s"></canvas>
     </div>
     <div class="karta" style="margin-top:14px">
       <h2>Rejestrator <span style="text-transform:none;letter-spacing:0;color:var(--przygaszony)">— nagrywa to, co klikasz; replay udaje kontroler przed Rekordboxem</span></h2>
@@ -378,13 +392,13 @@ function deck(d) {
   // górny rząd (y 28,4) z podpisami
   etyk(X(22.8), 17.5, "IN"); etyk(X(47.9), 17.5, "OUT"); etyk(X(73.8), 17.5, "4 BEAT/EXIT");
   napis(X(109.7), 15.3, "CUE/LOOP", 3.1, 600, "#9aa2b1"); napis(X(109.7), 19.3, "CALL", 3.1, 600, "#9aa2b1");
-  napis(X(138.5), 17.5, "—", 2.6, 500, "#9aa2b1"); etyk(X(146.5), 17.5, "MASTER");
-  guzik(p + "in", X(22.8), 28.4, "", 7);
-  guzik(p + "out", X(47.9), 28.4, "", 7);
-  guzik(p + "beat4", X(73.8), 28.4, "", 5.4);
-  guzik(p + "callL", X(98.9), 28.8, "", 3.8, "circle", false, "◂");
-  guzik(p + "callR", X(120.5), 28.8, "", 3.8, "circle", false, "▸");
-  guzik(p + "sync", X(144.3), 28.4, "", 5.8, "circle", false, "BEAT SYNC");
+  etyk(X(144.3), 17.5, "MASTER");
+  guzik(p + "in", X(22.8), 28.4, "", 7); KONTROLKI[p + "in"].label = "IN";
+  guzik(p + "out", X(47.9), 28.4, "", 7); KONTROLKI[p + "out"].label = "OUT";
+  guzik(p + "beat4", X(73.8), 28.4, "", 5.4); KONTROLKI[p + "beat4"].label = "4 BEAT/EXIT";
+  guzik(p + "callL", X(98.9), 28.8, "", 3.8, "circle", false, "◂"); KONTROLKI[p + "callL"].label = "CUE/LOOP CALL ◁";
+  guzik(p + "callR", X(120.5), 28.8, "", 3.8, "circle", false, "▸"); KONTROLKI[p + "callR"].label = "CUE/LOOP CALL ▷";
+  guzik(p + "sync", X(144.3), 28.4, "", 5.8, "circle", false, "BEAT SYNC"); KONTROLKI[p + "sync"].label = "BEAT SYNC";
   napis(X(98.9), 34.6, "1/2X", 2.3, 500, "#7d8494"); napis(X(120.5), 34.6, "2X", 2.3, 500, "#7d8494");
   ramka(X(22.8), 39.8, "IN ADJ", true); ramka(X(47.9), 39.8, "OUT ADJ", true);
   ramka(X(73.8), 39.8, "ACTIVE"); ramka(X(98.9), 39.8, "DEL");
@@ -399,9 +413,9 @@ function deck(d) {
   g.textContent = "− SEARCH +";
   // SHIFT / CUE / PLAY
   ramka(X(22.8), 177.8, "SHIFT");
-  guzik(p + "shift", X(22.8), 186.2, "", 4, "rect");
-  guzik(p + "cue", X(22.8), 213.3, "", 12.6, "circle", false, "CUE");
-  guzik(p + "play", X(22.8), 242.4, "", 12.6, "circle", false, "▶ ⏸");
+  guzik(p + "shift", X(22.8), 186.2, "", 4, "rect"); KONTROLKI[p + "shift"].label = "SHIFT";
+  guzik(p + "cue", X(22.8), 213.3, "", 12.6, "circle", false, "CUE"); KONTROLKI[p + "cue"].label = "CUE";
+  guzik(p + "play", X(22.8), 242.4, "", 12.6, "circle", false, "▶ ⏸"); KONTROLKI[p + "play"].label = "PLAY/PAUSE";
   etyk(X(22.8), 259.8, "PLAY/PAUSE");
   // chipy trybów + ramkowane drugie funkcje
   [["hotcue", 50, "HOT CUE", "KEYBOARD"], ["padfx1", 72.4, "PAD FX1", "PAD FX 2"],
@@ -769,7 +783,25 @@ function rysuj() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, szer, wys);
   const t1 = teraz(), t0 = t1 - OKNO;
+  // stan pusty: zanim cokolwiek przyjdzie, pasma świeciły pustką bez wyjaśnienia
+  const cokolwiek = Object.values(SERIE_W).some(s2 => s2 && s2.length)
+    || PRZYCISKI_W.length || Object.values(JOG_W).some(j => Object.keys(j).length);
+  if (!cokolwiek) {
+    if (plotno.style.height !== "120px") plotno.style.height = "120px";   // pusty pas nie zjada ekranu
+    ctx.fillStyle = "#565c68";
+    ctx.font = "13px -apple-system, system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText(stanPolaczenia.sprzet ? "rusz czymkolwiek na kontrolerze — wykresy ruszą same"
+                                       : "podłącz kontroler przez USB", szer / 2, wys / 2 - 6);
+    ctx.font = "11px -apple-system, system-ui";
+    ctx.fillStyle = "#454b57";
+    ctx.fillText("ostatnie 90 sekund pracy rąk pojawi się tutaj", szer / 2, wys / 2 + 14);
+    ctx.textAlign = "left";
+    requestAnimationFrame(rysuj);
+    return;
+  }
   const X = t => (t - t0) / OKNO * szer;
+  if (plotno.style.height !== "330px") plotno.style.height = "330px";
   const hPasa = wys / 3;
 
   for (let p = 0; p < 3; p++) {
@@ -810,8 +842,8 @@ requestAnimationFrame(rysuj);
 // ---------- połączenie ----------
 function polacz() {
   const es = new EventSource("/events");
-  es.onopen = () => document.getElementById("polacz").classList.add("ok");
-  es.onerror = () => { document.getElementById("polacz").classList.remove("ok"); };
+  es.onopen = () => { stanPolaczenia.strona = true; odswiezKropke(); };
+  es.onerror = () => { stanPolaczenia.strona = false; odswiezKropke(); };
   es.onmessage = e => obsluz(JSON.parse(e.data));
 }
 // ---------- rejestrator ----------
@@ -913,9 +945,20 @@ document.addEventListener("keydown", e => {
   KONTROLKI.fx_onoff.n.classList.remove("miga"); KONTROLKI.fx_onoff.n.classList.add("on");
   document.getElementById("ostatni").innerHTML = "<b>stany wnioskowane wyzerowane (R)</b>";
 });
+const stanPolaczenia = { strona: false, sprzet: false };
+function odswiezKropke() {
+  const k = document.getElementById("polacz");
+  k.classList.toggle("strona", stanPolaczenia.strona && !stanPolaczenia.sprzet);
+  k.classList.toggle("sprzet", stanPolaczenia.strona && stanPolaczenia.sprzet);
+  k.title = !stanPolaczenia.strona ? "brak połączenia ze stroną"
+          : stanPolaczenia.sprzet ? "kontroler podłączony" : "strona działa, kontrolera nie widzę";
+}
 setInterval(async () => {
   try { const s = await (await fetch("/stan")).json();
-    document.getElementById("port").textContent = s.port_midi || "nie widzę DDJ-FLX4"; } catch {}
+    stanPolaczenia.sprzet = !!s.port_midi;
+    document.getElementById("port").textContent = s.port_midi || "nie widzę kontrolera — podłącz USB";
+    odswiezKropke();
+  } catch { stanPolaczenia.strona = false; odswiezKropke(); }
 }, 2000);
 </script>
 </body>
