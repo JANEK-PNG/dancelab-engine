@@ -99,7 +99,7 @@
       <svg id="konsola" viewBox="0 0 482 273" xmlns="http://www.w3.org/2000/svg"></svg>
       <p style="margin:6px 4px 0;font-size:11px;color:var(--przygaszony)">Stan CUE, BEAT SYNC
       i hot cue jest <b>wnioskowany z naciśnięć</b> — diodami steruje Rekordbox (MIDI-OUT),
-      którego nie podsłuchujemy. Po restarcie strony stan startuje od zera.</p>
+      którego nie podsłuchujemy. Klawisz <b>R</b> zeruje stany wnioskowane, gdy rozjadą się z prawdą.</p>
     </div>
     <div class="karta" style="margin-top:14px">
       <h2>Na żywo · ostatnie 90 s <span style="text-transform:none;letter-spacing:0;color:var(--przygaszony)">
@@ -785,6 +785,21 @@ function polacz() {
   es.onmessage = e => obsluz(JSON.parse(e.data));
 }
 polacz();
+// R = reset stanów wnioskowanych (gdy model rozjedzie się z prawdą, np. po zmianach myszką w Rekordboksie)
+document.addEventListener("keydown", e => {
+  if (e.key.toLowerCase() !== "r" || e.metaKey || e.ctrlKey) return;
+  stanEmul.fxOn = false; stanEmul.masterCue = false;
+  stanEmul.smart_cfx = false; stanEmul.smart_fader = false;
+  for (const d of [1, 2]) {
+    stanEmul.cue[d] = stanEmul.sync[d] = stanEmul.chcue[d] = stanEmul.play[d] = false;
+    stanEmul.hotcue[d].clear();
+    for (const b of ["cue", "sync", "chcue", "play"]) KONTROLKI[`d${d}_${b}`]?.n.classList.remove("on", "miga", "shift");
+    for (let i = 1; i <= 8; i++) { const k = KONTROLKI[`d${d}_pad${i}`]; k.glow.style.opacity = "0"; k.n.style.fill = ""; }
+  }
+  for (const id of ["master_cue", "smart_cfx", "smart_fader"]) KONTROLKI[id].n.classList.remove("on", "miga", "shift");
+  KONTROLKI.fx_onoff.n.classList.remove("miga"); KONTROLKI.fx_onoff.n.classList.add("on");
+  document.getElementById("ostatni").innerHTML = "<b>stany wnioskowane wyzerowane (R)</b>";
+});
 setInterval(async () => {
   try { const s = await (await fetch("/stan")).json();
     document.getElementById("port").textContent = s.port_midi || "nie widzę DDJ-FLX4"; } catch {}
