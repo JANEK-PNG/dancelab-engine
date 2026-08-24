@@ -81,6 +81,9 @@
   <div>
     <div class="karta" style="padding:8px">
       <svg id="konsola" viewBox="0 0 482 273" xmlns="http://www.w3.org/2000/svg"></svg>
+      <p style="margin:6px 4px 0;font-size:11px;color:var(--przygaszony)">Stan CUE, BEAT SYNC
+      i hot cue jest <b>wnioskowany z naciśnięć</b> — diodami steruje Rekordbox (MIDI-OUT),
+      którego nie podsłuchujemy. Po restarcie strony stan startuje od zera.</p>
     </div>
     <div class="karta" style="margin-top:14px">
       <h2>Na żywo · ostatnie 90 s <span style="text-transform:none;letter-spacing:0;color:var(--przygaszony)">
@@ -318,6 +321,9 @@ const NAZWY = { "play": "PLAY/PAUSE", "cue": "CUE", "shift": "SHIFT", "jog@": "J
 const fxsel = { 4: { 16: 0, 17: 0 }, 5: { 16: 0, 17: 0 } };
 const NIEZNANE = {};   // klucz → {n, raw} — trwałe podsumowanie, nie przewija się jak dziennik
 const stanShift = { 1: false, 2: false };
+// stan WNIOSKOWANY z naciśnięć — diodami steruje Rekordbox (MIDI-OUT, nie podsłuchujemy)
+const stanEmul = { cue: { 1: false, 2: false }, sync: { 1: false, 2: false },
+                   hotcue: { 1: new Set(), 2: new Set() } };
 let nieznanych = 0, licznik = 0;
 
 function zobacz(id) { const k = KONTROLKI[id]; if (k && !k.seen) { k.seen = true; odswiezPokrycie(); } }
@@ -356,7 +362,13 @@ function obroc(id, delta, bok) {
 function ustawPad(deck, nr, tryb, on, shift) {
   const id = `d${deck}_pad${nr}`, k = KONTROLKI[id]; if (!k) return; zobacz(id);
   const [nazwa, kolor] = TRYBY[tryb] || ["?", "#fff"];
-  k.n.style.fill = on ? kolor : ""; k.n.style.stroke = on ? "#fff" : "";
+  if (tryb === 0x00 && on) {                       // HOT CUE: pad trzyma stan aż do SHIFT-kasowania
+    if (shift) stanEmul.hotcue[deck].delete(nr); else stanEmul.hotcue[deck].add(nr);
+  }
+  const trzymaj = tryb === 0x00 && stanEmul.hotcue[deck].has(nr);
+  k.n.style.fill = (on || trzymaj) ? kolor : "";
+  k.n.style.opacity = on ? "1" : (trzymaj ? ".5" : "1");
+  k.n.style.stroke = on ? "#fff" : (trzymaj ? "#7a8496" : "");
   const t = KONTROLKI[`d${deck}_tryb`].n; t.textContent = `pady: ${nazwa}${shift ? " +SHIFT" : ""}`; t.style.fill = kolor;
   return nazwa;
 }
@@ -383,7 +395,15 @@ function obsluz(ev) {
         if (baza === "play" && impuls) { swiec(`d${d}_play`, true, "blysk"); swiec(`d${d}_chfader`, true, "blysk"); }
         else if (baza === "cue" && impuls) { swiec(`d${d}_cue`, true, "blysk"); swiec(`d${d}_chfader`, true, "blysk"); }
         else if (baza === "jog") swiec(`d${d}_jog`, on);
-        else if (baza === "sync") { swiec(id, true, dlugi || shift ? "shift" : "blysk"); }
+        else if (baza === "sync") {
+          if (dlugi) { stanEmul.sync[d] = true; swiec(id, true, "shift"); }
+          else if (shift) swiec(id, true, "blysk");
+          else { if (on) stanEmul.sync[d] = !stanEmul.sync[d]; swiec(id, stanEmul.sync[d]); }
+        }
+        else if (baza === "cue" && !shift) {
+          if (on) stanEmul.cue[d] = !stanEmul.cue[d];
+          swiec(id, stanEmul.cue[d] || on);
+        }
         else swiec(id, on, shift ? "shift" : "on");
         nazwa = `deck ${d} · ${NAZWY[baza] || baza}${shift ? " +SHIFT" : ""}${dlugi ? " (długie)" : ""}`;
       }
