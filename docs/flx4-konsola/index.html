@@ -295,33 +295,33 @@ function suwak(id, x, y1, y2, label, poziomy = false, odwroc = false, kapa = [11
     KONTROLKI[id] = { kind: "suwak", u, ul, v, x, y1, y2, poziomy, seen: false, label: label || id, msb: 0 };
   }
 }
-function jog(id, x, y, r = 72) {
+function jog(id, x, y, r = 70) {
   el("ellipse", { cx: x, cy: y + 3, rx: r + 1.5, ry: r + .5, fill: "#000", opacity: .4 });
   el("circle", { cx: x, cy: y, r: r + 2, fill: "none", stroke: "#5a6170", "stroke-width": .4, opacity: .7 });
   el("circle", { cx: x, cy: y, r, class: "jog-opona" });
-  for (let i = 0; i < 16; i++) {                    // 16 owalnych wgłębień (zmierzone z rzutu)
+  for (let i = 0; i < 16; i++) {                    // 16 owalnych wgłębień na r≈62 (zmierzone)
     const rad = i / 16 * 2 * Math.PI;
-    const cx = x + Math.cos(rad) * (r - 6.6), cy = y + Math.sin(rad) * (r - 6.6);
-    const e = el("ellipse", { cx, cy, rx: 6.6, ry: 4.4, class: "jog-wglebienie" });
+    const cx = x + Math.cos(rad) * (r - 8), cy = y + Math.sin(rad) * (r - 8);
+    const e = el("ellipse", { cx, cy, rx: 7.4, ry: 4.2, class: "jog-wglebienie" });
     e.setAttribute("transform", `rotate(${rad * 180 / Math.PI + 90} ${cx} ${cy})`);
   }
-  el("circle", { cx: x, cy: y, r: r - 12.6, fill: "none", stroke: "#0c0e12", "stroke-width": .7 });
-  const p = el("circle", { cx: x, cy: y, r: r - 13.6, class: "jog-pierscien" });
-  el("circle", { cx: x, cy: y, r: 35, class: "jog-talerz" });
-  el("circle", { cx: x, cy: y, r: 35, class: "jog-blik" });
-  el("circle", { cx: x, cy: y, r: 27.6, fill: "none", stroke: "#cfd3da", "stroke-width": 2.2,
+  el("circle", { cx: x, cy: y, r: r - 18, fill: "#17191e", stroke: "#0c0e12", "stroke-width": .7 });
+  const p = el("circle", { cx: x, cy: y, r: r - 19.2, class: "jog-pierscien" });
+  el("circle", { cx: x, cy: y, r: 28.2, class: "jog-talerz" });
+  el("circle", { cx: x, cy: y, r: 28.2, class: "jog-blik" });
+  el("circle", { cx: x, cy: y, r: 25, fill: "none", stroke: "#cfd3da", "stroke-width": 2,
                  "stroke-dasharray": ".55 1.05", opacity: .9 });
-  el("circle", { cx: x, cy: y, r: 23.6, fill: "none", stroke: "#cfd3da", "stroke-width": 1.6,
+  el("circle", { cx: x, cy: y, r: 19.5, fill: "none", stroke: "#cfd3da", "stroke-width": 1.5,
                  "stroke-dasharray": ".55 1.15", opacity: .75 });
-  el("circle", { cx: x, cy: y, r: 17, fill: "none", stroke: "#d8dbe1", "stroke-width": 1.8, opacity: .9 });
+  el("circle", { cx: x, cy: y, r: 14, fill: "none", stroke: "#d8dbe1", "stroke-width": 1.7, opacity: .9 });
   // logo rekordbox: sześciokąt z okiem
   const szesc = [];
   for (let i = 0; i < 6; i++) { const a2 = Math.PI / 3 * i - Math.PI / 6;
-    szesc.push(`${x + Math.cos(a2) * 8},${y + Math.sin(a2) * 8}`); }
+    szesc.push(`${x + Math.cos(a2) * 8.5},${y + Math.sin(a2) * 8.5}`); }
   el("polygon", { points: szesc.join(" "), fill: "none", stroke: "#9aa2b1", "stroke-width": 1.4, opacity: .8 });
   el("circle", { cx: x, cy: y, r: 3.1, fill: "none", stroke: "#9aa2b1", "stroke-width": 1.2, opacity: .8 });
-  const w = el("line", { x1: x, y1: y - 11, x2: x, y2: y - 15.5, class: "jog-wsk" });
-  const v = el("text", { x, y: y + 46, class: "wart" });
+  const w = el("line", { x1: x, y1: y - 9.5, x2: x, y2: y - 13, class: "jog-wsk" });
+  const v = el("text", { x, y: y + 38, class: "wart" });
   KONTROLKI[id] = { kind: "jog", w, p, v, x, y, kat: 0, suma: 0, seen: false, label: "JOG" };
 }
 function pad(id, x, y, nr) {
@@ -360,11 +360,11 @@ function deck(d) {
   ramka(X(109.7), 35.9, "LOOP", true); ramka(X(120.5), 40.2, "MEMORY");
   ramka(X(144.3), 39.4, "TEMPO RANGE");
   // jog (środek 85,4 · 112,7 · R 72) + strzałka SEARCH
-  jog(p + "jog", X(85.4), 112.7, 72);
-  const sx = X(38), sy = 52;
+  jog(p + "jog", X(87), 116.5, 70);
+  const sx = X(31.5), sy = 60.5;
   const g = el("text", { x: sx, y: sy, fill: "#8d939f", "font-size": 3, "font-weight": 600,
     "letter-spacing": ".1em", "text-anchor": "middle",
-    transform: `rotate(-33 ${sx} ${sy})`, "font-family": "-apple-system, system-ui, sans-serif" });
+    transform: `rotate(-40 ${sx} ${sy})`, "font-family": "-apple-system, system-ui, sans-serif" });
   g.textContent = "− SEARCH +";
   // SHIFT / CUE / PLAY
   ramka(X(22.8), 177.8, "SHIFT");
