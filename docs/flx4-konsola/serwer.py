@@ -29,6 +29,7 @@ _lock = threading.Lock()
 _stan = {"port_midi": None, "komunikatow": 0}
 _rec = {"f": None, "plik": None, "nazwa": None, "start": None, "n": 0}
 _replay = {"watek": None, "stop": False, "plik": None, "poz": 0, "n": 0, "blad": None}
+_port_wirt = {"port": None}   # wirtualne „DDJ-FLX4" — wstaje raz i ZOSTAJE, żeby Rekordbox się nie odpinał
 
 
 def rozglos(msg) -> None:
@@ -165,23 +166,26 @@ class Handler(BaseHTTPRequestHandler):
 
             def graj():
                 try:
-                    # port WIRTUALNY o nazwie kontrolera — Rekordbox widzi „DDJ-FLX4";
-                    # NIGDY nie otwieramy wyjścia do prawdziwego urządzenia
-                    with mido.open_output("DDJ-FLX4", virtual=True) as port:
-                        t0 = time.monotonic()
-                        start_t = linie[0]["t"] if linie else 0.0
-                        for i, rek2 in enumerate(linie):
+                    # port WIRTUALNY o nazwie kontrolera — Rekordbox widzi „DDJ-FLX4”;
+                    # NIGDY nie otwieramy wyjścia do prawdziwego urządzenia.
+                    # Port wstaje raz i zostaje otwarty między odtworzeniami.
+                    if _port_wirt["port"] is None:
+                        _port_wirt["port"] = mido.open_output("DDJ-FLX4", virtual=True)
+                    port = _port_wirt["port"]
+                    t0 = time.monotonic()
+                    start_t = linie[0]["t"] if linie else 0.0
+                    for i, rek2 in enumerate(linie):
+                        if _replay["stop"]:
+                            break
+                        cel_t = rek2["t"] - start_t
+                        while time.monotonic() - t0 < cel_t:
                             if _replay["stop"]:
                                 break
-                            cel_t = rek2["t"] - start_t
-                            while time.monotonic() - t0 < cel_t:
-                                if _replay["stop"]:
-                                    break
-                                time.sleep(0.001)
-                            msg = mido.Message.from_hex(rek2["raw"])
-                            port.send(msg)
-                            rozglos(msg)          # model animuje to, co gra
-                            _replay["poz"] = i + 1
+                            time.sleep(0.001)
+                        msg = mido.Message.from_hex(rek2["raw"])
+                        port.send(msg)
+                        rozglos(msg)          # model animuje to, co gra
+                        _replay["poz"] = i + 1
                 except Exception as exc:  # noqa: BLE001
                     _replay["blad"] = f"{type(exc).__name__}: {exc}"
                 finally:
