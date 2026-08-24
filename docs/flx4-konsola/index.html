@@ -323,6 +323,8 @@ const NIEZNANE = {};   // klucz → {n, raw} — trwałe podsumowanie, nie przew
 const stanShift = { 1: false, 2: false };
 // stan WNIOSKOWANY z naciśnięć — diodami steruje Rekordbox (MIDI-OUT, nie podsłuchujemy)
 const stanEmul = { cue: { 1: false, 2: false }, sync: { 1: false, 2: false },
+                   chcue: { 1: false, 2: false }, masterCue: false,
+                   smart_cfx: false, smart_fader: false,
                    hotcue: { 1: new Set(), 2: new Set() } };
 let nieznanych = 0, licznik = 0;
 
@@ -404,13 +406,22 @@ function obsluz(ev) {
           if (on) stanEmul.cue[d] = !stanEmul.cue[d];
           swiec(id, stanEmul.cue[d] || on);
         }
+        else if (baza === "chcue" && !shift) {
+          if (on) stanEmul.chcue[d] = !stanEmul.chcue[d];
+          swiec(id, stanEmul.chcue[d]);
+        }
         else swiec(id, on, shift ? "shift" : "on");
         nazwa = `deck ${d} · ${NAZWY[baza] || baza}${shift ? " +SHIFT" : ""}${dlugi ? " (długie)" : ""}`;
       }
     } else if (ch === 6) {
       const kod = NUTY_GLOB[ev.d1];
       if (kod) { const baza = kod.replace("+", ""), shift = kod.endsWith("+"); id = baza;
-        swiec(baza, on, shift ? "shift" : "on"); nazwa = `${NAZWY[baza] || baza}${shift ? " +SHIFT" : ""}`;
+        if (!shift && (baza === "master_cue" || baza === "smart_cfx" || baza === "smart_fader")) {
+          const klucz = baza === "master_cue" ? "masterCue" : baza;
+          if (on) stanEmul[klucz] = !stanEmul[klucz];
+          swiec(baza, stanEmul[klucz]);
+        } else swiec(baza, on, shift ? "shift" : "on");
+        nazwa = `${NAZWY[baza] || baza}${shift ? " +SHIFT" : ""}`;
         if (baza === "mono_stereo") nazwa += ev.d2 ? " = MONO" : " = STEREO"; }
     } else if (ch === 4 || ch === 5) {
       const kod = NUTY_FX[ev.d1];
