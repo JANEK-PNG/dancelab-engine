@@ -194,9 +194,15 @@ rowek(317.5);            // kolumna MASTER / BEAT FX | deck 2 (krawędź — pe�
 
 el("rect", { x: 0, y: 0, width: 482, height: 273, rx: 8, filter: "url(#szum)", "pointer-events": "none" });
 // ===== GEOMETRIA ZMIERZONA z płaskiego rzutu instrukcji (s. 11, siatka mm) =====
-function etyk(x, y, t, duza = false) { const n = el("text", { x, y, class: "etyk" + (duza ? " duza" : "") }); n.textContent = t; return n; }
+// kompensacja: SVG liczy odstęp międzyliterowy także ZA ostatnią literą,
+// przez co środek wizualny ucieka w lewo o połowę odstępu — dodajemy ją z powrotem
+function etyk(x, y, t, duza = false) {
+  const n = el("text", { x: x + (duza ? .21 : .14), y, class: "etyk" + (duza ? " duza" : "") });
+  n.textContent = t; return n;
+}
 function napis(x, y, t, rozm = 3.1, waga = 500, kolor = "#8d939f", odstep = ".08em") {
-  const n = el("text", { x, y, "text-anchor": "middle", fill: kolor, "font-size": rozm,
+  const n = el("text", { x: x + (parseFloat(odstep) || 0) * rozm / 2, y,
+    "text-anchor": "middle", fill: kolor, "font-size": rozm,
     "font-weight": waga, "letter-spacing": odstep,
     "font-family": "-apple-system, system-ui, sans-serif" });
   n.textContent = t; return n;
