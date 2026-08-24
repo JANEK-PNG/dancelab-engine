@@ -76,7 +76,7 @@
   .pad { fill: url(#padG); stroke: #71767e; stroke-width: .5; }
   .pad-obw { fill: none; stroke: #0a0b0e; stroke-width: .9; }
   .pad-nr { fill: #4a4e56; font-size: 3.1px; text-anchor: middle; font-weight: 600; }
-  .chip { fill: #322a20; stroke: #6b5636; stroke-width: .45; }
+  .chip { fill: #2c2117; stroke: #c9873f; stroke-width: .55; }
   .chip.on { fill: var(--led); filter: url(#lsn); }
   .seg { fill: none; stroke: #262b35; stroke-width: 2.2; }
   .wart { fill: #7fd8ef; font-size: 3.2px; text-anchor: middle; font-family: ui-monospace, Menlo, monospace; }
@@ -183,7 +183,14 @@ defs.innerHTML = `
 el("rect", { x: 0, y: 0, width: 482, height: 273, rx: 8, fill: "url(#korpusG)",
              stroke: "#060709", "stroke-width": 1.2 });
 el("rect", { x: 164, y: 0, width: 116, height: 273, fill: "#181b21", opacity: .85 });
-[164, 280].forEach(x => el("line", { x1: x, y1: 2, x2: x, y2: 271, stroke: "#0b0d11", "stroke-width": .8 }));
+function rowek(x) {
+  el("line", { x1: x, y1: 3, x2: x, y2: 270, stroke: "#0a0c10", "stroke-width": 1.1 });
+  el("line", { x1: x + .75, y1: 3, x2: x + .75, y2: 270, stroke: "#3c4350", "stroke-width": .35, opacity: .55 });
+}
+rowek(164);          // deck 1 | kolumna MIC/SMART/HP
+rowek(200.5);        // kolumna MIC/SMART/HP | środek z EQ i miernikiem (sekcja MIDI)
+rowek(281);          // środek | kolumna MASTER LEVEL / BEAT FX
+rowek(317.5);        // kolumna MASTER / BEAT FX | deck 2
 el("rect", { x: 0, y: 0, width: 482, height: 273, rx: 8, filter: "url(#szum)", "pointer-events": "none" });
 etykM(185, 52, "DDJ-FLX4");
 
@@ -211,6 +218,9 @@ function guzik(id, x, y, label, r = 5, shape = "circle", jasny = false) {
   KONTROLKI[id] = { kind: "guzik", n, seen: false, label };
 }
 function galka(id, x, y, label, r = 6) {
+  const R = r + 2.4, k0 = (-225) * Math.PI / 180, k1 = (45) * Math.PI / 180;
+  el("path", { d: `M ${x + Math.cos(k0) * R} ${y + Math.sin(k0) * R} A ${R} ${R} 0 1 1 ${x + Math.cos(k1) * R} ${y + Math.sin(k1) * R}`,
+               fill: "none", stroke: "#4a5160", "stroke-width": .45 });
   for (const kat of [-135, 0, 135]) {
     const rad = (kat - 90) * Math.PI / 180;
     el("line", { x1: x + Math.cos(rad) * (r + 1.6), y1: y + Math.sin(rad) * (r + 1.6),
@@ -258,12 +268,14 @@ function suwak(id, x, y1, y2, label, poziomy = false, odwroc = false) {
 }
 function jog(id, x, y, r = 70) {
   el("ellipse", { cx: x, cy: y + 3, rx: r + 1.5, ry: r + .5, fill: "#000", opacity: .4 });
+  el("circle", { cx: x, cy: y, r: r + 2.2, fill: "none", stroke: "#5a6170", "stroke-width": .4, opacity: .7 });
   el("circle", { cx: x, cy: y, r, class: "jog-opona" });
-  // wgłębienia na palce po obwodzie opony — jak na zdjęciach
-  for (let i = 0; i < 14; i++) {
-    const rad = i / 14 * 2 * Math.PI;
-    el("circle", { cx: x + Math.cos(rad) * (r - 6.4), cy: y + Math.sin(rad) * (r - 6.4),
-                   r: 4.6, class: "jog-wglebienie" });
+  // wgłębienia na palce po obwodzie opony — jak na zdjęciach (duże, owalne)
+  for (let i = 0; i < 12; i++) {
+    const rad = i / 12 * 2 * Math.PI;
+    const cx = x + Math.cos(rad) * (r - 7.2), cy = y + Math.sin(rad) * (r - 7.2);
+    const e = el("ellipse", { cx, cy, rx: 5.6, ry: 4.4, class: "jog-wglebienie" });
+    e.setAttribute("transform", `rotate(${rad * 180 / Math.PI + 90} ${cx} ${cy})`);
   }
   const p = el("circle", { cx: x, cy: y, r: r - 12.5, class: "jog-pierscien" });
   // błyszczący talerz z podwójnym pierścieniem
