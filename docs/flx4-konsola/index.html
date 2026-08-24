@@ -40,34 +40,46 @@
   #brakuje span { display: inline-block; margin: 0 6px 2px 0; }
   #ostatni { font-size: 14px; min-height: 22px; }
   #ostatni b { color: var(--blysk); font-weight: 600; }
-  /* elementy SVG — rzut wg oficjalnego rysunku (482×273 mm) */
-  .etyk { fill: #737b8c; font-size: 3.1px; text-anchor: middle; text-transform: uppercase;
+  /* elementy SVG — rzut wg rysunku technicznego + faktura wg zdjęć referencyjnych */
+  :root { --led: #ffb042; --led-zielony: #6be08a; }
+  .etyk { fill: #8d939f; font-size: 3.1px; text-anchor: middle; text-transform: uppercase;
           font-family: -apple-system, system-ui, sans-serif; letter-spacing: .09em; font-weight: 500; }
-  .etyk.duza { font-size: 4.6px; fill: #9aa2b1; letter-spacing: .22em; }
-  .etyk.marka { font-size: 5.2px; fill: #b8bec9; letter-spacing: .14em; font-weight: 600; }
-  .guzik { fill: #20242c; stroke: #0c0e12; stroke-width: .7; transition: fill .1s; }
-  .guzik-obw { fill: none; stroke: #3b4250; stroke-width: .45; }
-  .guzik.on { fill: var(--akcent); filter: url(#lsn); }
-  .guzik.blysk { fill: var(--blysk); filter: url(#lsn); }
+  .etyk.duza { font-size: 4.6px; fill: #a8aeb9; letter-spacing: .22em; }
+  .etyk.marka { font-size: 5.2px; fill: #c3c8d1; letter-spacing: .14em; font-weight: 600; }
+  .guzik { fill: url(#guzikG); stroke: #08090c; stroke-width: .6; }
+  .guzik-obw { fill: none; stroke: #40485600; stroke-width: 0; }
+  .bezel { fill: url(#bezelG); stroke: #060708; stroke-width: .5; }
+  .guzik.on { fill: var(--led); filter: url(#lsn); }
+  .guzik.on.zielony { fill: var(--led-zielony); }
+  .guzik.blysk { fill: #ffd166; filter: url(#lsn); }
   .guzik.shift { fill: #a78bfa; filter: url(#lsn); }
-  .galka { fill: #262b35; stroke: #0c0e12; stroke-width: .7; }
-  .galka-czapka { fill: #1b1f27; }
-  .galka-wsk { stroke: #c9cfda; stroke-width: 1; stroke-linecap: round; }
-  .galka-wsk.on { stroke: var(--akcent); filter: url(#lsn); }
-  .skala { stroke: #3b4250; stroke-width: .4; }
-  .tor { fill: #08090c; stroke: #2c313c; stroke-width: .45; }
-  .uchwyt { fill: #454c5a; stroke: #6a7280; stroke-width: .4; }
-  .uchwyt.on { fill: var(--akcent); filter: url(#lsn); }
-  .jog { fill: url(#jogG); stroke: #0c0e12; stroke-width: .9; }
-  .jog-raster { fill: none; stroke: #30364200; stroke-width: 6; }
-  .jog-srodek { fill: #0e1014; stroke: #2c313c; stroke-width: .5; }
-  .jog-wsk { stroke: #c9cfda; stroke-width: 1.3; stroke-linecap: round; }
+  .legenda { fill: #6a7180; font-size: 2.9px; text-anchor: middle; font-weight: 700;
+             letter-spacing: .06em; pointer-events: none; }
+  .galka { fill: url(#galkaG); stroke: #08090c; stroke-width: .6; }
+  .galka-czapka { fill: url(#czapkaG); }
+  .karb { stroke: #0d0f13; stroke-width: .55; }
+  .galka-wsk { stroke: #e6e9ee; stroke-width: 1; stroke-linecap: round; }
+  .galka-wsk.on { stroke: var(--led); filter: url(#lsn); }
+  .skala { stroke: #454c59; stroke-width: .4; }
+  .tor { fill: #060709; stroke: #2c313c; stroke-width: .45; }
+  .studnia { fill: url(#studniaG); stroke: #08090c; stroke-width: .5; }
+  .uchwyt { fill: url(#uchwytG); stroke: #10131a; stroke-width: .45; }
+  .uchwyt-linia { stroke: #d8dbe1; stroke-width: .7; }
+  .uchwyt.on { fill: var(--led); filter: url(#lsn); }
+  .jog-opona { fill: url(#oponaG); stroke: #060708; stroke-width: 1; }
+  .jog-wglebienie { fill: #101216; }
+  .jog-talerz { fill: url(#talerzG); stroke: #05060a; stroke-width: .6; }
+  .jog-blik { fill: url(#blikG); pointer-events: none; }
+  .jog-wsk { stroke: #d8dbe1; stroke-width: 1.3; stroke-linecap: round; }
   .jog-pierscien { fill: none; stroke: transparent; stroke-width: 2.4; }
-  .jog-pierscien.on { stroke: var(--akcent); filter: url(#lsn); }
-  .pad { fill: #221e28; stroke: #0c0e12; stroke-width: .6; rx: 1.8; }
-  .pad-obw { fill: none; stroke: #4a4255; stroke-width: .4; rx: 1.8; }
+  .jog-pierscien.on { stroke: var(--led); filter: url(#lsn); }
+  .pad { fill: url(#padG); stroke: #71767e; stroke-width: .5; }
+  .pad-obw { fill: none; stroke: #0a0b0e; stroke-width: .9; }
+  .pad-nr { fill: #4a4e56; font-size: 3.1px; text-anchor: middle; font-weight: 600; }
+  .chip { fill: #322a20; stroke: #6b5636; stroke-width: .45; }
+  .chip.on { fill: var(--led); filter: url(#lsn); }
   .seg { fill: none; stroke: #262b35; stroke-width: 2.2; }
-  .wart { fill: var(--akcent); font-size: 3.2px; text-anchor: middle; font-family: ui-monospace, Menlo, monospace; }
+  .wart { fill: #7fd8ef; font-size: 3.2px; text-anchor: middle; font-family: ui-monospace, Menlo, monospace; }
 </style>
 </head>
 <body>
@@ -127,100 +139,154 @@ const el = (tag, attrs, parent = svg) => {
 const KONTROLKI = {};   // id → {kind, nodes..., seen}
 const M = x => x + 312; // deck 2 = PRZESUNIĘTA kopia decka 1 (oficjalny rysunek), nie lustro
 
-// tło i defs — wymiary i pozycje zdjęte z oficjalnego rysunku (300 dpi)
+// tło i defs — głębia i faktura wg zdjęć referencyjnych Janka (23.08)
 const defs = el("defs", {});
 defs.innerHTML = `
   <linearGradient id="korpusG" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#1d2027"/><stop offset="1" stop-color="#15171d"/></linearGradient>
-  <radialGradient id="jogG" cx=".5" cy=".42" r=".7">
-    <stop offset="0" stop-color="#262a33"/><stop offset=".8" stop-color="#1a1d24"/>
-    <stop offset="1" stop-color="#14161c"/></radialGradient>
+    <stop offset="0" stop-color="#22252c"/><stop offset=".5" stop-color="#1b1e24"/>
+    <stop offset="1" stop-color="#14161b"/></linearGradient>
+  <radialGradient id="guzikG" cx=".38" cy=".32" r="1">
+    <stop offset="0" stop-color="#3a3f4a"/><stop offset=".55" stop-color="#23262e"/>
+    <stop offset="1" stop-color="#15171c"/></radialGradient>
+  <radialGradient id="bezelG" cx=".5" cy=".85" r="1">
+    <stop offset="0" stop-color="#05060a"/><stop offset=".8" stop-color="#2b303a"/>
+    <stop offset="1" stop-color="#454c59"/></radialGradient>
+  <radialGradient id="galkaG" cx=".4" cy=".3" r="1">
+    <stop offset="0" stop-color="#33373f"/><stop offset=".6" stop-color="#1d2026"/>
+    <stop offset="1" stop-color="#0f1115"/></radialGradient>
+  <radialGradient id="czapkaG" cx=".42" cy=".34" r="1">
+    <stop offset="0" stop-color="#272a31"/><stop offset="1" stop-color="#121419"/></radialGradient>
+  <linearGradient id="padG" x1="0" y1="0" x2=".3" y2="1">
+    <stop offset="0" stop-color="#e3e5e8"/><stop offset=".5" stop-color="#c6c9cd"/>
+    <stop offset="1" stop-color="#a9acb2"/></linearGradient>
+  <linearGradient id="uchwytG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#4c525e"/><stop offset=".45" stop-color="#2b2f38"/>
+    <stop offset="1" stop-color="#181b21"/></linearGradient>
+  <linearGradient id="studniaG" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#0a0b0e"/><stop offset="1" stop-color="#14161b"/></linearGradient>
+  <radialGradient id="oponaG" cx=".5" cy=".42" r=".65">
+    <stop offset="0" stop-color="#2a2d34"/><stop offset=".85" stop-color="#191c21"/>
+    <stop offset="1" stop-color="#0d0f12"/></radialGradient>
+  <radialGradient id="talerzG" cx=".42" cy=".36" r=".9">
+    <stop offset="0" stop-color="#23252b"/><stop offset=".6" stop-color="#14161a"/>
+    <stop offset="1" stop-color="#0a0b0e"/></radialGradient>
+  <radialGradient id="blikG" cx=".35" cy=".28" r=".5">
+    <stop offset="0" stop-color="#ffffff" stop-opacity=".10"/>
+    <stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
   <filter id="lsn" x="-60%" y="-60%" width="220%" height="220%">
     <feGaussianBlur stdDeviation="1.1" result="b"/>
-    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="szum"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/>
+    <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .035 0"/></filter>
+  <filter id="cien" x="-40%" y="-40%" width="180%" height="180%">
+    <feDropShadow dx="0" dy=".9" stdDeviation=".9" flood-color="#000" flood-opacity=".55"/></filter>`;
 el("rect", { x: 0, y: 0, width: 482, height: 273, rx: 8, fill: "url(#korpusG)",
              stroke: "#060709", "stroke-width": 1.2 });
 el("rect", { x: 164, y: 0, width: 116, height: 273, fill: "#181b21", opacity: .85 });
-[164, 280].forEach(x => el("line", { x1: x, y1: 2, x2: x, y2: 271, stroke: "#0c0e12", "stroke-width": .8 }));
+[164, 280].forEach(x => el("line", { x1: x, y1: 2, x2: x, y2: 271, stroke: "#0b0d11", "stroke-width": .8 }));
+el("rect", { x: 0, y: 0, width: 482, height: 273, rx: 8, filter: "url(#szum)", "pointer-events": "none" });
 etykM(185, 52, "DDJ-FLX4");
 
 function etyk(x, y, t, duza = false) { const n = el("text", { x, y, class: "etyk" + (duza ? " duza" : "") }); n.textContent = t; return n; }
 function etykM(x, y, t) { const n = el("text", { x, y, class: "etyk marka", "text-anchor": "middle" }); n.textContent = t; return n; }
 
 function guzik(id, x, y, label, r = 5, shape = "circle", jasny = false) {
+  let n;
   if (shape === "circle") {
-    el("circle", { cx: x, cy: y, r: r + 1.1, class: "guzik-obw" });
-    var n = el("circle", { cx: x, cy: y, r, class: "guzik" });
-    if (jasny) n.style.fill = "#3a4150";
+    el("circle", { cx: x, cy: y, r: r + 1.3, class: "bezel", filter: "url(#cien)" });
+    n = el("circle", { cx: x, cy: y, r, class: "guzik" });
+    if (jasny) n.style.fill = "#454c59";
+    if (id.endsWith("_play")) {
+      n.classList.add("zielony");
+      const g = el("text", { x, y: y + 1.1, class: "legenda" }); g.textContent = "▶ ⏸";
+    } else if (id.endsWith("_cue") && r > 7) {
+      const g = el("text", { x, y: y + 1.1, class: "legenda" }); g.textContent = "CUE";
+    }
   } else {
-    var n = el("rect", { x: x - r * 1.7, y: y - r * .62, width: r * 3.4, height: r * 1.24, rx: .9, class: "guzik" });
-    el("rect", { x: x - r * 1.7 - .8, y: y - r * .62 - .8, width: r * 3.4 + 1.6, height: r * 1.24 + 1.6, rx: 1.2, class: "guzik-obw" });
+    el("rect", { x: x - r * 1.7 - .6, y: y - r * .62 - .6, width: r * 3.4 + 1.2, height: r * 1.24 + 1.2,
+                 rx: 1.1, class: "bezel", filter: "url(#cien)" });
+    n = el("rect", { x: x - r * 1.7, y: y - r * .62, width: r * 3.4, height: r * 1.24, rx: .9, class: "chip" });
   }
   etyk(x, y + (shape === "circle" ? r + 4.6 : r + 4), label);
   KONTROLKI[id] = { kind: "guzik", n, seen: false, label };
 }
 function galka(id, x, y, label, r = 6) {
-  // skala: kreski na −135° i +135° oraz środek
   for (const kat of [-135, 0, 135]) {
     const rad = (kat - 90) * Math.PI / 180;
     el("line", { x1: x + Math.cos(rad) * (r + 1.6), y1: y + Math.sin(rad) * (r + 1.6),
                  x2: x + Math.cos(rad) * (r + 3), y2: y + Math.sin(rad) * (r + 3), class: "skala" });
   }
+  el("ellipse", { cx: x, cy: y + r * .28, rx: r * 1.06, ry: r * .92, fill: "#000", opacity: .35 });
   el("circle", { cx: x, cy: y, r, class: "galka" });
-  el("circle", { cx: x, cy: y, r: r * .62, class: "galka-czapka" });
-  const w = el("line", { x1: x, y1: y - r * .35, x2: x, y2: y - r + .9, class: "galka-wsk" });
+  // karby na obwodzie jak na prawdziwych gałkach
+  for (let i = 0; i < 14; i++) {
+    const rad = i / 14 * 2 * Math.PI;
+    el("line", { x1: x + Math.cos(rad) * (r - .4), y1: y + Math.sin(rad) * (r - .4),
+                 x2: x + Math.cos(rad) * (r + .05), y2: y + Math.sin(rad) * (r + .05), class: "karb" });
+  }
+  el("circle", { cx: x, cy: y, r: r * .58, class: "galka-czapka" });
+  const w = el("line", { x1: x, y1: y - r * .3, x2: x, y2: y - r + .8, class: "galka-wsk" });
   const v = el("text", { x, y: y + r + 8.4, class: "wart" });
   etyk(x, y + r + 4.8, label);
   KONTROLKI[id] = { kind: "galka", w, v, x, y, seen: false, label, msb: 0 };
 }
 function suwak(id, x, y1, y2, label, poziomy = false, odwroc = false) {
   if (!poziomy) {
-    el("rect", { x: x - 6.5, y: y1 - 3, width: 13, height: y2 - y1 + 6, rx: 1.4, fill: "#101318",
-                 stroke: "#0c0e12", "stroke-width": .5 });
-    el("rect", { x: x - 1, y: y1, width: 2, height: y2 - y1, class: "tor" });
-    el("line", { x1: x - 5, y1: (y1 + y2) / 2, x2: x - 2.4, y2: (y1 + y2) / 2, class: "skala" });
-    el("line", { x1: x + 2.4, y1: (y1 + y2) / 2, x2: x + 5, y2: (y1 + y2) / 2, class: "skala" });
-    const u = el("rect", { x: x - 5.4, y: (y1 + y2) / 2 - 2.2, width: 10.8, height: 4.4, rx: .8, class: "uchwyt" });
-    el("line", { x1: x - 5.4, y1: 0, x2: x + 5.4, y2: 0, stroke: "#0c0e12", "stroke-width": .5,
-                 transform: `translate(0 ${(y1 + y2) / 2})`, class: "uchwyt-kreska" });
+    el("rect", { x: x - 6.5, y: y1 - 3, width: 13, height: y2 - y1 + 6, rx: 1.4, class: "studnia" });
+    el("rect", { x: x - 1.1, y: y1, width: 2.2, height: y2 - y1, class: "tor" });
+    for (let i = 0; i <= 8; i++) {
+      const yy = y1 + (y2 - y1) * i / 8;
+      el("line", { x1: x + 3.2, y1: yy, x2: x + 5.6, y2: yy, class: "skala" });
+      el("line", { x1: x - 5.6, y1: yy, x2: x - 3.2, y2: yy, class: "skala" });
+    }
+    const u = el("rect", { x: x - 5.6, y: (y1 + y2) / 2 - 3.1, width: 11.2, height: 6.2, rx: .9,
+                           class: "uchwyt", filter: "url(#cien)" });
+    const ul = el("line", { x1: x - 5.6, y1: (y1 + y2) / 2, x2: x + 5.6, y2: (y1 + y2) / 2, class: "uchwyt-linia" });
     etyk(x, y2 + 7, label);
     const v = el("text", { x, y: y1 - 4.4, class: "wart" });
-    KONTROLKI[id] = { kind: "suwak", u, v, x, y1, y2, poziomy, odwroc, seen: false, label, msb: 0 };
+    KONTROLKI[id] = { kind: "suwak", u, ul, v, x, y1, y2, poziomy, odwroc, seen: false, label, msb: 0 };
   } else {
-    el("rect", { x: y1 - 3, y: x - 6.5, width: y2 - y1 + 6, height: 13, rx: 1.4, fill: "#101318",
-                 stroke: "#0c0e12", "stroke-width": .5 });
-    el("rect", { x: y1, y: x - 1, width: y2 - y1, height: 2, class: "tor" });
-    const u = el("rect", { x: (y1 + y2) / 2 - 2.2, y: x - 5.4, width: 4.4, height: 10.8, rx: .8, class: "uchwyt" });
+    el("rect", { x: y1 - 3, y: x - 6.5, width: y2 - y1 + 6, height: 13, rx: 1.4, class: "studnia" });
+    el("rect", { x: y1, y: x - 1.1, width: y2 - y1, height: 2.2, class: "tor" });
+    const u = el("rect", { x: (y1 + y2) / 2 - 3.1, y: x - 5.6, width: 6.2, height: 11.2, rx: .9,
+                           class: "uchwyt", filter: "url(#cien)" });
+    const ul = el("line", { x1: (y1 + y2) / 2, y1: x - 5.6, x2: (y1 + y2) / 2, y2: x + 5.6, class: "uchwyt-linia" });
     etyk((y1 + y2) / 2, x + 12, label);
     const v = el("text", { x: (y1 + y2) / 2, y: x - 8.4, class: "wart" });
-    KONTROLKI[id] = { kind: "suwak", u, v, x, y1, y2, poziomy, seen: false, label, msb: 0 };
+    KONTROLKI[id] = { kind: "suwak", u, ul, v, x, y1, y2, poziomy, seen: false, label, msb: 0 };
   }
 }
 function jog(id, x, y, r = 70) {
-  el("circle", { cx: x, cy: y, r, class: "jog" });
-  el("circle", { cx: x, cy: y, r: r - 3.2, fill: "none", stroke: "#0c0e12", "stroke-width": .6 });
-  // radełko: krótkie promienie po obwodzie
-  for (let i = 0; i < 72; i++) {
-    const rad = i / 72 * 2 * Math.PI;
-    el("line", { x1: x + Math.cos(rad) * (r - 2.8), y1: y + Math.sin(rad) * (r - 2.8),
-                 x2: x + Math.cos(rad) * (r - .6), y2: y + Math.sin(rad) * (r - .6),
-                 stroke: "#262b35", "stroke-width": .5 });
+  el("ellipse", { cx: x, cy: y + 3, rx: r + 1.5, ry: r + .5, fill: "#000", opacity: .4 });
+  el("circle", { cx: x, cy: y, r, class: "jog-opona" });
+  // wgłębienia na palce po obwodzie opony — jak na zdjęciach
+  for (let i = 0; i < 14; i++) {
+    const rad = i / 14 * 2 * Math.PI;
+    el("circle", { cx: x + Math.cos(rad) * (r - 6.4), cy: y + Math.sin(rad) * (r - 6.4),
+                   r: 4.6, class: "jog-wglebienie" });
   }
-  const p = el("circle", { cx: x, cy: y, r: r - 5.5, class: "jog-pierscien" });
-  el("circle", { cx: x, cy: y, r: r * .38, class: "jog-srodek" });
-  el("circle", { cx: x, cy: y, r: r * .12, fill: "#1a1d24", stroke: "#2c313c", "stroke-width": .4 });
-  const w = el("line", { x1: x, y1: y - r * .18, x2: x, y2: y - r * .36, class: "jog-wsk" });
-  const v = el("text", { x, y: y + r * .55, class: "wart" });
+  const p = el("circle", { cx: x, cy: y, r: r - 12.5, class: "jog-pierscien" });
+  // błyszczący talerz z podwójnym pierścieniem
+  el("circle", { cx: x, cy: y, r: r * .62, class: "jog-talerz" });
+  el("circle", { cx: x, cy: y, r: r * .62, class: "jog-blik" });
+  el("circle", { cx: x, cy: y, r: r * .40, fill: "none", stroke: "#cfd3da", "stroke-width": .5,
+                 "stroke-dasharray": ".8 1.1", opacity: .85 });
+  el("circle", { cx: x, cy: y, r: r * .30, fill: "none", stroke: "#d8dbe1", "stroke-width": 1.7, opacity: .9 });
+  el("circle", { cx: x, cy: y, r: r * .12, fill: "#101216", stroke: "#3a3f4a", "stroke-width": .5 });
+  const w = el("line", { x1: x, y1: y - r * .17, x2: x, y2: y - r * .27, class: "jog-wsk" });
+  const v = el("text", { x, y: y + r * .53, class: "wart" });
   KONTROLKI[id] = { kind: "jog", w, p, v, x, y, kat: 0, suma: 0, seen: false, label: "JOG" };
 }
 function pad(id, x, y, nr) {
-  el("rect", { x: x - 10.4, y: y - 9.4, width: 20.8, height: 18.8, rx: 1.8, class: "pad-obw" });
-  const n = el("rect", { x: x - 10, y: y - 9, width: 20, height: 18, rx: 1.6, class: "pad" });
-  const t = el("text", { x, y: y + 1.4, class: "etyk" }); t.textContent = nr;
-  KONTROLKI[id] = { kind: "pad", n, t, seen: false, label: "PAD " + nr };
+  el("rect", { x: x - 10.4, y: y - 9.4, width: 20.8, height: 18.8, rx: 2, class: "pad-obw", filter: "url(#cien)" });
+  const glow = el("rect", { x: x - 10.9, y: y - 9.9, width: 21.8, height: 19.8, rx: 2.4,
+                            fill: "var(--led)", opacity: 0, filter: "url(#lsn)" });
+  const n = el("rect", { x: x - 10, y: y - 9, width: 20, height: 18, rx: 1.7, class: "pad" });
+  const t = el("text", { x, y: y + 1.4, class: "pad-nr" }); t.textContent = nr;
+  KONTROLKI[id] = { kind: "pad", n, t, glow, seen: false, label: "PAD " + nr };
 }
 function przelacznik(id, x, y, label, opcje) {
-  el("rect", { x: x - 8, y: y - 3.2, width: 16, height: 6.4, rx: 1.2, class: "tor" });
+  el("rect", { x: x - 8, y: y - 3.2, width: 16, height: 6.4, rx: 1.2, class: "studnia" });
   [-4.5, 0, 4.5].forEach(dx => el("line", { x1: x + dx, y1: y - 5.2, x2: x + dx, y2: y - 3.8, class: "skala" }));
   const u = el("rect", { x: x - 6.6, y: y - 2.2, width: 4.4, height: 4.4, rx: .8, class: "uchwyt" });
   etyk(x, y + 7.4, label);
@@ -325,6 +391,7 @@ const NIEZNANE = {};   // klucz → {n, raw} — trwałe podsumowanie, nie przew
 const stanShift = { 1: false, 2: false };
 // stan WNIOSKOWANY z naciśnięć — diodami steruje Rekordbox (MIDI-OUT, nie podsłuchujemy)
 const stanEmul = { cue: { 1: false, 2: false }, sync: { 1: false, 2: false },
+                   play: { 1: false, 2: false },
                    chcue: { 1: false, 2: false }, masterCue: false,
                    smart_cfx: false, smart_fader: false,
                    hotcue: { 1: new Set(), 2: new Set() } };
@@ -348,10 +415,12 @@ function ustawWartosc(id, v14) {
   } else if (k.kind === "suwak") {
     if (!k.poziomy) {
       const y = k.odwroc ? k.y1 + f * (k.y2 - k.y1) : k.y2 - f * (k.y2 - k.y1); // 0 = dół; TEMPO: 0 = góra („−"), zmierzone 23.08
-      k.u.setAttribute("y", y - 2.5);
+      k.u.setAttribute("y", y - 3.1);
+      if (k.ul) { k.ul.setAttribute("y1", y); k.ul.setAttribute("y2", y); }
     } else {
       const x = k.y1 + f * (k.y2 - k.y1);            // 0 = lewo
-      k.u.setAttribute("x", x - 2.5);
+      k.u.setAttribute("x", x - 3.1);
+      if (k.ul) { k.ul.setAttribute("x1", x); k.ul.setAttribute("x2", x); }
     }
     k.u.classList.add("on"); k.v.textContent = v14;
   }
@@ -370,9 +439,8 @@ function ustawPad(deck, nr, tryb, on, shift) {
     if (shift) stanEmul.hotcue[deck].delete(nr); else stanEmul.hotcue[deck].add(nr);
   }
   const trzymaj = tryb === 0x00 && stanEmul.hotcue[deck].has(nr);
-  k.n.style.fill = (on || trzymaj) ? kolor : "";
-  k.n.style.opacity = on ? "1" : (trzymaj ? ".5" : "1");
-  k.n.style.stroke = on ? "#fff" : (trzymaj ? "#7a8496" : "");
+  k.glow.style.opacity = on ? "1" : (trzymaj ? ".45" : "0");
+  k.n.style.fill = on ? "#ffd9a0" : (trzymaj ? "#f3d7b2" : "");
   const t = KONTROLKI[`d${deck}_tryb`].n; t.textContent = `pady: ${nazwa}${shift ? " +SHIFT" : ""}`; t.style.fill = kolor;
   return nazwa;
 }
@@ -397,6 +465,10 @@ function obsluz(ev) {
         if (baza === "shift") stanShift[d] = on;
         id = `d${d}_${baza === "jog" ? "jog" : baza}`;
         if (baza === "play" && impuls) { swiec(`d${d}_play`, true, "blysk"); swiec(`d${d}_chfader`, true, "blysk"); }
+        else if (baza === "play" && !shift) {
+          if (on) stanEmul.play[d] = !stanEmul.play[d];
+          swiec(id, stanEmul.play[d]);
+        }
         else if (baza === "cue" && impuls) { swiec(`d${d}_cue`, true, "blysk"); swiec(`d${d}_chfader`, true, "blysk"); }
         else if (baza === "jog") swiec(`d${d}_jog`, on);
         else if (baza === "sync") {
