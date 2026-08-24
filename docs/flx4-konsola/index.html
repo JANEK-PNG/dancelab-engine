@@ -527,6 +527,11 @@ const stanEmul = { cue: { 1: false, 2: false }, sync: { 1: false, 2: false },
 let nieznanych = 0, licznik = 0;
 
 function zobacz(id) { const k = KONTROLKI[id]; if (k && !k.seen) { k.seen = true; odswiezPokrycie(); } }
+function dotknij(k, n) {                 // bursztyn tylko PODCZAS ruchu — po 350 ms wraca biel
+  n.classList.add("on");
+  clearTimeout(k._wygas);
+  k._wygas = setTimeout(() => n.classList.remove("on"), 350);
+}
 function swiec(id, on, klasa = "on") {
   const k = KONTROLKI[id]; if (!k) return; zobacz(id);
   const n = k.n || k.u || k.p;
@@ -540,7 +545,7 @@ function ustawWartosc(id, v14) {
   if (k.kind === "galka") {
     const kat = -135 + 270 * f;
     k.w.setAttribute("transform", `rotate(${kat} ${k.x} ${k.y})`);
-    k.w.classList.add("on"); k.v.textContent = v14;
+    dotknij(k, k.w); k.v.textContent = v14;
   } else if (k.kind === "suwak") {
     if (!k.poziomy) {
       const y = k.odwroc ? k.y1 + f * (k.y2 - k.y1) : k.y2 - f * (k.y2 - k.y1); // 0 = dół; TEMPO: 0 = góra („−"), zmierzone 23.08
@@ -551,7 +556,7 @@ function ustawWartosc(id, v14) {
       k.u.setAttribute("x", x - 3.1);
       if (k.ul) { k.ul.setAttribute("x1", x); k.ul.setAttribute("x2", x); }
     }
-    k.u.classList.add("on"); k.v.textContent = v14;
+    dotknij(k, k.u); k.v.textContent = v14;
   }
 }
 function obroc(id, delta, bok) {
@@ -652,7 +657,7 @@ function obsluz(ev) {
       const m = CC_GLOB[ev.d1];
       if (m) { const [baza, czesc] = m; id = baza;
         if (baza === "browse") { const k = KONTROLKI.browse; zobacz("browse"); k.msb = (k.msb || 0) + (ev.d2 < 64 ? ev.d2 : ev.d2 - 128);
-          k.w.setAttribute("transform", `rotate(${k.msb * 15} ${k.x} ${k.y})`); k.w.classList.add("on"); k.v.textContent = k.msb;
+          k.w.setAttribute("transform", `rotate(${k.msb * 15} ${k.x} ${k.y})`); k.v.textContent = k.msb;
           nazwa = `BROWSE ${ev.d2 < 64 ? "→" : "←"}${czesc === "relb+" ? " +SHIFT" : ""}`; }
         else { cc14(baza, czesc, ev.d2); nazwa = `${NAZWY[baza]} ${czesc ? "MSB" : "LSB"} = ${KONTROLKI[baza].v.textContent}`; }
       }
