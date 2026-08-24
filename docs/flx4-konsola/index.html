@@ -261,7 +261,7 @@ function galka(id, x, y, label, r = 6, konce = null) {
   el("circle", { cx: x, cy: y, r: r * .58, class: "galka-czapka" });
   const w = el("line", { x1: x, y1: y - r * .3, x2: x, y2: y - r + .8, class: "galka-wsk" });
   const v = el("text", { x, y: y + r + 8.4, class: "wart" });
-  if (label) etyk(x, y - r - 3.2, label);           // etykieta NAD gałką jak na panelu
+  if (label) etyk(x, y - r - 5.4, label);           // etykieta NAD łukiem skali
   if (konce) { napis(x - r - 3.4, y + r + 2.4, konce[0], 2.3, 500, "#7d8494");
                napis(x + r + 3.4, y + r + 2.4, konce[1], 2.3, 500, "#7d8494"); }
   KONTROLKI[id] = { kind: "galka", w, v, x, y, seen: false, label: label || id, msb: 0 };
@@ -355,10 +355,10 @@ function deck(d) {
   guzik(p + "callR", X(120.5), 28.8, "", 3.8, "circle", false, "▸");
   guzik(p + "sync", X(144.3), 28.4, "", 5.8, "circle", false, "BEAT SYNC");
   napis(X(98.9), 35.9, "1/2X", 2.3, 500, "#7d8494"); napis(X(120.5), 35.9, "2X", 2.3, 500, "#7d8494");
-  ramka(X(22.8), 39.4, "IN ADJ", true); ramka(X(47.9), 39.4, "OUT ADJ", true);
-  ramka(X(73.8), 39.4, "ACTIVE"); ramka(X(98.9), 40.2, "DEL");
-  ramka(X(109.7), 35.9, "LOOP", true); ramka(X(120.5), 40.2, "MEMORY");
-  ramka(X(144.3), 39.4, "TEMPO RANGE");
+  ramka(X(22.8), 39.8, "IN ADJ", true); ramka(X(47.9), 39.8, "OUT ADJ", true);
+  ramka(X(73.8), 39.8, "ACTIVE"); ramka(X(98.9), 39.8, "DEL");
+  ramka(X(109.7), 35.9, "LOOP", true); ramka(X(120.5), 39.8, "MEMORY");
+  ramka(X(144.3), 39.8, "TEMPO RANGE");
   // jog (środek 85,4 · 112,7 · R 72) + strzałka SEARCH
   jog(p + "jog", X(87), 116.5, 70);
   const sx = X(31.5), sy = 60.5;
@@ -406,27 +406,27 @@ napis(184, 38.2, "DJ CONTROLLER", 2.5, 500, "#8d939f");
 napis(184, 44.4, "DDJ-FLX4", 5.4, 700, "#c9cdd6", ".1em");
 napis(184, 54, "⌾ rekordbox", 3.5, 600, "#aeb3bd");
 napis(184, 62, "serato", 3.7, 700, "#aeb3bd");
-etyk(184, 77.5, "MIC LEVEL");
+etyk(184, 76.8, "MIC LEVEL");
 galka("mic_level", 184, 88.2, "", 6.8, ["−∞", "0"]); KONTROLKI.mic_level.label = "MIC LEVEL";
 guzik("smart_cfx", 183.6, 138, "", 5.6, "circle", false, "SMART CFX");
 ramka(183.6, 148.9, "FX SELECT");
-sluchawki(178.4, 156.2); etyk(186.6, 157, "MIX");
+sluchawki(178.4, 154.6); etyk(186.6, 155.6, "MIX");
 galka("hp_mix", 184, 168.1, "", 6.8, ["CUE", "MST"]); KONTROLKI.hp_mix.label = "HP MIX";
-sluchawki(176.6, 184.8); etyk(186.2, 185.6, "LEVEL");
+sluchawki(176.6, 181.6); etyk(186.2, 182.6, "LEVEL");
 galka("hp_level", 184, 194.6, "", 6.8, ["−∞", "0"]); KONTROLKI.hp_level.label = "HP LEVEL";
 guzik("smart_fader", 183.6, 223.3, "", 5.6, "circle", false, "SMART FADER");
 
 // ---------- KANAŁY 1 i 2 (osie 221 / 260,6) ----------
 for (const [d, cx] of [[1, 221], [2, 260.6]]) {
-  etyk(cx, 30.6, "TRIM");
+  etyk(cx, 29.1, "TRIM");
   galka(`d${d}_trim`, cx, 40.4, "", 7.3, ["−∞", "+9"]); KONTROLKI[`d${d}_trim`].label = "TRIM";
-  etyk(cx, 53.6, "HI");
+  etyk(cx, 52.4, "HI");
   galka(`d${d}_hi`, cx, 63.7, "", 7.3, ["−26", "+6"]); KONTROLKI[`d${d}_hi`].label = "EQ HI";
-  etyk(cx, 77.7, "MID");
+  etyk(cx, 76.5, "MID");
   galka(`d${d}_mid`, cx, 87.8, "", 7.3, ["−26", "+6"]); KONTROLKI[`d${d}_mid`].label = "EQ MID";
-  etyk(cx, 102.9, "LOW");
+  etyk(cx, 101.7, "LOW");
   galka(`d${d}_low`, cx, 113, "", 7.3, ["−26", "+6"]); KONTROLKI[`d${d}_low`].label = "EQ LOW";
-  etyk(cx, 128.4, "CFX");
+  etyk(cx, 127.2, "CFX");
   galka(`d${d}_cfx`, cx, 139, "", 7.8, ["LOW", "HI"]); KONTROLKI[`d${d}_cfx`].label = "CFX";
   guzik(`d${d}_chcue`, cx, 163.4, "", 3.9, "rect", false, "CUE"); KONTROLKI[`d${d}_chcue`].label = "CH CUE";
   napis(cx, 174.2, String(d), 4.6, 700, "#c9cdd6");
@@ -452,7 +452,7 @@ guzik("mono_stereo", 189, 253, "", 1.8, "rect"); KONTROLKI.mono_stereo.label = "
 napis(198.5, 254, "tył: MONO/ST", 2, 500, "#5c6270");
 
 // ---------- KOLUMNA MASTER / BEAT FX (oś ~297,7) ----------
-etyk(297.7, 30.6, "MASTER LEVEL");
+etyk(297.7, 28.7, "MASTER LEVEL");
 galka("master_level", 296.3, 40.1, "", 7.8, ["−∞", "0"]); KONTROLKI.master_level.label = "MASTER LEVEL";
 el("line", { x1: 296.3, y1: 52, x2: 296.3, y2: 58, stroke: "#454c59", "stroke-width": .5 });
 guzik("master_cue", 297.7, 64.7, "", 4.4, "rect", false, "CUE"); KONTROLKI.master_cue.label = "MASTER CUE";
@@ -466,9 +466,9 @@ etyk(299.1, 157.6, "BEAT");
 guzik("fx_beatL", 291.4, 163.4, "", 3.6, "rect", false, "◂"); KONTROLKI.fx_beatL.label = "BEAT ◁";
 guzik("fx_beatR", 306.2, 163.4, "", 3.6, "rect", false, "▸"); KONTROLKI.fx_beatR.label = "BEAT ▷";
 ramka(291.4, 170.4, "AUTO"); ramka(306.2, 170.4, "TAP");
-etyk(297.7, 182.6, "LEVEL/DEPTH");
+etyk(297.7, 180.2, "LEVEL/DEPTH");
 galka("fx_level", 297.7, 192.5, "", 8.5, ["MIN", "MAX"]); KONTROLKI.fx_level.label = "LEVEL/DEPTH";
-etyk(297.7, 213, "ON/OFF");
+etyk(297.7, 210, "ON/OFF");
 guzik("fx_onoff", 297.7, 220.7, "", 7.8, "circle", true); KONTROLKI.fx_onoff.label = "FX ON/OFF";
 ramka(297.7, 232.9, "RELEASE FX");
 
