@@ -451,25 +451,25 @@ guzik("mono_stereo", 184.65, 236.5, "", 1.8, "rect"); KONTROLKI.mono_stereo.labe
 napis(184.65, 243, "tył: MONO/ST", 2, 500, "#5c6270");
 
 // ---------- KOLUMNA MASTER / BEAT FX (oś ~297,7) ----------
-etyk(297.7, 28.7, "MASTER LEVEL");
-galka("master_level", 296.3, 40.1, "", 7.8, ["−∞", "0"]); KONTROLKI.master_level.label = "MASTER LEVEL";
-el("line", { x1: 296.3, y1: 52, x2: 296.3, y2: 58, stroke: "#454c59", "stroke-width": .5 });
-guzik("master_cue", 297.7, 64.7, "", 4.4, "rect", false, "CUE"); KONTROLKI.master_cue.label = "MASTER CUE";
-napis(299.1, 90.2, "BEAT FX", 4, 700, "#b8bec9", ".12em");
-napis(299.1, 107.9, "1  2  1&2", 2.6, 600, "#9aa2b1");
-przelacznik("fx_chsel", 299.1, 113.9, "", ["CH1", "CH2", "CH1&2"]);
-etyk(297.7, 132.4, "FX SELECT");
-guzik("fx_select", 297.7, 138, "", 4.4, "rect", false, "▼"); KONTROLKI.fx_select.label = "FX SELECT";
-ramka(297.7, 145.6, "▲");
-etyk(299.1, 157.6, "BEAT");
-guzik("fx_beatL", 291.4, 163.4, "", 3.6, "rect", false, "◂"); KONTROLKI.fx_beatL.label = "BEAT ◁";
-guzik("fx_beatR", 306.2, 163.4, "", 3.6, "rect", false, "▸"); KONTROLKI.fx_beatR.label = "BEAT ▷";
-ramka(291.4, 170.4, "AUTO"); ramka(306.2, 170.4, "TAP");
-etyk(297.7, 180.2, "LEVEL/DEPTH");
-galka("fx_level", 297.7, 192.5, "", 8.5, ["MIN", "MAX"]); KONTROLKI.fx_level.label = "LEVEL/DEPTH";
-etyk(297.7, 210, "ON/OFF");
-guzik("fx_onoff", 297.7, 220.7, "", 7.8, "circle", true); KONTROLKI.fx_onoff.label = "FX ON/OFF";
-ramka(297.7, 232.9, "RELEASE FX");
+etyk(299.25, 28.7, "MASTER LEVEL");
+galka("master_level", 299.25, 40.1, "", 7.8, ["−∞", "0"]); KONTROLKI.master_level.label = "MASTER LEVEL";
+el("line", { x1: 299.25, y1: 52, x2: 299.25, y2: 58, stroke: "#454c59", "stroke-width": .5 });
+guzik("master_cue", 299.25, 64.7, "", 4.4, "rect", false, "CUE"); KONTROLKI.master_cue.label = "MASTER CUE";
+napis(299.25, 90.2, "BEAT FX", 4, 700, "#b8bec9", ".12em");
+napis(299.25, 107.9, "1  2  1&2", 2.6, 600, "#9aa2b1");
+przelacznik("fx_chsel", 299.25, 113.9, "", ["CH1", "CH2", "CH1&2"]);
+etyk(299.25, 132.4, "FX SELECT");
+guzik("fx_select", 299.25, 138, "", 4.4, "rect", false, "▼"); KONTROLKI.fx_select.label = "FX SELECT";
+ramka(299.25, 145.6, "▲");
+etyk(299.25, 157.6, "BEAT");
+guzik("fx_beatL", 291.85, 163.4, "", 3.6, "rect", false, "◂"); KONTROLKI.fx_beatL.label = "BEAT ◁";
+guzik("fx_beatR", 306.65, 163.4, "", 3.6, "rect", false, "▸"); KONTROLKI.fx_beatR.label = "BEAT ▷";
+ramka(291.85, 170.4, "AUTO"); ramka(306.65, 170.4, "TAP");
+etyk(299.25, 180.2, "LEVEL/DEPTH");
+galka("fx_level", 299.25, 192.5, "", 8.5, ["MIN", "MAX"]); KONTROLKI.fx_level.label = "LEVEL/DEPTH";
+etyk(299.25, 210, "ON/OFF");
+guzik("fx_onoff", 299.25, 220.7, "", 7.8, "circle", true); KONTROLKI.fx_onoff.label = "FX ON/OFF";
+ramka(299.25, 232.9, "RELEASE FX");
 
 // ---------- mapa MIDI (kanały 0-based; oficjalna lista AlphaTheta, zmierzona 23.08.2026) ----------
 const NUTY_DECK = { 11: "play", 14: "play+", 12: "cue", 72: "cue+", 63: "shift", 54: "jog@", 103: "jog@+",
