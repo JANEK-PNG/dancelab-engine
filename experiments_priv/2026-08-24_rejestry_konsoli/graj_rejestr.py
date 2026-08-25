@@ -71,12 +71,23 @@ FX_CH_BIT16, FX_CH_BIT17 = 16, 17
 PADY_KANALY = {7: 1, 8: 1, 9: 2, 10: 2}     # kanał → deck (8/10 = z SHIFT-em)
 
 
-def wczytaj(sciezka: pathlib.Path) -> list[dict]:
-    return [json.loads(l) for l in sciezka.read_text(encoding="utf-8").splitlines() if l.strip()]
+def wczytaj(sciezka: pathlib.Path) -> tuple[list[dict], dict]:
+    """Zdarzenia + pozycje startowe (pierwsza linia, jeśli rejestr ją ma)."""
+    linie = [json.loads(l) for l in sciezka.read_text(encoding="utf-8").splitlines() if l.strip()]
+    start = {}
+    if linie and linie[0].get("typ") == "stan_poczatkowy":
+        for p2 in linie[0].get("pozycje", []):
+            start[(p2["ch"], p2["cc"])] = p2["v"]
+        linie = linie[1:]
+    return linie, start
 
 
-def automatyka(zdarzenia: list[dict]) -> dict:
-    """Rejestr → ścieżki sterowania. Wartości 14-bit składane z par MSB/LSB."""
+def automatyka(zdarzenia: list[dict], pozycje_startowe: dict | None = None) -> dict:
+    """Rejestr → ścieżki sterowania. Wartości 14-bit składane z par MSB/LSB.
+
+    `pozycje_startowe` to stan gałek ZANIM padł pierwszy ruch — bez tego model
+    zakłada środek skali i myli się tam, gdzie DJ zaczynał z inną pozycją.
+    """
     t0 = zdarzenia[0]["t"]
     tor: dict[str, list[tuple[float, float]]] = {}
     zdarz: list[tuple[float, int, str]] = []       # (czas, deck, co)
@@ -88,6 +99,17 @@ def automatyka(zdarzenia: list[dict]) -> dict:
 
     def dopisz(nazwa: str, t: float, v: float) -> None:
         tor.setdefault(nazwa, []).append((t - t0, v))
+
+    # stan wyjściowy: pary MSB/LSB z chwili rozpoczęcia nagrania
+    for (ch, cc), v in (pozycje_startowe or {}).items():
+        if ch in (0, 1) and cc in CC_DECK:
+            msb[(ch, cc)] = v
+        elif ch in (0, 1) and (cc - 32) in CC_DECK and (ch, cc - 32) in msb:
+            dopisz(f"d{ch+1}_{CC_DECK[cc-32]}", t0, ((msb[(ch, cc-32)] << 7) | v) / PELNA)
+        elif ch == 6 and cc in CC_GLOB:
+            msb[(ch, cc)] = v
+        elif ch == 6 and (cc - 32) in CC_GLOB and (ch, cc - 32) in msb:
+            dopisz(CC_GLOB[cc-32], t0, ((msb[(ch, cc-32)] << 7) | v) / PELNA)
 
     for r in zdarzenia:
         ch, d1, d2, t = r["ch"], r["d1"], r["d2"], r["t"]
@@ -396,10 +418,12 @@ def main() -> int:
     p = pathlib.Path(args.rejestr)
     if not p.exists():
         p = pathlib.Path(__file__).parent / args.rejestr
-    zd = wczytaj(p)
-    a = automatyka(zd)
+    zd, poz_start = wczytaj(p)
+    a = automatyka(zd, poz_start)
 
     print(f"rejestr: {p.name} · {len(zd)} zdarzeń · {a['dlugosc']:.1f} s")
+    print(f"pozycje startowe: {len(poz_start)} kontrolek"
+          + ("" if poz_start else " — BRAK, model zakłada środek skali (stary rejestr)"))
     print("ruchy kontrolek:")
     for nazwa, punkty in sorted(a["tor"].items()):
         print(f"   {nazwa:14s} {len(punkty):4d} zmian, "

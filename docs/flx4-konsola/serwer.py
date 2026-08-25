@@ -31,6 +31,11 @@ _rec = {"f": None, "plik": None, "nazwa": None, "start": None, "n": 0}
 _replay = {"watek": None, "stop": False, "plik": None, "poz": 0, "n": 0, "blad": None}
 _port_wirt = {"port": None, "we": None}   # wirtualne „DDJ-FLX4": źródło + CEL (Rekordbox musi móc mówić do „urządzenia")
 _od_rb = []                                # co Rekordbox wysłał do naszego wirtualnego kontrolera
+# Ostatnia znana pozycja każdej kontrolki ciągłej. Rejestr zapisuje tylko RUCHY,
+# więc bez tego model nie wie, gdzie stały gałki, zanim Janek zaczął nagrywać —
+# a to psuło odtworzenie (kalibracja 25.08 wykazała, że trim jest przez to
+# nieużywalny). Serwer widzi wszystkie komunikaty od podłączenia, więc pamięta.
+_pozycje: dict[str, dict] = {}
 
 
 def rozglos(msg) -> None:
@@ -45,6 +50,9 @@ def rozglos(msg) -> None:
         "raw": msg.hex(),
     }
     _stan["komunikatow"] += 1
+    if rek["type"] == "control_change" and rek["ch"] is not None:
+        _pozycje[f'{rek["ch"]}:{rek["d1"]}'] = {"ch": rek["ch"], "cc": rek["d1"],
+                                                "v": rek["d2"], "t": rek["t"]}
     if _rec["f"] is not None:
         _rec["f"].write(json.dumps({**rek, "ts": round(time.time(), 4)}) + "\n")
         _rec["n"] += 1
@@ -119,9 +127,12 @@ class Handler(BaseHTTPRequestHandler):
             nazwa = _re.sub(r"[^\w-]+", "_", parse_qs(u.query).get("nazwa", [""])[0])[:40] or "bez_nazwy"
             REJESTRY.mkdir(parents=True, exist_ok=True)
             plik = REJESTRY / f"rejestr_{_dt.now():%Y%m%d_%H%M%S}_{nazwa}.jsonl"
-            _rec.update(f=open(plik, "w", encoding="utf-8", buffering=1),
-                        plik=plik.name, nazwa=nazwa, start=time.time(), n=0)
-            self._json({"ok": True, "plik": plik.name})
+            f = open(plik, "w", encoding="utf-8", buffering=1)
+            # pierwsza linia rejestru: co WIEMY o pozycjach, zanim padnie pierwszy ruch
+            f.write(json.dumps({"typ": "stan_poczatkowy", "ts": round(time.time(), 4),
+                                "pozycje": list(_pozycje.values())}, ensure_ascii=False) + "\n")
+            _rec.update(f=f, plik=plik.name, nazwa=nazwa, start=time.time(), n=0)
+            self._json({"ok": True, "plik": plik.name, "znane_pozycje": len(_pozycje)})
         elif u.path == "/rec/stop":
             if _rec["f"] is None:
                 self._json({"blad": "nic nie jest nagrywane"}); return
@@ -210,6 +221,21 @@ class Handler(BaseHTTPRequestHandler):
         elif u.path == "/replay/stop":
             _replay["stop"] = True
             self._json({"ok": True})
+        elif u.path == "/pozycje":
+            # ile kontrolek ciągłych zna swoją pozycję i których brakuje
+            OCZEKIWANE = []
+            for ch in (0, 1):
+                for cc, nazwa in ((0, "TEMPO"), (4, "TRIM"), (7, "EQ HI"), (11, "EQ MID"),
+                                  (15, "EQ LOW"), (19, "CH FADER")):
+                    OCZEKIWANE.append((f"{ch}:{cc}", f"deck {ch + 1} {nazwa}"))
+            for cc, nazwa in ((31, "CROSSFADER"), (23, "CFX 1"), (24, "CFX 2"),
+                              (8, "MASTER LEVEL"), (5, "MIC LEVEL"),
+                              (12, "HP MIX"), (13, "HP LEVEL")):
+                OCZEKIWANE.append((f"6:{cc}", nazwa))
+            OCZEKIWANE.append(("4:2", "FX LEVEL/DEPTH"))
+            znane = [n for k, n in OCZEKIWANE if k in _pozycje]
+            brak = [n for k, n in OCZEKIWANE if k not in _pozycje]
+            self._json({"znane": len(znane), "wszystkie": len(OCZEKIWANE), "brakuje": brak})
         elif u.path == "/emulacja/stop":
             for k in ("port", "we"):
                 if _port_wirt[k] is not None:
