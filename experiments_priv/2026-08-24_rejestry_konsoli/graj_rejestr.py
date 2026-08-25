@@ -10,7 +10,7 @@ CO JEST ODTWARZANE (bo mamy to zmierzone w rejestrze):
   * fader kanału i crossfader — krzywe równomocowe,
   * EQ trzypasmowy jako IZOLATOR: skala z panelu FLX4 (−26 dB … +6 dB,
     na samym minimum kill), granice pasm 200 Hz / 3 kHz jak w automiksie,
-  * TRIM jako wzmocnienie wejścia,
+  * TRIM tylko w górę (podbicie); tłumienia nie stosujemy — patrz TRIM_MIN_DB,
   * TEMPO (suwak) jako zmiana prędkości odtwarzania,
   * HOT CUE: naciśnięcie pada przeskakuje do zapisanego punktu (pozycje
     czytane z bazy Rekordboxa przez --hotcue),
@@ -49,8 +49,15 @@ import numpy as np
 SR = 44100
 BLOK = 512                      # próbek na krok automatyki (~11,6 ms)
 LOW_HZ, HIGH_HZ = 200.0, 3000.0
-EQ_MIN_DB, EQ_MAX_DB = -26.0, 6.0     # skala z panelu FLX4
-TRIM_MIN_DB, TRIM_MAX_DB = -60.0, 9.0
+# Panel FLX4 podaje przy korektorze −26 dB, ale SKALIBROWANE na nagraniu Janka
+# (25.08, relacja bas−środek w pięciu oknach) wyszło −8 dB: krzywa Rekordboxa
+# nie jest liniowa w decybelach, a gałka na zerze ścisza pasmo, nie kasuje go.
+EQ_MIN_DB, EQ_MAX_DB = -8.0, 6.0
+# TRIM: kalibracja na nagraniu Janka wyszła na 0 dB, czyli „nie rusza dźwięku".
+# Nie znamy pozycji WYJŚCIOWEJ gałek — rejestr zapisuje tylko ruchy — a Janek
+# podkręcał trim w trakcie, więc odczytana pozycja 14 % nie znaczy 14 % skali.
+# Zamiast zgadywać tłumienie, model go nie stosuje i mówi o tym wprost.
+TRIM_MIN_DB, TRIM_MAX_DB = 0.0, 9.0
 PELNA = 16383
 
 # ---- mapa MIDI (0-based, zmierzona 23.08) ----
@@ -141,13 +148,20 @@ def probkuj(punkty: list[tuple[float, float]] | None, czasy: np.ndarray,
 
 
 def db_z_pozycji(poz: np.ndarray, min_db: float, max_db: float,
-                 kill_ponizej: float = 0.02) -> np.ndarray:
-    """Gałka EQ/TRIM: środek = 0 dB, dół = kill, góra = max."""
+                 kill_ponizej: float = 0.0) -> np.ndarray:
+    """Gałka EQ: środek = 0 dB, dół = min_db, góra = max_db.
+
+    NIE kasuje pasma do zera na minimum — panel FLX4 podaje przy korektorze
+    −26 dB, nie „−∞". Wcześniej zero pozycji oznaczało u mnie ciszę i bas
+    decka 1 znikał całkiem, choć w nagraniu Janka było go słychać.
+    """
     srodek = 0.5
     dol = poz < srodek
     wzm = np.where(dol, min_db * (srodek - poz) / srodek, max_db * (poz - srodek) / srodek)
     g = 10.0 ** (wzm / 20.0)
-    return np.where(poz <= kill_ponizej, 0.0, g).astype(np.float32)
+    if kill_ponizej > 0:
+        g = np.where(poz <= kill_ponizej, 0.0, g)
+    return g.astype(np.float32)
 
 
 def filtr_cfx(y: np.ndarray, poz: np.ndarray, czasy: np.ndarray) -> np.ndarray:
@@ -211,7 +225,9 @@ def wczytaj_audio(sciezka: str) -> np.ndarray:
 
 def render(a: dict, sciezki: dict[int, str], wyjscie: pathlib.Path,
            start: dict[int, float], echo_beats: float = 0.0,
-           bpm: float = 126.0, hotcue: dict | None = None, bez_cfx: bool = False) -> dict:
+           bpm: float = 126.0, hotcue: dict | None = None, bez_cfx: bool = False,
+           eq_min_db: float = EQ_MIN_DB, cfx_min_hz: float = 200.0,
+           trim_min_db: float = TRIM_MIN_DB) -> dict:
     hotcue = hotcue or {}
     import soundfile as sf
     n_krokow = int(np.ceil(a["dlugosc"] * SR / BLOK)) + 1
@@ -234,14 +250,16 @@ def render(a: dict, sciezki: dict[int, str], wyjscie: pathlib.Path,
         # przez co trim Janka na 21 % dawał −35 dB i cały deck 2 ginął
         # (bas w renderze był o 15 dB cichszy niż w jego nagraniu).
         poz_trim = probkuj(a["tor"].get(f"d{deck}_trim"), czasy, 0.5)
-        g_trim = np.where(poz_trim <= 0.5, poz_trim / 0.5,
-                          1.0 + (poz_trim - 0.5) / 0.5 * (10 ** (TRIM_MAX_DB / 20) - 1)
-                          ).astype(np.float32)
-        g_low = db_z_pozycji(probkuj(a["tor"].get(f"d{deck}_low"), czasy, 0.5), EQ_MIN_DB, EQ_MAX_DB)
-        g_mid = db_z_pozycji(probkuj(a["tor"].get(f"d{deck}_mid"), czasy, 0.5), EQ_MIN_DB, EQ_MAX_DB)
-        g_hi = db_z_pozycji(probkuj(a["tor"].get(f"d{deck}_hi"), czasy, 0.5), EQ_MIN_DB, EQ_MAX_DB)
-        # crossfader równomocowy: deck 1 z lewej, deck 2 z prawej
-        g_cross = np.cos(cross * np.pi / 2) if deck == 1 else np.sin(cross * np.pi / 2)
+        g_trim = db_z_pozycji(poz_trim, trim_min_db, TRIM_MAX_DB).astype(np.float32)
+        g_low = db_z_pozycji(probkuj(a["tor"].get(f"d{deck}_low"), czasy, 0.5), eq_min_db, EQ_MAX_DB)
+        g_mid = db_z_pozycji(probkuj(a["tor"].get(f"d{deck}_mid"), czasy, 0.5), eq_min_db, EQ_MAX_DB)
+        g_hi = db_z_pozycji(probkuj(a["tor"].get(f"d{deck}_hi"), czasy, 0.5), eq_min_db, EQ_MAX_DB)
+        # Crossfader miksujący: w POZYCJI ŚRODKOWEJ oba kanały grają PEŁNĄ
+        # głośnością — ścina dopiero, gdy jedzie ku krawędzi. Krzywa równomocowa
+        # (cos/sin) tłumiła oba o 3 dB w środku, a przy 47 % odbierała deckowi 1
+        # ponad 5 dB — dokładnie tyle basu brakowało w oknie przejścia.
+        g_cross = (np.minimum(1.0, 2.0 * (1.0 - cross)) if deck == 1
+                   else np.minimum(1.0, 2.0 * cross)).astype(np.float32)
         tempo = probkuj(a["tor"].get(f"d{deck}_tempo"), czasy, 0.5)
         # Zakres pitch FLX4 domyślnie ±6 % (instrukcja s. 17). Kierunek zmierzony
         # 23.08: góra suwaka = „−" = 0, dół = „+" = pełna skala.
@@ -295,7 +313,7 @@ def render(a: dict, sciezki: dict[int, str], wyjscie: pathlib.Path,
             if abs(p_cfx - 0.5) > 0.03:            # CFX czynny w tym bloku
                 from scipy.signal import butter, sosfilt
                 if p_cfx < 0.5:
-                    f = 200.0 * (20000.0 / 200.0) ** (p_cfx / 0.5)
+                    f = cfx_min_hz * (20000.0 / cfx_min_hz) ** (p_cfx / 0.5)
                     sos = butter(2, min(f, 20000.0) / (SR / 2), btype="lowpass", output="sos")
                 else:
                     f = 20.0 * (8000.0 / 20.0) ** ((p_cfx - 0.5) / 0.5)
@@ -367,6 +385,9 @@ def main() -> int:
     ap.add_argument("--echo-beats", type=float, default=0.0,
                     help="długość echa w bitach (np. 0.75 = 3/4); 0 = bez echa")
     ap.add_argument("--bpm", type=float, default=126.0, help="tempo setu dla echa")
+    ap.add_argument("--eq-min-db", type=float, default=EQ_MIN_DB, help="ile dB przy gałce EQ na zerze")
+    ap.add_argument("--cfx-min-hz", type=float, default=200.0, help="najniższe odcięcie filtra CFX")
+    ap.add_argument("--trim-min-db", type=float, default=TRIM_MIN_DB)
     ap.add_argument("--bez-cfx", action="store_true", help="test: pomiń filtr CFX")
     ap.add_argument("--hotcue1", default="", help="pady decka 1, np. 1:183.15,2:300")
     ap.add_argument("--hotcue2", default="", help="pady decka 2")
@@ -413,7 +434,9 @@ def main() -> int:
         return out2
     hot = {1: mapa(args.hotcue1), 2: mapa(args.hotcue2)}
     raport = render(a, sciezki, out, {1: args.start1, 2: args.start2},
-                    echo_beats=args.echo_beats, bpm=args.bpm, hotcue=hot, bez_cfx=args.bez_cfx)
+                    echo_beats=args.echo_beats, bpm=args.bpm, hotcue=hot, bez_cfx=args.bez_cfx,
+                    eq_min_db=args.eq_min_db, cfx_min_hz=args.cfx_min_hz,
+                    trim_min_db=args.trim_min_db)
     print(json.dumps(raport, ensure_ascii=False, indent=1))
     return 0
 
