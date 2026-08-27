@@ -46,6 +46,9 @@ tui = [
 # Direct Rekordbox cue writing is optional, but must be explicitly installed.
 # Keeping it separate avoids pulling SQLCipher into analysis-only deployments.
 rekordbox = ["pyrekordbox>=0.4.4,<0.5"]
+# The identity catalog: PostgreSQL + pgvector. Optional because analysis and
+# the engine itself never touch the database — only the catalog tooling does.
+catalog = ["psycopg[binary]>=3.2", "pgvector>=0.3", "openpyxl>=3.1"]
 # Real vocal separation (htdemucs). Heavy: pulls torch + ~80 MB model download.
 # Optional — vocal_activity falls back to the HPSS proxy without it.
 vocals = ["demucs>=4.0", "torch>=2.0"]

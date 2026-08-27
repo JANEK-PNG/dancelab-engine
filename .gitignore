@@ -75,3 +75,7 @@ experiments_priv/**
 
 # katalog roboczy asystenta: ustawienia lokalne + kopie robocze drzewa
 .claude/
+
+# Database dumps from scripts/kopia_bazy.sh. These are backups of a machine's
+# own catalog, tens of megabytes each, and rebuildable from the sources.
+data/kopie/
