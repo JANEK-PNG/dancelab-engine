@@ -55,3 +55,47 @@ Wzór zamrożony teraz, żeby nie było dopasowywania po fakcie.
    prawo o DJ-ach.
 3. **Oceny dotyczą przejść, wysiłek — odcinków między załadowaniami.**
    Przypisanie jednego do drugiego wymaga dopasowania, które samo może mylić.
+
+---
+
+## KOREKTA JANKA (27.08, tego samego wieczoru) — hipoteza była naiwna
+
+Janek po przeczytaniu powyższego: *„DJ set to suma elementów. Nie znałem
+tych utworów — dostałem playlistę od ciebie i grałem ją pierwszy raz.
+Nie wiedziałem, gdzie utwór się zaczyna, gdzie kończy, gdzie zrobić dobre
+przejście. Musiałem iść na żywca."*
+
+To rozbija mój wskaźnik. **Wysiłek rąk miesza co najmniej trzy różne rzeczy:**
+
+1. **Nieznajomość materiału.** Pierwszy raz na oczy. Szukanie punktu wejścia,
+   dociąganie jogiem — to koszt POZNAWANIA utworu, nie dowód, że para jest zła.
+   To prawdopodobnie WIĘKSZOŚĆ zmierzonych 58 naciśnięć CUE.
+2. **Jakość zestawienia** — jedyne, co chciałem mierzyć.
+3. **Stan DJ-a.** Janek: *„byłem zmęczony, sfrustrowany, nie czułem tego.
+   To jest ludzka rzecz."* Zmęczenie mnoży liczbę ruchów niezależnie od muzyki.
+
+Wskaźnik w obecnej postaci mierzy sumę tych trzech i **nie da się z niego
+wyczytać jakości zestawienia**. Próg zostaje zarejestrowany, ale wynik —
+jakikolwiek — będzie mówił o sumie, nie o materiale.
+
+### Trzy warunki dobrego setu według Janka (jego słowa, jego kolejność)
+
+Zanim DJ zagra set, powinien: **znać utwory** (przesłuchać każdy choć raz),
+**znać ich ułożenie** (przesłuchać w dokładnej kolejności) i **zgodzić się
+z tą playlistą jako osoba**. Przy OCENA I nie było spełnione żadne z trzech.
+
+### Test, który rozdziela nieznajomość od zestawienia
+
+**Ten sam set zagrany DRUGI raz**, gdy utwory są już znane. Wysiłek z
+nieznajomości spada, wysiłek z materiału zostaje. Różnica między przebiegami
+jest miarą tego, ile kosztowała sama nieznajomość — a to, co przetrwa, jest
+kandydatem na sygnał o zestawieniu.
+
+Dopóki tego nie zrobimy, wysiłek NIE jest miarą jakości pary i tak trzeba
+o nim mówić.
+
+### Zdanie, które warto zapamiętać osobno
+
+Janek: *„Nie mogę nienawidzić pojedynczych utworów. Pojedyncze utwory nic nie
+znaczą. To KOLEJNOŚĆ tych utworów względem siebie była najgorsza."*
+To jest doktryna in between wypowiedziana wprost, przy realnym secie.
