@@ -38,9 +38,28 @@ def wczytaj_przejscia(katalog: pathlib.Path) -> list[dict]:
     return wiersze
 
 
-def bramka_kompletnosci(wiersze: list[dict]) -> list[str]:
+def wczytaj_wylaczenia(katalog: pathlib.Path) -> dict[str, dict]:
+    """Przejścia świadomie wyłączone z analizy, z powodem i datą decyzji.
+
+    Odstępstwo od planu z 18.08, dopisane 29.08: plan zakładał komplet 158
+    ocen albo zero liczenia. Jedno przejście (OCENA_J_13) nie zostało
+    ocenione na papierze i Janek zdecydował je pominąć. Lista jest jawna,
+    bo wyłączanie obserwacji BEZ zapisu jest doborem wyniku — a z zapisem
+    jest brakiem danych, który każdy czytający zobaczy.
+    """
+    plik = katalog / "WYLACZENIA.json"
+    if not plik.exists():
+        return {}
+    dane = json.loads(plik.read_text(encoding="utf-8"))
+    return {w["pair_id"]: w for w in dane.get("wylaczenia", [])}
+
+
+def bramka_kompletnosci(wiersze: list[dict],
+                        wylaczone: dict[str, dict] | None = None) -> list[str]:
+    wylaczone = wylaczone or {}
     braki = [r["pair_id"] for r in wiersze
-             if not str(r.get("dj_mixability_rating", "")).strip()]
+             if r["pair_id"] not in wylaczone
+             and not str(r.get("dj_mixability_rating", "")).strip()]
     zle = [r["pair_id"] for r in wiersze
            if str(r.get("dj_mixability_rating", "")).strip()
            and r["dj_mixability_rating"].strip() not in {"1", "2", "3", "4", "5"}]
@@ -140,14 +159,22 @@ def main() -> int:
         katalog = pathlib.Path(sys.argv[sys.argv.index("--katalog") + 1])
 
     wiersze = wczytaj_przejscia(katalog)
-    problemy = bramka_kompletnosci(wiersze)
+    wylaczone = wczytaj_wylaczenia(katalog)
+    problemy = bramka_kompletnosci(wiersze, wylaczone)
     if problemy:
         print("⛔ BRAMKA KOMPLETNOŚCI — analiza nie rusza, przydział zostaje "
               "zamknięty:")
         for p in problemy:
             print(f"   • {p}")
         return 2
-    print("bramka kompletności: ✓ 158/158 ocen")
+    # Wyłączone wiersze wypadają ze WSZYSTKICH liczeń, nie tylko z bramki.
+    wiersze = [r for r in wiersze if r["pair_id"] not in wylaczone]
+    print(f"bramka kompletności: ✓ {len(wiersze)}/158 ocen"
+          + (f" · wyłączone: {len(wylaczone)} "
+             f"({', '.join(sorted(wylaczone))})" if wylaczone else ""))
+    for pid, w in sorted(wylaczone.items()):
+        print(f"   • {pid} wyłączone — {w.get('powod', 'bez powodu')} "
+              f"[{w.get('decyzja', 'bez decyzji')}]")
 
     # dopiero teraz wolno otworzyć przydział
     przydzial = json.loads((katalog / "PRZYDZIAL_NIE_OTWIERAC.json")
@@ -159,6 +186,8 @@ def main() -> int:
     srednie = {k: float(np.mean(v)) for k, v in per_playlista.items()}
 
     wynik = {
+        "wylaczone_przejscia": {k: v.get("powod") for k, v in sorted(wylaczone.items())},
+        "ocen_w_analizie": len(wiersze),
         "H1_kolejnosc": h1_kolejnosc(srednie, przydzial),
         "H2_score_vs_ucho": h2_score_vs_ucho(wiersze),
         "H3_calosci": h3_calosci(katalog, przydzial),

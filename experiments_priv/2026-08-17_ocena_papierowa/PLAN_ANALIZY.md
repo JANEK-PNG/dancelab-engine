@@ -60,3 +60,31 @@ Zliczenia per kategoria, silnik vs kontrola — opisowo. Litery mapują się
 1:1 na słownik `TOPIC_KEYWORDS` z `validation/dj_benchmark.py`:
 T→bpm_grid_sync, S→style_genre_mood, E→energy_curve, M→transition_timing,
 D→duplicates_same_album, K→playlist_context.
+
+---
+
+## Aneks z 2026-08-29 — jedno odstępstwo od planu, zapisane PRZED liczeniem
+
+Plan z 18.08 mówił: komplet 158 ocen albo zero liczenia. Po przepisaniu ocen
+ze skanów okazało się, że **przy jednym przejściu (`OCENA_J_13`) nie jest
+zakreślona żadna cyfra** — nie zostało ocenione przy słuchaniu. Cztery inne
+pola były niejednoznaczne (dwie cyfry zakreślone naraz, dopisek „5?”) i te
+Janek rozstrzygnął tego samego dnia: `OCENA_I_06` = 4, `OCENA_I_16` = 1,
+`OCENA_J_02` = 4, `OCENA_J_05` = 4.
+
+**Decyzja Janka (formularz, 29.08): `OCENA_J_13` wypada z analizy.**
+Liczymy 157 przejść zamiast 158.
+
+Dlaczego to jest odstępstwo, a nie drobiazg: bramka miała być „wszystko albo
+nic" właśnie po to, żeby nie dało się wyrzucić niewygodnej obserwacji po
+zobaczeniu danych. Dlatego wyłączenie **musi być jawne i uzasadnione**:
+
+* Powód jest brakiem zapisu na kartce, nie własnością przejścia ani playlisty.
+* W chwili decyzji przydział silnik/kontrola był **nadal zapieczętowany** —
+  ani Janek, ani ja nie wiedzieliśmy, do której grupy należy OCENA J.
+* Lista wyłączeń leży w `WYLACZENIA.json`, a `analiza.py` wypisuje ją przy
+  każdym uruchomieniu i zapisuje w wyniku. Wyłączenie bez zapisu byłoby
+  doborem wyniku; wyłączenie z zapisem jest brakiem danych.
+
+**Progi z 18.08 pozostają bez zmian.** Ten aneks zmienia liczbę obserwacji,
+nie kryteria. Średnia dla OCENA J liczy się teraz z 12 przejść, nie 13.

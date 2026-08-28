@@ -137,8 +137,8 @@ OCENY: dict[str, list] = {
         (4, "", ""),
         (4, "", ""),
         (4, "", ""),
-        (None, "E", "NIECZYTELNE: zakreślone 4, obok dopisane „5?” — do potwierdzenia; "
-                    "dobry pomysł na outro"),
+        (4, "E", "zakreślone 4, obok dopisane „5?”; Janek rozstrzygnął 29.08: 4. "
+                 "Dobry pomysł na outro"),
         (4, "", ""),
         (1, "T,S,E,M,D,K", "„rock?”, „nie wiem” — wszystkie kategorie zakreślone"),
         (1, "T,S,E,M,D,K", ""),
@@ -148,7 +148,7 @@ OCENY: dict[str, list] = {
         (2, "E,K", ""),
         (3, "", ""),
         (3, "K", ""),
-        (None, "", "NIECZYTELNE: zakreślone JEDNOCZEŚNIE 1 i 2 — do potwierdzenia; „inny świat”"),
+        (1, "", "zakreślone jednocześnie 1 i 2; Janek rozstrzygnął 29.08: 1. „Inny świat”"),
         (3, "T", ""),
         (3, "", ""),
         (5, "", "fire!"),
@@ -159,10 +159,10 @@ OCENY: dict[str, list] = {
     ],
     "OCENA_J": [
         (4, "", ""),
-        (None, "", "NIECZYTELNE: zakreślone JEDNOCZEŚNIE 4 i 5 — do potwierdzenia"),
+        (4, "", "zakreślone jednocześnie 4 i 5; Janek rozstrzygnął 29.08: 4"),
         (3, "E", ""),
         (5, "", ""),
-        (None, "", "NIECZYTELNE: zakreślone JEDNOCZEŚNIE 4 i 5 — do potwierdzenia"),
+        (4, "", "zakreślone jednocześnie 4 i 5; Janek rozstrzygnął 29.08: 4"),
         (3, "", ""),
         (3, "", ""),
         (2, "", ""),
@@ -170,7 +170,8 @@ OCENY: dict[str, list] = {
         (3, "", ""),
         (3, "", ""),
         (3, "", ""),
-        (None, "", "BRAK OCENY na papierze — żadna cyfra nie zakreślona"),
+        (None, "", "BRAK OCENY na papierze — żadna cyfra nie zakreślona. "
+                   "WYŁĄCZONE z analizy decyzją Janka 29.08 (patrz WYLACZENIA.json)"),
     ],
 }
 
