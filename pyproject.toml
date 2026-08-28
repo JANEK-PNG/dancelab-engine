@@ -53,6 +53,9 @@ catalog = ["psycopg[binary]>=3.2", "pgvector>=0.3", "openpyxl>=3.1"]
 # płaski rzut z instrukcji PDF i nakłada siatkę milimetrową. Osobno, bo silnik
 # tego nie potrzebuje.
 narzedzia = ["pypdfium2>=4.30", "pillow>=10.0"]
+# Okno aplikacji (dancelab gui). pywebview używa WKWebView wbudowanego w macOS,
+# więc nie pakuje własnej przeglądarki i nie wnosi dylibów jak Qt.
+gui = ["pywebview>=6.0"]
 # Real vocal separation (htdemucs). Heavy: pulls torch + ~80 MB model download.
 # Optional — vocal_activity falls back to the HPSS proxy without it.
 vocals = ["demucs>=4.0", "torch>=2.0"]

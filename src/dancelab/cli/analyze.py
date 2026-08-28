@@ -150,6 +150,21 @@ def smart_playlist(
             typer.secho(f"fail {Path(failure.source_path).name}: {failure.error}", fg="yellow")
 
 
+@app.command()
+def gui(
+    debug: bool = typer.Option(False, "--debug",
+                               help="Konsola developerska w oknie"),
+) -> None:
+    """Okno aplikacji: fala utworu, pady, zapis do Rekordboxa.
+
+    Druga skóra na tym samym rdzeniu co `dancelab tui` — obie wołają
+    `dancelab.stan`, więc plan cue postawiony tu widać w terminalu i odwrotnie.
+    """
+    from dancelab.gui import uruchom
+
+    uruchom(debug=debug)
+
+
 @app.command(name="tui")
 def tui(
     processed_dir: Path | None = typer.Option(None, "--processed-dir",
