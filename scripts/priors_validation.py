@@ -83,7 +83,14 @@ def score_hand(a: dict, b: dict) -> float:
         s += 0.4 * bpm_score(a["bpm"], b["bpm"])
     if a["camelot"] and b["camelot"]:
         try:
-            s += 0.4 * harmonic_compatibility(a["camelot"], b["camelot"])
+            # harmonic_compatibility returns a HarmonicResult, not a float.
+            # Multiplying the object raised TypeError straight into the except
+            # below, so this component was silently absent from every hand
+            # score ever reported by this script — including the 20.7% that
+            # the measured weights were declared to beat.
+            s += 0.4 * harmonic_compatibility(
+                a["camelot"], b["camelot"]
+            ).harmonic_compatibility_score
         except Exception:
             pass
     if a["energy"] is not None and b["energy"] is not None:

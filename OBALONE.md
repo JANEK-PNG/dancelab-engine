@@ -319,6 +319,48 @@ użytecznych szwów**.
 **Liczba do zapamiętania przy każdym zdaniu zaczynającym się od „mamy 23
 tysiące…".**
 
+### D6. „Wagi zmierzone z korpusu biją ręczne" — pomiar był zepsuty
+**Obalone 2026-08-28. Wniosek żył od 2026-08 i wszedł do ledgera oraz do pamięci.**
+
+`scripts/priors_validation.py` liczył składnik harmoniczny jako
+`0.4 * harmonic_compatibility(...)`, a ta funkcja zwraca **obiekt**
+`HarmonicResult`, nie liczbę. Mnożenie rzucało `TypeError` prosto w
+`except Exception: pass` kilka linii niżej, więc **harmonia nigdy nie weszła do
+żadnego wyniku „wag ręcznych"** podanego przez ten skrypt.
+
+Porównanie „24,3% zmierzone przeciw 20,7% ręczne" nie porównywało więc wag.
+Porównywało **model z harmonią przeciw modelowi bez harmonii**.
+
+Po naprawie: ręczne **25,2%**, zmierzone 24,3%, percentyl 0,423 wobec 0,427,
+**p = 0,668**. Kierunek się odwrócił, ale różnica jest nieistotna w obie strony.
+
+**Uczciwy stan: na tych danych nie da się rozróżnić wag ręcznych od
+zmierzonych.** Nie „ręczne wygrywają" — to byłby ten sam błąd w drugą stronę.
+
+**Zamiast:** przy każdym porównaniu modeli sprawdzić najpierw ablacją, że każdy
+składnik w ogóle wpływa na wynik. Wariant „bez X" dający wynik identyczny co do
+trzeciego miejsca po przecinku to nie odkrycie, że X nie działa — to prawie
+zawsze martwy kod.
+
+### D7. „Harmonia nie odróżnia wyboru DJ-a" — nie replikuje się
+**Obalone 2026-08-28, dzień po postawieniu.**
+
+Na 2304 szwach z mapy DJ-ów lift harmoniczny miał przedział ufności zawierający
+1,0, a 59,7% przejść było harmonicznie „risky". Wyglądało to na mocne
+ustalenie i zapisałem je jako hipotezę do zmiany wag silnika.
+
+Na niezależnym zbiorze (1604 obserwacje z kandydatami, których DJ nie wybrał)
+**usunięcie harmonii istotnie pogarsza przewidywanie** — top1 spada z 25,2% na
+20,7%, p = 0,0093.
+
+Najprawdopodobniejsza przyczyna rozbieżności: baseline w tamtym pomiarze
+losował pary **z tego samego setu**, a DJ-e grają w wąskim zakresie tonacji, więc
+losowa para z ich setu jest harmonicznie podobna do prawdziwego przejścia.
+Test nie miał czego odróżniać.
+
+**Zamiast:** przy pytaniu „czy składnik niesie informację" używać zbioru z
+**odrzuconymi kandydatami**, nie baseline'u losowanego z tej samej puli.
+
 ---
 
 ## E. Wzorce błędu, które wracają
