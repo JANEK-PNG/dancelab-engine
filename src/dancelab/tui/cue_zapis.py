@@ -34,12 +34,16 @@ def _nfc(s: str) -> str:
     return unicodedata.normalize("NFC", str(s))
 
 
-def mapa_content_id() -> dict[str, str]:
-    """{ścieżka pliku (NFC): ContentID} z kolekcji Rekordboksa."""
+def mapa_content_id(baza: "pathlib.Path | None" = None) -> dict[str, str]:
+    """{ścieżka pliku (NFC): ContentID} z kolekcji Rekordboksa.
+
+    `baza` podmienia plik bazy. Istnieje dla testu, który pracuje na KOPII
+    `master.db`; bez argumentu czyta kolekcję tak jak dotąd."""
     from pyrekordbox import Rekordbox6Database
     from pyrekordbox.db6 import tables
 
-    db = Rekordbox6Database()
+    db = (Rekordbox6Database(str(baza)) if baza is not None
+          else Rekordbox6Database())
     try:
         return {_nfc(r.FolderPath or ""): str(r.ID)
                 for r in db.session.query(tables.DjmdContent).all()

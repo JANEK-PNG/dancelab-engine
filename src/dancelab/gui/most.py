@@ -18,7 +18,7 @@ import threading
 import traceback
 from typing import Any
 
-from dancelab.stan import budowa, cue, edycje, plan, przebieg
+from dancelab.stan import budowa, cue, edycje, plan, przebieg, zapis_cue
 
 
 def _bezpiecznie(fn):
@@ -43,7 +43,11 @@ class Most:
 
     def __init__(self, katalog: str | None = None) -> None:
         self._edycje = edycje.nowe()
-        self._plan: Any = None
+        # DWIE różne rzeczy, które przez chwilę dzieliły jedną nazwę i przez to
+        # się nadpisywały: `_plan_cue` to propozycje padów silnika (CuePlan,
+        # ma `.tracks`), a `_kolejnosc` to lista identyfikatorów setu.
+        self._plan_cue: Any = None
+        self._kolejnosc: list[str] = []
         self._analizy: dict[str, Any] = {}
         self._katalog = katalog or self.KATALOG_ANALIZ
         self._spis: list[dict[str, Any]] = []
@@ -52,6 +56,10 @@ class Most:
         # i stan odpytywany przez `postep_budowy`.
         self._budowa: dict[str, Any] = {"stan": "bezczynny"}
         self._analizy_pula: list | None = None
+        # Zapis cue jest DWUSTOPNIOWY: tu leży plan policzony w stopniu
+        # pierwszym. Każda zmiana padów albo setu go kasuje, bo inaczej
+        # potwierdzenie zapisałoby stan sprzed edycji.
+        self._zapis_gotowy: Any = None
 
     # ------------------------------------------------------------ biblioteka
 
@@ -177,9 +185,10 @@ class Most:
         chcieć poustawiać cue w pojedynczym utworze, nie budując całego setu —
         i to jest sensowne użycie, nie stan błędu.
         """
-        if self._plan is not None:
-            return {"pady": edycje.efektywne_pady(self._plan, self._edycje, track_id),
-                    "zrodlo": "plan + ręczne"}
+        if self._plan_cue is not None:
+            return {"pady": edycje.efektywne_pady(self._plan_cue, self._edycje,
+                                                  track_id),
+                    "zrodlo": "silnik + ręczne"}
         # Klucz w cue_edycje ma postać "track_id|pad"; zdjęte trzymane osobno.
         zdjete = set(self._edycje.get("zdjete") or [])
         wlasne = {
@@ -191,6 +200,7 @@ class Most:
 
     @_bezpiecznie
     def postaw_pad(self, track_id: str, pad: str, position_ms: int) -> dict[str, Any]:
+        self._zapis_gotowy = None
         edycje.postaw(self._edycje, track_id, pad, int(position_ms))
         return self.pady(track_id)
 
@@ -198,17 +208,20 @@ class Most:
     def przesun_pad(self, track_id: str, pad: str, uderzenia: int,
                     bpm: float) -> dict[str, Any]:
         """Przesuń o całe uderzenia — po to, żeby nie da się trafić między takty."""
+        self._zapis_gotowy = None
         edycje.przesun(self._edycje, track_id, pad, int(uderzenia), float(bpm))
         return self.pady(track_id)
 
     @_bezpiecznie
     def zdejmij_pad(self, track_id: str, pad: str) -> dict[str, Any]:
+        self._zapis_gotowy = None
         edycje.zdejmij(self._edycje, track_id, pad)
         return self.pady(track_id)
 
     @_bezpiecznie
     def cofnij(self, track_id: str) -> dict[str, Any]:
         """Cofnięcie jest w rdzeniu, nie w widoku — terminal ma je tak samo."""
+        self._zapis_gotowy = None
         udalo = edycje.cofnij(self._edycje)
         wynik = self.pady(track_id)
         wynik["cofnieto"] = bool(udalo)
@@ -298,9 +311,23 @@ class Most:
             wynik = budowa.zbuduj(par, processed_dir=self._katalog,
                                   postep=etap, analizy=self._pula(),
                                   stan_uzytkownika=stan_u)
-            self._plan = wynik["kolejnosc"]
+            self._kolejnosc = list(wynik["kolejnosc"])
+            self._zapis_gotowy = None
             for a in wynik["by_id"].values():
                 self._analizy[a.track.track_id] = a
+
+            # Propozycje padów liczymy od razu, w tym samym wątku: bez nich
+            # ekran szwu pokazywałby dla świeżego setu same puste utwory,
+            # a zapis do Rekordboksa miałby do wysłania tylko ręczne pady.
+            etap("Liczę propozycje padów…")
+            try:
+                self._plan_cue = zapis_cue.propozycje(
+                    wynik["kolejnosc"], wynik["by_id"], wynik["wagi"])
+            except Exception as exc:                   # noqa: BLE001
+                self._plan_cue = None
+                wynik["notki"].append(
+                    f"propozycji padów nie policzyłem ({exc}) — pady zostają "
+                    f"ręczne, set jest w porządku")
 
             sciezka = plan.zapisz(
                 wynik["kolejnosc"], wynik["by_id"],
@@ -354,7 +381,7 @@ class Most:
     def biezacy_plan(self) -> dict[str, Any]:
         """Set, nad którym pracujemy — ten sam plik, który czyta terminal."""
         wynik = plan.wczytaj(self._analizy)
-        self._plan = wynik.get("kolejnosc") or None
+        self._kolejnosc = list(wynik.get("kolejnosc") or [])
         return wynik
 
     @_bezpiecznie
@@ -366,7 +393,7 @@ class Most:
         """Wczytaj wskazany plan i uczyń go bieżącym dla obu skór."""
         wynik = plan.wczytaj(self._analizy, sciezka)
         if wynik.get("kolejnosc"):
-            self._plan = wynik["kolejnosc"]
+            self._kolejnosc = list(wynik["kolejnosc"])
             plan.WSKAZNIK.parent.mkdir(parents=True, exist_ok=True)
             plan.WSKAZNIK.write_text(
                 json.dumps({"plan": str(sciezka)}, ensure_ascii=False),
@@ -412,3 +439,54 @@ class Most:
         if analiza is None:
             return {"blad": f"nie mam analizy dla {track_id!r}"}
         return {"propozycje": cue.propozycje_czasu(analiza, silnik_ms)}
+
+    # -------------------------------------------------------- zapis cue
+
+    @_bezpiecznie
+    def zapis_stan(self) -> dict[str, Any]:
+        """Czy jest co zapisywać i czy wolno. Widok pyta o to przed rysowaniem
+        przycisku, żeby nie proponować kroku, który i tak się nie uda."""
+        return {
+            "rekordbox_otwarty": zapis_cue.rekordbox_otwarty(),
+            "set": len(self._kolejnosc),
+            "propozycje": self._plan_cue is not None,
+            "policzone": self._zapis_gotowy is not None,
+        }
+
+    @_bezpiecznie
+    def przygotuj_zapis_cue(self) -> dict[str, Any]:
+        """Stopień pierwszy: policz, ile padów wejdzie, i pokaż liczby.
+
+        Baza jest tu tylko czytana. Zapis jest osobnym poleceniem, bo DJ ma
+        najpierw zobaczyć, co się stanie z jego własnymi cue."""
+        if not self._kolejnosc:
+            return {"blad": "najpierw zbuduj set — bez niego nie ma czego zapisywać"}
+        if zapis_cue.rekordbox_otwarty():
+            return {"blad": "Rekordbox jest otwarty — zamknij go przed zapisem cue"}
+
+        wynik = zapis_cue.przygotuj(
+            self._plan_cue or _pusty_plan_cue(), self._edycje,
+            self._analizy, self._kolejnosc)
+        self._zapis_gotowy = wynik["plan"]
+        return {k: v for k, v in wynik.items() if k != "plan"}
+
+    @_bezpiecznie
+    def zapisz_cue(self, nazwa: str = "okno DanceLab") -> dict[str, Any]:
+        """Stopień drugi: zapis. Wymaga stopnia pierwszego — liczby, które DJ
+        zobaczył, muszą dotyczyć dokładnie tego planu, który idzie do bazy."""
+        if self._zapis_gotowy is None:
+            return {"blad": "najpierw policz plan zapisu (podgląd), potem zapisuj"}
+        if zapis_cue.rekordbox_otwarty():
+            return {"blad": "Rekordbox jest otwarty — zamknij go przed zapisem cue"}
+        wynik = zapis_cue.zapisz(self._zapis_gotowy, nazwa=nazwa)
+        self._zapis_gotowy = None
+        wynik["uwaga"] = ("otwórz Rekordboksa — pady widać dopiero po jego "
+                          "starcie, bo bazę czyta przy uruchomieniu")
+        return wynik
+
+
+def _pusty_plan_cue():
+    """Plan bez propozycji silnika. Ręcznie postawione pady i tak wejdą —
+    `zbuduj_plan_do_zapisu` bierze je z nakładki edycji."""
+    from dancelab.decision.cue_export_models import CuePlan
+    return CuePlan()

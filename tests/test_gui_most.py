@@ -110,3 +110,43 @@ def test_kolizje_odmawiaja_gdy_nie_ma_z_czym_porownac(most):
     odp = most.kolizje("t1")
     assert odp["kolizje"] == []
     assert "uwaga" in odp or "blad" in odp, "cisza sugerowałaby, że jest czysto"
+
+
+# --------------------------------------------------------------- zapis cue
+
+def test_zapis_bez_setu_odmawia(most, monkeypatch):
+    """Bez setu nie ma czego zapisywać — i most mówi to zamiast próbować."""
+    from dancelab.stan import zapis_cue
+    monkeypatch.setattr(zapis_cue, "rekordbox_otwarty", lambda: False)
+    odp = most.przygotuj_zapis_cue()
+    assert "zbuduj set" in odp["blad"]
+
+
+def test_zapis_przy_otwartym_rekordboksie_odmawia(most, monkeypatch):
+    """Otwarty Rekordbox nadpisze naszą zmianę własnym buforem, więc zapis
+    jest zablokowany — tak samo jak w terminalu."""
+    from dancelab.stan import zapis_cue
+    monkeypatch.setattr(zapis_cue, "rekordbox_otwarty", lambda: True)
+    most._kolejnosc = ["t1"]
+    odp = most.przygotuj_zapis_cue()
+    assert "Rekordbox" in odp["blad"]
+
+
+def test_wyslanie_bez_policzenia_odmawia(most, monkeypatch):
+    """Dwa stopnie zostają dwoma stopniami: potwierdza się liczby, które się
+    zobaczyło, więc bez stopnia pierwszego nie ma zapisu."""
+    from dancelab.stan import zapis_cue
+    monkeypatch.setattr(zapis_cue, "rekordbox_otwarty", lambda: False)
+    odp = most.zapisz_cue()
+    assert "policz" in odp["blad"]
+
+
+def test_edycja_pada_uniewaznia_policzony_plan(most, monkeypatch):
+    """Inaczej potwierdzenie zapisałoby stan sprzed edycji — dokładnie ten
+    błąd, przed którym TUI broni się kasowaniem planu przy każdej zmianie."""
+    from dancelab.stan import zapis_cue
+    monkeypatch.setattr(zapis_cue, "rekordbox_otwarty", lambda: False)
+    most._zapis_gotowy = object()
+    most.postaw_pad("t1", "A", 1000)
+    assert most._zapis_gotowy is None
+    assert "policz" in most.zapisz_cue()["blad"]

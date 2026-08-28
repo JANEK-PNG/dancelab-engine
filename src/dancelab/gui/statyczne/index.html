@@ -102,6 +102,20 @@
       <div class="tabela" id="tabela-set">
         <div class="pusto">Ustaw parametry i naciśnij <b>Buduj set</b>.</div>
       </div>
+
+      <!-- Zapis jest DWUSTOPNIOWY i tak zostaje: najpierw liczby, potem baza.
+           Jednym kliknięciem nie wysyłamy nic do biblioteki DJ-a. -->
+      <div class="zapis" id="zapis-box" hidden>
+        <div class="zapis-glowa">
+          <h2>Zapis do Rekordboxa</h2>
+          <span class="drobne" id="zapis-warunek"></span>
+        </div>
+        <div id="zapis-liczby" class="zapis-liczby drobne"></div>
+        <div class="zapis-akcje">
+          <button class="btn" id="btn-policz">Policz, co wejdzie</button>
+          <button class="btn glowny" id="btn-wyslij" hidden>Zapisz do Rekordboxa</button>
+        </div>
+      </div>
     </section>
   </main>
 

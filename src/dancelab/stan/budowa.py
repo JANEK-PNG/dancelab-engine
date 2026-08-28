@@ -304,6 +304,9 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
         "plan": plan,
         "kolejnosc": list(plan.track_order),
         "by_id": by_id,
+        # Wagi wracają, bo tymi samymi liczy się potem propozycje padów.
+        # Policzone drugi raz z konfiguracji mogłyby się rozjechać z setem.
+        "wagi": wagi,
         "notki": notki,
         "kotwica": kotwica.name if kotwica else None,
         "filary": filary_ids,

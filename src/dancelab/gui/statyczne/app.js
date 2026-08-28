@@ -272,7 +272,7 @@ function pokazEkran(nazwa) {
     b.setAttribute('aria-pressed', String(b.dataset.ekran === nazwa)));
   document.querySelector('.lista-utworow').style.display =
     nazwa === 'set' ? 'none' : '';
-  if (nazwa === 'set') kontekstSet();
+  if (nazwa === 'set') { kontekstSet(); odswiezZapis(); }
 }
 
 function rysujNotki(notki, stanFilarow, zgloszone) {
@@ -397,11 +397,76 @@ async function budujSet() {
       rysujKrzywa(s.utwory);
       rysujTabeleSetu(s.utwory, s.filary);
       kontekstSet(s);
+      odswiezZapis();
     } else {
       rysujNotki([`${s.stan === 'odmowa' ? 'ODMOWA' : 'BŁĄD'}: ${s.blad}`]);
       rysujTabeleSetu([]);
     }
   }, 500);
+}
+
+/* ---------- zapis do Rekordboksa ---------- */
+/* Dwa stopnie i tak zostaje. Pierwszy tylko CZYTA bazę i pokazuje liczby,
+   drugi dopiero pisze. Jednym kliknięciem nie wysyłamy nic do biblioteki. */
+
+function liczba(etykieta, ile, klasa) {
+  return `<span class="${klasa || ''}">${etykieta} <b>${ile}</b></span>`;
+}
+
+async function odswiezZapis() {
+  const s = await api().zapis_stan();
+  const box = $('#zapis-box');
+  if (!s || s.blad || !s.set) { box.hidden = true; return; }
+  box.hidden = false;
+  $('#btn-wyslij').hidden = !s.policzone;
+  $('#btn-policz').disabled = s.rekordbox_otwarty;
+  $('#zapis-warunek').textContent = s.rekordbox_otwarty
+    ? 'Rekordbox jest otwarty — zamknij go, żeby zapisać'
+    : (s.propozycje ? 'pady z silnika plus Twoje zmiany'
+                    : 'silnik nie policzył propozycji — pójdą same Twoje pady');
+}
+
+async function policzZapis() {
+  $('#btn-policz').disabled = true;
+  $('#zapis-liczby').textContent = 'liczę plan i sprawdzam Twoje cue…';
+  const w = await api().przygotuj_zapis_cue();
+  $('#btn-policz').disabled = false;
+  if (w.blad) {
+    $('#zapis-liczby').innerHTML = `<span class="ostroznie">${w.blad}</span>`;
+    $('#btn-wyslij').hidden = true;
+    return;
+  }
+  const czesci = [
+    liczba('padów do zapisu', w.do_zapisu),
+    liczba('na utworach', w.utworow),
+  ];
+  if (w.odswiezone) czesci.push(liczba('odświeżamy po sobie', w.odswiezone));
+  /* To zdanie musi paść zawsze, także przy zerze: DJ ma wiedzieć, że jego
+     własne cue są nietykalne, a nie domyślać się tego z ciszy. */
+  czesci.push(liczba('Twoich cue nie ruszam — nasze ustąpiły',
+                     w.ustapilo_twoim, 'ostroznie'));
+  if (w.spoza_kolekcji && w.spoza_kolekcji.length) {
+    czesci.push(liczba('utworów spoza kolekcji RB',
+                       w.spoza_kolekcji.length, 'ostroznie'));
+  }
+  $('#zapis-liczby').innerHTML = czesci.join('');
+  $('#btn-wyslij').hidden = w.do_zapisu === 0;
+}
+
+async function wyslijZapis() {
+  $('#btn-wyslij').disabled = true;
+  $('#zapis-liczby').textContent = 'zapisuję (kopia zapasowa przed zmianą)…';
+  const w = await api().zapisz_cue();
+  $('#btn-wyslij').disabled = false;
+  $('#btn-wyslij').hidden = true;
+  if (w.blad) {
+    $('#zapis-liczby').innerHTML = `<span class="ostroznie">ZAPIS NIEUDANY: ${w.blad}</span>`;
+    return;
+  }
+  $('#zapis-liczby').innerHTML =
+    liczba('zapisane pady', w.zapisane)
+    + (w.usuniete ? liczba('usunięte', w.usuniete) : '')
+    + `<span class="ostroznie">${w.uwaga}</span>`;
 }
 
 /* ---------- start ---------- */
@@ -447,6 +512,8 @@ document.querySelectorAll('#gestosc button').forEach(b =>
 document.querySelectorAll('#nawigacja button').forEach(b =>
   b.addEventListener('click', () => pokazEkran(b.dataset.ekran)));
 $('#btn-buduj').addEventListener('click', budujSet);
+$('#btn-policz').addEventListener('click', policzZapis);
+$('#btn-wyslij').addEventListener('click', wyslijZapis);
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
   if (e.key === '1') { pokazEkran('szew'); return; }

@@ -171,3 +171,15 @@ h2{font-size:12px;font-weight:600;color:var(--cichy);text-transform:uppercase;
 .notki div{padding:1.5px 0}
 .notki .zle{color:var(--alarm)}
 .notki .glowa{color:var(--bursztyn);font-weight:600;margin-bottom:3px}
+
+/* Zapis do Rekordboksa. Panel siedzi POD tabelą setu, bo najpierw patrzy się
+   na to, co się zbudowało, a dopiero potem wysyła. */
+.zapis{background:var(--karta);border:1px solid var(--kreska);
+  border-radius:var(--r);padding:11px 13px;margin-top:var(--luz)}
+.zapis-glowa{display:flex;justify-content:space-between;align-items:baseline;
+  gap:12px;margin-bottom:7px}
+.zapis-glowa h2{margin:0}
+.zapis-liczby{display:flex;flex-wrap:wrap;gap:4px 16px;margin-bottom:9px}
+.zapis-liczby b{color:var(--tekst);font-family:var(--mono);font-weight:600}
+.zapis-liczby .ostroznie{color:var(--bursztyn)}
+.zapis-akcje{display:flex;gap:9px;align-items:center}
