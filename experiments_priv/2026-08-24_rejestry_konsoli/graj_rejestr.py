@@ -254,7 +254,11 @@ def render(a: dict, sciezki: dict[int, str], wyjscie: pathlib.Path,
     import soundfile as sf
     n_krokow = int(np.ceil(a["dlugosc"] * SR / BLOK)) + 1
     czasy = np.arange(n_krokow) * BLOK / SR
-    mix = np.zeros((n_krokow * BLOK, 2), dtype=np.float32)
+    # Kanały trzymamy OSOBNO aż do końca. BEAT FX na FLX4 działa na wybrany
+    # kanał (przełącznik CH1 / CH2 / CH1&2), więc po zsumowaniu nie da się go
+    # już nałożyć tam, gdzie trzeba — pierwsza wersja dodawała echo do całości.
+    kanaly = {1: np.zeros((n_krokow * BLOK, 2), dtype=np.float32),
+              2: np.zeros((n_krokow * BLOK, 2), dtype=np.float32)}
 
     cross = probkuj(a["tor"].get("crossfader"), czasy, 0.5)
     raport = {}
@@ -355,13 +359,13 @@ def render(a: dict, sciezki: dict[int, str], wyjscie: pathlib.Path,
                 poprz[nazwa] = wart
             blok = (seg_l * krzywe["low"] + seg_m * krzywe["mid"]
                     + seg_h * krzywe["hi"]) * krzywe["sum"]
-            mix[k * BLOK:(k + 1) * BLOK] += blok
+            kanaly[deck][k * BLOK:(k + 1) * BLOK] += blok
             poz += krok
             grane_kroki += 1
         raport[deck] = {"plik": pathlib.Path(sciezka).name,
                         "grał_sekund": round(grane_kroki * BLOK / SR, 1)}
 
-    # ---- BEAT FX ECHO (włączane/wyłączane, głębokość z gałki) ----
+    # ---- BEAT FX ECHO (włączane/wyłączane, głębokość z gałki, WYBRANY kanał) ----
     fx = a.get("fx", {})
     if fx.get("on") and echo_beats:
         wl = np.zeros(n_krokow, dtype=bool)          # kiedy efekt był włączony
@@ -373,19 +377,40 @@ def render(a: dict, sciezki: dict[int, str], wyjscie: pathlib.Path,
             wl[k] = stan
         glebokosc = probkuj(fx.get("glebokosc"), czasy, 0.0)
         opoznienie = int(round(60.0 / bpm * echo_beats * SR))
+
+        # Przełącznik kanału FX: rejestr go zapisuje, model dotąd go ignorował.
+        # Bez pozycji startowej przyjmujemy CH1&2 — tak samo jak przy innych
+        # kontrolkach, których stanu sprzed nagrania nie znamy.
+        przelaczenia = sorted(fx.get("kanal") or [])
+        stan_kanalu = przelaczenia[0][1] if przelaczenia else "CH1&2"
+        wybor = np.empty(n_krokow, dtype=object)
+        j = 0
+        for k in range(n_krokow):
+            while j < len(przelaczenia) and przelaczenia[j][0] <= czasy[k]:
+                stan_kanalu = przelaczenia[j][1]
+                j += 1
+            wybor[k] = stan_kanalu
+
         if opoznienie > 0:
-            sucho = mix.copy()
-            ogon = np.zeros_like(mix)
-            waga = 1.0
-            for powtorka in range(1, 7):             # kolejne odbicia, coraz cichsze
-                waga *= 0.55
-                przes = opoznienie * powtorka
-                if przes >= len(mix):
-                    break
-                ogon[przes:] += sucho[:-przes] * waga
-            # głębokość steruje ilością ogona, tylko gdy efekt włączony
-            ile = (glebokosc * wl.astype(np.float32)).repeat(BLOK)[:len(mix), None]
-            mix = sucho + ogon * ile * 0.9
+            ile = (glebokosc * wl.astype(np.float32)).repeat(BLOK)
+            for deck_nr, sygnal in kanaly.items():
+                objety = np.array(
+                    [w in ("CH1&2", f"CH{deck_nr}") for w in wybor], dtype=np.float32
+                ).repeat(BLOK)
+                maska = (ile * objety)[:len(sygnal), None]
+                if not maska.any():
+                    continue
+                ogon = np.zeros_like(sygnal)
+                waga = 1.0
+                for powtorka in range(1, 7):         # kolejne odbicia, coraz cichsze
+                    waga *= 0.55
+                    przes = opoznienie * powtorka
+                    if przes >= len(sygnal):
+                        break
+                    ogon[przes:] += sygnal[:-przes] * waga
+                kanaly[deck_nr] = sygnal + ogon * maska * 0.9
+
+    mix = kanaly[1] + kanaly[2]
 
     szczyt = float(np.abs(mix).max())
     if szczyt > 1.0:                                 # tylko zapobiegawczo, bez kompresji
