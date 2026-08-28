@@ -67,3 +67,30 @@ bez miary.
 Oceny pochodzą od jednego DJ-a i z playlist, w których kontrolą było
 tasowanie. Lepsza rozdzielczość punktacji to warunek konieczny, żeby silnik
 umiał wybierać między dobrymi przejściami — ale nie dowód, że wybiera dobrze.
+
+---
+
+## WYNIK (2026-08-29, po pomiarze)
+
+Żaden wariant nie spełnił progów. **Silnik zostaje bez zmian**, wpis trafił do
+`OBALONE.md`.
+
+```
+wariant                          unikalnych    rho   rho bez jednej playlisty  złych w top 50%
+dziś (mnożenie + przycięcie)         26/158  +0,315                   +0,426                8
+A — renormalizacja wag               71/158  +0,192                   +0,221               10
+B — prior w logitach                153/158  +0,171                   +0,159                9
+A+B                                 152/158  +0,170                   +0,158                9
+sam lift (goła flaga)                17/158  +0,208                   +0,178                9
+sam rdzeń (bez prioru)              153/158  +0,154                   +0,078                8
+```
+
+Dwa warianty **post-hoc** (C i D — rozstrzyganie remisów rdzeniem albo
+mixability), zaproponowane dopiero po porażce A i B, też przegrały:
+rho +0,181 i +0,219. Oznaczam je jawnie jako post-hoc, bo dokładanie kandydatów
+po zobaczeniu wyniku zwiększa szansę, że któryś przejdzie przypadkiem.
+
+**Przyczyna:** wewnątrz grupy 133 przejść z maksymalną punktacją żadna składowa
+nie koreluje z uchem (od −0,036 do +0,019). Rozdzielczość dołożona do składowych
+bez sygnału to dosypanie szumu. **15 z 27 przejść ocenionych 1–2 leży w tej
+grupie** — są dla punktacji niewidzialne, a nie źle uszeregowane.

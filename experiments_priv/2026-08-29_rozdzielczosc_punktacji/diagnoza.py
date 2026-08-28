@@ -72,9 +72,14 @@ def main() -> int:
         for r in csv.DictReader(p.open(encoding="utf-8")):
             oceny[(r["track_id_a"], r["track_id_b"])] = int(r["dj_mixability_rating"])
 
-    kol: dict[str, list[float]] = {k: [] for k in
-                                   ("harmonia", "tempo", "energia", "mixability",
-                                    "rdzeń", "po brzmieniu", "po priorze", "ucho")}
+    kol: dict[str, list] = {k: [] for k in
+                            ("harmonia", "tempo", "energia", "mixability",
+                             "rdzeń", "po brzmieniu", "po priorze", "ucho",
+                             "lift", "playlista")}
+    pary_playlist = {}
+    for nazwa, lista in dane.items():
+        for i in range(len(lista) - 1):
+            pary_playlist[(lista[i]["track_id"], lista[i + 1]["track_id"])] = nazwa
     for (ta, tb), ocena in oceny.items():
         a, b = by_id[ta], by_id[tb]
         harm = harmonic_compatibility(a.track.key_estimate, b.track.key_estimate,
@@ -93,16 +98,16 @@ def main() -> int:
             aff = cosine_affinity(a.track.sound_embedding, b.track.sound_embedding)
             po_brzm, _ = blend(rdzen, aff, sound_w)
         po_prior = po_brzm
-        if prior_w > 0:
-            from dancelab.decision.corpus_priors import transition_prior_lift
-            lift, _ = transition_prior_lift(harm.harmonic_relation,
-                                            a.track.bpm_estimate, b.track.bpm_estimate)
-            if lift != 1.0:
-                po_prior = min(1.0, max(0.0, po_brzm * (lift ** prior_w)))
+        from dancelab.decision.corpus_priors import transition_prior_lift
+        lift, _ = transition_prior_lift(harm.harmonic_relation,
+                                        a.track.bpm_estimate, b.track.bpm_estimate)
+        if prior_w > 0 and lift != 1.0:
+            po_prior = min(1.0, max(0.0, po_brzm * (lift ** prior_w)))
         for k, v in (("harmonia", h), ("tempo", bp), ("energia", en),
                      ("mixability", mix), ("rdzeń", rdzen),
                      ("po brzmieniu", po_brzm), ("po priorze", po_prior),
-                     ("ucho", float(ocena))):
+                     ("ucho", float(ocena)), ("lift", float(lift)),
+                     ("playlista", pary_playlist[(ta, tb)])):
             kol[k].append(v)
 
     print("ROZKŁADY (158 przejść):")
@@ -120,8 +125,13 @@ def main() -> int:
         print(f"  {k:<14} rho {rho:+.3f}")
 
     (TU / "skladowe.json").write_text(
-        json.dumps({k: [round(float(x), 5) for x in v] for k, v in kol.items()},
-                   ensure_ascii=False), encoding="utf-8")
+        json.dumps({k: (v if k == "playlista"
+                        else [round(float(x), 5) for x in v])
+                    for k, v in kol.items()}, ensure_ascii=False),
+        encoding="utf-8")
+    (TU / "meta.json").write_text(
+        json.dumps({"wagi": dict(wagi), "prior_w": prior_w,
+                    "sound_w": sound_w}, ensure_ascii=False), encoding="utf-8")
     print(f"\nzapisane składowe → {TU / 'skladowe.json'}")
     return 0
 

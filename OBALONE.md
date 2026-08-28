@@ -196,6 +196,54 @@ w jednym secie) albo pула przestanie być gęsta (obce gatunki w bibliotece).
 
 ---
 
+### B_. „Punktacja przejść jest zepsuta, bo nie różnicuje" — obalone
+
+**2026-08-29 · progi zapisane PRZED pomiarem (`experiments_priv/2026-08-29_rozdzielczosc_punktacji/PLAN.md`)**
+
+Teza po ślepym odsłuchu: 133 przejścia ze 158 mają dokładnie 1,0, bo prior
+korpusowy mnoży i przycina wynik. Wystarczy przestać przycinać (mieszanie
+w logitach) i rozdzielić wagę stałej składowej energii, a punktacja odzyska
+rozdzielczość i lepiej zgodzi się z uchem.
+
+Pomiar na 158 ocenach ucha, zgodność mierzona Spearmanem:
+
+```
+wariant                          unikalnych    rho   rho bez jednej playlisty
+dziś (mnożenie + przycięcie)         26/158  +0,315                   +0,426
+A — renormalizacja wag               71/158  +0,192                   +0,221
+B — prior w logitach                153/158  +0,171                   +0,159
+A+B                                 152/158  +0,170                   +0,158
+sam rdzeń (bez prioru)              153/158  +0,154                   +0,078
+```
+
+**Werdykt: obie poprawki gorsze od stanu obecnego, żaden próg niespełniony.**
+Silnik zostaje nietknięty.
+
+**Dlaczego — i to jest właściwe odkrycie.** Przycinanie nie jest błędem, tylko
+jedyną rzeczą, która tu działa: robi z wyniku zgrubną flagę „to przejście jest
+podejrzane". Wewnątrz grupy 133 przejść z maksymalną punktacją **żadna
+składowa nie ma związku z uchem**:
+
+```
+rdzeń −0,036 · harmonia −0,034 · tempo −0,001 · mixability +0,019 · lift +0,011
+```
+
+Dorobienie rozdzielczości oznacza więc uporządkowanie 133 przejść według
+czegoś, co nie niesie sygnału — i dlatego zgodność SPADA, a nie rośnie.
+**To nie jest problem rozdzielczości, tylko braku informacji.**
+
+Dowód dodatkowy: **15 z 27 przejść ocenionych na 1–2 siedzi w grupie
+z maksymalną punktacją**. Większość porażek jest dla dzisiejszej punktacji
+niewidzialna, a nie źle uszeregowana.
+
+**Co robić zamiast.** Nie przeważać istniejących składowych — dołożyć
+informację, której one z definicji nie mają. Wskazówka jest w samych ocenach:
+dwie najczęstsze kategorie zgrzytu to **energia (32)** i **kontekst setu (27)**,
+przed tempem (14). Energia w domyślnym trybie `arc="off"` jest stałą 1,0, a
+kontekst setu nie jest własnością pary utworów. Kandydaci z rzeczy, które już
+zmierzyliśmy u Janka: punkt wejścia (perkusja, zejście z basu), reguła powrotu,
+rozkład szwu z nagranych setów.
+
 ## C. Kształt setu
 
 ### C1. Nasz łuk „build" jest aktywnie gorszy niż płaska linia
