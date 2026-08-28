@@ -49,6 +49,10 @@ rekordbox = ["pyrekordbox>=0.4.4,<0.5"]
 # The identity catalog: PostgreSQL + pgvector. Optional because analysis and
 # the engine itself never touch the database — only the catalog tooling does.
 catalog = ["psycopg[binary]>=3.2", "pgvector>=0.3", "openpyxl>=3.1"]
+# Przyrząd pomiarowy do rysowania konsoli (scripts/rzut_na_siatke.py): renderuje
+# płaski rzut z instrukcji PDF i nakłada siatkę milimetrową. Osobno, bo silnik
+# tego nie potrzebuje.
+narzedzia = ["pypdfium2>=4.30", "pillow>=10.0"]
 # Real vocal separation (htdemucs). Heavy: pulls torch + ~80 MB model download.
 # Optional — vocal_activity falls back to the HPSS proxy without it.
 vocals = ["demucs>=4.0", "torch>=2.0"]

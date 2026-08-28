@@ -26,6 +26,8 @@ PLIKI = {
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/kontrolki.json": ("kontrolki.json", "application/json; charset=utf-8"),
     "/uklad.json": ("uklad.json", "application/json; charset=utf-8"),
+    # Audytor jest wspólny dla wszystkich paneli — leży piętro wyżej.
+    "/audyt-ui.js": ("../audyt-ui.js", "application/javascript; charset=utf-8"),
 }
 
 

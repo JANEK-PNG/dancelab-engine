@@ -419,7 +419,7 @@ function deck(d) {
   guzik(p + "callL", X(98.9), 28.8, "", 3.8, "circle", false, "◂"); KONTROLKI[p + "callL"].label = "CUE/LOOP CALL ◁";
   guzik(p + "callR", X(120.5), 28.8, "", 3.8, "circle", false, "▸"); KONTROLKI[p + "callR"].label = "CUE/LOOP CALL ▷";
   guzik(p + "sync", X(144.3), 28.4, "", 5.8, "circle", false, "BEAT SYNC"); KONTROLKI[p + "sync"].label = "BEAT SYNC";
-  napis(X(98.9), 34.6, "1/2X", 2.3, 500, "#7d8494"); napis(X(120.5), 34.6, "2X", 2.3, 500, "#7d8494");
+  napis(X(98.9), 35.4, "1/2X", 2.3, 500, "#7d8494"); napis(X(120.5), 35.4, "2X", 2.3, 500, "#7d8494");
   ramka(X(22.8), 39.8, "IN ADJ", true); ramka(X(47.9), 39.8, "OUT ADJ", true);
   ramka(X(73.8), 39.8, "ACTIVE"); ramka(X(98.9), 39.8, "DEL");
   ramka(X(109.7), 34.6, "LOOP", true); ramka(X(120.5), 39.8, "MEMORY");
@@ -432,7 +432,7 @@ function deck(d) {
     transform: `rotate(-40 ${sx} ${sy})`, "font-family": "-apple-system, system-ui, sans-serif" });
   g.textContent = "− SEARCH +";
   // SHIFT / CUE / PLAY
-  ramka(X(22.8), 177.8, "SHIFT");
+  ramka(X(22.8), 177.0, "SHIFT");
   guzik(p + "shift", X(22.8), 186.2, "", 4, "rect"); KONTROLKI[p + "shift"].label = "SHIFT";
   guzik(p + "cue", X(22.8), 213.3, "", 12.6, "circle", false, "CUE"); KONTROLKI[p + "cue"].label = "CUE";
   guzik(p + "play", X(22.8), 242.4, "", 12.6, "circle", false, "▶ ⏸"); KONTROLKI[p + "play"].label = "PLAY/PAUSE";
@@ -450,7 +450,7 @@ function deck(d) {
   KONTROLKI[p + "tryb"] = { kind: "tekst", n: tryb };
   // tempo (zmierzone: 181,6–246, „0" z lewej, − u góry, + na dole)
   suwak(p + "tempo", X(144.2), 181.6, 246, "", false, true, [18.4, 8.4]);
-  napis(X(144.2), 178, "−", 3.6, 700, "#9aa2b1"); napis(X(144.2), 251.4, "+", 3.6, 700, "#9aa2b1");
+  napis(X(144.2), 178, "−", 3.6, 700, "#9aa2b1"); napis(X(144.2), 252.4, "+", 3.6, 700, "#9aa2b1");
   napis(X(131.8), 214.2, "0", 3, 600, "#9aa2b1");
   etyk(X(144.2), 257.8, "TEMPO");
   KONTROLKI[p + "tempo"].label = "TEMPO";
@@ -998,5 +998,6 @@ setInterval(async () => {
   } catch { stanPolaczenia.strona = false; odswiezKropke(); }
 }, 2000);
 </script>
+<script src="/audyt-ui.js"></script>
 </body>
 </html>
