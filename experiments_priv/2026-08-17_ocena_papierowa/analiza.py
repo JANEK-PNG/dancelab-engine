@@ -142,15 +142,40 @@ def h3_calosci(katalog: pathlib.Path, przydzial: dict[str, str]) -> dict:
 
 
 def zgrzyty(wiersze: list[dict], przydzial: dict[str, str]) -> dict:
+    """Ile razy która kategoria zgrzytu pada w każdej grupie — i JAK CZĘSTO.
+
+    Kategorie czytamy z kolumny `zgrzyt`, nie z `comment`. Do 29.08 licznik
+    szukał liter T/S/E/M/D/K w całym komentarzu, więc każde polskie zdanie
+    dorzucało po kilka kategorii z powietrza („Nu 8beat to loop" → E i T).
+    Fallback na `comment` zostaje wyłącznie dla starych plików bez kolumny.
+
+    Surowe liczby są nieporównywalne między grupami — grup nie ma po tyle samo
+    przejść — więc obok liczby idzie odsetek przejść w tej grupie.
+    """
     licz: dict[str, dict[str, int]] = {"SILNIK": defaultdict(int),
                                        "KONTROLA": defaultdict(int)}
+    ile_przejsc: dict[str, int] = defaultdict(int)
     for r in wiersze:
         grupa = ("SILNIK" if przydzial[r["playlista"]] == "SILNIK"
                  else "KONTROLA")
-        for litera, temat in LITERY.items():
-            if litera in str(r.get("comment", "")).upper():
-                licz[grupa][temat] += 1
-    return {g: dict(sorted(v.items())) for g, v in licz.items()}
+        ile_przejsc[grupa] += 1
+        pole = r.get("zgrzyt")
+        if pole is None:
+            tekst = str(r.get("comment", "")).upper()
+            trafienia = {L for L in LITERY if L in tekst}
+        else:
+            trafienia = {L.strip().upper() for L in str(pole).split(",")
+                         if L.strip()}
+        for litera in trafienia:
+            if litera in LITERY:
+                licz[grupa][LITERY[litera]] += 1
+    return {
+        "przejsc_w_grupie": dict(ile_przejsc),
+        "liczby": {g: dict(sorted(v.items())) for g, v in licz.items()},
+        "odsetek_przejsc": {
+            g: {t: round(n / ile_przejsc[g], 3) for t, n in sorted(v.items())}
+            for g, v in licz.items() if ile_przejsc[g]},
+    }
 
 
 def main() -> int:

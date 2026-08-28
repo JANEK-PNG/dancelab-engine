@@ -170,8 +170,9 @@ OCENY: dict[str, list] = {
         (3, "", ""),
         (3, "", ""),
         (3, "", ""),
-        (None, "", "BRAK OCENY na papierze — żadna cyfra nie zakreślona. "
-                   "WYŁĄCZONE z analizy decyzją Janka 29.08 (patrz WYLACZENIA.json)"),
+        (3, "", "na papierze nie było zakreślonej cyfry; Janek odsłuchał to przejście "
+                "29.08 i ocenił na 3 — ZANIM zobaczył jakikolwiek wynik analizy "
+                "i nie wiedząc, czy OCENA J to silnik, czy kontrola"),
     ],
 }
 
@@ -206,6 +207,12 @@ def main() -> int:
     for plik in sorted(TU.glob("SESJA_*_transition_ratings.csv")):
         wiersze = list(csv.DictReader(plik.open(encoding="utf-8")))
         pola = list(wiersze[0].keys())
+        # Kategorie zgrzytu MUSZĄ mieć własną kolumnę. Wrzucone razem z notatką
+        # do `comment` psuły liczenie: licznik szukał liter T/S/E/M/D/K w całym
+        # tekście, a polskie zdanie zawiera je wszystkie („Nu 8beat to loop"
+        # dawało E i T). Złapane 29.08 po pierwszym przebiegu analizy.
+        if "zgrzyt" not in pola:
+            pola.insert(pola.index("comment"), "zgrzyt")
         for w in wiersze:
             plej, nr = w["pair_id"].rsplit("_", 1)
             ocena, kat, notka = OCENY[plej][int(nr) - 1]
@@ -214,10 +221,8 @@ def main() -> int:
             else:
                 w["dj_mixability_rating"] = str(ocena)
                 wpisane += 1
-            czesci = [f"zgrzyt: {kat}"] if kat else []
-            if notka:
-                czesci.append(notka)
-            w["comment"] = " · ".join(czesci)
+            w["zgrzyt"] = kat
+            w["comment"] = notka
         with plik.open("w", newline="", encoding="utf-8") as f:
             pis = csv.DictWriter(f, fieldnames=pola)
             pis.writeheader()

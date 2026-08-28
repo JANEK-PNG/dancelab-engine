@@ -88,3 +88,25 @@ zobaczeniu danych. Dlatego wyłączenie **musi być jawne i uzasadnione**:
 
 **Progi z 18.08 pozostają bez zmian.** Ten aneks zmienia liczbę obserwacji,
 nie kryteria. Średnia dla OCENA J liczy się teraz z 12 przejść, nie 13.
+
+### Aneks cofnięty tego samego dnia
+
+Janek odsłuchał `OCENA_J_13` (Shuttle Bug → Hai) i ocenił je na **3**. Ocenę
+podał **zanim zobaczył jakąkolwiek liczbę z analizy** i przy nadal nieznanym
+mu przydziale silnik/kontrola — jest więc ślepa tak samo jak pozostałe 157.
+Wyłączenie zdjęte, `WYLACZENIA.json` pusty (wpis przeniesiony do `historia`),
+analiza liczy komplet **158**.
+
+Dlaczego to było ważne: sprawdzenie w `wrazliwosc_j13.py` pokazało, że przy
+ocenie 5 to jedno przejście przewracało werdykt H1 na „brak efektu”. Dlatego
+wynik nie został Jankowi pokazany przed jego oceną.
+
+### Poprawka liczenia zgrzytów (29.08, po pierwszym przebiegu)
+
+Kategorie zgrzytu (T/S/E/M/D/K) trafiły najpierw do kolumny `comment` razem
+z notatkami. Licznik szukał pojedynczych liter w całym tekście, więc każde
+polskie zdanie dorzucało kategorie z powietrza („Nu 8beat to loop” → E i T).
+Kategorie mają teraz własną kolumnę `zgrzyt`, licznik czyta ją, a wynik podaje
+obok liczb także odsetek przejść w grupie — surowe liczby są nieporównywalne,
+bo grupa silnika ma 111 przejść, a kontrola 47. **Progi H1/H2 nietknięte**;
+sekcja „zgrzyty” jest opisowa i nie ma progów.
