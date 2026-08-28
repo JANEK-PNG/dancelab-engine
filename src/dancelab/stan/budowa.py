@@ -9,11 +9,9 @@ Jedyna różnica wobec `app.py`: postęp jest raportowany **wywołaniem zwrotnym
 a nie dotykaniem widgetu. Dzięki temu terminal może wpisywać go w swój pasek,
 okno w swój, a moduł nie wie o żadnym z nich.
 
-**Czego tu NIE MA — świadomie, decyzja Janka z 28.08:** filarów i podpór
-(utworów wymuszonych w secie, z trybami rozstawu i rolami krańcowymi). To
-kolejne ~130 linii i osobny krok; do tego czasu filary działają w terminalu.
-Kto buduje set z tego modułu, dostaje set BEZ wymuszonych utworów — i wynik
-mówi to wprost polem ``filary_pominiete``.
+Filary (utwory wymuszone w secie) mieszkają w `stan.filary` i wchodzą tu przez
+parametr ``stan_uzytkownika``. Bez niego budowa działa jak wcześniej — bez
+wymuszonych utworów — i mówi to wprost polem ``filary_pominiete``.
 
 Tryb Folder (analiza nowych plików) też tu nie wchodzi: to długa operacja z
 anulowaniem, a okno startuje z gotowej puli analiz.
@@ -55,6 +53,7 @@ class Parametry:
     nowosc: str = "deterministic"
     ziarno: int | None = None
     zrodlo_puli: str = "library"        # library | library-dysk | library-apple
+    tryb_filarow: str = "rozstaw"       # rozstaw | rama | podpory
 
     @classmethod
     def z_formularza(cls, dane: dict[str, Any]) -> Parametry:
@@ -100,6 +99,7 @@ class Parametry:
             planer=str(dane.get("planer") or "smart"),
             nowosc=nowosc, ziarno=ziarno,
             zrodlo_puli=str(dane.get("zrodlo_puli") or "library"),
+            tryb_filarow=str(dane.get("tryb_filarow") or "rozstaw"),
         )
 
 
@@ -194,8 +194,8 @@ def _kotwica(nazwa: str | None) -> tuple[Any, list[str]]:
 
 
 def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
-           postep: Postep | None = None, analizy: list | None = None
-           ) -> dict[str, Any]:
+           postep: Postep | None = None, analizy: list | None = None,
+           stan_uzytkownika: dict | None = None) -> dict[str, Any]:
     """Zbuduj set. Zwraca plan, pulę po id i notki — wszystko, co widok pokaże.
 
     ``postep`` dostaje krótkie komunikaty o etapie; ``None`` znaczy, że nikt
@@ -234,13 +234,33 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
     ile = estimate_track_count_for_duration(analizy, par.minuty)
     cfg = load_config("configs/default.yaml")
     wagi = load_weights(cfg.weights_file)
+    by_id = {a.track.track_id: a for a in analizy}
+
+    # --- filary: utwory, które MUSZĄ zagrać -----------------------------
+    filary_ids: list[str] = []
+    role: dict[str, str] = {}
+    tryb = par.tryb_filarow
+    if stan_uzytkownika:
+        from dancelab.decision.dedup import canonical_ids
+        from dancelab.stan import filary as F
+
+        filary_ids, notki_filarow, role = F.wybierz(
+            stan_uzytkownika, by_id, par.bpm_min, par.bpm_max, ile)
+        notki += notki_filarow
+        # filar może wskazywać duplikat bajt-w-bajt, który dedup wytnie —
+        # mapujemy na egzemplarz kanoniczny, żeby budowa nie odmawiała o utwór,
+        # który muzycznie w puli JEST (złapane E2E 05.08)
+        mapa = canonical_ids(analizy)
+        filary_ids = list(dict.fromkeys(mapa.get(t, t) for t in filary_ids))
+        role = {mapa.get(t, t): r for t, r in role.items()}
+        if filary_ids and tryb == "podpory" and (ile - len(filary_ids)) - 1 < len(filary_ids):
+            notki.append("za krótki set na tryb Podpory — spadam na równy rozstaw")
+            tryb = "rozstaw"
 
     from dancelab.decision.history import HistoryStore
 
     historia = HistoryStore(HISTORIA_SETOW).recent(limit=20)
-    mow(f"Buduję set: {ile} utworów z {len(analizy)}…")
-    plan = build_set(
-        analizy, wagi, target_track_count=ile,
+    wspolne = dict(
         novelty_mode=par.nowosc, seed=par.ziarno, history=historia,
         arc=par.luk, planner_mode=par.planer, tempo_shape=par.tempo,
         preferred_styles=par.style or None,
@@ -250,6 +270,29 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
         jump_contour=(kotwica.contour if (kotwica and par.kontur) else None),
     )
 
+    if filary_ids and tryb == "podpory":
+        plan, notki_podpor = _zbuduj_z_podporami(
+            analizy, by_id, wagi, filary_ids, role, ile, par, wspolne, mow)
+        notki += notki_podpor
+    else:
+        rozstawienie = {}
+        if filary_ids:
+            from dancelab.stan import filary as F
+            rozstawienie = F.rozstaw(filary_ids, by_id, ile, tryb)
+            rozstawienie, notki_rol = F.role_krancowe(rozstawienie, role, ile)
+            notki += notki_rol
+            if rozstawienie:
+                notki.append(f"filary rozstawione ({tryb}): pozycje "
+                             + ", ".join(f"#{p}" for p in sorted(rozstawienie)))
+        mow(f"Buduję set: {ile} utworów z {len(analizy)}…")
+        # `locked_positions` to 1-indeksowane miejsca w gotowej playliście —
+        # nazwa silnika, nie moja. `pinned_track_ids` gwarantuje SAMĄ obecność;
+        # rozstawienie mówi dodatkowo GDZIE, i to ono realizuje metaforę filara.
+        plan = build_set(
+            analizy, wagi, target_track_count=ile,
+            locked_positions=rozstawienie or None,
+            pinned_track_ids=filary_ids or None, **wspolne)
+
     notki += list(getattr(plan, "warnings", None) or [])
     if par.ziarno is not None and par.nowosc != "deterministic":
         notki.append(f"ziarno {par.ziarno} — zapisz je, żeby powtórzyć ten set")
@@ -257,10 +300,57 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
     return {
         "plan": plan,
         "kolejnosc": list(plan.track_order),
-        "by_id": {a.track.track_id: a for a in analizy},
+        "by_id": by_id,
         "notki": notki,
         "kotwica": kotwica.name if kotwica else None,
-        # Jawna informacja, że to nie jest pełna budowa: filary są wymuszonymi
-        # utworami i ten moduł ich nie zna. Widok ma prawo to pokazać.
-        "filary_pominiete": True,
+        "filary": filary_ids,
+        "tryb_filarow": tryb if filary_ids else None,
+        # Prawda o tym, czy filary w ogóle brały udział — widok ma prawo
+        # powiedzieć „set bez wymuszonych utworów", zamiast milczeć.
+        "filary_pominiete": not filary_ids,
     }
+
+
+def _zbuduj_z_podporami(analizy, by_id, wagi, filary_ids, role, ile, par,
+                        wspolne, mow) -> tuple[Any, list[str]]:
+    """Tryb PODPORY: konstrukcja bez filarów, pomiar przęseł, filar w najsłabsze.
+
+    Metafora dosłownie: plan tempa i łuk kształtują KONSTRUKCJĘ, a podpory
+    wchodzą dopiero po pomiarze. Role krańcowe wyjmujemy z podpór, bo otwarcie
+    i zamknięcie to deklaracje miejsc, a podpory szukają najsłabszych przęseł
+    W ŚRODKU.
+    """
+    from dancelab.decision.set_builder import build_set
+    from dancelab.decision.slot_suggest import _default_score_fn
+    from dancelab.stan import filary as F
+
+    notki: list[str] = []
+    otwarcie = next((t for t, r in role.items() if r == "otwarcie"), None)
+    zamkniecie = next((t for t, r in role.items() if r == "zamkniecie"), None)
+
+    rdzen = [a for a in analizy if a.track.track_id not in set(filary_ids)]
+    mow(f"Budowa konstrukcji: {ile - len(filary_ids)} utworów, "
+        f"potem {len(filary_ids)} podpór…")
+    plan = build_set(rdzen, wagi, target_track_count=ile - len(filary_ids),
+                     **wspolne)
+
+    energia, rozpietosc = F.energia_do_oceny(by_id)
+    fn = _default_score_fn(wagi, par.luk, par.planer, energia, rozpietosc)
+    srodkowe = [t for t in filary_ids if t not in (otwarcie, zamkniecie)]
+    wynik, notki_podpor = F.wstaw_podpory(
+        list(plan.track_order), srodkowe,
+        lambda x, y: fn(by_id[x], by_id[y]))
+    notki += notki_podpor
+
+    if otwarcie:
+        wynik = [otwarcie, *wynik]
+        notki.append("rola otwarcie: pozycja #1 (poza pomiarem przęseł — "
+                     "deklaracja DJ-a)")
+    if zamkniecie:
+        wynik = [*wynik, zamkniecie]
+        notki.append(f"rola zamknięcie: pozycja #{len(wynik)} (deklaracja DJ-a)")
+
+    notki.append(f"zgodność konstrukcji (bez podpór): {plan.mean_transition_score}")
+    # zgodność CAŁOŚCI nie jest tą samą liczbą co z budowy — nie udajemy
+    return plan.model_copy(update={"track_order": wynik,
+                                   "mean_transition_score": None}), notki
