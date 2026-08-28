@@ -163,6 +163,12 @@ function wolnyPad() {
   return NAZWY_PADOW.find(n => !(n in (stan.pady || {})));
 }
 
+async function odloz() {
+  // Po każdej zmianie, nie na zamknięciu okna: zamknięcie bywa nagłe,
+  // a edycje mają przeżyć także wtedy.
+  if (api()) await api().zapisz_edycje();
+}
+
 async function postawZKlikniecia(ev) {
   if (!stan.przebieg || !api()) return;
   const r = $('#fala-obszar').getBoundingClientRect();
@@ -172,7 +178,7 @@ async function postawZKlikniecia(ev) {
   if (!pad) { pokazBlad('Pady', 'Wszystkie cztery pady zajęte — zdejmij któryś (⌫).'); return; }
   const odp = await api().postaw_pad(stan.trackId, pad, ms);
   if (czyBlad(odp, 'Stawianie pada')) return;
-  stan.pady = odp.pady || {}; stan.wybrany = pad; przerysuj();
+  stan.pady = odp.pady || {}; stan.wybrany = pad; przerysuj(); odloz();
 }
 
 async function przesun(uderzenia) {
@@ -180,21 +186,21 @@ async function przesun(uderzenia) {
   const odp = await api().przesun_pad(stan.trackId, stan.wybrany, uderzenia,
                                       stan.bpm || 128);
   if (czyBlad(odp, 'Przesuwanie pada')) return;
-  stan.pady = odp.pady || {}; przerysuj();
+  stan.pady = odp.pady || {}; przerysuj(); odloz();
 }
 
 async function zdejmij() {
   if (!stan.wybrany || !api()) return;
   const odp = await api().zdejmij_pad(stan.trackId, stan.wybrany);
   if (czyBlad(odp, 'Zdejmowanie pada')) return;
-  stan.pady = odp.pady || {}; stan.wybrany = null; przerysuj();
+  stan.pady = odp.pady || {}; stan.wybrany = null; przerysuj(); odloz();
 }
 
 async function cofnij() {
   if (!api()) return;
   const odp = await api().cofnij(stan.trackId);
   if (czyBlad(odp, 'Cofanie')) return;
-  stan.pady = odp.pady || {}; przerysuj();
+  stan.pady = odp.pady || {}; przerysuj(); odloz();
 }
 
 async function odswiezStanRb() {
@@ -203,8 +209,7 @@ async function odswiezStanRb() {
   const el = $('#stan-rb');
   if (s.blad) { el.innerHTML = `<span class="kropka zle"></span> ${s.blad}`; return; }
   el.innerHTML = `<span class="kropka ${s.zapis_dozwolony ? 'ok' : 'zle'}"></span> ${s.powod}`;
-  $('#btn-zapisz').disabled = !s.zapis_dozwolony;
-  $('#btn-zapisz').title = s.zapis_dozwolony ? '' : s.powod;
+
 }
 
 /* ---------- lista utworów ---------- */
@@ -273,6 +278,8 @@ async function start() {
     return;
   }
   stan.spis = b.utwory || [];
+  const w = await api().wczytaj_edycje();
+  if (w && w.wczytano) console.log(`[gui] wczytano ${w.wczytano} padów z poprzedniej sesji`);
   rysujSpis();
   if (stan.spis.length) await wybierzUtwor(stan.spis[0].track_id);
 }

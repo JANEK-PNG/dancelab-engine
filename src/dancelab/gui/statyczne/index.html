@@ -42,8 +42,11 @@
         <span class="drobne" id="podtytul"></span>
         <div style="margin-left:auto;display:flex;gap:8px">
           <button class="btn" id="btn-cofnij">Cofnij <kbd>⌘Z</kbd></button>
-          <button class="btn" id="btn-podglad">Podgląd zapisu <kbd>P</kbd></button>
-          <button class="btn glowny" id="btn-zapisz" disabled>Wyślij do Rekordboxa</button>
+          <!-- Podglądu zapisu i wysyłki do Rekordboxa tu NIE MA celowo: edycje
+               z okna nie trafiają jeszcze do wspólnego magazynu, więc terminal
+               ich nie widzi i nie może zrecenzować. Guzik bez działania jest
+               gorszy niż jego brak, bo obiecuje. Zapis wraca tu dopiero razem
+               z trwałością edycji. -->
         </div>
       </div>
 
@@ -57,8 +60,9 @@
       </div>
 
       <p class="nota" id="nota">
-        Kliknij falę, żeby postawić pad. Przeciągnij, żeby przesunąć —
-        przyciąga do uderzeń, więc nie da się trafić między takty.
+        Kliknij falę, żeby postawić pad. Strzałkami ← → przesuwasz go o całe
+        uderzenia, więc nie da się trafić między takty. <b>Zapis do Rekordboxa
+        robi się na razie w terminalu</b> — okno jeszcze nie dzieli stanu z TUI.
       </p>
 
       <div class="tabela" id="lista-padow"></div>

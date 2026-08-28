@@ -155,10 +155,13 @@ def gui(
     debug: bool = typer.Option(False, "--debug",
                                help="Konsola developerska w oknie"),
 ) -> None:
-    """Okno aplikacji: fala utworu, pady, zapis do Rekordboxa.
+    """Okno aplikacji: fala utworu i ustawianie padów. BEZ zapisu do Rekordboxa.
 
-    Druga skóra na tym samym rdzeniu co `dancelab tui` — obie wołają
-    `dancelab.stan`, więc plan cue postawiony tu widać w terminalu i odwrotnie.
+    Druga skóra na tym samym KODZIE co `dancelab tui` — obie wołają
+    `dancelab.stan`, więc liczą tak samo. Nie dzielą jeszcze STANU: zapis
+    edycji do wspólnego magazynu jest warunkiem, który musi być spełniony,
+    zanim okno dostanie prawo pisać do master.db. Do tego czasu zapis robi się
+    w terminalu (`dancelab tui`, klawisz W).
     """
     from dancelab.gui import uruchom
 

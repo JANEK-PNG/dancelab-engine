@@ -121,3 +121,48 @@ def test_slownik_dla_mostu_jest_serializowalny():
     json.dumps(d)                    # most wysyła to do JavaScriptu
     assert len(d["obwiednia"]) == 40
     assert d["sekcje"][0]["nazwa"]
+
+
+def test_zgodnosc_na_PRAWDZIWEJ_analizie():
+    """To samo porównanie, ale na realnym AnalysisResult z cache.
+
+    Zewnętrzny przegląd 28.08 zauważył, że wszystkie pozostałe testy w tym
+    pliku stoją na atrapach: sprawdzają zgodność algorytmu, nie zgodność z
+    danymi, jakie naprawdę produkuje silnik. Atrapa nie wyłapie zmiany w
+    kształcie `AnalysisResult` ani w tym, jak liczone są klatki.
+
+    Test pomija się, gdy nie ma katalogu analiz — nie każdy klon repo go ma.
+    """
+    import json
+    from pathlib import Path
+
+    katalog = Path("experiments_priv/2026-07-30_rebuild/processed")
+    if not katalog.exists():
+        pytest.skip("brak katalogu analiz")
+    pliki = sorted(katalog.glob("*.json"))
+    if not pliki:
+        pytest.skip("katalog analiz pusty")
+
+    from dancelab.core.models import AnalysisResult
+
+    # pierwszy plik z sensowną liczbą klatek — malutkie nie sprawdzają niczego
+    for plik in pliki[:40]:
+        dane = json.loads(plik.read_text())
+        if len(dane.get("features") or []) >= 200:
+            break
+    else:
+        pytest.skip("brak analizy z wystarczającą liczbą klatek")
+
+    analiza = AnalysisResult.model_validate(dane)
+    szer = 80
+    z_terminala = os_energii(analiza, szer)
+    p = P.zbuduj(analiza, punktow=szer)
+
+    assert len(p.obwiednia) == szer
+    z_gui = "".join(BLOKI[int(v * (len(BLOKI) - 1))] for v in p.obwiednia)
+    assert z_gui == z_terminala, (
+        "okno i terminal rysują różny kształt z tej samej analizy"
+    )
+    # dane, na których stoi ekran, muszą naprawdę być
+    assert p.dlugosc_sec > 0
+    assert any(p.ma_dane), "żaden punkt nie ma pomiaru"

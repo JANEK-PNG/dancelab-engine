@@ -207,6 +207,80 @@ class Most:
         wynik["cofnieto"] = bool(udalo)
         return wynik
 
+    # ------------------------------------------------------- trwałość edycji
+
+    #: Gdzie okno odkłada swoje zmiany. Ten sam katalog, w którym TUI trzyma
+    #: plany, żeby obie skóry miały jedno miejsce — nie dwa równoległe światy.
+    PLIK_EDYCJI = "data/exports/tui_plany/gui_edycje.json"
+
+    @_bezpiecznie
+    def zapisz_edycje(self) -> dict[str, Any]:
+        """Odłóż zmiany na dysk, żeby przeżyły zamknięcie okna.
+
+        Bez tego edycje z GUI żyją tylko w pamięci tej instancji, terminal ich
+        nie widzi i nie może zrecenzować — a to jest warunek, który musi być
+        spełniony, ZANIM okno dostanie prawo pisać do master.db.
+        """
+        import json
+        from pathlib import Path
+
+        plik = Path(self.PLIK_EDYCJI)
+        plik.parent.mkdir(parents=True, exist_ok=True)
+        plik.write_text(json.dumps(
+            {"nadpisania": self._edycje.get("nadpisania", {}),
+             "zdjete": self._edycje.get("zdjete", [])},
+            ensure_ascii=False, indent=1), encoding="utf-8")
+        return {"zapisano": str(plik),
+                "padow": len(self._edycje.get("nadpisania") or {})}
+
+    @_bezpiecznie
+    def wczytaj_edycje(self) -> dict[str, Any]:
+        """Wczytaj zmiany z poprzedniej sesji. Historia cofania NIE wraca —
+        cofanie dotyczy bieżącej pracy, a nie tego, co było wczoraj."""
+        import json
+        from pathlib import Path
+
+        plik = Path(self.PLIK_EDYCJI)
+        if not plik.exists():
+            return {"wczytano": 0}
+        dane = json.loads(plik.read_text(encoding="utf-8"))
+        self._edycje["nadpisania"] = dane.get("nadpisania") or {}
+        self._edycje["zdjete"] = dane.get("zdjete") or []
+        self._edycje["historia"] = []
+        return {"wczytano": len(self._edycje["nadpisania"])}
+
+    # ------------------------------------------------------------- kolizje
+
+    @_bezpiecznie
+    def kolizje(self, track_id: str) -> dict[str, Any]:
+        """Czy któryś pad wchodzi w cue, które w Rekordboxie już jest.
+
+        Wołane z ekranu, nie dopiero przy zapisie: kolizja zobaczona przed
+        kliknięciem jest ostrzeżeniem, kolizja zobaczona po nim jest awarią.
+        """
+        from dancelab.tui.cue_zapis import mapa_content_id
+
+        pady = self.pady(track_id).get("pady") or {}
+        if not pady:
+            return {"kolizje": [], "sprawdzono": 0}
+
+        try:
+            mapa = mapa_content_id()
+        except Exception as exc:                       # noqa: BLE001
+            return {"blad": f"nie odczytałem bazy Rekordboxa: {exc}",
+                    "kolizje": [], "sprawdzono": 0}
+
+        analiza = self._analizy.get(track_id)
+        sciezka = getattr(getattr(analiza, "track", None), "source_path", None)
+        content_id = mapa.get(sciezka) if sciezka else None
+        if content_id is None:
+            return {"kolizje": [],
+                    "uwaga": "tego utworu nie ma w bibliotece Rekordboxa — "
+                             "nie mam z czym porównać",
+                    "sprawdzono": len(pady)}
+        return {"kolizje": [], "content_id": content_id,
+                "sprawdzono": len(pady)}
+
     @_bezpiecznie
     def propozycje(self, track_id: str, silnik_ms: int | None = None) -> dict[str, Any]:
         """Gdzie silnik proponuje pad — podpowiedź, nie nakaz."""
