@@ -13,10 +13,11 @@ obowiązek to pokazać — zgodnie z ADR-005 („każde nie wiem ma swój piksel
 from __future__ import annotations
 
 import functools
+import json
 import traceback
 from typing import Any
 
-from dancelab.stan import cue, edycje, przebieg
+from dancelab.stan import cue, edycje, plan, przebieg
 
 
 def _bezpiecznie(fn):
@@ -248,6 +249,31 @@ class Most:
         self._edycje["zdjete"] = dane.get("zdjete") or []
         self._edycje["historia"] = []
         return {"wczytano": len(self._edycje["nadpisania"])}
+
+    # ---------------------------------------------------------- plan setu
+
+    @_bezpiecznie
+    def biezacy_plan(self) -> dict[str, Any]:
+        """Set, nad którym pracujemy — ten sam plik, który czyta terminal."""
+        wynik = plan.wczytaj(self._analizy)
+        self._plan = wynik.get("kolejnosc") or None
+        return wynik
+
+    @_bezpiecznie
+    def lista_planow(self) -> dict[str, Any]:
+        return {"plany": plan.lista()}
+
+    @_bezpiecznie
+    def wczytaj_plan(self, sciezka: str) -> dict[str, Any]:
+        """Wczytaj wskazany plan i uczyń go bieżącym dla obu skór."""
+        wynik = plan.wczytaj(self._analizy, sciezka)
+        if wynik.get("kolejnosc"):
+            self._plan = wynik["kolejnosc"]
+            plan.WSKAZNIK.parent.mkdir(parents=True, exist_ok=True)
+            plan.WSKAZNIK.write_text(
+                json.dumps({"plan": str(sciezka)}, ensure_ascii=False),
+                encoding="utf-8")
+        return wynik
 
     # ------------------------------------------------------------- kolizje
 
