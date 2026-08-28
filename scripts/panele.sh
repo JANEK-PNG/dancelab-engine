@@ -24,6 +24,7 @@ PANELE=(
   "VJ / portret|8653|docs/vj-system/serwer.py|"
   "szew|8654|docs/warstwa-graficzna/szew/serwer.py|"
   "konsola FLX4|8655|docs/flx4-konsola/serwer.py|--with mido --with python-rtmidi"
+  "sprzęt klubowy|8657|docs/sprzet-klubowy/serwer.py|"
 )
 
 zyje() { curl -s --max-time 2 -o /dev/null "http://localhost:$1/"; }
