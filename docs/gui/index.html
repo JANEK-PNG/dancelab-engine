@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DanceLab GUI — makieta</title>
+<style>
+  :root{
+    --tlo:#0e1013; --karta:#161a1f; --karta2:#1b2027; --kreska:#242a32;
+    --tekst:#e8ecf1; --cichy:#8a94a2; --cichszy:#5e6773;
+    --bursztyn:#e0a458; --blekit:#5aa9e6; --volt:#9ede73; --alarm:#e06c75;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+    --r:10px;
+    /* gęstość — przełączana klawiszem, nie ustawieniem w menu */
+    --wys-wiersza:26px; --font-tab:12.5px; --luz:10px;
+  }
+  :root[data-gestosc="luzno"]{ --wys-wiersza:34px; --font-tab:14px; --luz:16px; }
+  :root[data-gestosc="ciasno"]{ --wys-wiersza:21px; --font-tab:11.5px; --luz:6px; }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--tlo);color:var(--tekst);font-family:var(--font);
+       font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;
+       display:grid;grid-template-rows:auto 1fr auto;overflow:hidden}
+
+  /* ---------- pasek stanu (góra) ---------- */
+  .stan{display:flex;align-items:center;gap:18px;padding:7px 14px;
+        border-bottom:1px solid var(--kreska);font-size:12.5px;color:var(--cichy)}
+  .stan .marka{color:var(--tekst);font-weight:600;letter-spacing:-.01em}
+  .stan .ok{color:var(--volt)}
+  .stan .prawa{margin-left:auto;display:flex;gap:14px;align-items:center}
+  .chip-gest{display:flex;gap:2px;background:var(--karta);border:1px solid var(--kreska);
+    border-radius:7px;padding:2px}
+  .chip-gest button{background:none;border:0;color:var(--cichy);font:inherit;
+    font-size:11.5px;padding:2px 8px;border-radius:5px;cursor:pointer}
+  .chip-gest button[aria-pressed="true"]{background:#252c35;color:var(--tekst)}
+
+  /* ---------- trzy strefy ---------- */
+  .korpus{display:grid;grid-template-columns:56px 1fr 320px;min-height:0}
+  nav{border-right:1px solid var(--kreska);display:flex;flex-direction:column;
+      align-items:center;padding-top:8px;gap:4px}
+  nav button{width:44px;height:44px;background:none;border:0;border-radius:9px;
+    color:var(--cichszy);cursor:pointer;display:grid;place-items:center;
+    position:relative;transition:background .15s,color .15s}
+  nav button:hover{background:var(--karta);color:var(--tekst)}
+  nav button[aria-pressed="true"]{background:var(--karta2);color:var(--tekst)}
+  nav button[aria-pressed="true"]::before{content:"";position:absolute;left:-8px;
+    top:11px;bottom:11px;width:2px;border-radius:2px;background:var(--bursztyn)}
+  nav button svg{width:19px;height:19px;stroke:currentColor;fill:none;
+    stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  nav .skrot{position:absolute;bottom:2px;right:5px;font-family:var(--mono);
+    font-size:8.5px;color:var(--cichszy)}
+
+  main{min-width:0;min-height:0;overflow:hidden;padding:var(--luz) 14px;
+       display:flex;flex-direction:column}
+  main > section{display:flex;flex-direction:column;min-height:0;flex:1}
+  .tabela{flex:1;min-height:0;overflow:auto}
+  aside{border-left:1px solid var(--kreska);overflow:auto;padding:var(--luz) 13px;
+        min-height:0}
+
+  h2{font-size:12px;font-weight:600;color:var(--cichy);text-transform:uppercase;
+     letter-spacing:.06em;margin:0 0 8px}
+  .podtytul{color:var(--cichy);font-size:12.5px;margin:-4px 0 12px}
+
+  /* ---------- pasek narzędzi ---------- */
+  .narzedzia{display:flex;gap:8px;margin-bottom:var(--luz);align-items:center}
+  .szukaj{flex:1;display:flex;align-items:center;gap:8px;background:var(--karta);
+    border:1px solid var(--kreska);border-radius:8px;padding:0 11px;height:32px}
+  .szukaj input{flex:1;background:none;border:0;color:var(--tekst);font:inherit;
+    font-size:13px;outline:none}
+  .szukaj .skladnia{font-family:var(--mono);font-size:11px;color:var(--cichszy);
+    white-space:nowrap}
+  .param{display:flex;flex-direction:column;gap:1px;background:var(--karta);
+    border:1px solid var(--kreska);border-radius:8px;padding:3px 11px;min-width:104px}
+  .param.rozciag{flex:1}
+  .param span{font-size:9.5px;color:var(--cichszy);text-transform:uppercase;
+    letter-spacing:.05em}
+  .param input{background:none;border:0;color:var(--tekst);font:inherit;
+    font-size:13px;outline:none;width:100%;padding:0;font-family:var(--mono)}
+  .param:focus-within{border-color:var(--blekit)}
+  .btn{background:var(--karta);border:1px solid var(--kreska);border-radius:8px;
+    color:var(--tekst);font:inherit;font-size:12.5px;height:32px;padding:0 13px;
+    cursor:pointer;display:inline-flex;align-items:center;gap:7px;
+    transition:background .15s}
+  .btn:hover{background:var(--karta2)}
+  .btn.glowny{background:var(--volt);color:#0e1013;border-color:transparent;
+    font-weight:600}
+  .btn.glowny:hover{filter:brightness(1.08)}
+  .btn kbd{font-family:var(--mono);font-size:10.5px;opacity:.65}
+
+  /* ---------- tabela ---------- */
+  .tabela{background:var(--karta);border:1px solid var(--kreska);
+    border-radius:var(--r)}
+  table{width:100%;border-collapse:collapse;font-size:var(--font-tab)}
+  th{position:sticky;top:0;background:#12161b;text-align:left;font-weight:600;
+     color:var(--cichy);font-size:10.5px;text-transform:uppercase;
+     letter-spacing:.05em;padding:7px 10px;border-bottom:1px solid var(--kreska);
+     white-space:nowrap;cursor:pointer;user-select:none}
+  th:hover{color:var(--tekst)}
+  th .strzalka{opacity:.5;font-size:9px}
+  td{padding:0 10px;height:var(--wys-wiersza);border-bottom:1px solid rgba(36,42,50,.5);
+     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:#1a1f26}
+  tbody tr[aria-selected="true"]{background:#1f2630;
+    box-shadow:inset 2px 0 0 var(--bursztyn)}
+  td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+  .ton{font-family:var(--mono);font-size:11px;padding:1px 5px;border-radius:4px;
+    background:#232a33;color:var(--blekit)}
+  .ton.zgodna{background:rgba(158,222,115,.13);color:var(--volt)}
+  .serce{color:var(--alarm)}
+  /* mikro-wykres energii w wierszu — sparkline zamiast liczby */
+  .iskra{display:inline-flex;align-items:flex-end;gap:1px;height:12px}
+  .iskra i{width:2px;background:var(--blekit);border-radius:1px;display:block}
+
+  /* ---------- bento ---------- */
+  .bento{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));
+    gap:var(--luz);overflow:auto;min-height:0;align-content:start;padding-bottom:4px}
+  .kafel{background:var(--karta);border:1px solid var(--kreska);
+    border-radius:var(--r);padding:12px 13px;cursor:pointer;
+    transition:border-color .15s,background .15s}
+  .kafel:hover{background:var(--karta2);border-color:#2f3742}
+  .kafel[aria-selected="true"]{border-color:var(--bursztyn)}
+  .kafel.szeroki{grid-column:span 2}
+  .kafel .gl{display:flex;align-items:baseline;gap:8px;margin-bottom:9px}
+  .kafel .nazwa{font-weight:600;font-size:13.5px}
+  .kafel .zrodlo{font-family:var(--mono);font-size:9.5px;padding:1px 5px;
+    border-radius:3px;background:rgba(90,169,230,.14);color:var(--blekit);
+    margin-left:auto}
+  .hist{display:flex;align-items:flex-end;gap:1.5px;height:26px;margin-bottom:7px}
+  .hist i{flex:1;border-radius:1px 1px 0 0;display:block}
+  .liczba{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .metr{display:flex;align-items:center;gap:7px;font-size:11.5px;
+    color:var(--cichy);margin-top:3px}
+  .metr .tor{flex:1;height:4px;background:#232a33;border-radius:2px;overflow:hidden}
+  .metr .tor span{display:block;height:100%;border-radius:2px}
+  .metr .w{font-family:var(--mono);font-size:11px;color:var(--tekst);width:30px;
+    text-align:right}
+  .stopka-kafla{margin-top:9px;padding-top:8px;border-top:1px solid var(--kreska);
+    font-size:11px;color:var(--cichszy);display:flex;gap:12px}
+
+  /* ---------- krzywa setu ---------- */
+  .krzywa{background:var(--karta);border:1px solid var(--kreska);
+    border-radius:var(--r);padding:11px 13px;margin-bottom:var(--luz)}
+  .krzywa svg{display:block;width:100%;height:74px}
+
+  /* ---------- prawa kolumna ---------- */
+  .pole{margin-bottom:13px}
+  .pole .et{font-size:11px;color:var(--cichy);margin-bottom:3px}
+  .pole .wa{font-size:13px}
+  .pole .wa.duza{font-family:var(--mono);font-size:19px;
+    font-variant-numeric:tabular-nums}
+  .rozdziel{height:1px;background:var(--kreska);margin:13px 0}
+  .powod{background:rgba(224,164,88,.07);border-left:2px solid var(--bursztyn);
+    padding:8px 10px;border-radius:0 6px 6px 0;font-size:12px;color:var(--cichy);
+    margin-top:10px}
+  .powod b{color:var(--tekst);font-weight:600}
+
+  /* ---------- dół: odtwarzacz + skróty ---------- */
+  .dol{border-top:1px solid var(--kreska)}
+  .grajek{display:flex;align-items:center;gap:11px;padding:8px 14px}
+  .grajek .przyciski{display:flex;gap:5px}
+  .grajek button{width:30px;height:30px;border-radius:7px;background:var(--karta);
+    border:1px solid var(--kreska);color:var(--tekst);cursor:pointer;
+    display:grid;place-items:center}
+  .grajek button.graj{background:var(--volt);color:#0e1013;border-color:transparent}
+  .grajek button svg{width:13px;height:13px;fill:currentColor}
+  .grajek .teraz{font-size:12.5px;min-width:0;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .grajek .teraz b{font-weight:600}
+  .grajek .teraz span{color:var(--cichy)}
+  .postep{flex:1;height:3px;background:#232a33;border-radius:2px;overflow:hidden;
+    min-width:80px}
+  .postep i{display:block;height:100%;background:var(--bursztyn);border-radius:2px}
+  .czas{font-family:var(--mono);font-size:11.5px;color:var(--cichy)}
+  .skroty{display:flex;gap:14px;padding:5px 14px 7px;font-size:11.5px;
+    color:var(--cichszy);border-top:1px solid rgba(36,42,50,.6);
+    overflow-x:auto;white-space:nowrap}
+  .skroty b{color:var(--bursztyn);font-family:var(--mono);font-weight:500}
+
+  .pusto{color:var(--cichszy);font-size:13px;padding:26px 0;text-align:center}
+  section[hidden]{display:none}
+  :focus-visible{outline:2px solid var(--blekit);outline-offset:2px;border-radius:4px}
+</style>
+</head>
+<body>
+
+<div class="stan">
+  <span class="marka">DanceLab</span>
+  <span><span class="ok">●</span> Rekordbox zamknięty — zapis dostępny</span>
+  <span>backupy 36</span>
+  <span>pula: 2026-07-30_rebuild/processed · 8261</span>
+  <div class="prawa">
+    <span>gęstość</span>
+    <div class="chip-gest" id="gestosc">
+      <button data-g="ciasno">ciasno</button>
+      <button data-g="normalnie" aria-pressed="true">normalnie</button>
+      <button data-g="luzno">luźno</button>
+    </div>
+  </div>
+</div>
+
+<div class="korpus">
+  <nav id="nawigacja">
+    <button data-ekran="biblioteka" aria-pressed="true" title="Biblioteka (1)">
+      <svg viewBox="0 0 24 24"><path d="M4 19V6a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v13"/><path d="M4 19h15"/><path d="M9 8h6M9 12h6"/></svg>
+      <span class="skrot">1</span></button>
+    <button data-ekran="dje" title="DJ-e (2)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/></svg>
+      <span class="skrot">2</span></button>
+    <button data-ekran="set" title="Set (3)">
+      <svg viewBox="0 0 24 24"><path d="M4 17V9M9 17V5M14 17v-6M19 17v-9"/></svg>
+      <span class="skrot">3</span></button>
+    <button data-ekran="cue" title="Cue (4)">
+      <svg viewBox="0 0 24 24"><path d="M4 12h16"/><circle cx="8" cy="12" r="2.5"/><circle cx="16" cy="12" r="2.5"/></svg>
+      <span class="skrot">4</span></button>
+  </nav>
+
+  <main>
+    <!-- ========== BIBLIOTEKA ========== -->
+    <section id="biblioteka">
+      <div class="narzedzia">
+        <div class="szukaj">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a94a2" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input value="bpm:125-140 ton:8A" spellcheck="false">
+          <span class="skladnia">bpm: · ton: · gat: · ♥</span>
+        </div>
+        <button class="btn">Analizuj folder</button>
+        <button class="btn glowny">Zbuduj z filarów <kbd>F</kbd></button>
+      </div>
+      <div class="tabela">
+        <table>
+          <thead><tr>
+            <th style="width:26px"></th><th style="width:52px">BPM <span class="strzalka">▼</span></th>
+            <th style="width:44px">ton</th><th style="width:46px">pew.</th>
+            <th style="width:62px">energia</th><th style="width:52px">LUFS</th>
+            <th style="width:96px">gatunek</th><th style="width:42px">min</th>
+            <th>wykonawca</th><th>tytuł</th>
+          </tr></thead>
+          <tbody id="tab-biblioteka"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========== DJ-E ========== -->
+    <section id="dje" hidden>
+      <div class="narzedzia">
+        <div class="szukaj">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a94a2" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input placeholder="szukaj DJ-a albo brzmienia…" spellcheck="false">
+        </div>
+        <button class="btn">w kolekcji</button>
+        <button class="btn">z mapy</button>
+      </div>
+      <p class="podtytul">284 zmierzonych · 20 pełnych profili z mapy ·
+        żadnych ocen, tylko jak kto gra</p>
+      <div class="bento" id="siatka-dje"></div>
+    </section>
+
+    <!-- ========== SET ========== -->
+    <section id="set" hidden>
+      <div class="narzedzia">
+        <label class="param"><span>długość</span>
+          <input value="90 min"></label>
+        <label class="param"><span>tempo</span>
+          <input value="125–140"></label>
+        <label class="param rozciag"><span>brzmi jak</span>
+          <input value="Ben UFO" spellcheck="false"></label>
+        <button class="btn glowny">Buduj set <kbd>B</kbd></button>
+      </div>
+      <div class="krzywa">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <h2 style="margin:0">Krzywa energii · 18 utworów · 92 min</h2>
+          <span style="font-size:11.5px;color:var(--cichszy)">
+            płaska linia — łuk „build" wypadł gorzej w pomiarze 10.08</span>
+        </div>
+        <svg viewBox="0 0 600 74" preserveAspectRatio="none" id="krzywa-setu"></svg>
+      </div>
+      <div class="tabela">
+        <table>
+          <thead><tr>
+            <th style="width:32px">#</th><th style="width:52px">BPM</th>
+            <th style="width:44px">ton</th><th style="width:62px">energia</th>
+            <th style="width:52px">Σ min</th><th>wykonawca</th><th>tytuł</th>
+            <th style="width:96px">powód</th>
+          </tr></thead>
+          <tbody id="tab-set"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========== CUE ========== -->
+    <section id="cue" hidden>
+      <div class="narzedzia">
+        <button class="btn">Podgląd zapisu</button>
+        <button class="btn glowny">Wyślij cue do Rekordboxa <kbd>W</kbd></button>
+        <span style="margin-left:auto;font-size:12px;color:var(--cichy)">
+          zapisze 4 hot cue w 18 utworach · kopia bazy przed zapisem</span>
+      </div>
+      <div id="osie-cue" style="overflow:auto;min-height:0;flex:1"></div>
+    </section>
+  </main>
+
+  <aside id="kontekst"></aside>
+</div>
+
+<div class="dol">
+  <div class="grajek">
+    <div class="przyciski">
+      <button title="poprzedni"><svg viewBox="0 0 24 24"><path d="M19 5v14L8 12zM6 5h2v14H6z"/></svg></button>
+      <button class="graj" title="graj (spacja)"><svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg></button>
+      <button title="następny"><svg viewBox="0 0 24 24"><path d="M5 5v14l11-7zM16 5h2v14h-2z"/></svg></button>
+    </div>
+    <div class="teraz"><b>Overmono</b> <span>— So U Kno</span></div>
+    <span class="czas">1:24</span>
+    <div class="postep"><i style="width:31%"></i></div>
+    <span class="czas">4:32</span>
+    <span class="czas" style="color:var(--bursztyn)">128,0 BPM · 8A</span>
+  </div>
+  <div class="skroty" id="pasek-skrotow"></div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const el = (t, c, x) => { const e = document.createElement(t);
+  if (c) e.className = c; if (x !== undefined) e.textContent = x; return e; };
+
+/* ---------- dane makiety ---------- */
+const UTWORY = [
+  ["Overmono","So U Kno",128.0,"8A",.92,[3,5,6,8,7,9,8,6],-8.2,"UK Garage",4.5,1],
+  ["Peggy Gou","It Goes Like",125.0,"9A",.88,[2,4,5,6,7,7,8,7],-7.9,"House",3.8,0],
+  ["Four Tet","Baby",132.0,"8A",.95,[4,6,7,7,8,9,9,7],-8.8,"Electronic",6.1,1],
+  ["Bicep","Glue",130.0,"7A",.79,[3,4,6,7,8,8,7,6],-9.1,"Breakbeat",5.4,0],
+  ["DJ Koze","Pick Up",122.0,"9A",.91,[2,3,5,6,6,7,7,6],-8.4,"House",7.2,1],
+  ["Skee Mask","Rev8617",138.0,"6A",.84,[5,7,8,9,9,8,7,6],-7.2,"Techno",5.9,0],
+  ["Jamie xx","Gosh",134.0,"8A",.87,[3,5,7,8,9,9,8,7],-8.0,"Electronic",5.2,0],
+  ["Anish Kumar","Care",126.0,"10A",.90,[2,4,6,7,7,8,7,5],-8.6,"House",4.1,1],
+  ["O'Flynn","Tyrion",128.0,"8A",.93,[4,5,7,8,8,9,8,6],-8.3,"Breakbeat",6.4,0],
+  ["Hodge","Wiggler",140.0,"5A",.81,[6,7,8,9,9,9,8,7],-6.9,"Techno",4.8,0],
+  ["Palms Trax","Forever",124.0,"9A",.86,[2,4,5,6,7,7,6,5],-9.4,"House",6.8,0],
+  ["Midland","Final Credits",120.0,"11A",.94,[3,4,6,7,8,8,7,6],-8.7,"Disco",7.5,1],
+];
+const DJE = [
+  ["Bicep","RA 2025",142,[95,192],9,50,.67,.76,.71,1,11,14,"La Fleur · Moxie · HAAi"],
+  ["gyrofield","RA 2025",154,[100,172],21,4,.44,.55,.37,1,29,43,"Richie Hawtin · VTSS"],
+  ["Ben Klock","BOILER 2024",141,[136,146],16,4,.88,.69,.91,2,25,27,"Adam Beyer · Len Faki"],
+  ["Four Tet","RA 2288",128,[118,138],34,6,.71,.82,.64,3,41,52,"Floating Points · Caribou"],
+  ["Midland","RA 2355",126,[118,132],28,5,.62,.74,.58,2,33,38,"Palms Trax · Hodge"],
+  ["Palms Trax","RA 4124",124,[116,130],31,6,.58,.71,.61,4,47,61,"Midland · Or:la"],
+];
+const POWODY = ["tempo +0,8%", "8A→8A", "brzmienie 0,91", "tempo −1,2%",
+                "9A→8A", "brzmienie 0,87", "kotwica", "tempo +2,1%"];
+
+/* ---------- biblioteka ---------- */
+function iskra(v, kolor) {
+  const w = el("span", "iskra");
+  const max = Math.max(...v);
+  v.forEach(x => { const i = el("i"); i.style.height = (2 + 10 * x / max) + "px";
+    i.style.background = kolor; w.appendChild(i); });
+  return w;
+}
+function rysujBiblioteke() {
+  const tb = $("#tab-biblioteka"); tb.innerHTML = "";
+  UTWORY.forEach((u, idx) => {
+    const [wyk, tyt, bpm, ton, pew, en, lufs, gat, min, ulub] = u;
+    const tr = el("tr");
+    if (idx === 0) tr.setAttribute("aria-selected", "true");
+    tr.append(
+      el("td", "serce", ulub ? "♥" : ""),
+      el("td", "num", bpm.toFixed(1)),
+      (() => { const t = el("td"); const s = el("span", "ton" + (ton === "8A" ? " zgodna" : ""), ton); t.appendChild(s); return t; })(),
+      el("td", "num", pew.toFixed(2)),
+      (() => { const t = el("td"); t.appendChild(iskra(en, "var(--blekit)")); return t; })(),
+      el("td", "num", lufs.toFixed(1)),
+      el("td", null, gat), el("td", "num", min.toFixed(1)),
+      el("td", null, wyk), el("td", null, tyt));
+    tr.addEventListener("click", () => {
+      tb.querySelectorAll("tr").forEach(x => x.removeAttribute("aria-selected"));
+      tr.setAttribute("aria-selected", "true"); kontekstUtwor(u);
+    });
+    tb.appendChild(tr);
+  });
+  kontekstUtwor(UTWORY[0]);
+}
+
+/* ---------- DJ-e ---------- */
+function histogram(seed) {
+  const h = el("div", "hist");
+  for (let i = 0; i < 26; i++) {
+    const v = 0.25 + 0.75 * Math.abs(Math.sin(seed + i * 0.55)) * Math.exp(-Math.pow((i - 13) / 9, 2));
+    const b = el("i");
+    b.style.height = (3 + 22 * v) + "px";
+    b.style.background = i % 3 === 0 ? "var(--bursztyn)" : "var(--blekit)";
+    b.style.opacity = 0.45 + 0.55 * v;
+    h.appendChild(b);
+  }
+  return h;
+}
+function metr(nazwa, v, kolor) {
+  const m = el("div", "metr");
+  m.append(el("span", null, nazwa));
+  const tor = el("span", "tor"); const s = el("span");
+  s.style.width = (v * 100) + "%"; s.style.background = kolor;
+  tor.appendChild(s); m.append(tor, el("span", "w", v.toFixed(2)));
+  return m;
+}
+function rysujDje() {
+  const s = $("#siatka-dje"); s.innerHTML = "";
+  DJE.forEach((d, i) => {
+    const [nazwa, zrodlo, tempo, zakres, harm, skok, en, gr, bas, sety, szwy, utw, brzmi] = d;
+    const k = el("div", "kafel" + (i === 0 ? " szeroki" : ""));
+    if (i === 0) k.setAttribute("aria-selected", "true");
+    const gl = el("div", "gl");
+    gl.append(el("span", "nazwa", nazwa), el("span", "zrodlo", zrodlo));
+    k.append(gl, histogram(i * 1.7 + 1));
+    const t = el("div", null); t.style.cssText = "font-size:11.5px;color:var(--cichy);margin-bottom:7px";
+    t.innerHTML = `mediana tempa <span class="liczba" style="color:var(--tekst);font-size:13px">${tempo}</span>
+                   <span style="color:var(--cichszy)">· ${zakres[0]}–${zakres[1]}</span>`;
+    k.append(t);
+    k.append(metr("energia", en, "var(--bursztyn)"),
+             metr("groove", gr, "var(--volt)"),
+             metr("bas", bas, "var(--blekit)"));
+    const st = el("div", "stopka-kafla");
+    st.append(el("span", null, `${harm}% harmonicznych`),
+              el("span", null, `±${skok} skok tempa`),
+              el("span", null, `${szwy} szwów`));
+    k.append(st);
+    if (i === 0) {
+      const b = el("div", null); b.style.cssText = "margin-top:8px;font-size:11.5px;color:var(--cichszy)";
+      b.textContent = "brzmi jak: " + brzmi;
+      k.append(b);
+    }
+    k.addEventListener("click", () => {
+      s.querySelectorAll(".kafel").forEach(x => x.removeAttribute("aria-selected"));
+      k.setAttribute("aria-selected", "true"); kontekstDj(d);
+    });
+    s.appendChild(k);
+  });
+  kontekstDj(DJE[0]);
+}
+
+/* ---------- set ---------- */
+function rysujSet() {
+  const tb = $("#tab-set"); tb.innerHTML = "";
+  let suma = 0;
+  UTWORY.slice(0, 10).forEach((u, i) => {
+    const [wyk, tyt, bpm, ton, , en, , , min] = u;
+    suma += min;
+    const tr = el("tr");
+    if (i === 2) tr.setAttribute("aria-selected", "true");
+    tr.append(el("td", "num", i + 1), el("td", "num", bpm.toFixed(1)),
+      (() => { const t = el("td"); t.appendChild(el("span", "ton", ton)); return t; })(),
+      (() => { const t = el("td"); t.appendChild(iskra(en, "var(--bursztyn)")); return t; })(),
+      el("td", "num", suma.toFixed(0)), el("td", null, wyk), el("td", null, tyt),
+      (() => { const t = el("td"); t.style.color = "var(--cichszy)";
+               t.style.fontSize = "11px"; t.textContent = POWODY[i % POWODY.length]; return t; })());
+    tb.appendChild(tr);
+  });
+  // płaska krzywa energii — bo łuk "build" wypadł gorzej w pomiarze
+  const svg = $("#krzywa-setu");
+  const pkt = UTWORY.slice(0, 10).map((u, i) => {
+    const sr = u[5].reduce((a, b) => a + b, 0) / u[5].length;
+    return [i * (600 / 9), 66 - sr * 5.5];
+  });
+  const d = pkt.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  svg.innerHTML =
+    `<path d="${d} L600 74 L0 74 Z" fill="rgba(224,164,88,.10)"/>
+     <path d="${d}" fill="none" stroke="var(--bursztyn)" stroke-width="1.8"/>
+     ${pkt.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.6"
+        fill="var(--tlo)" stroke="var(--bursztyn)" stroke-width="1.6"/>`).join("")}`;
+}
+
+/* ---------- cue ---------- */
+function rysujCue() {
+  const w = $("#osie-cue"); w.innerHTML = "";
+  UTWORY.slice(0, 5).forEach((u, i) => {
+    const k = el("div", "kafel");
+    k.style.marginBottom = "8px"; k.style.cursor = "default";
+    const gl = el("div", "gl");
+    gl.append(el("span", "nazwa", u[0] + " — " + u[1]));
+    const c = el("span", "zrodlo", "4 pady · pewność 0,9" + (i % 3));
+    gl.append(c);
+    k.append(gl);
+    const os = el("div", null);
+    os.style.cssText = "position:relative;height:30px;background:#12161b;border-radius:6px;overflow:hidden";
+    // fala
+    let fala = "";
+    for (let x = 0; x < 100; x++) {
+      const h = 6 + 20 * Math.abs(Math.sin(x * 0.31 + i)) * (0.5 + 0.5 * Math.sin(x * 0.06));
+      fala += `<rect x="${x}%" y="${(30 - h) / 2}" width="0.6%" height="${h}"
+                fill="rgba(90,169,230,.32)"/>`;
+    }
+    // pady
+    const pady = [12, 34, 58, 79];
+    const znaki = pady.map((p, j) => `
+      <rect x="${p}%" y="0" width="2" height="30" fill="var(--bursztyn)"/>
+      <rect x="${p}%" y="0" width="15" height="12" rx="3" fill="var(--bursztyn)"/>
+      <text x="${p}%" y="9" dx="7.5" text-anchor="middle" font-size="8"
+            font-family="ui-monospace,monospace" fill="#0e1013">${j + 1}</text>`).join("");
+    os.innerHTML = `<svg width="100%" height="30" style="display:block">${fala}${znaki}</svg>`;
+    k.append(os);
+    w.appendChild(k);
+  });
+}
+
+/* ---------- prawa kolumna ---------- */
+function pole(et, wa, duza) {
+  const p = el("div", "pole");
+  p.append(el("div", "et", et), el("div", "wa" + (duza ? " duza" : ""), wa));
+  return p;
+}
+function kontekstUtwor(u) {
+  const [wyk, tyt, bpm, ton, pew, en, lufs, gat, min] = u;
+  const a = $("#kontekst"); a.innerHTML = "";
+  a.append(el("h2", null, "Zaznaczony utwór"));
+  const n = el("div", null); n.style.cssText = "font-weight:600;font-size:14px;margin-bottom:2px";
+  n.textContent = tyt;
+  const w = el("div", null); w.style.cssText = "color:var(--cichy);font-size:12.5px;margin-bottom:14px";
+  w.textContent = wyk;
+  a.append(n, w);
+  const g = el("div", null);
+  g.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:10px";
+  g.append(pole("tempo", bpm.toFixed(1), true), pole("tonacja", ton, true));
+  a.append(g, el("div", "rozdziel"));
+  a.append(pole("pewność tonacji", pew.toFixed(2)), pole("głośność", lufs.toFixed(1) + " LUFS"),
+           pole("gatunek", gat), pole("długość", min.toFixed(1) + " min"));
+  const p = el("div", "powod");
+  p.innerHTML = "<b>Skąd tonacja:</b> zmierzona przez silnik, nie z Rekordboxa — " +
+                "tamte odrzuciliśmy 10.08 jako niewiarygodne.";
+  a.append(p);
+}
+function kontekstDj(d) {
+  const [nazwa, zrodlo, tempo, zakres, harm, skok, en, gr, bas, sety, szwy, utw, brzmi] = d;
+  const a = $("#kontekst"); a.innerHTML = "";
+  a.append(el("h2", null, "Zaznaczony DJ"));
+  const n = el("div", null); n.style.cssText = "font-weight:600;font-size:14px;margin-bottom:14px";
+  n.textContent = nazwa;
+  a.append(n);
+  const g = el("div", null);
+  g.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:10px";
+  g.append(pole("mediana tempa", tempo, true), pole("harmonicznych", harm + "%", true));
+  a.append(g, el("div", "rozdziel"));
+  a.append(pole("w mapie", `${sety} sety · ${szwy} szwów · ${utw} utworów`),
+           pole("typowy skok tempa", "±" + skok), pole("brzmi jak", brzmi));
+  const p = el("div", "powod");
+  p.innerHTML = "<b>Czego tu nie ma:</b> ocen. Karta pokazuje wyłącznie, " +
+                "jak ten DJ gra — nie czy gra dobrze.";
+  a.append(p);
+}
+
+/* ---------- nawigacja, gęstość, skróty ---------- */
+const SKROTY = {
+  biblioteka: [["F","Zbuduj z filarów"],["A","Analizuj folder"],["U","♥ Ulubiony"],
+               ["S","Zagraj szew"],["/","Szukaj"],["⌘K","Paleta"]],
+  dje:        [["K","Do kolekcji"],["⏎","Ustaw kotwicę"],["/","Szukaj"],["⌘K","Paleta"]],
+  set:        [["B","Buduj"],["Z","Zamień"],["X","Wytnij"],["A","Dopisz"],
+               ["⌘S","Zapisz plan"],["C","Porównaj"],["⌘K","Paleta"]],
+  cue:        [["W","Wyślij do RB"],["P","Podgląd"],["⌘Z","Cofnij"],["⌘K","Paleta"]],
+};
+function pokaz(ekran) {
+  document.querySelectorAll("main > section").forEach(s => s.hidden = s.id !== ekran);
+  document.querySelectorAll("#nawigacja button").forEach(b =>
+    b.setAttribute("aria-pressed", String(b.dataset.ekran === ekran)));
+  const p = $("#pasek-skrotow"); p.innerHTML = "";
+  SKROTY[ekran].forEach(([k, o]) => {
+    const s = el("span"); s.innerHTML = `<b>${k}</b> ${o}`; p.appendChild(s);
+  });
+  if (ekran === "dje") kontekstDj(DJE[0]);
+  if (ekran === "biblioteka" || ekran === "set") kontekstUtwor(UTWORY[0]);
+  if (ekran === "cue") {
+    const a = $("#kontekst"); a.innerHTML = "";
+    a.append(el("h2", null, "Zapis do Rekordboxa"));
+    a.append(pole("utworów", "18", true), pole("hot cue", "72", true));
+    a.append(el("div", "rozdziel"));
+    a.append(pole("kopia bazy", "zostanie zrobiona przed zapisem"),
+             pole("Rekordbox", "zamknięty — zapis dozwolony"));
+    const p = el("div", "powod");
+    p.innerHTML = "<b>Zapis idzie do master.db.</b> Swój USB-export robisz sam " +
+                  "w Rekordboksie po sprawdzeniu cue.";
+    a.append(p);
+  }
+}
+document.querySelectorAll("#nawigacja button").forEach(b =>
+  b.addEventListener("click", () => pokaz(b.dataset.ekran)));
+document.querySelectorAll("#gestosc button").forEach(b =>
+  b.addEventListener("click", () => {
+    document.querySelectorAll("#gestosc button").forEach(x => x.setAttribute("aria-pressed", "false"));
+    b.setAttribute("aria-pressed", "true");
+    document.documentElement.dataset.gestosc = b.dataset.g;
+  }));
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  const m = {1:"biblioteka", 2:"dje", 3:"set", 4:"cue"}[e.key];
+  if (m) { pokaz(m); e.preventDefault(); }
+});
+
+rysujBiblioteke(); rysujDje(); rysujSet(); rysujCue(); pokaz("biblioteka");
+</script>
+<script src="/audyt-ui.js"></script>
+</body>
+</html>
