@@ -14,7 +14,7 @@ const NAZWY_PADOW = ['A', 'B', 'C', 'D'];
 
 let stan = {
   trackId: null, przebieg: null, pady: {}, wybrany: null, bpm: null,
-  ostatniBlad: null,
+  ostatniBlad: null, spis: [], filtr: '',
 };
 
 /* ---------- pomocnicze ---------- */
@@ -207,24 +207,74 @@ async function odswiezStanRb() {
   $('#btn-zapisz').title = s.zapis_dozwolony ? '' : s.powod;
 }
 
+/* ---------- lista utworów ---------- */
+function rysujSpis() {
+  const el = $('#spis');
+  const f = stan.filtr.toLowerCase();
+  const widoczne = f
+    ? stan.spis.filter(u => ((u.tytul || '') + ' ' + (u.wykonawca || '')).toLowerCase().includes(f))
+    : stan.spis;
+
+  $('#licznik').textContent = f
+    ? `${widoczne.length} z ${stan.spis.length}`
+    : `${stan.spis.length} utworów`;
+
+  if (!widoczne.length) {
+    el.innerHTML = '<div class="pusto">nic nie pasuje</div>';
+    return;
+  }
+  // Renderujemy najwyżej 300 wierszy: przy ośmiu tysiącach pozycji reszta i tak
+  // nie jest widoczna, a pełna lista zabija płynność przewijania.
+  el.innerHTML = widoczne.slice(0, 300).map(u => `
+    <div class="utwor" data-id="${u.track_id}"
+         ${stan.trackId === u.track_id ? 'aria-selected="true"' : ''}>
+      <div class="t">${(u.tytul || u.track_id).replace(/</g, '&lt;')}</div>
+      <div class="d">${u.bpm ? u.bpm.toFixed(1) : '—'} · ${u.tonacja || '—'}</div>
+    </div>`).join('') +
+    (widoczne.length > 300
+      ? `<div class="pusto">…i ${widoczne.length - 300} dalszych — zawęź szukaniem</div>`
+      : '');
+
+  el.querySelectorAll('.utwor').forEach(d =>
+    d.addEventListener('click', () => wybierzUtwor(d.dataset.id)));
+}
+
+async function wybierzUtwor(trackId) {
+  if (!api()) return;
+  stan.trackId = trackId;
+  $('#tytul').textContent = 'wczytuję…';
+  const p = await api().wczytaj_utwor(trackId);
+  if (czyBlad(p, 'Wczytywanie utworu')) { $('#tytul').textContent = 'nie wczytano'; return; }
+  stan.przebieg = p;
+  stan.bpm = p.bpm;
+  stan.wybrany = null;
+  $('#tytul').textContent = p.tytul || trackId;
+  $('#podtytul').textContent =
+    [p.wykonawca, p.bpm ? p.bpm.toFixed(1) + ' BPM' : null].filter(Boolean).join(' · ');
+  const pd = await api().pady(trackId);
+  stan.pady = (pd && pd.pady) || {};
+  rysujSpis();
+  przerysuj();
+}
+
 /* ---------- start ---------- */
 async function start() {
   await odswiezStanRb();
   setInterval(odswiezStanRb, 5000);
 
   if (!api()) { $('#tytul').textContent = 'brak mostu do Pythona'; return; }
-  const p = await api().przebieg_utworu(stan.trackId || '', 900);
-  if (p.blad) {
-    $('#tytul').textContent = 'Brak wczytanego utworu';
-    $('#podtytul').textContent = 'zbuduj set w terminalu (dancelab tui) — plan jest wspólny';
-    $('#kontekst').innerHTML = `<h2>Nic nie wczytane</h2>
-      <div class="powod">${p.blad}</div>`;
+
+  const b = await api().biblioteka(100000);   // spis to same nagłówki
+  if (b.blad) {
+    $('#spis').innerHTML = `<div class="pusto">${b.blad}</div>`;
+    $('#tytul').textContent = 'Brak analiz';
+    $('#kontekst').innerHTML = `<h2>Nic do pokazania</h2>
+      <div class="powod zle"><b>${b.blad}</b><br>${b.podpowiedz || ''}</div>`;
     return;
   }
-  stan.przebieg = p; stan.bpm = p.bpm;
-  const pd = await api().pady(stan.trackId || '');
-  if (!pd.blad) stan.pady = pd.pady || {};
-  przerysuj();
+  stan.spis = b.utwory || [];
+  rysujSpis();
+  if (stan.spis.length) await wybierzUtwor(stan.spis[0].track_id);
 }
 
 $('#fala-obszar').addEventListener('click', postawZKlikniecia);
@@ -235,6 +285,7 @@ $('#fala-obszar').addEventListener('mousemove', e => {
   $('#czas-kursora').textContent = mmss(u * stan.przebieg.dlugosc_sec * 1000);
 });
 $('#btn-cofnij').addEventListener('click', cofnij);
+$('#filtr').addEventListener('input', e => { stan.filtr = e.target.value; rysujSpis(); });
 document.querySelectorAll('#gestosc button').forEach(b =>
   b.addEventListener('click', () => {
     document.querySelectorAll('#gestosc button')
@@ -244,6 +295,7 @@ document.querySelectorAll('#gestosc button').forEach(b =>
     requestAnimationFrame(rysujFale);
   }));
 document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
   if (e.key === 'ArrowLeft') { przesun(-1); e.preventDefault(); }
   if (e.key === 'ArrowRight') { przesun(1); e.preventDefault(); }
   if (e.key === 'Backspace' || e.key === 'Delete') { zdejmij(); e.preventDefault(); }

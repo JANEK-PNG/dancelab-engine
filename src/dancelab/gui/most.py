@@ -36,10 +36,98 @@ def _bezpiecznie(fn):
 class Most:
     """Obiekt wystawiony do JavaScriptu jako ``window.pywebview.api``."""
 
-    def __init__(self) -> None:
+    #: Ten sam katalog, z którego czyta terminal (`tui/app.py::PROCESSED_DEFAULT`).
+    KATALOG_ANALIZ = "experiments_priv/2026-07-30_rebuild/processed"
+
+    def __init__(self, katalog: str | None = None) -> None:
         self._edycje = edycje.nowe()
         self._plan: Any = None
         self._analizy: dict[str, Any] = {}
+        self._katalog = katalog or self.KATALOG_ANALIZ
+        self._spis: list[dict[str, Any]] = []
+
+    # ------------------------------------------------------------ biblioteka
+
+    @_bezpiecznie
+    def biblioteka(self, limit: int = 400) -> dict[str, Any]:
+        """Spis utworów do wyboru — bez tego okno startuje puste.
+
+        Czyta NAGŁÓWKI plików analizy, nie całe pliki: każdy waży setki
+        kilobajtów przez klatki i krzywe, a do listy potrzeba tytułu i tempa.
+        Pełną analizę wczytuje dopiero `wczytaj_utwor`.
+        """
+        import json
+        from pathlib import Path
+
+        if self._spis:
+            return {"utwory": self._spis[:limit], "wszystkich": len(self._spis),
+                    "katalog": self._katalog}
+
+        katalog = Path(self._katalog)
+        if not katalog.exists():
+            return {"blad": f"nie ma katalogu analiz: {katalog}",
+                    "podpowiedz": "przeanalizuj folder w terminalu: dancelab tui"}
+
+        spis: list[dict[str, Any]] = []
+        for plik in sorted(katalog.glob("*.json")):
+            try:
+                with plik.open("rb") as f:
+                    prefiks = f.read(4096).decode("utf-8", "replace")
+                start = prefiks.find('"track"')
+                if start == -1:
+                    continue
+                # bezpiecznie: parsujemy tylko obiekt "track", nie cały plik
+                pocz = prefiks.find("{", start)
+                glebokosc, i, w_cudzyslowie, ucieczka = 0, pocz, False, False
+                while i < len(prefiks):
+                    z = prefiks[i]
+                    if w_cudzyslowie:
+                        if ucieczka:
+                            ucieczka = False
+                        elif z == "\\":
+                            ucieczka = True
+                        elif z == '"':
+                            w_cudzyslowie = False
+                    elif z == '"':
+                        w_cudzyslowie = True
+                    elif z == "{":
+                        glebokosc += 1
+                    elif z == "}":
+                        glebokosc -= 1
+                        if glebokosc == 0:
+                            break
+                    i += 1
+                else:
+                    continue
+                t = json.loads(prefiks[pocz:i + 1])
+            except (OSError, ValueError):
+                continue
+            spis.append({
+                "track_id": t.get("track_id") or plik.stem,
+                "tytul": t.get("title") or plik.stem,
+                "wykonawca": t.get("artist"),
+                "bpm": t.get("bpm_estimate"),
+                "tonacja": t.get("key_estimate"),
+                "dlugosc_sec": t.get("duration_sec"),
+            })
+
+        self._spis = spis
+        return {"utwory": spis[:limit], "wszystkich": len(spis),
+                "katalog": self._katalog}
+
+    @_bezpiecznie
+    def wczytaj_utwor(self, track_id: str) -> dict[str, Any]:
+        """Wczytaj pełną analizę i zwróć przebieg gotowy do narysowania."""
+        from dancelab.storage.repositories import FileAnalysisRepository
+
+        if track_id not in self._analizy:
+            repo = FileAnalysisRepository(self._katalog)
+            self._analizy[track_id] = repo.get(track_id)
+        wynik = przebieg.zbuduj(self._analizy[track_id]).do_slownika()
+        wpis = next((u for u in self._spis if u["track_id"] == track_id), None)
+        wynik["tytul"] = (wpis or {}).get("tytul", track_id)
+        wynik["wykonawca"] = (wpis or {}).get("wykonawca")
+        return wynik
 
     # ---------------------------------------------------------------- stan
 

@@ -32,7 +32,22 @@ body{margin:0;background:var(--tlo);color:var(--tekst);font-family:var(--font);
   font-size:11.5px;padding:2px 8px;border-radius:5px;cursor:pointer}
 .chip-gest button[aria-pressed="true"]{background:#252c35;color:var(--tekst)}
 
-.korpus{display:grid;grid-template-columns:56px 1fr 320px;min-height:0}
+.korpus{display:grid;grid-template-columns:56px 264px 1fr 320px;min-height:0}
+.lista-utworow{border-right:1px solid var(--kreska);display:flex;
+  flex-direction:column;min-height:0}
+.szukajka{padding:9px 10px;border-bottom:1px solid var(--kreska)}
+.szukajka input{width:100%;background:var(--karta);border:1px solid var(--kreska);
+  border-radius:7px;color:var(--tekst);font:inherit;font-size:12.5px;
+  padding:6px 10px;outline:none}
+.szukajka input:focus{border-color:var(--blekit)}
+.spis{flex:1;overflow:auto;min-height:0}
+.utwor{padding:6px 11px;cursor:pointer;border-bottom:1px solid rgba(36,42,50,.45)}
+.utwor:hover{background:var(--karta)}
+.utwor[aria-selected="true"]{background:#1f2630;box-shadow:inset 2px 0 0 var(--bursztyn)}
+.utwor .t{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.utwor .d{font-size:10.5px;color:var(--cichszy);font-family:var(--mono);margin-top:1px}
+.licznik{padding:6px 11px;font-size:11px;color:var(--cichszy);
+  border-top:1px solid var(--kreska)}
 nav{border-right:1px solid var(--kreska);display:flex;flex-direction:column;
     align-items:center;padding-top:8px;gap:4px}
 nav button{width:44px;height:44px;background:none;border:0;border-radius:9px;
