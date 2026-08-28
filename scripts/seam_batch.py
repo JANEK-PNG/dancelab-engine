@@ -28,7 +28,14 @@ LOCK_TOLERANCE = 0.4          # seconds; anchors must name the same origin
 
 
 def _try_window(mix_path, track_env, t0, t1, splits=4) -> dict | None:
-    """Strict consensus in one window: several stretches must name one instant."""
+    """Strict consensus in one window: several stretches must name one instant.
+
+    The four-way split was once suspected of being too fine for short windows and
+    an adaptive version was measured on 2026-08-28: it produced zero additional
+    locks. The six records that fail to lock are not short — they are all the
+    SECOND appearance of a track the DJ played twice, which is a different
+    problem entirely. See experiments_priv/2026-08-28_zamki_szwow/.
+    """
     if t1 - t0 < 25:
         return None
     edges = np.linspace(t0, t1, splits + 1)
