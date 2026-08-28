@@ -145,6 +145,53 @@ def przekroje() -> dict:
     }
 
 
+def powroty() -> dict:
+    """Powroty do utworu w obrębie jednego setu — zmierzone 28.08.
+
+    Odkryte przez awarię pomiaru: sześć utworów nie dawało się zsynchronizować
+    z nagraniem, bo wszystkie były DRUGIM zagraniem tego samego kawałka.
+    Odstęp 1 (sąsiednie pozycje) jest odsiany — wygląda na podwójny wpis w
+    tracklisty, nie na powrót.
+    """
+    wg_dlugosci = _pytaj(
+        "WITH dl AS ("
+        "  SELECT link_setu, count(*) AS n FROM pozycja_tracklisty"
+        "  WHERE link_setu IS NOT NULL AND utwor_id IS NOT NULL"
+        "  GROUP BY link_setu),"
+        " zp AS («"
+        "  SELECT DISTINCT p1.link_setu FROM pozycja_tracklisty p1"
+        "  JOIN pozycja_tracklisty p2 ON p2.link_setu = p1.link_setu"
+        "    AND p2.utwor_id = p1.utwor_id AND p2.pozycja > p1.pozycja + 1"
+        "  WHERE p1.utwor_id IS NOT NULL AND p1.link_setu IS NOT NULL)"
+        " SELECT prog AS min_pozycji,"
+        "        (SELECT count(*) FROM dl WHERE n >= prog) AS setow,"
+        "        (SELECT count(*) FROM dl JOIN zp USING (link_setu)"
+        "         WHERE n >= prog) AS z_powrotem"
+        " FROM (VALUES (1), (20), (30), (40)) AS v(prog) ORDER BY prog"
+        .replace("«", "")
+    )
+    odstepy = _pytaj(
+        "SELECT p2.pozycja - p1.pozycja AS odstep, count(*) AS ile"
+        " FROM pozycja_tracklisty p1"
+        " JOIN pozycja_tracklisty p2 ON p2.link_setu = p1.link_setu"
+        "   AND p2.utwor_id = p1.utwor_id AND p2.pozycja > p1.pozycja"
+        " WHERE p1.utwor_id IS NOT NULL AND p1.link_setu IS NOT NULL"
+        " GROUP BY 1 ORDER BY 1 LIMIT 10"
+    )
+    przyklady = _pytaj(
+        "SELECT p1.ksywa, u.wykonawca, u.tytul, p1.pozycja AS pierwsza,"
+        "       p2.pozycja AS druga, p2.pozycja - p1.pozycja AS odstep"
+        " FROM pozycja_tracklisty p1"
+        " JOIN pozycja_tracklisty p2 ON p2.link_setu = p1.link_setu"
+        "   AND p2.utwor_id = p1.utwor_id AND p2.pozycja > p1.pozycja + 1"
+        " JOIN utwor u ON u.utwor_id = p1.utwor_id"
+        " WHERE p1.ksywa IS NOT NULL"
+        " ORDER BY p1.ksywa, p1.pozycja LIMIT 25"
+    )
+    return {"wg_dlugosci": wg_dlugosci, "odstepy": odstepy,
+            "przyklady": przyklady}
+
+
 def szukaj(fraza: str) -> dict:
     """Jedna nazwa, wszystko co baza o niej wie — z każdego z pięciu światów."""
     like = f"%{fraza.lower()}%"
@@ -259,6 +306,7 @@ TRASY = {
     "/api/stan": lambda q: stan(),
     "/api/pokrycie": lambda q: pokrycie(),
     "/api/przekroje": lambda q: przekroje(),
+    "/api/powroty": lambda q: powroty(),
     "/api/szukaj": lambda q: szukaj(q.get("q", [""])[0]),
     "/api/podobne": lambda q: podobne(q.get("klucz", [losowy_klucz()])[0]),
     "/api/losowy": lambda q: {"klucz": losowy_klucz()},

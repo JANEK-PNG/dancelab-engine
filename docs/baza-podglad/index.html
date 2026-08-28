@@ -93,6 +93,7 @@
     <button role="tab" aria-selected="true"  data-widok="stan">Co jest w środku</button>
     <button role="tab" aria-selected="false" data-widok="pokrycie">Co się połączyło</button>
     <button role="tab" aria-selected="false" data-widok="przekroje">Nowe pytania</button>
+    <button role="tab" aria-selected="false" data-widok="powroty">Powroty</button>
     <button role="tab" aria-selected="false" data-widok="szukaj">Szukaj</button>
     <button role="tab" aria-selected="false" data-widok="brzmienie">Brzmienie</button>
   </nav>
@@ -102,6 +103,8 @@
   <section id="pokrycie" hidden><div class="ladowanie">wczytuję…</div></section>
 
   <section id="przekroje" hidden><div class="ladowanie">wczytuję…</div></section>
+
+  <section id="powroty" hidden><div class="ladowanie">wczytuję…</div></section>
 
   <section id="szukaj" hidden>
     <h2>Jedna nazwa, wszystko co baza o niej wie</h2>
@@ -301,6 +304,52 @@ async function rysujPrzekroje() {
   } catch (e) { el.innerHTML = bladHtml(e); }
 }
 
+async function rysujPowroty() {
+  const el = $('#powroty');
+  try {
+    const d = await api('/api/powroty');
+    const wiersze = d.wg_dlugosci.map(r => ({
+      ...r,
+      opis: r.min_pozycji === 1 ? 'wszystkie sety' : `sety od ${r.min_pozycji} pozycji`,
+      procent: (100 * r.z_powrotem / r.setow).toFixed(1) + '%',
+    }));
+    el.innerHTML = `
+      <h2>Powroty do utworu</h2>
+      <p class="opis">Ten sam utwór zagrany drugi raz w tym samym secie.
+        Odkryte przez awarię pomiaru: sześć utworów z Twoich setów nie dawało się
+        zsynchronizować z nagraniem, bo wszystkie były drugim zagraniem.
+        Sąsiednie pozycje odsiane — to raczej podwójny wpis niż powrót.</p>
+      ${tabela(wiersze, [
+        {tytul:'zakres', pole:'opis'},
+        {tytul:'setów', pole:'setow', num:true},
+        {tytul:'z powrotem', pole:'z_powrotem', num:true},
+        {tytul:'udział', pole:'procent'},
+      ])}
+      <p class="nota"><strong>Im pełniejsza tracklista, tym więcej powrotów.</strong>
+        Tracklisty spisują ludzie, a powrót wygląda jak duplikat i bywa kasowany
+        przy przepisywaniu — więc 3,9% na wszystkich setach to raczej dolna
+        granica niż prawdziwa częstość. U Janka, mierzone z nagrania, wyszło 19%.</p>
+
+      <h2>Ile pozycji między zagraniami</h2>
+      <p class="opis">Odstęp 2 znaczy „jeden utwór pomiędzy". To najczęstszy
+        przypadek w korpusie i dokładnie to, co robi Janek.</p>
+      ${tabela(d.odstepy, [
+        {tytul:'odstęp', pole:'odstep', num:true},
+        {tytul:'ile razy', pole:'ile', num:true},
+      ])}
+
+      <h2>Przykłady z mapy</h2>
+      ${tabela(d.przyklady, [
+        {tytul:'DJ', pole:'ksywa'},
+        {tytul:'wykonawca', pole:'wykonawca'},
+        {tytul:'tytuł', pole:'tytul'},
+        {tytul:'pozycja', pole:'pierwsza', num:true},
+        {tytul:'powrót', pole:'druga', num:true},
+        {tytul:'odstęp', pole:'odstep', num:true},
+      ])}`;
+  } catch (e) { el.innerHTML = bladHtml(e); }
+}
+
 async function rysujSzukaj(fraza) {
   const el = $('#wynik-szukaj');
   if (!fraza.trim()) { el.innerHTML = ''; return; }
@@ -367,7 +416,8 @@ async function rysujPodobne(klucz) {
 // ---------------------------------------------------------------- sterowanie
 
 const narysowane = new Set();
-const rysuj = {stan: rysujStan, pokrycie: rysujPokrycie, przekroje: rysujPrzekroje};
+const rysuj = {stan: rysujStan, pokrycie: rysujPokrycie, przekroje: rysujPrzekroje,
+               powroty: rysujPowroty};
 
 document.querySelectorAll('nav button').forEach(btn => {
   btn.addEventListener('click', () => {

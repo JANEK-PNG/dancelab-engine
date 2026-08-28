@@ -35,6 +35,12 @@ sprawdzić**. Piętnaście minut wystarczy.
 * **Ruszaj tempem** — model liczy je jako zmianę prędkości odtwarzania i to
   jest miejsce, gdzie łatwo mu się rozjechać.
 
+* **Wróć do jednego utworu** — tak jak robisz normalnie: zagraj, wpuść jeden
+  inny, wróć na krócej, skacząc po nim hot cue'ami. To załatwia drugą rzecz
+  naraz: mamy tylko dwa nagrania z powrotami, oba Twoje, więc trzecie
+  sprawia, że przestaje to być n=2. Nie graj tego „pod pomiar" — jeśli
+  naturalnie nie wrócisz, to też jest wynik.
+
 ## Czego NIE używać
 
 * **SMART FADER i SMART CFX.** Model ich nie emuluje i nie będzie — to
