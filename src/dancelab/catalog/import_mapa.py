@@ -7,7 +7,9 @@ date. Anything it cannot parse stays visible as text rather than becoming NULL.
 
 The import is idempotent by truncating the spreadsheet-derived tables first.
 Tables holding our own measurements (analiza, wektor, ocena, sesja…) are left
-untouched, as is the mapowanie glue, which ``dopasuj`` rebuilds separately.
+untouched. The mapowanie glue is cleared as well, because the import resets
+the columns dopasuj wrote — run ``dopasuj`` after every import, or use the
+``buduj`` CLI command, which does both in order.
 """
 
 from __future__ import annotations
@@ -178,6 +180,11 @@ def run(conn: Any, xlsx: Path | None = None) -> dict[str, int]:
         cur.execute(
             "TRUNCATE " + ", ".join(OWNED_TABLES) + " RESTART IDENTITY CASCADE"
         )
+        # Reimporting wipes pozycja_tracklisty.utwor_id, which dopasuj filled.
+        # Leaving mapowanie behind would look like the matching still holds
+        # while half of it silently points at rows that no longer exist, so it
+        # goes too — an empty table asks to be rebuilt, a stale one does not.
+        cur.execute("TRUNCATE mapowanie RESTART IDENTITY")
 
     written: dict[str, int] = {}
 
