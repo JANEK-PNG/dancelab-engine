@@ -291,7 +291,11 @@ class Most:
             # a nie czekać na wątek, który i tak nie ruszy
             return {"blad": str(exc), "pole": "parametry"}
 
-        self._budowa = {"stan": "trwa", "etap": "start", "notki": []}
+        # „start" wisiałoby na ekranie przez całe wczytywanie ośmiu tysięcy
+        # analiz — pierwszy etap musi nazywać to, co naprawdę się dzieje.
+        self._budowa = {"stan": "trwa", "notki": [],
+                        "etap": ("Wczytuję analizy…" if self._analizy_pula is None
+                                 else "Przygotowuję pulę…")}
         threading.Thread(target=self._buduj_w_tle, args=(par,),
                          daemon=True).start()
         return {"ruszylo": True}
@@ -308,8 +312,9 @@ class Most:
             except Exception:                          # noqa: BLE001
                 pass                                   # filary są opcjonalne
 
+            pula = self._pula()
             wynik = budowa.zbuduj(par, processed_dir=self._katalog,
-                                  postep=etap, analizy=self._pula(),
+                                  postep=etap, analizy=pula,
                                   stan_uzytkownika=stan_u)
             self._kolejnosc = list(wynik["kolejnosc"])
             self._zapis_gotowy = None

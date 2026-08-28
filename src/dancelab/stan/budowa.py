@@ -164,6 +164,24 @@ def pula(processed_dir: str = PROCESSED_DOMYSLNY) -> tuple[list, list[str]]:
     return analizy, notki
 
 
+def _skroc_notke(tekst: str, limit: int = 180) -> str:
+    """Notka ma być zdaniem, nie zrzutem identyfikatorów.
+
+    Silnik potrafi dopisać do ostrzeżenia całą listę par skrótów plików
+    („removed 55 duplicate audio file(s): 1167…→0193…, …"). Na ekranie to
+    ściana znaków, przez którą nie widać pozostałych ostrzeżeń — złapane na
+    zrzucie 28.08. Zostawiamy zdanie i liczbę, listę ucinamy.
+    """
+    tekst = str(tekst)
+    if len(tekst) <= limit:
+        return tekst
+    glowa, sep, ogon = tekst.partition(":")
+    if sep and len(glowa) <= limit:
+        ile = ogon.count(",") + 1
+        return f"{glowa} — {ile} pozycji, lista pominięta"
+    return tekst[:limit].rstrip() + "…"
+
+
 def _zawez_zrodlo(analizy: list, zrodlo_puli: str) -> tuple[list, list[str]]:
     """Utwory z Apple Music Rekordbox pokazuje, ale nie ładuje na deck.
 
@@ -296,7 +314,7 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
             locked_positions=rozstawienie or None,
             pinned_track_ids=filary_ids or None, **wspolne)
 
-    notki += list(getattr(plan, "warnings", None) or [])
+    notki += [_skroc_notke(n) for n in (getattr(plan, "warnings", None) or [])]
     if par.ziarno is not None and par.nowosc != "deterministic":
         notki.append(f"ziarno {par.ziarno} — zapisz je, żeby powtórzyć ten set")
 

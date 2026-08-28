@@ -122,6 +122,20 @@ def test_zbyt_malo_filarow_po_sitach_to_odmowa():
         F.wybierz(stan, by_id, 120.0, 135.0, 10)
 
 
+def test_jeden_filar_nie_zwala_winy_na_okno_tempa():
+    """Złapane 28.08 na prawdziwych danych Janka: miał zaznaczony JEDEN filar,
+    nic nie wypadło z żadnego sita, a odmowa kazała poszerzać okno tempa —
+    i żaden set nie chciał się zbudować. Winowajcy nie ma, więc go nie
+    wymyślamy."""
+    by_id = pula(("ok1", 126.0, .5), ("inny", 128.0, .5))
+    stan = stan_z_filarami(by_id, ["ok1"])
+    with pytest.raises(OdmowaBudowy) as exc:
+        F.wybierz(stan, by_id, 120.0, 135.0, 10)
+    tekst = str(exc.value)
+    assert "okno tempa" not in tekst
+    assert "zdejmij" in tekst          # mówi, co zrobić, żeby ruszyć dalej
+
+
 def test_wiecej_filarow_niz_miejsc_to_odmowa_z_liczbami():
     by_id = pula(("a", 126.0, .3), ("b", 127.0, .3), ("c", 128.0, .3))
     stan = stan_z_filarami(by_id, ["a", "b", "c"])

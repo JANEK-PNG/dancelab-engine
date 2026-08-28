@@ -270,8 +270,11 @@ function pokazEkran(nazwa) {
     x.hidden = x.id !== (nazwa === 'set' ? 'ekran-set' : 'szew'));
   document.querySelectorAll('#nawigacja button').forEach(b =>
     b.setAttribute('aria-pressed', String(b.dataset.ekran === nazwa)));
-  document.querySelector('.lista-utworow').style.display =
-    nazwa === 'set' ? 'none' : '';
+  /* Sam `display:none` na liście NIE wystarczy: siatka ma cztery kolumny,
+     więc zniknięcie listy przesuwa główny obszar w jej wąską kolumnę, a panel
+     kontekstu rozlewa się na resztę. Złapane na zrzucie — ekran Set ściskał
+     się do 264 px z uciętą tabelą. Kolumny przełącza CSS po tym atrybucie. */
+  document.documentElement.dataset.ekran = nazwa;
   if (nazwa === 'set') { kontekstSet(); odswiezZapis(); }
 }
 

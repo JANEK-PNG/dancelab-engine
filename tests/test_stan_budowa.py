@@ -130,3 +130,18 @@ def test_higiena_puli_odrzuca_i_liczy():
         pytest.skip("pula bez odrzuconych — nie ma czego sprawdzać")
     assert "higiena puli" in notki[0]
     assert any(s in notki[0] for s in ("stemy", "brak pliku", "dłuższe"))
+
+
+def test_dluga_notka_silnika_nie_jest_sciana_skrotow():
+    """Złapane na zrzucie 28.08: ostrzeżenie o duplikatach ciągnęło za sobą
+    listę 55 par skrótów plików i zasłaniało pozostałe ostrzeżenia."""
+    dlugie = ("removed 55 duplicate audio file(s) (same bytes): "
+              + ", ".join(f"{i:016x}→{i+1:016x}" for i in range(55)))
+    krotkie = budowa._skroc_notke(dlugie)
+    assert len(krotkie) < 120
+    assert "duplicate" in krotkie and "55 pozycji" in krotkie
+
+
+def test_krotka_notka_zostaje_bez_zmiany():
+    tekst = "higiena puli: odrzucone 117 (stemy: 16)"
+    assert budowa._skroc_notke(tekst) == tekst

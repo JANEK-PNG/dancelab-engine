@@ -85,6 +85,16 @@ def wybierz(stan_uzytkownika: dict, by_id: dict, bpm_min: float | None,
     if zostawione and len(zostawione) < MIN_FILARY:
         # Odmowa musi nieść winowajców: liczby bez nazwisk nie mówią, czy
         # poszerzyć okno, czy wymienić filary (skarga Janka 09.08).
+        #
+        # Ale gdy NIC nie wypadło, winowajcy nie ma. Złapane 28.08 na
+        # prawdziwych danych: przy jednym zaznaczonym filarze komunikat kazał
+        # poszerzać okno tempa, które nie miało z tym nic wspólnego — a set
+        # nie budował się w ogóle.
+        if not wyciete:
+            raise OdmowaBudowy(
+                f"masz zaznaczony {len(zostawione)} filar, a minimum to "
+                f"{MIN_FILARY} — zaznacz kolejne albo zdejmij ten jeden "
+                f"(bez filarów set zbuduje się normalnie)")
         kogo = "; ".join(wyciete[:3])
         if len(wyciete) > 3:
             kogo += f" i {len(wyciete) - 3} dalszych"
