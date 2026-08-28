@@ -181,22 +181,62 @@ def _rejestry(conn: Any, directory: Path) -> dict[str, int]:
     return {"sesja": sesje, "rejestr": rejestry}
 
 
+# Which recording belongs to which session — confirmed by Janek 28.08, not
+# guessed. "Test 1" matches its registry by name, date and hour. The other two
+# predate the recorder entirely: they are sets we have audio and cue points for
+# but no hand movements, and they get a session of their own so the cue files
+# stay reachable.
+POWIAZANIA = {
+    "Test 1/01 Test 1.wav": "test_1",
+}
+SESJE_BEZ_REJESTRU = {
+    "Unknown Album/01 Premier.wav": ("Premier", "2026-02-25"),
+    "Spring/01 Open Deck.wav": ("Open Deck", "2026-05-27"),
+}
+
+
 def _nagrania(conn: Any, directory: Path) -> dict[str, int]:
-    """Index Rekordbox recordings. Only the header is checksummed: these are
-    multi-gigabyte WAVs and a full hash would dominate the import."""
+    """Index Rekordbox recordings and tie them to sessions where we know the tie.
+
+    Only the header is checksummed: these are multi-gigabyte WAVs and a full
+    hash would dominate the import.
+    """
     if not directory.exists():
         return {"nagranie": 0}
-    count = 0
+    count = powiazane = bez_rejestru = 0
     with conn.cursor() as cur:
         for wav in sorted(directory.rglob("*.wav")):
             cue = wav.with_suffix(".cue")
+            koncowka = f"{wav.parent.name}/{wav.name}"
+            sesja_id = None
+
+            if koncowka in POWIAZANIA:
+                cur.execute("SELECT sesja_id FROM sesja WHERE nazwa = %s",
+                            (POWIAZANIA[koncowka],))
+                wiersz = cur.fetchone()
+                if wiersz:
+                    sesja_id = wiersz[0]
+                    powiazane += 1
+            elif koncowka in SESJE_BEZ_REJESTRU:
+                nazwa, data = SESJE_BEZ_REJESTRU[koncowka]
+                cur.execute(
+                    "INSERT INTO sesja (nazwa, data, sprzet, pozycje_startowe,"
+                    " uwagi) VALUES (%s, %s, %s, false, %s) RETURNING sesja_id",
+                    (nazwa, data, "DDJ-FLX4",
+                     "set sprzed rejestratora — jest audio i cue, brak ruchów rąk"),
+                )
+                sesja_id = cur.fetchone()[0]
+                bez_rejestru += 1
+
             cur.execute(
-                "INSERT INTO nagranie (sciezka_wav, sciezka_cue) VALUES (%s, %s)",
-                (str(wav), str(cue) if cue.exists() else None),
+                "INSERT INTO nagranie (sesja_id, sciezka_wav, sciezka_cue)"
+                " VALUES (%s, %s, %s)",
+                (sesja_id, str(wav), str(cue) if cue.exists() else None),
             )
             count += 1
     conn.commit()
-    return {"nagranie": count}
+    return {"nagranie": count, "_nagran_powiazanych": powiazane,
+            "_sesji_bez_rejestru": bez_rejestru}
 
 
 def run(
