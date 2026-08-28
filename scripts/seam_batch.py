@@ -61,7 +61,7 @@ def _try_window(mix_path, track_env, t0, t1, splits=4) -> dict | None:
             "spread_ms": float(max(abs(r["origin"] - med) for r in agree) * 1000)}
 
 
-def lock(mix_path, track_path, marker, next_marker) -> dict | None:
+def lock(mix_path, track_path, marker, next_marker, powtorka=False) -> dict | None:
     """Where this record sits on the mix's clock, or None if it cannot be proven.
 
     Only one thing makes a lock trustworthy: independent stretches of the mix,
@@ -85,6 +85,22 @@ def lock(mix_path, track_path, marker, next_marker) -> dict | None:
     track_env = onset_env(load_env_mono(track_path))
     candidates = [(marker + 8, end - 5), (marker + 8, marker + 95),
                   (marker + 40, marker + 170), (end - 95, end + 35)]
+
+    # `powtorka` is carried for reporting only — the search itself does not use
+    # it, and here is why, measured on 2026-08-28.
+    #
+    # All six records that fail to lock are the SECOND time the DJ played that
+    # track. Clipping their search windows to that play alone was tried and
+    # produced zero additional locks. Reading the anchors explains it: across
+    # four consecutive stretches of the mix, the matched positions inside the
+    # record run 30s, 119s, 39s, 112s. The DJ is jumping around the record with
+    # hot cues or a loop, so there is no single origin to agree on — the whole
+    # notion this function is built on stops applying.
+    #
+    # That is a limit of the method, not a bug, and it needs a different
+    # approach (per-stretch alignment instead of one origin), not a wider or
+    # narrower window. See experiments_priv/2026-08-28_zamki_szwow/.
+
     got = [g for lo, hi in candidates
            if (g := _try_window(mix_path, track_env, lo, hi)) is not None]
     return min(got, key=lambda g: g["spread_ms"]) if got else None
@@ -229,13 +245,17 @@ def main() -> int:
               flush=True)
     else:
         locks = []
+        wczesniej = set()
         for i, e in enumerate(entries):
             nxt = entries[i + 1].marker_sec if i + 1 < len(entries) else None
-            got = lock(str(mix), e.path, e.marker_sec, nxt)
+            powtorka = e.path in wczesniej
+            wczesniej.add(e.path)
+            got = lock(str(mix), e.path, e.marker_sec, nxt, powtorka=powtorka)
             locks.append(got)
             state = (f"origin {got['origin']:8.2f}s rate {got['rate']:.4f} "
                      f"{got['anchors']} ±{got['spread_ms']:.0f}ms") if got else "BRAK ZAMKA"
-            print(f"  [{i+1:2d}] {state}   {Path(e.path).name[:44]}", flush=True)
+            znak = " ↻" if powtorka else "  "
+            print(f"  [{i+1:2d}]{znak} {state}   {Path(e.path).name[:42]}", flush=True)
         cache.write_text(json.dumps(locks))
 
     seams, skipped = [], []
