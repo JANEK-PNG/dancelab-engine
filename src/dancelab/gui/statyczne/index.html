@@ -25,6 +25,9 @@
     <button data-ekran="szew" aria-pressed="true" title="Szew i cue (1)">
       <svg viewBox="0 0 24 24"><path d="M4 12h16"/><circle cx="8" cy="12" r="2.5"/><circle cx="16" cy="12" r="2.5"/></svg>
       <span class="skrot">1</span></button>
+    <button data-ekran="set" title="Budowa setu (2)">
+      <svg viewBox="0 0 24 24"><path d="M4 17V9M9 17V5M14 17v-6M19 17v-9"/></svg>
+      <span class="skrot">2</span></button>
   </nav>
 
   <div class="lista-utworow">
@@ -66,6 +69,39 @@
       </p>
 
       <div class="tabela" id="lista-padow"></div>
+    </section>
+    <section id="ekran-set" hidden>
+      <div class="narzedzia">
+        <label class="param"><span>długość</span>
+          <input id="p-minuty" value="90"></label>
+        <label class="param"><span>tempo</span>
+          <input id="p-tempo" value="" placeholder="124-134"></label>
+        <label class="param rozciag"><span>brzmi jak</span>
+          <input id="p-dj" placeholder="nazwa DJ-a albo puste" spellcheck="false"></label>
+        <label class="param"><span>ziarno</span>
+          <input id="p-ziarno" placeholder="losowe"></label>
+        <button class="btn glowny" id="btn-buduj">Buduj set <kbd>B</kbd></button>
+      </div>
+
+      <div class="krzywa" id="krzywa-box" hidden>
+        <div class="krzywa-glowa">
+          <h2 id="krzywa-tytul">Krzywa energii</h2>
+          <span class="drobne">płaska linia to nie brak planu — łuk „build”
+            wypadł gorzej w pomiarze z 10.08</span>
+        </div>
+        <svg id="krzywa" viewBox="0 0 600 70" preserveAspectRatio="none"></svg>
+      </div>
+
+      <div id="postep-box" class="postep-box" hidden>
+        <div class="pasek-nieokreslony"><i></i></div>
+        <span id="postep-tekst" class="drobne">…</span>
+      </div>
+
+      <div id="notki-box" class="notki" hidden></div>
+
+      <div class="tabela" id="tabela-set">
+        <div class="pusto">Ustaw parametry i naciśnij <b>Buduj set</b>.</div>
+      </div>
     </section>
   </main>
 

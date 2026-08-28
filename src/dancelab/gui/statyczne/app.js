@@ -262,6 +262,148 @@ async function wybierzUtwor(trackId) {
   przerysuj();
 }
 
+/* ---------- ekran Set ---------- */
+let odpytywanie = null;
+
+function pokazEkran(nazwa) {
+  document.querySelectorAll('main > section').forEach(x =>
+    x.hidden = x.id !== (nazwa === 'set' ? 'ekran-set' : 'szew'));
+  document.querySelectorAll('#nawigacja button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.ekran === nazwa)));
+  document.querySelector('.lista-utworow').style.display =
+    nazwa === 'set' ? 'none' : '';
+  if (nazwa === 'set') kontekstSet();
+}
+
+function rysujNotki(notki, stanFilarow, zgloszone) {
+  const box = $('#notki-box');
+  const wpisy = [...(notki || [])];
+  // Trzy stany filarów wymagają od użytkownika czegoś innego, więc mówimy
+  // który zaszedł, zamiast milczeć albo pisać jedno na wszystkie.
+  if (stanFilarow === 'wypadly')
+    wpisy.unshift(`UWAGA: zaznaczyłeś ${zgloszone} filarów, ale żaden nie wszedł — ` +
+                  'sprawdź okno tempa poniżej');
+  else if (stanFilarow === 'brak')
+    wpisy.push('set bez wymuszonych utworów (nie masz zaznaczonych filarów)');
+  if (!wpisy.length) { box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML = '<div class="glowa">co silnik zgłosił</div>' +
+    wpisy.map(n => `<div class="${/UWAGA|ODMOWA|poza oknem/i.test(n) ? 'zle' : ''}">${
+      String(n).replace(/</g, '&lt;')}</div>`).join('');
+}
+
+function rysujKrzywa(utwory) {
+  const box = $('#krzywa-box');
+  if (!utwory || utwory.length < 2) { box.hidden = true; return; }
+  box.hidden = false;
+  const sumaMin = utwory.reduce((a, u) => a + (u.dlugosc_sec || 0), 0) / 60;
+  $('#krzywa-tytul').textContent =
+    `Krzywa tempa · ${utwory.length} utworów · ${sumaMin.toFixed(0)} min`;
+  const tempa = utwory.map(u => u.bpm || 0);
+  const lo = Math.min(...tempa), hi = Math.max(...tempa);
+  const zakres = (hi - lo) || 1;
+  const pkt = tempa.map((t, i) => [
+    i * (600 / Math.max(1, tempa.length - 1)),
+    62 - ((t - lo) / zakres) * 50,
+  ]);
+  const d = pkt.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  $('#krzywa').innerHTML =
+    `<path d="${d} L600 70 L0 70 Z" fill="rgba(224,164,88,.10)"/>
+     <path d="${d}" fill="none" stroke="var(--bursztyn)" stroke-width="1.7"/>` +
+    pkt.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.5"
+       fill="var(--tlo)" stroke="var(--bursztyn)" stroke-width="1.5"/>`).join('');
+}
+
+function rysujTabeleSetu(utwory, filary) {
+  const el = $('#tabela-set');
+  if (!utwory || !utwory.length) {
+    el.innerHTML = '<div class="pusto">Silnik nie zbudował setu — powód wyżej.</div>';
+    return;
+  }
+  const zbior = new Set(filary || []);
+  let suma = 0;
+  el.innerHTML = `<table><thead><tr>
+      <th style="width:34px">#</th><th style="width:54px">BPM</th>
+      <th style="width:60px">ton</th><th style="width:56px">Σ min</th>
+      <th>wykonawca</th><th>tytuł</th><th style="width:70px">filar</th>
+    </tr></thead><tbody>${utwory.map((u, i) => {
+      suma += (u.dlugosc_sec || 0) / 60;
+      // źródło tonacji jest częścią prawdy o niej — „RB" to niezależny sędzia
+      const ton = u.tonacja
+        ? `<span class="ton">${u.tonacja}</span>` +
+          (u.tonacja_zrodlo === 'rekordbox' ? ' <span class="drobne">RB</span>' : '')
+        : '<span class="pusto">—</span>';
+      return `<tr>
+        <td class="num">${i + 1}</td>
+        <td class="num">${u.bpm ? u.bpm.toFixed(1) : '—'}</td>
+        <td>${ton}</td>
+        <td class="num">${suma.toFixed(0)}</td>
+        <td>${(u.wykonawca || '—').replace(/</g, '&lt;')}</td>
+        <td>${(u.tytul || '').replace(/</g, '&lt;')}</td>
+        <td style="color:var(--bursztyn)">${zbior.has(u.track_id) ? 'FILAR' : ''}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+function kontekstSet(s) {
+  const a = $('#kontekst');
+  if (!s || s.stan !== 'gotowe') {
+    a.innerHTML = `<h2>Budowa setu</h2>
+      <div class="powod">Parametry na górze, wynik pod spodem. Plan zapisuje się
+      sam i <b>widać go w terminalu</b> — obie skóry czytają ten sam plik.</div>`;
+    return;
+  }
+  const min = s.utwory.reduce((x, u) => x + (u.dlugosc_sec || 0), 0) / 60;
+  a.innerHTML = `<h2>Zbudowany set</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="pole"><div class="et">utworów</div>
+        <div class="wa duza">${s.utwory.length}</div></div>
+      <div class="pole"><div class="et">minut</div>
+        <div class="wa duza">${min.toFixed(0)}</div></div>
+    </div>
+    <div class="rozdziel"></div>
+    <div class="pole"><div class="et">kotwica</div>
+      <div class="wa">${s.kotwica || '— bez kotwicy —'}</div></div>
+    <div class="pole"><div class="et">filary</div>
+      <div class="wa">${s.filary_stan === 'uzyte'
+        ? `${s.filary.length} (tryb: ${s.tryb_filarow})`
+        : s.filary_stan === 'wypadly' ? `${s.filary_zgloszone} wypadło` : 'brak'}</div></div>
+    <div class="powod"><b>Plan zapisany.</b> Otwórz go w terminalu
+      (<span class="mono">dancelab tui</span>, klawisz <b>o</b>) — to ten sam plik.</div>`;
+}
+
+async function budujSet() {
+  if (!api()) return;
+  const odp = await api().buduj_set({
+    minuty: $('#p-minuty').value,
+    tempo_okno: $('#p-tempo').value,
+    dj: $('#p-dj').value.trim(),
+    ziarno: $('#p-ziarno').value.trim(),
+  });
+  if (odp && odp.blad) { rysujNotki([`ODMOWA: ${odp.blad}`]); return; }
+
+  $('#postep-box').hidden = false;
+  $('#btn-buduj').disabled = true;
+  clearInterval(odpytywanie);
+  odpytywanie = setInterval(async () => {
+    const s = await api().postep_budowy();
+    $('#postep-tekst').textContent = s.etap || '…';
+    if (s.stan === 'trwa') return;
+    clearInterval(odpytywanie);
+    $('#postep-box').hidden = true;
+    $('#btn-buduj').disabled = false;
+    if (s.stan === 'gotowe') {
+      rysujNotki(s.notki, s.filary_stan, s.filary_zgloszone);
+      rysujKrzywa(s.utwory);
+      rysujTabeleSetu(s.utwory, s.filary);
+      kontekstSet(s);
+    } else {
+      rysujNotki([`${s.stan === 'odmowa' ? 'ODMOWA' : 'BŁĄD'}: ${s.blad}`]);
+      rysujTabeleSetu([]);
+    }
+  }, 500);
+}
+
 /* ---------- start ---------- */
 async function start() {
   await odswiezStanRb();
@@ -277,6 +419,7 @@ async function start() {
       <div class="powod zle"><b>${b.blad}</b><br>${b.podpowiedz || ''}</div>`;
     return;
   }
+  pokazEkran('szew');            // jawnie, zamiast polegać na kolejności w HTML
   stan.spis = b.utwory || [];
   const w = await api().wczytaj_edycje();
   if (w && w.wczytano) console.log(`[gui] wczytano ${w.wczytano} padów z poprzedniej sesji`);
@@ -301,8 +444,14 @@ document.querySelectorAll('#gestosc button').forEach(b =>
     document.documentElement.dataset.gestosc = b.dataset.g;
     requestAnimationFrame(rysujFale);
   }));
+document.querySelectorAll('#nawigacja button').forEach(b =>
+  b.addEventListener('click', () => pokazEkran(b.dataset.ekran)));
+$('#btn-buduj').addEventListener('click', budujSet);
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
+  if (e.key === '1') { pokazEkran('szew'); return; }
+  if (e.key === '2') { pokazEkran('set'); return; }
+  if (e.key === 'b' && !$('#ekran-set').hidden) { budujSet(); return; }
   if (e.key === 'ArrowLeft') { przesun(-1); e.preventDefault(); }
   if (e.key === 'ArrowRight') { przesun(1); e.preventDefault(); }
   if (e.key === 'Backspace' || e.key === 'Delete') { zdejmij(); e.preventDefault(); }

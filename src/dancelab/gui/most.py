@@ -14,10 +14,11 @@ from __future__ import annotations
 
 import functools
 import json
+import threading
 import traceback
 from typing import Any
 
-from dancelab.stan import cue, edycje, plan, przebieg
+from dancelab.stan import budowa, cue, edycje, plan, przebieg
 
 
 def _bezpiecznie(fn):
@@ -46,6 +47,11 @@ class Most:
         self._analizy: dict[str, Any] = {}
         self._katalog = katalog or self.KATALOG_ANALIZ
         self._spis: list[dict[str, Any]] = []
+        # Budowa setu trwa dziesiątki sekund. W pywebview wywołanie z JS jest
+        # synchroniczne, więc budowanie wprost zamroziłoby okno — stąd wątek
+        # i stan odpytywany przez `postep_budowy`.
+        self._budowa: dict[str, Any] = {"stan": "bezczynny"}
+        self._analizy_pula: list | None = None
 
     # ------------------------------------------------------------ biblioteka
 
@@ -249,6 +255,98 @@ class Most:
         self._edycje["zdjete"] = dane.get("zdjete") or []
         self._edycje["historia"] = []
         return {"wczytano": len(self._edycje["nadpisania"])}
+
+    # ------------------------------------------------------------- budowa
+
+    def _pula(self) -> list:
+        """Pula analiz, wczytana raz. 8 tysięcy plików to kilkanaście sekund."""
+        if self._analizy_pula is None:
+            analizy, notki = budowa.pula(self._katalog)
+            self._analizy_pula = analizy
+            self._budowa["notki_puli"] = notki
+        return self._analizy_pula
+
+    @_bezpiecznie
+    def buduj_set(self, formularz: dict[str, Any]) -> dict[str, Any]:
+        """Rusz budowę w tle. Wynik odbiera się przez `postep_budowy`."""
+        if self._budowa.get("stan") == "trwa":
+            return {"blad": "budowa już trwa"}
+        try:
+            par = budowa.Parametry.z_formularza(formularz or {})
+        except budowa.OdmowaBudowy as exc:
+            # odmowa parametrów wraca NATYCHMIAST — użytkownik ma poprawić pole,
+            # a nie czekać na wątek, który i tak nie ruszy
+            return {"blad": str(exc), "pole": "parametry"}
+
+        self._budowa = {"stan": "trwa", "etap": "start", "notki": []}
+        threading.Thread(target=self._buduj_w_tle, args=(par,),
+                         daemon=True).start()
+        return {"ruszylo": True}
+
+    def _buduj_w_tle(self, par: budowa.Parametry) -> None:
+        def etap(tekst: str) -> None:
+            self._budowa["etap"] = tekst
+
+        try:
+            stan_u = None
+            try:
+                from dancelab.tui.user_store import load_state
+                stan_u = load_state(self._katalog)
+            except Exception:                          # noqa: BLE001
+                pass                                   # filary są opcjonalne
+
+            wynik = budowa.zbuduj(par, processed_dir=self._katalog,
+                                  postep=etap, analizy=self._pula(),
+                                  stan_uzytkownika=stan_u)
+            self._plan = wynik["kolejnosc"]
+            for a in wynik["by_id"].values():
+                self._analizy[a.track.track_id] = a
+
+            sciezka = plan.zapisz(
+                wynik["kolejnosc"], wynik["by_id"],
+                nazwa=f"z okna {par.minuty:g} min",
+                parametry={"minuty": par.minuty, "bpm_min": par.bpm_min,
+                           "bpm_max": par.bpm_max, "dj": par.dj},
+                plan_silnika=wynik["kolejnosc"])
+
+            self._budowa = {
+                "stan": "gotowe",
+                "utwory": [self._wiersz(t, wynik["by_id"]) for t in wynik["kolejnosc"]],
+                "notki": (self._budowa.get("notki_puli") or []) + wynik["notki"],
+                "kotwica": wynik["kotwica"],
+                "filary": wynik["filary"],
+                "tryb_filarow": wynik["tryb_filarow"],
+                "filary_stan": wynik["filary_stan"],
+                "filary_zgloszone": wynik["filary_zgloszone"],
+                "plan": str(sciezka),
+            }
+        except budowa.OdmowaBudowy as exc:
+            self._budowa = {"stan": "odmowa", "blad": str(exc),
+                            "notki": self._budowa.get("notki") or []}
+        except Exception as exc:                       # noqa: BLE001
+            self._budowa = {"stan": "blad",
+                            "blad": f"{type(exc).__name__}: {exc}",
+                            "slad": traceback.format_exc(limit=4)}
+
+    def _wiersz(self, tid: str, by_id: dict) -> dict[str, Any]:
+        a = by_id[tid]
+        t = a.track
+        return {
+            "track_id": tid,
+            "tytul": t.title or tid,
+            "wykonawca": t.artist,
+            "bpm": t.bpm_estimate,
+            "tonacja": t.key_estimate,
+            # źródło tonacji jest częścią prawdy o niej: „RB" to sędzia,
+            # brak źródła to nasz detektor, który na elektronice bywa słaby
+            "tonacja_zrodlo": t.key_detection_source,
+            "dlugosc_sec": t.duration_sec,
+        }
+
+    @_bezpiecznie
+    def postep_budowy(self) -> dict[str, Any]:
+        """Stan budowy. Widok odpytuje co pół sekundy, dopóki trwa."""
+        return dict(self._budowa)
 
     # ---------------------------------------------------------- plan setu
 

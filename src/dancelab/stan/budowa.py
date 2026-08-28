@@ -240,10 +240,13 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
     filary_ids: list[str] = []
     role: dict[str, str] = {}
     tryb = par.tryb_filarow
+    filary_zgloszone = 0
     if stan_uzytkownika:
         from dancelab.decision.dedup import canonical_ids
         from dancelab.stan import filary as F
 
+        from dancelab.tui.user_store import filary_wpisy
+        filary_zgloszone = len(filary_wpisy(stan_uzytkownika))
         filary_ids, notki_filarow, role = F.wybierz(
             stan_uzytkownika, by_id, par.bpm_min, par.bpm_max, ile)
         notki += notki_filarow
@@ -305,9 +308,13 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
         "kotwica": kotwica.name if kotwica else None,
         "filary": filary_ids,
         "tryb_filarow": tryb if filary_ids else None,
-        # Prawda o tym, czy filary w ogóle brały udział — widok ma prawo
-        # powiedzieć „set bez wymuszonych utworów", zamiast milczeć.
-        "filary_pominiete": not filary_ids,
+        # Trzy różne stany, nie dwa. „Nie zaznaczyłeś filarów" i „zaznaczyłeś,
+        # ale wszystkie wypadły z okna tempa" wymagają od użytkownika czegoś
+        # zupełnie innego, więc nie mogą dzielić jednej flagi.
+        "filary_zgloszone": filary_zgloszone,
+        "filary_stan": ("uzyte" if filary_ids
+                        else "wypadly" if filary_zgloszone
+                        else "brak"),
     }
 
 

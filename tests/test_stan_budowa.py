@@ -115,12 +115,13 @@ def test_postep_jest_raportowany(prawdziwa_pula):
     assert any("Buduję set" in k for k in kroki)
 
 
-def test_wynik_mowi_ze_filary_pominieto(prawdziwa_pula):
-    """Ten moduł nie zna filarów i musi to powiedzieć — inaczej okno
-    pokazywałoby set uboższy niż terminal, nie wyjaśniając czemu."""
+def test_stan_filarow_rozroznia_brak_od_wypadniecia(prawdziwa_pula):
+    """Trzy stany, nie dwa: „nie zaznaczyłeś filarów" i „zaznaczyłeś, ale
+    wypadły z okna tempa" wymagają od użytkownika czegoś innego."""
     par = budowa.Parametry.z_formularza({"minuty": 20, "ziarno": "7"})
     wynik = budowa.zbuduj(par, analizy=list(prawdziwa_pula))
-    assert wynik["filary_pominiete"] is True
+    assert wynik["filary_stan"] == "brak"
+    assert wynik["filary_zgloszone"] == 0
 
 
 def test_higiena_puli_odrzuca_i_liczy():
