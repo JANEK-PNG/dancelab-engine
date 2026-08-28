@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Baza DanceLab — podgląd</title>
+<style>
+  :root{
+    --tlo:#0e1013; --karta:#161a1f; --kreska:#242a32;
+    --tekst:#e8ecf1; --cichy:#8a94a2; --cichszy:#5e6773;
+    --bursztyn:#e0a458; --blekit:#5aa9e6; --volt:#9ede73; --alarm:#e06c75;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--tlo);color:var(--tekst);font-family:var(--font);
+       font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  header{padding:26px 32px 0;max-width:1180px;margin:0 auto}
+  h1{font-size:21px;font-weight:600;margin:0 0 4px;letter-spacing:-.01em}
+  .podtytul{color:var(--cichy);font-size:13.5px;margin-bottom:22px}
+  main{max-width:1180px;margin:0 auto;padding:0 32px 80px}
+
+  nav{display:flex;gap:4px;border-bottom:1px solid var(--kreska);margin-bottom:26px;
+      flex-wrap:wrap}
+  nav button{background:none;border:0;border-bottom:2px solid transparent;
+    color:var(--cichy);font:inherit;font-size:14px;padding:9px 14px;cursor:pointer;
+    margin-bottom:-1px;transition:color .12s}
+  nav button:hover{color:var(--tekst)}
+  nav button[aria-selected="true"]{color:var(--tekst);border-bottom-color:var(--bursztyn)}
+  nav button:focus-visible{outline:2px solid var(--blekit);outline-offset:2px;border-radius:3px}
+
+  section[hidden]{display:none}
+  h2{font-size:15px;font-weight:600;margin:30px 0 10px;letter-spacing:-.005em}
+  h2:first-child{margin-top:0}
+  .opis{color:var(--cichy);font-size:13.5px;margin:0 0 14px;max-width:74ch}
+
+  .kafle{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:10px}
+  .kafel{background:var(--karta);border:1px solid var(--kreska);border-radius:9px;padding:14px 16px}
+  .kafel .liczba{font-family:var(--mono);font-size:26px;font-variant-numeric:tabular-nums;
+    letter-spacing:-.02em;line-height:1.15}
+  .kafel .etykieta{color:var(--cichy);font-size:12.5px;margin-top:3px}
+
+  .tabelka{width:100%;overflow-x:auto;background:var(--karta);
+    border:1px solid var(--kreska);border-radius:9px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;font-weight:600;color:var(--cichy);font-size:12px;
+     text-transform:uppercase;letter-spacing:.04em;padding:10px 14px;
+     border-bottom:1px solid var(--kreska);white-space:nowrap}
+  td{padding:9px 14px;border-bottom:1px solid rgba(36,42,50,.55);vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;
+    white-space:nowrap}
+  .pusto{color:var(--cichszy)}
+
+  .luka{display:flex;align-items:baseline;gap:10px;padding:11px 16px;
+    border-bottom:1px solid rgba(36,42,50,.55)}
+  .luka:last-child{border-bottom:0}
+  .luka .co{flex:1}
+  .luka .ile{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:15px}
+  .luka .z{color:var(--cichszy);font-size:12.5px;font-family:var(--mono)}
+  .pelne{color:var(--volt)} .brak{color:var(--alarm)} .czesc{color:var(--bursztyn)}
+
+  .pasek{height:5px;background:#1e242b;border-radius:3px;overflow:hidden;margin-top:7px}
+  .pasek span{display:block;height:100%;background:var(--blekit)}
+
+  form{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+  input[type=search],input[type=text]{flex:1;min-width:220px;background:var(--karta);
+    border:1px solid var(--kreska);border-radius:7px;color:var(--tekst);
+    font:inherit;font-size:14px;padding:9px 13px}
+  input:focus{outline:2px solid var(--blekit);outline-offset:-1px;border-color:transparent}
+  button.akcja{background:#20262e;border:1px solid var(--kreska);border-radius:7px;
+    color:var(--tekst);font:inherit;font-size:14px;padding:9px 16px;cursor:pointer}
+  button.akcja:hover{background:#272e37}
+  button.akcja:focus-visible{outline:2px solid var(--blekit);outline-offset:2px}
+
+  .mono{font-family:var(--mono);font-size:12.5px}
+  .nota{color:var(--cichy);font-size:12.5px;margin-top:10px;max-width:74ch}
+  .blad{background:rgba(224,108,117,.1);border:1px solid rgba(224,108,117,.35);
+    border-radius:8px;padding:13px 16px;color:#f0a8ad;font-size:13.5px}
+  .ladowanie{color:var(--cichszy);font-size:13.5px;padding:14px 0}
+  footer{max-width:1180px;margin:0 auto;padding:0 32px 40px;color:var(--cichszy);
+    font-size:12.5px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Baza DanceLab</h1>
+  <div class="podtytul">Jeden rejestr tożsamości. Tylko odczyt — ten panel niczego nie zmienia.</div>
+</header>
+
+<main>
+  <nav role="tablist">
+    <button role="tab" aria-selected="true"  data-widok="stan">Co jest w środku</button>
+    <button role="tab" aria-selected="false" data-widok="pokrycie">Co się połączyło</button>
+    <button role="tab" aria-selected="false" data-widok="przekroje">Nowe pytania</button>
+    <button role="tab" aria-selected="false" data-widok="szukaj">Szukaj</button>
+    <button role="tab" aria-selected="false" data-widok="brzmienie">Brzmienie</button>
+  </nav>
+
+  <section id="stan"><div class="ladowanie">wczytuję…</div></section>
+
+  <section id="pokrycie" hidden><div class="ladowanie">wczytuję…</div></section>
+
+  <section id="przekroje" hidden><div class="ladowanie">wczytuję…</div></section>
+
+  <section id="szukaj" hidden>
+    <h2>Jedna nazwa, wszystko co baza o niej wie</h2>
+    <p class="opis">Wpisz nazwę DJ-a albo tytuł utworu. Baza sprawdzi wszystkie
+      światy naraz: mapę festiwalową, utwory kanoniczne i szwy.</p>
+    <form id="form-szukaj">
+      <input type="search" id="fraza" placeholder="np. Four Tet, Ben UFO, Overmono" autocomplete="off">
+      <button class="akcja" type="submit">Szukaj</button>
+    </form>
+    <div id="wynik-szukaj"></div>
+  </section>
+
+  <section id="brzmienie" hidden>
+    <h2>Co brzmi podobnie</h2>
+    <p class="opis">To liczy sama baza (rozszerzenie pgvector), a nie Python.
+      Klucz to identyfikator nagrania z korpusu. Wynik 1,0 znaczy „identyczne
+      brzmienie", 0,0 — „nic wspólnego".</p>
+    <form id="form-podobne">
+      <input type="text" id="klucz" placeholder="klucz nagrania" autocomplete="off">
+      <button class="akcja" type="submit">Pokaż sąsiadów</button>
+      <button class="akcja" type="button" id="losuj">Wylosuj</button>
+    </form>
+    <div id="wynik-podobne"></div>
+  </section>
+</main>
+
+<footer id="stopka"></footer>
+
+<script>
+const $ = (s, root = document) => root.querySelector(s);
+const fmt = n => {
+  if (n === null || n === undefined) return '—';
+  if (typeof n === 'boolean') return n ? 'tak' : 'nie';
+  if (typeof n === 'number') return n.toLocaleString('pl-PL');
+  // Postgres hands numerics back as strings; keep them numeric-looking but
+  // with a Polish decimal comma.
+  if (typeof n === 'string' && /^-?\d+([.]\d+)?$/.test(n)) {
+    // Keep the decimal places the database sent. Trimming trailing zeros
+    // ragged-ends a column of tabular figures, which is exactly what tabular
+    // figures exist to prevent.
+    const miejsc = n.includes('.') ? n.split('.')[1].length : 0;
+    return Number(n).toLocaleString('pl-PL',
+      {minimumFractionDigits: miejsc, maximumFractionDigits: miejsc});
+  }
+  return n;
+};
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+async function api(sciezka) {
+  const odp = await fetch(sciezka, {cache: 'no-store'});
+  const dane = await odp.json();
+  if (dane.blad) throw new Error(dane.blad);
+  return dane;
+}
+
+function tabela(wiersze, kolumny) {
+  if (!wiersze.length) return '<div class="ladowanie">nic nie znalazłem</div>';
+  const naglowki = kolumny.map(k => `<th>${esc(k.tytul)}</th>`).join('');
+  const body = wiersze.map(w => '<tr>' + kolumny.map(k => {
+    const v = w[k.pole];
+    const pusty = v === null || v === undefined || v === '';
+    return `<td class="${k.num ? 'num' : ''}${pusty ? ' pusto' : ''}">` +
+           (pusty ? '—' : esc(fmt(v))) + '</td>';
+  }).join('') + '</tr>').join('');
+  return `<div class="tabelka"><table><thead><tr>${naglowki}</tr></thead>
+          <tbody>${body}</tbody></table></div>`;
+}
+
+function bladHtml(e) {
+  return `<div class="blad"><strong>Baza nie odpowiada.</strong><br>${esc(e.message)}
+          <br><br>Najczęstsza przyczyna: kontener nie chodzi. Uruchom go poleceniem
+          <span class="mono">docker compose up -d db</span> w katalogu
+          <span class="mono">~/Developer/dancelab-engine</span>.</div>`;
+}
+
+// ---------------------------------------------------------------- widoki
+
+async function rysujStan() {
+  const el = $('#stan');
+  try {
+    const d = await api('/api/stan');
+    const k = d.kafle;
+    const kafle = [
+      ['artysci', 'artystów'], ['utwory', 'utworów'], ['szwy', 'szwów (przejść)'],
+      ['pozycje', 'pozycji w tracklistach'], ['miksy', 'miksów'],
+      ['analizy', 'przeanalizowanych plików'], ['wektory', 'odcisków brzmienia'],
+      ['mapowania', 'połączeń między światami'],
+    ].map(([pole, opis]) =>
+      `<div class="kafel"><div class="liczba">${fmt(k[pole])}</div>
+       <div class="etykieta">${opis}</div></div>`).join('');
+
+    el.innerHTML = `
+      <h2>Co jest w środku</h2>
+      <p class="opis">Osiem liczb, które mówią najwięcej. Wszystkie zostały
+        sprawdzone przy imporcie co do jednego wiersza względem ekselu.</p>
+      <div class="kafle">${kafle}</div>
+      <h2>Wszystkie tabele</h2>
+      ${tabela(d.tabele, [
+        {tytul:'tabela', pole:'tabela'},
+        {tytul:'wierszy', pole:'wierszy', num:true},
+      ])}`;
+    $('#stopka').textContent =
+      `PostgreSQL + pgvector · schemat w wersji ${d.wersja_schematu} · odczyt na żywo`;
+  } catch (e) { el.innerHTML = bladHtml(e); }
+}
+
+async function rysujPokrycie() {
+  const el = $('#pokrycie');
+  try {
+    const d = await api('/api/pokrycie');
+
+    const luki = d.luki.map(l => {
+      const proc = l.z_ilu ? Math.round(100 * (l.z_ilu - l.ile) / l.z_ilu) : 0;
+      const klasa = l.ile === 0 ? 'pelne' : (l.ile === l.z_ilu ? 'brak' : 'czesc');
+      return `<div class="luka">
+        <div class="co">${esc(l.co)} <span class="z">(mamy ${proc}%)</span>
+          <div class="pasek"><span style="width:${proc}%"></span></div></div>
+        <div class="ile ${klasa}">${fmt(l.ile)}</div>
+        <div class="z">brak z ${fmt(l.z_ilu)}</div></div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <h2>Czym połączone i jak pewnie</h2>
+      <p class="opis">Każde połączenie zapisuje metodę i pewność.
+        <strong>Identyczność</strong> (1,0) to ta sama wartość po obu stronach — to
+        jest fakt. <strong>Nazwa</strong> (0,8) to zgodność wykonawcy i tytułu po
+        uproszczeniu — mocna poszlaka, nigdy dowód. Dopasowań niejednoznacznych
+        baza celowo NIE zapisuje.</p>
+      ${tabela(d.metody, [
+        {tytul:'z czego', pole:'system_zrodlowy'},
+        {tytul:'na co', pole:'system_docelowy'},
+        {tytul:'metoda', pole:'metoda'},
+        {tytul:'pewność', pole:'pewnosc', num:true},
+        {tytul:'ile', pole:'ile', num:true},
+      ])}
+
+      <h2>Czego brakuje</h2>
+      <p class="opis">Liczba bez swojej luki kłamie, więc luki stoją obok.
+        Zielone = komplet, czerwone = pusto, bursztynowe = częściowo.</p>
+      <div class="tabelka">${luki}</div>
+
+      <h2>Skąd pochodzi materiał</h2>
+      <p class="opis">Ma znaczenie przy zakazie z 11 sierpnia: pomiary i argumenty
+        wolno budować tylko na korpusie. Dlatego pochodzenie stoi przy każdym
+        wierszu, a nie w czyjejś pamięci.</p>
+      ${tabela(d.zrodla, [
+        {tytul:'gdzie', pole:'gdzie'},
+        {tytul:'pochodzenie', pole:'zrodlo'},
+        {tytul:'ile', pole:'ile', num:true},
+      ])}`;
+  } catch (e) { el.innerHTML = bladHtml(e); }
+}
+
+async function rysujPrzekroje() {
+  const el = $('#przekroje');
+  try {
+    const d = await api('/api/przekroje');
+    el.innerHTML = `
+      <h2>Pytania, których wczoraj nie dało się zadać</h2>
+      <div class="kafle">
+        <div class="kafel"><div class="liczba">${fmt(d.szwy_z_obiema_analizami)}</div>
+          <div class="etykieta">szwów z analizą OBU utworów</div></div>
+        <div class="kafel"><div class="liczba">${fmt(d.djow_w_korpusie_i_mapie)}</div>
+          <div class="etykieta">DJ-ów i w korpusie, i w mapie</div></div>
+      </div>
+      <p class="nota">Pierwsza liczba jest najważniejsza: to cała populacja przejść,
+        na których model szwu może się w ogóle uczyć albo być sprawdzany.</p>
+
+      <h2>Moje sesje za konsolą</h2>
+      ${tabela(d.sesje, [
+        {tytul:'sesja', pole:'nazwa'},
+        {tytul:'data', pole:'data'},
+        {tytul:'zna pozycje startowe', pole:'pozycje_startowe'},
+        {tytul:'zdarzeń', pole:'zdarzen', num:true},
+        {tytul:'minut', pole:'minut', num:true},
+      ])}
+
+      <h2>Utwory, po które sięga wielu DJ-ów</h2>
+      <p class="opis">Liczone po LUDZIACH, nie po odtworzeniach — jeden DJ grający
+        płytę w kółko nie podbije wyniku.</p>
+      ${tabela(d.utwory_wielu_djow, [
+        {tytul:'wykonawca', pole:'wykonawca'},
+        {tytul:'tytuł', pole:'tytul'},
+        {tytul:'DJ-ów', pole:'djow', num:true},
+      ])}
+
+      <h2>DJ-e obecni w korpusie i w mapie</h2>
+      <p class="opis">Jedyni ludzie, przy których da się zestawić „na co był
+        bookowany" z „co naprawdę zagrał".</p>
+      ${tabela(d.dje_korpus_mapa, [
+        {tytul:'DJ', pole:'nazwa'},
+        {tytul:'kraj', pole:'kraj'},
+        {tytul:'obserwujących RA', pole:'obserwujacych', num:true},
+        {tytul:'miksów w korpusie', pole:'miksow', num:true},
+      ])}`;
+  } catch (e) { el.innerHTML = bladHtml(e); }
+}
+
+async function rysujSzukaj(fraza) {
+  const el = $('#wynik-szukaj');
+  if (!fraza.trim()) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="ladowanie">szukam…</div>';
+  try {
+    const d = await api('/api/szukaj?q=' + encodeURIComponent(fraza));
+    el.innerHTML = `
+      <h2>Artyści (${d.artysci.length})</h2>
+      ${tabela(d.artysci, [
+        {tytul:'id', pole:'artysta_id'}, {tytul:'nazwa', pole:'nazwa'},
+        {tytul:'kraj', pole:'kraj'},
+        {tytul:'obserwujących', pole:'obserwujacych', num:true},
+        {tytul:'festiwal 2026', pole:'festiwal_2026'},
+        {tytul:'występów', pole:'wystepow', num:true},
+        {tytul:'miksów', pole:'miksow', num:true},
+        {tytul:'w korpusie', pole:'miksow_w_korpusie', num:true},
+      ])}
+      <p class="nota">Puste kratki to nie awaria — w ekselu kraj i liczba
+        obserwujących są wpisane tylko przy części artystów. Ile dokładnie,
+        widać w zakładce „Co się połączyło”.</p>
+      <h2>Utwory (${d.utwory.length})</h2>
+      ${tabela(d.utwory, [
+        {tytul:'id', pole:'utwor_id'}, {tytul:'wykonawca', pole:'wykonawca'},
+        {tytul:'tytuł', pole:'tytul'},
+        {tytul:'granych przez', pole:'granych_przez', num:true},
+        {tytul:'nasza analiza', pole:'analiza'},
+      ])}
+      <h2>Szwy (${d.szwy.length})</h2>
+      ${tabela(d.szwy, [
+        {tytul:'id', pole:'szew_id'}, {tytul:'DJ', pole:'ksywa'},
+        {tytul:'wydarzenie', pole:'wydarzenie'},
+        {tytul:'wychodzi', pole:'utwor_wychodzacy'},
+        {tytul:'wchodzi', pole:'utwor_wchodzacy'},
+        {tytul:'status', pole:'status_w_lejku'},
+      ])}`;
+  } catch (e) { el.innerHTML = bladHtml(e); }
+}
+
+async function rysujPodobne(klucz) {
+  const el = $('#wynik-podobne');
+  el.innerHTML = '<div class="ladowanie">liczę w bazie…</div>';
+  try {
+    const t0 = performance.now();
+    const d = await api('/api/podobne?klucz=' + encodeURIComponent(klucz));
+    const ms = Math.round(performance.now() - t0);
+    if (d.wyniki && !d.wyniki.length) {
+      el.innerHTML = '<div class="ladowanie">brak wyników</div>'; return;
+    }
+    el.innerHTML = tabela(d.wyniki, [
+      {tytul:'klucz nagrania', pole:'klucz'},
+      {tytul:'z miksu którego DJ-a', pole:'z_miksu_dj'},
+      {tytul:'podobieństwo', pole:'podobienstwo', num:true},
+    ]) + `<p class="nota">Odpowiedź w ${ms} ms — razem z drogą przez sieć.
+      Ta sama dziesiątka liczona w Pythonie wymaga wczytania pliku 143 MB.</p>` +
+      (d.pokrycie_dj ? `<p class="nota"><strong>Dlaczego kolumna z DJ-em jest
+      najczęściej pusta:</strong> wiemy, czyj to miks, przy
+      ${fmt(d.pokrycie_dj.ze_znanym_dj)} z ${fmt(d.pokrycie_dj.wszystkich)} nagrań
+      korpusu (${Math.round(100 * d.pokrycie_dj.ze_znanym_dj / d.pokrycie_dj.wszystkich)}%).
+      Reszta to nagrania bez przypisanego autora — brzmienie liczy się dla nich
+      tak samo, tylko nie umiemy powiedzieć, kto je grał.</p>` : '');
+  } catch (e) { el.innerHTML = bladHtml(e); }
+}
+
+// ---------------------------------------------------------------- sterowanie
+
+const narysowane = new Set();
+const rysuj = {stan: rysujStan, pokrycie: rysujPokrycie, przekroje: rysujPrzekroje};
+
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(b =>
+      b.setAttribute('aria-selected', String(b === btn)));
+    document.querySelectorAll('main > section').forEach(s =>
+      s.hidden = s.id !== btn.dataset.widok);
+    const w = btn.dataset.widok;
+    if (rysuj[w] && !narysowane.has(w)) { narysowane.add(w); rysuj[w](); }
+  });
+});
+
+$('#form-szukaj').addEventListener('submit', e => {
+  e.preventDefault(); rysujSzukaj($('#fraza').value);
+});
+$('#form-podobne').addEventListener('submit', e => {
+  e.preventDefault();
+  const k = $('#klucz').value.trim();
+  if (k) rysujPodobne(k);
+});
+$('#losuj').addEventListener('click', async () => {
+  try {
+    const d = await api('/api/losowy');
+    $('#klucz').value = d.klucz;
+    rysujPodobne(d.klucz);
+  } catch (e) { $('#wynik-podobne').innerHTML = bladHtml(e); }
+});
+
+narysowane.add('stan');
+rysujStan();
+</script>
+</body>
+</html>
