@@ -19,7 +19,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 # Ile punktów obwiedni domyślnie. 900 to około jeden na piksel przy szerokim
-# oknie; więcej nie ma sensu, bo i tak nie da się tego zobaczyć.
+# oknie — ale to jest SUFIT, nie cel: analizy mają około jednej klatki na
+# sekundę (zmierzone na 60 plikach: mediana 315 klatek, 1,00 klatki/s), więc
+# żądanie 900 koszy z trzyminutowego utworu zostawiało 65% z nich pustych i
+# fala wyglądała jak grzebień. Liczba punktów jest teraz ograniczana do liczby
+# klatek, które naprawdę są.
 PUNKTOW = 900
 
 
@@ -82,6 +86,12 @@ def zbuduj(analysis: Any, punktow: int = PUNKTOW,
 
     klatki = [f for f in (getattr(analysis, "features", None) or [])
               if getattr(f, "rms", None) is not None]
+
+    # Nie żądaj większej rozdzielczości, niż dają dane. Rysowanie 900 słupków
+    # z 315 pomiarów nie dodaje informacji — produkuje dziury, które wyglądają
+    # jak brak sygnału, choć są tylko brakiem próbek.
+    if klatki:
+        punktow = max(1, min(punktow, len(klatki)))
 
     sumy = [0.0] * punktow
     ile = [0] * punktow
