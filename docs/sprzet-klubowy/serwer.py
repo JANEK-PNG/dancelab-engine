@@ -25,6 +25,7 @@ PLIKI = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/kontrolki.json": ("kontrolki.json", "application/json; charset=utf-8"),
+    "/uklad.json": ("uklad.json", "application/json; charset=utf-8"),
 }
 
 

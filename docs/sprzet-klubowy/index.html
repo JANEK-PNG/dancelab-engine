@@ -36,6 +36,22 @@
   .kafel .co{font-size:12.5px;color:var(--cichy);margin-top:2px}
   .kafel .opis{font-size:12px;color:var(--cichszy);margin-top:5px;line-height:1.4}
 
+  .rysunek{background:var(--karta);border:1px solid var(--kreska);border-radius:10px;
+    padding:16px;margin:20px 0 6px;overflow-x:auto}
+  .rysunek svg{display:block;width:100%;min-width:760px;height:auto}
+  .el{cursor:pointer}
+  .el .ksztalt{stroke-width:1.5;transition:fill-opacity .12s}
+  .el:hover .ksztalt{fill-opacity:.45}
+  .el.wybrany .ksztalt{stroke-width:2.5}
+  .el.przygaszony{opacity:.16}
+  .el text{font-size:9px;fill:#c3ccd6;pointer-events:none;font-family:var(--font)}
+  .obudowa{fill:#12161b;stroke:#2b333c;stroke-width:1.5}
+  .podpis-urz{font-size:11px;fill:var(--cichy);font-family:var(--font)}
+  .schemat-nota{color:var(--cichszy);font-size:12px;margin:0 0 18px;line-height:1.5}
+  .wybor{background:var(--karta);border:1px solid var(--kreska);border-radius:9px;
+    padding:13px 16px;margin:0 0 20px;font-size:13.5px;display:none}
+  .wybor.widoczny{display:block}
+  .wybor .tytul{font-weight:600;margin-bottom:2px}
   .filtr-info{color:var(--cichy);font-size:13px;margin:14px 0 22px;min-height:20px}
   .filtr-info button{background:none;border:0;color:var(--blekit,#5aa9e6);
     font:inherit;font-size:13px;cursor:pointer;padding:0;text-decoration:underline}
@@ -83,6 +99,9 @@
 
 <main>
   <div class="licznik" id="licznik"></div>
+  <div class="rysunek" id="rysunek"></div>
+  <p class="schemat-nota" id="schemat-nota"></p>
+  <div class="wybor" id="wybor"></div>
   <div class="filtr-info" id="filtr-info"></div>
   <div id="tresc"></div>
 </main>
@@ -103,7 +122,98 @@ const OPIS = {
 const KOLEJNOSC = ['brak', 'inaczej', 'pulapka', 'jest'];
 
 let dane = null;
+let uklad = null;
 let filtr = null;
+let wybrana = null;
+let indeks = {};   // nazwa kontrolki -> jej wpis z kontrolki.json
+
+const BARWA = {jest:'#6bbf6b', inaczej:'#e0a458', brak:'#e06c75', pulapka:'#5aa9e6'};
+
+function zbudujIndeks() {
+  indeks = {};
+  dane.urzadzenia.forEach(u => u.sekcje.forEach(s => s.kontrolki.forEach(k => {
+    indeks[k.nazwa] = k;
+  })));
+}
+
+function ksztaltSVG(e, ox, oy, kolor, klasy, tytul) {
+  const wsp = `data-k="${esc(e.k)}"`;
+  const st = `class="ksztalt" fill="${kolor}" fill-opacity="0.22" stroke="${kolor}"`;
+  let ksz = '', tx = 0, ty = 0;
+  if (e.ksztalt === 'kolo') {
+    ksz = `<circle cx="${ox + e.x}" cy="${oy + e.y}" r="${e.r}" ${st}/>`;
+    tx = ox + e.x; ty = oy + e.y + 3;
+  } else {
+    ksz = `<rect x="${ox + e.x}" y="${oy + e.y}" width="${e.w}" height="${e.h}"
+                 rx="3" ${st}/>`;
+    tx = ox + e.x + e.w / 2; ty = oy + e.y + e.h / 2 + 3;
+  }
+  const et = e.etykieta
+    ? `<text x="${tx}" y="${ty}" text-anchor="middle">${esc(e.etykieta)}</text>` : '';
+  return `<g class="el ${klasy}" ${wsp} tabindex="0" role="button">
+            <title>${esc(tytul)}</title>${ksz}${et}</g>`;
+}
+
+function rysujSchemat() {
+  if (!uklad || !dane) return;
+  let tresc = '';
+  const zrodla = {};
+  uklad.urzadzenia.forEach(u => { if (u.elementy) zrodla[u.id] = u.elementy; });
+
+  uklad.urzadzenia.forEach(u => {
+    const el = u.elementy || zrodla[u.kopia_z] || [];
+    tresc += `<rect class="obudowa" x="${u.x + 4}" y="12" width="${u.w - 8}"
+                    height="${u.h - 4}" rx="8"/>`;
+    tresc += `<text class="podpis-urz" x="${u.x + 12}" y="8">${esc(u.nazwa)}
+              — ${esc(u.podpis)}</text>`;
+
+    el.forEach(e => {
+      const k = indeks[e.k];
+      if (!k) return;
+      const kolor = BARWA[k.stan];
+      const przygas = filtr && k.stan !== filtr ? 'przygaszony' : '';
+      const wyb = wybrana === e.k ? 'wybrany' : '';
+      const tytul = `${e.k} — ${OPIS[k.stan][0]}`;
+
+      if (e.ksztalt.startsWith('rzad_')) {
+        // one control repeated across every mixer channel
+        (u.kanaly_x || []).forEach(kx => {
+          const kopia = e.ksztalt === 'rzad_kol'
+            ? {...e, ksztalt: 'kolo', x: kx + 14}
+            : {...e, ksztalt: 'prostokat', x: kx + 14 - (e.w / 2)};
+          tresc += ksztaltSVG(kopia, u.x, 0, kolor, `${przygas} ${wyb}`, tytul);
+        });
+      } else {
+        tresc += ksztaltSVG(e, u.x, 0, kolor, `${przygas} ${wyb}`, tytul);
+      }
+    });
+  });
+
+  $('#rysunek').innerHTML =
+    `<svg viewBox="0 0 1000 440" xmlns="http://www.w3.org/2000/svg">${tresc}</svg>`;
+  $('#schemat-nota').textContent = uklad.UWAGA;
+
+  document.querySelectorAll('.el').forEach(g => {
+    const dzialaj = () => { wybrana = wybrana === g.dataset.k ? null : g.dataset.k; rysuj(); };
+    g.addEventListener('click', dzialaj);
+    g.addEventListener('keydown', ev => {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); dzialaj(); }
+    });
+  });
+}
+
+function rysujWybor() {
+  const box = $('#wybor');
+  const k = wybrana ? indeks[wybrana] : null;
+  if (!k) { box.classList.remove('widoczny'); box.innerHTML = ''; return; }
+  box.classList.add('widoczny');
+  box.innerHTML = `
+    <div class="tytul">${esc(k.nazwa)}
+      <span class="znacznik ${k.stan}">${esc(OPIS[k.stan][0])}</span></div>
+    ${k.co_robi ? `<div class="co-robi">${esc(k.co_robi)}</div>` : ''}
+    ${k.dlaczego_wazne ? `<div style="margin-top:7px">${esc(k.dlaczego_wazne)}</div>` : ''}
+    ${k.flx4 ? `<div class="flx4">na FLX4: ${esc(k.flx4)}</div>` : ''}`;
+}
 
 function policz() {
   const c = {jest:0, inaczej:0, brak:0, pulapka:0};
@@ -171,12 +281,15 @@ function rysujTresc() {
   });
 }
 
-function rysuj() { rysujLicznik(); rysujTresc(); }
+function rysuj() { rysujLicznik(); rysujSchemat(); rysujWybor(); rysujTresc(); }
 
-fetch('kontrolki.json', {cache: 'no-store'})
-  .then(r => r.json())
-  .then(d => {
-    dane = d;
+Promise.all([
+  fetch('kontrolki.json', {cache: 'no-store'}).then(r => r.json()),
+  fetch('uklad.json', {cache: 'no-store'}).then(r => r.json()),
+])
+  .then(([d, u]) => {
+    dane = d; uklad = u;
+    zbudujIndeks();
     rysuj();
     $('#stopka').textContent = d.uwaga;
   })
