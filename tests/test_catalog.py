@@ -182,9 +182,12 @@ def test_schemat_i_idempotencja(test_conn):
     from dancelab.catalog import schema
     from dancelab.catalog.db import table_counts
 
-    assert schema.apply(test_conn) == [1, 2, 3]
+    # Assert against SCHEMA_VERSION rather than a literal list: a new migration
+    # is a normal event and should not fail this test, but a migration that
+    # does not apply cleanly on an empty database must.
+    assert schema.apply(test_conn) == sorted(schema.MIGRATIONS)
     assert schema.apply(test_conn) == []
-    assert schema.current_version(test_conn) == 3
+    assert schema.current_version(test_conn) == schema.SCHEMA_VERSION
 
     xlsx = Path(import_mapa.DEFAULT_XLSX)
     if not xlsx.exists():

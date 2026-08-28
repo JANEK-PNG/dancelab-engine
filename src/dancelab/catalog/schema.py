@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import Any
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 # --- migration 1 -----------------------------------------------------------
 # Kept as one statement block so a fresh database is built in a single
@@ -397,10 +397,32 @@ CREATE INDEX wektor_meta_content_idx
     WHERE meta ? 'content_id';
 """
 
+# --- migration 4 -----------------------------------------------------------
+# The Metoda and Legenda sheets are prose, not records: how the spreadsheet was
+# built and what each value means. They had no table, so declaring the
+# spreadsheet "just an export" would have quietly dropped the only text
+# explaining where the data comes from. Stored verbatim, line by line, with the
+# original order preserved.
+_MIGRATION_4 = """
+CREATE TABLE metoda (
+    wiersz integer PRIMARY KEY,
+    tresc  text
+);
+
+CREATE TABLE legenda (
+    wiersz    integer PRIMARY KEY,
+    wymiar    text,
+    wartosc   text,
+    kolor     text,
+    co_znaczy text
+);
+"""
+
 MIGRATIONS: dict[int, str] = {
     1: _MIGRATION_1,
     2: _MIGRATION_2,
     3: _MIGRATION_3,
+    4: _MIGRATION_4,
 }
 
 

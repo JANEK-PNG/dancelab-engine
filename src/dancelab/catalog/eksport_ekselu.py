@@ -4,6 +4,12 @@ The spreadsheet stops being the source of truth and becomes a view, but it
 stays the format the work is actually reviewed in. This exporter is also the
 verification step: if a sheet comes back with fewer rows than went in, the
 import lost something.
+
+All thirteen source sheets round-trip. One deliberate difference: Artyści
+returns 2416 rows against 2423, because seven artists appear twice under
+different casing ("Catz 'n Dogz" / "Catz 'N Dogz") with the data split across
+the pair. The importer merges them field by field, so the export has fewer
+rows and more information than the source.
 """
 
 from __future__ import annotations
@@ -63,6 +69,52 @@ ARKUSZE: dict[str, tuple[str, list[str]]] = {
         " link FROM wystep ORDER BY id",
         ["ksywa", "kiedy", "data", "wydarzenie", "miejsce", "miasto", "kraj",
          "link"],
+    ),
+    "Artyści": (
+        "SELECT ksywa, soundcloud, apple_music, gatunek_apple, bandcamp,"
+        " skad_bandcamp, gatunek_bandcamp, wytwornie_ra, kraj_ra,"
+        " obserwujacych_ra, wystepow_w_ra, festiwal_2026, miksow_w_bazie,"
+        " lata_w_garbiczu, uwagi, kandydaci FROM artysta_profil ORDER BY ksywa",
+        ["ksywa sceniczna", "SoundCloud", "Apple Music", "gatunek wg Apple",
+         "Bandcamp", "skąd (wg Bandcamp)", "gatunek wg Bandcamp",
+         "wytwórnie (RA)", "kraj (RA)", "obserwujących (RA)", "występów w RA",
+         "festiwal 2026", "miksów w bazie", "lata w Garbiczu", "uwagi",
+         "kandydaci do rozstrzygnięcia"],
+    ),
+    "Utwory": (
+        "SELECT ksywa, tytul, album, rok, link, zrodlo FROM dyskografia"
+        " ORDER BY id",
+        ["ksywa", "tytuł", "album", "rok", "link", "źródło"],
+    ),
+    "Programy": (
+        "SELECT festiwal, ksywa, dzien, data_tekst, scena, charakter_sceny,"
+        " start, koniec, rola, format FROM program ORDER BY id",
+        ["festiwal", "ksywa", "dzień", "data", "scena", "charakter sceny",
+         "start", "koniec", "rola", "format"],
+    ),
+    "Kanon RA": (
+        "SELECT kategoria, miejsce, kolejnosc, ksywa, tytul, rok, profil_ra,"
+        " soundcloud_id, autor_tekstu, uzasadnienie, artykul_ra FROM kanon_ra"
+        " ORDER BY id",
+        ["kategoria", "miejsce", "kolejność", "ksywa", "tytuł", "rok",
+         "profil RA", "SoundCloud ID", "autor tekstu",
+         "uzasadnienie redakcji", "artykuł RA"],
+    ),
+    "De School": (
+        "SELECT data_tekst, dzien, cykl, ksywa, scena, typ, format, zrodlo,"
+        " pewnosc, strona_archiwum, link FROM de_school ORDER BY id",
+        ["data", "dzień", "cykl", "ksywa", "scena", "typ", "format", "źródło",
+         "pewność", "strona archiwum", "link"],
+    ),
+    # Prose sheets. Without these the spreadsheet cannot become an export:
+    # Metoda is the only text saying how the data was gathered.
+    "Metoda": (
+        "SELECT tresc FROM metoda ORDER BY wiersz",
+        ["STAN NA DZIEŃ BUDOWY ARKUSZA"],
+    ),
+    "Legenda": (
+        "SELECT wymiar, wartosc, kolor, co_znaczy FROM legenda ORDER BY wiersz",
+        ["wymiar", "wartość", "kolor", "co znaczy"],
     ),
     "Mapowanie": (
         "SELECT system_zrodlowy, id_zrodlowy, system_docelowy, id_docelowy,"

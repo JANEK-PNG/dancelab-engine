@@ -33,6 +33,8 @@ OWNED_TABLES = (
     "program",
     "kanon_ra",
     "de_school",
+    "metoda",
+    "legenda",
     "artysta",
 )
 
@@ -162,6 +164,14 @@ def run(conn: Any, xlsx: Path | None = None) -> dict[str, int]:
 
     workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
     sheets = {ws.title: _rows(ws) for ws in workbook.worksheets}
+    # Prose sheets need every row, blanks included; see the Metoda block below.
+    surowe: dict[str, list[tuple]] = {}
+    for title in ("Metoda", "Legenda"):
+        if title in workbook.sheetnames:
+            rows = list(workbook[title].iter_rows(values_only=True))
+            surowe[title] = rows[1:]  # first row is the header
+        else:
+            surowe[title] = []
     workbook.close()
 
     with conn.cursor() as cur:
@@ -454,6 +464,29 @@ def run(conn: Any, xlsx: Path | None = None) -> dict[str, int]:
                 _txt(r.get("link")),
             )
             for r in sheets.get("De School", [])
+        ],
+    )
+
+    # --- prose sheets ----------------------------------------------------
+    # Read raw, keeping blank rows. In a table an empty row is noise and
+    # _rows() drops it; in prose it is the paragraph break, and dropping it
+    # runs the text together. Metoda is the only place saying how this data
+    # was gathered, so it round-trips exactly or the export is a lie.
+    written["metoda"] = _copy(
+        conn, "metoda", ["wiersz", "tresc"],
+        [(i, _txt(row[0] if row else None)) for i, row in enumerate(surowe["Metoda"], start=1)],
+    )
+    written["legenda"] = _copy(
+        conn, "legenda", ["wiersz", "wymiar", "wartosc", "kolor", "co_znaczy"],
+        [
+            (
+                i,
+                _txt(row[0] if len(row) > 0 else None),
+                _txt(row[1] if len(row) > 1 else None),
+                _txt(row[2] if len(row) > 2 else None),
+                _txt(row[3] if len(row) > 3 else None),
+            )
+            for i, row in enumerate(surowe["Legenda"], start=1)
         ],
     )
 
