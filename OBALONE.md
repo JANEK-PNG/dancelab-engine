@@ -271,9 +271,22 @@ deskryptory są dla 48, a wektory brzmienia dla **47**. To, co Janek nazywa
 barwy — a barwy w tych danych nie ma. Zmierzyliśmy kontekst zbudowany
 z głośności, tempa i tonacji i ten kontekst nie niesie sygnału.
 
-**Co robić zamiast.** Nie wymyślać kolejnych wzorów na tych samych kolumnach.
-Dopolicować wektory brzmienia dla brakujących ~108 utworów i powtórzyć TEN SAM
-pomiar z TYMI SAMYMI progami.
+**Sprawdzone tego samego wieczoru: dopolicowanie wektorów jest NIEWYKONALNE.**
+Ze 155 ocenianych utworów **107 to strumienie Apple Music bez pliku na dysku**
+(`apple-music:tracks:…`), 47 ma wektor, a plik bez wektora jest dokładnie
+**jeden**. Barwy tych 107 nie policzy żaden model, bo nie ma czego wczytać.
+To jest też powód, dla którego miały w analizach wyłącznie głośność.
+
+**Konsekwencja szersza niż ten pomiar:** te same 107 utworów Rekordbox
+pokazuje, ale **nie ładuje ich na deck** (patrz `stan/budowa.py::_zawez_zrodlo`).
+Ślepy odsłuch oceniał więc w większości sety, których nie dałoby się zagrać
+na sprzęcie — jako pomiar ucha są prawomocne, jako materiał do uczenia silnika
+są ślepą uliczką.
+
+**Co robić zamiast.** Powtórzyć odsłuch na playlistach zbudowanych WYŁĄCZNIE
+z plików na dysku (pula `library-dysk` już istnieje w silniku). Wtedy każdy
+oceniony utwór ma audio, wektor i pełne deskryptory — i dopiero wtedy pytanie
+o kontekst setu da się uczciwie zmierzyć.
 
 ## C. Kształt setu
 

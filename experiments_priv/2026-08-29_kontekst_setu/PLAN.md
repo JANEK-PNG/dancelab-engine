@@ -100,3 +100,28 @@ i klimatu — a barwy w tych danych praktycznie nie ma.
 **Następny krok jest więc o dane, nie o wzory:** dopolicować wektory brzmienia
 (albo pełne deskryptory) dla brakujących ~108 utworów i powtórzyć dokładnie
 ten sam pomiar, z tymi samymi progami.
+
+---
+
+## POPRAWKA WNIOSKU (2026-08-29, jeszcze tego samego wieczoru)
+
+Zdanie „dopolicować wektory dla brakujących ~108 utworów” było **błędne** i
+zostaje odwołane. Sprawdzenie plików pokazało:
+
+```
+107  Apple Music (strumień, brak pliku na dysku)
+ 47  ma wektor
+  1  plik jest, brak wektora
+```
+
+Barwy tych 107 nie da się policzyć **nigdy** — nie ma pliku. Stąd też brały się
+„tylko głośność” w analizach.
+
+Szersza konsekwencja: te same utwory Rekordbox pokazuje, ale nie ładuje ich na
+deck. Ślepy odsłuch oceniał więc w większości sety niegrywalne na sprzęcie.
+Oceny ucha zostają prawomocne — ale jako materiał do uczenia silnika ta próbka
+jest ślepą uliczką.
+
+**Właściwy następny krok:** powtórka odsłuchu na playlistach z puli
+`library-dysk` (same pliki z dysku), gdzie każdy utwór ma audio, wektor
+i deskryptory.
