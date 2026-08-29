@@ -24,7 +24,7 @@ SESJE = [("SESJA 1", ["OCENA K", "OCENA L"]), ("SESJA 2", ["OCENA M", "OCENA N"]
 CSS = """
 @page { size: A4; margin: 14mm 12mm; }
 * { box-sizing: border-box; }
-body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+body { background: #fff; color-scheme: light; font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
        font-size: 9.5pt; line-height: 1.35; color: #111; margin: 0; }
 h1 { font-size: 15pt; margin: 0 0 2mm; }
 h2 { font-size: 12pt; margin: 0 0 1mm; }
@@ -95,7 +95,7 @@ def siatka_energii(n: int) -> str:
 def strona_instrukcji() -> str:
     return """
 <h1>DanceLab · Ocena setów na papierze</h1>
-<p class="meta">10 playlist w Rekordboksie, folder <b>DanceLab Ocena</b> (OCENA A–J).
+<p class="meta">10 playlist w Rekordboksie, folder <b>DanceLab Ocena 2</b> (OCENA K–U).
 Oceniasz W CIEMNO: część playlist to pełne wyjście silnika, część to kontrola —
 nie wiadomo która jest którą, przydział leży zapieczętowany i otwieramy go po
 wpisaniu wszystkich ocen. Oceniaj w 5 sesjach (2 playlisty na sesję) — tyle
