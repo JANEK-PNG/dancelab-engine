@@ -20,7 +20,8 @@
      "w": 199.5,
      "h": 108.8,
      "etykieta": "ekran 9\"",
-     "zmierzone": true
+     "zmierzone": true,
+     "typ": "ekran"
     },
     {
      "k": "Pokrętło ROTARY SELECTOR",
@@ -29,7 +30,8 @@
      "y": 78.6,
      "r": 20.0,
      "etykieta": "browse",
-     "zmierzone": true
+     "zmierzone": true,
+     "typ": "galka"
     },
     {
      "k": "TAG LIST / playlisty na urządzeniu",
@@ -39,7 +41,8 @@
      "w": 50,
      "h": 14,
      "etykieta": "tag",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik"
     },
     {
      "k": "Dwa gniazda USB + PRO DJ LINK",
@@ -49,7 +52,8 @@
      "w": 50,
      "h": 14,
      "etykieta": "usb",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik"
     },
     {
      "k": "QUANTIZE",
@@ -59,7 +63,8 @@
      "w": 50,
      "h": 14,
      "etykieta": "quant",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik"
     },
     {
      "k": "SLIP",
@@ -69,7 +74,8 @@
      "w": 50,
      "h": 14,
      "etykieta": "slip",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik"
     },
     {
      "k": "HOT CUE A–H (osiem)",
@@ -79,7 +85,8 @@
      "w": 268.5,
      "h": 18.8,
      "etykieta": "8 cue",
-     "zmierzone": true
+     "zmierzone": true,
+     "typ": "listwa_padow"
     },
     {
      "k": "LOOP IN / OUT",
@@ -89,7 +96,8 @@
      "w": 50,
      "h": 15,
      "etykieta": "in/out",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik"
     },
     {
      "k": "AUTO BEAT LOOP",
@@ -99,7 +107,8 @@
      "w": 50,
      "h": 15,
      "etykieta": "loop",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik"
     },
     {
      "k": "CALL ◁ ▷",
@@ -109,7 +118,8 @@
      "w": 50,
      "h": 15,
      "etykieta": "call",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik"
     },
     {
      "k": "REVERSE",
@@ -119,7 +129,8 @@
      "w": 50,
      "h": 15,
      "etykieta": "rev",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik"
     },
     {
      "k": "VINYL SPEED ADJUST (TOUCH / RELEASE)",
@@ -129,7 +140,8 @@
      "w": 50,
      "h": 15,
      "etykieta": "v.adj",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik"
     },
     {
      "k": "Jog ⌀202 mm z regulacją oporu",
@@ -138,7 +150,8 @@
      "y": 296.5,
      "r": 101.1,
      "etykieta": "jog",
-     "zmierzone": true
+     "zmierzone": true,
+     "typ": "jog"
     },
     {
      "k": "Ekran na talerzu",
@@ -147,7 +160,8 @@
      "y": 296.5,
      "r": 44.5,
      "etykieta": "",
-     "zmierzone": true
+     "zmierzone": true,
+     "typ": "pomin"
     },
     {
      "k": "Tryb VINYL / CDJ",
@@ -157,7 +171,8 @@
      "w": 50,
      "h": 15,
      "etykieta": "vinyl",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik"
     },
     {
      "k": "PLAY / PAUSE",
@@ -167,7 +182,9 @@
      "w": 50,
      "h": 34,
      "etykieta": "play",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik",
+     "led": "#4fbf6f"
     },
     {
      "k": "CUE",
@@ -177,7 +194,9 @@
      "w": 50,
      "h": 34,
      "etykieta": "cue",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik",
+     "led": "#e0a24a"
     },
     {
      "k": "Suwak TEMPO (100 mm)",
@@ -187,7 +206,8 @@
      "w": 20,
      "h": 150,
      "etykieta": "",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "suwak"
     },
     {
      "k": "TEMPO RANGE (±6 / 10 / 16 / WIDE)",
@@ -197,7 +217,8 @@
      "w": 52,
      "h": 15,
      "etykieta": "range",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik"
     },
     {
      "k": "MASTER TEMPO",
@@ -207,7 +228,8 @@
      "w": 52,
      "h": 15,
      "etykieta": "m.t",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik"
     },
     {
      "k": "KEY SYNC / KEY RESET",
@@ -217,7 +239,8 @@
      "w": 52,
      "h": 15,
      "etykieta": "key",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik"
     },
     {
      "k": "BEAT SYNC",
@@ -227,7 +250,8 @@
      "w": 52,
      "h": 15,
      "etykieta": "sync",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik"
     }
    ]
   },
@@ -248,7 +272,8 @@
      "w": 57.6,
      "h": 124.6,
      "etykieta": "BEAT FX",
-     "zmierzone": true
+     "zmierzone": true,
+     "typ": "sekcja"
     },
     {
      "k": "SEND / RETURN",
@@ -258,7 +283,8 @@
      "w": 160,
      "h": 16,
      "etykieta": "send/ret",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "sekcja"
     },
     {
      "k": "SOUND COLOR FX",
@@ -268,7 +294,8 @@
      "w": 160,
      "h": 16,
      "etykieta": "COLOR FX",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "sekcja"
     },
     {
      "k": "TRIM",
@@ -276,7 +303,8 @@
      "y": 98.4,
      "r": 12.4,
      "etykieta": "trim",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "galka"
     },
     {
      "k": "EQ HI / MID / LOW",
@@ -284,7 +312,8 @@
      "y": 137.7,
      "r": 12.4,
      "etykieta": "hi",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "galka"
     },
     {
      "k": "EQ HI / MID / LOW",
@@ -292,7 +321,8 @@
      "y": 172.2,
      "r": 12.4,
      "etykieta": "mid",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "galka"
     },
     {
      "k": "EQ HI / MID / LOW",
@@ -300,7 +330,8 @@
      "y": 206.6,
      "r": 12.4,
      "etykieta": "low",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "galka"
     },
     {
      "k": "Filtr kanałowy (osobne pokrętło)",
@@ -308,7 +339,8 @@
      "y": 241.0,
      "r": 12.4,
      "etykieta": "color",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "galka"
     },
     {
      "k": "Fader kanału",
@@ -317,7 +349,8 @@
      "w": 16.6,
      "h": 88.5,
      "etykieta": "",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "suwak"
     },
     {
      "k": "CUE kanału",
@@ -326,7 +359,9 @@
      "w": 24.0,
      "h": 14.8,
      "etykieta": "cue",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "guzik",
+     "led": "#e0a24a"
     },
     {
      "k": "Cztery kanały zamiast dwóch",
@@ -336,7 +371,8 @@
      "w": 168,
      "h": 10,
      "etykieta": "",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "sekcja"
     },
     {
      "k": "Crossfader",
@@ -346,7 +382,8 @@
      "w": 200,
      "h": 18,
      "etykieta": "",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "suwak"
     },
     {
      "k": "Przełącznik krzywej crossfadera i faderów",
@@ -356,7 +393,8 @@
      "w": 56,
      "h": 18,
      "etykieta": "krzywa",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "przelacznik"
     },
     {
      "k": "MASTER LEVEL",
@@ -365,7 +403,8 @@
      "y": 30.0,
      "r": 13.0,
      "etykieta": "mst",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "galka"
     },
     {
      "k": "BOOTH z własnym poziomem",
@@ -374,7 +413,8 @@
      "y": 62.0,
      "r": 13.0,
      "etykieta": "bth",
-     "zmierzone": false
+     "zmierzone": false,
+     "typ": "galka"
     },
     {
      "k": "Słuchawki: MIXING / LEVEL",
@@ -385,7 +425,8 @@
      "etykieta": "hp",
      "w": 52.0,
      "h": 67.4,
-     "zmierzone": true
+     "zmierzone": true,
+     "typ": "galka"
     }
    ],
    "kanaly_x": [
