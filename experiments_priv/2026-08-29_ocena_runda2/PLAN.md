@@ -29,26 +29,26 @@ sprawdzenie, czy tamten się utrzyma.
   nie byłaby niezależna: te same utwory przeniosłyby ze sobą efekt jednej
   mocnej playlisty. Pula po wykluczeniu: 7807 utworów.
 
-## Zakup zwycięskiej playlisty — i uczciwe ostrzeżenie
+## Zakup — ODCIĘTY OD OCEN (decyzja Janka, 29.08)
 
-Janek kupuje utwory ze **zwycięskiej playlisty**, żeby mieć jedną playlistę
-z kompletem audio, wektorów i deskryptorów, a do niej gotowe oceny ucha.
+Pierwotny zapis mówił: „kupujemy zwycięską playlistę". **Wykreślone.**
+Janek zdecydował, że zakup idzie z listy zbudowanej pod oceny **rundy 1**
+(`experiments_priv/2026-08-29_lista_zakupow/lista_zakupow.csv`).
 
-**Tabela kosztów per playlista została z tego planu USUNIĘTA 29.08** (przegląd
-`/in-between`). Powód policzony, nie przeczuty: koszt playlisty koreluje z jej
-długością na poziomie **0,979**, więc opublikowanie kosztów było w praktyce
-opublikowaniem cennika „krótsza playlista = taniej". To jest zachęta, która
-RÓŻNICUJE playlisty, a nie podnosi wszystkich ocen równo — a tylko na to drugie
-H1 jest odporne, bo liczy różnicę średnich.
+Dlaczego to jest lepsze, a nie tylko ostrożniejsze:
 
-**Ostrzeżenie, które musi tu stać:** w rundzie 1 ocena niczego nie kosztowała
-i niczego nie dawała. Teraz wyższa ocena playlisty oznacza, że jej utwory
-zostaną kupione — a to jest zachęta, której w rundzie 1 nie było. Jeśli oceny
-runda 2 wyjdą systematycznie wyższe od rundy 1, będziemy wiedzieli, skąd to
-się bierze, i nie wolno tego przypisać silnikowi.
+* **Runda 2 wraca do bycia czystym pomiarem.** Ocena znowu nic nie kosztuje
+  i nic nie kupuje — dokładnie jak w rundzie 1, więc obie rundy mierzą tym
+  samym instrumentem i wolno je liczyć razem.
+* **Za tę samą kwotę odblokowuje 2,3× więcej ocenionych przejść.** Zakup
+  zwycięzcy rundy 2 to 5–22 utworów otwierających 7–24 przejścia; lista
+  z rundy 1 daje 81 przejść za 40 utworów.
+* **Nie może niczego skazić**, bo oceny rundy 1 są już zebrane, wpisane
+  i odpieczętowane. Nie da się wpłynąć na pomiar, który się skończył.
 
-**Zakup jest decyzją poza statystyką.** Nie wchodzi do H1 ani H2, nie zmienia
-progów i nie jest powodem, żeby którąkolwiek ocenę poprawić po fakcie.
+Zachęta, która istniała przez kilka godzin (Janek widział tabelę kosztów per
+playlista, zanim zapadła ta decyzja), przestaje mieć jakikolwiek skutek:
+**żaden zakup nie zależy już od ocen rundy 2**.
 
 ## Bramka
 
