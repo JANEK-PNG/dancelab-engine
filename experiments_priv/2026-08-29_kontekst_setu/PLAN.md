@@ -69,3 +69,34 @@ Okno wstecz to nie jest „kontekst setu" w pełnym sensie — nie wie o łuku
 całości ani o tym, co Janek zagrał na poprzedniej imprezie. Sprawdzamy
 najtańszą wersję tezy: czy trzy poprzednie utwory niosą informację, której
 para nie ma.
+
+---
+
+## WYNIK (2026-08-29, po pomiarze)
+
+Żadna z pięciu cech nie spełniła progu podstawowego.
+
+```
+cecha                     rho w playlistach       p     rho tam, gdzie silnik ślepy
+dzisiejsza punktacja                 +0,426       —     brak zmienności (stała 1,0)
+skok_energii                         −0,132  0,1725                         −0,167
+dryf_tempa                           +0,122  0,2106                         +0,183
+zygzak_energii                       +0,017  0,8579                         +0,153
+obcosc_stylu                         +0,059  0,5532                         +0,101
+niezgodnosc_tonacji                  −0,088  0,3693                         −0,015
+```
+
+Próg brzmiał: |rho| ≥ 0,20 przy p < 0,01. Najlepsza cecha ma 0,132 przy
+p = 0,17 — czyli w granicach szumu. Progu drugiego (0,15 w grupie nasyconej)
+dotykają trzy cechy, ale przy pięciu testowanych i nieistotnym progu pierwszym
+to nie jest wynik, tylko rozrzut.
+
+**Czego to NIE obala:** tezy, że kontekst setu ma znaczenie. Obala konkretną
+próbę zmierzenia go **z tych deskryptorów, które mamy**. A mamy mało:
+107 ze 155 utworów ma w analizach wyłącznie głośność, wektorów brzmienia jest
+**47 ze 155**. „Świat”, o którym Janek pisze w notatkach, jest cechą barwy
+i klimatu — a barwy w tych danych praktycznie nie ma.
+
+**Następny krok jest więc o dane, nie o wzory:** dopolicować wektory brzmienia
+(albo pełne deskryptory) dla brakujących ~108 utworów i powtórzyć dokładnie
+ten sam pomiar, z tymi samymi progami.

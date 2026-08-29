@@ -244,6 +244,37 @@ kontekst setu nie jest własnością pary utworów. Kandydaci z rzeczy, które j
 zmierzyliśmy u Janka: punkt wejścia (perkusja, zejście z basu), reguła powrotu,
 rozkład szwu z nagranych setów.
 
+### B_. Kontekst setu z okna trzech utworów (energia, tempo, tonacja, styl) — obalone
+
+**2026-08-29 · progi zapisane PRZED pomiarem (`experiments_priv/2026-08-29_kontekst_setu/PLAN.md`)**
+
+Teza: „kontekst setu” to druga najczęstsza kategoria zgrzytu Janka (27 na 158),
+a para utworów z definicji jej nie widzi. Okno trzech poprzednich utworów
+powinno tę informację przynieść.
+
+Pomiar na 158 ocenach ucha, zgodność liczona **wewnątrz playlisty** (na wspólnej
+kupie każda cecha kontekstu dostawałaby punkty za samo rozpoznanie, że playlista
+jest potasowaną kontrolą):
+
+```
+skok_energii        −0,132 (p 0,17)   dryf_tempa      +0,122 (p 0,21)
+zygzak_energii      +0,017 (p 0,86)   obcosc_stylu    +0,059 (p 0,55)
+niezgodnosc_tonacji −0,088 (p 0,37)
+```
+
+Próg: |rho| ≥ 0,20 przy p < 0,01. **Żadna cecha nie dotknęła progu.**
+
+**Dlaczego to nie znaczy „kontekst nie ma znaczenia”.** Sprawdzone, nie
+założone: **107 ze 155 utworów ma w analizach wyłącznie głośność**, bogatsze
+deskryptory są dla 48, a wektory brzmienia dla **47**. To, co Janek nazywa
+„światem” („świat A → B”, „inne światy”, „z pogodnego na mroczny”), jest cechą
+barwy — a barwy w tych danych nie ma. Zmierzyliśmy kontekst zbudowany
+z głośności, tempa i tonacji i ten kontekst nie niesie sygnału.
+
+**Co robić zamiast.** Nie wymyślać kolejnych wzorów na tych samych kolumnach.
+Dopolicować wektory brzmienia dla brakujących ~108 utworów i powtórzyć TEN SAM
+pomiar z TYMI SAMYMI progami.
+
 ## C. Kształt setu
 
 ### C1. Nasz łuk „build" jest aktywnie gorszy niż płaska linia
