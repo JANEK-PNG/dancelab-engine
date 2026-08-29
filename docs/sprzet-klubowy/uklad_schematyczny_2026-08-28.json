@@ -1,0 +1,369 @@
+{
+  "schema_version": "uklad-schematyczny-v1",
+  "UWAGA": "GEOMETRIA SCHEMATYCZNA, NIE ZMIERZONA. Układ odwzorowuje rozmieszczenie i wielkość względną kontrolek, ale nie są to prawdziwe wymiary. Po wczytaniu instrukcji CDJ-3000 i DJM-900NXS2 ten plik zostanie zastąpiony pomiarem z rysunku technicznego, tak jak przy DDJ-FLX4 (siatka mm, 1000 dpi). Do tego czasu NIE wolno używać tych liczb do żadnego wniosku o sprzęcie.",
+  "jednostka": "umowna, płótno 1000x420",
+  "urzadzenia": [
+    {
+      "id": "cdj_l",
+      "nazwa": "CDJ-3000",
+      "podpis": "lewy",
+      "x": 0,
+      "y": 0,
+      "w": 300,
+      "h": 420,
+      "elementy": [
+        {
+          "k": "Ekran dotykowy 9\"",
+          "ksztalt": "prostokat",
+          "x": 20,
+          "y": 18,
+          "w": 260,
+          "h": 92,
+          "etykieta": "ekran 9\""
+        },
+        {
+          "k": "Pokrętło ROTARY SELECTOR",
+          "ksztalt": "kolo",
+          "x": 250,
+          "y": 128,
+          "r": 17,
+          "etykieta": "browse"
+        },
+        {
+          "k": "TAG LIST / playlisty na urządzeniu",
+          "ksztalt": "prostokat",
+          "x": 20,
+          "y": 120,
+          "w": 46,
+          "h": 17,
+          "etykieta": "tag"
+        },
+        {
+          "k": "Dwa gniazda USB + PRO DJ LINK",
+          "ksztalt": "prostokat",
+          "x": 74,
+          "y": 120,
+          "w": 46,
+          "h": 17,
+          "etykieta": "usb"
+        },
+        {
+          "k": "QUANTIZE",
+          "ksztalt": "prostokat",
+          "x": 128,
+          "y": 120,
+          "w": 46,
+          "h": 17,
+          "etykieta": "quant"
+        },
+        {
+          "k": "SLIP",
+          "ksztalt": "prostokat",
+          "x": 182,
+          "y": 120,
+          "w": 46,
+          "h": 17,
+          "etykieta": "slip"
+        },
+        {
+          "k": "HOT CUE A–H (osiem)",
+          "ksztalt": "prostokat",
+          "x": 20,
+          "y": 150,
+          "w": 100,
+          "h": 44,
+          "etykieta": "8 cue"
+        },
+        {
+          "k": "LOOP IN / OUT",
+          "ksztalt": "prostokat",
+          "x": 20,
+          "y": 200,
+          "w": 46,
+          "h": 17,
+          "etykieta": "in/out"
+        },
+        {
+          "k": "AUTO BEAT LOOP",
+          "ksztalt": "prostokat",
+          "x": 74,
+          "y": 200,
+          "w": 46,
+          "h": 17,
+          "etykieta": "loop"
+        },
+        {
+          "k": "CALL ◁ ▷",
+          "ksztalt": "prostokat",
+          "x": 20,
+          "y": 223,
+          "w": 100,
+          "h": 17,
+          "etykieta": "call"
+        },
+        {
+          "k": "REVERSE",
+          "ksztalt": "prostokat",
+          "x": 20,
+          "y": 246,
+          "w": 46,
+          "h": 17,
+          "etykieta": "rev"
+        },
+        {
+          "k": "VINYL SPEED ADJUST (TOUCH / RELEASE)",
+          "ksztalt": "prostokat",
+          "x": 74,
+          "y": 246,
+          "w": 46,
+          "h": 17,
+          "etykieta": "v.adj"
+        },
+        {
+          "k": "Jog 206 mm z regulacją oporu",
+          "ksztalt": "kolo",
+          "x": 190,
+          "y": 258,
+          "r": 76,
+          "etykieta": "jog"
+        },
+        {
+          "k": "Ekran na talerzu",
+          "ksztalt": "kolo",
+          "x": 190,
+          "y": 258,
+          "r": 30,
+          "etykieta": ""
+        },
+        {
+          "k": "Tryb VINYL / CDJ",
+          "ksztalt": "prostokat",
+          "x": 128,
+          "y": 150,
+          "w": 46,
+          "h": 17,
+          "etykieta": "vinyl"
+        },
+        {
+          "k": "PLAY / PAUSE",
+          "ksztalt": "prostokat",
+          "x": 74,
+          "y": 350,
+          "w": 56,
+          "h": 40,
+          "etykieta": "play"
+        },
+        {
+          "k": "CUE",
+          "ksztalt": "prostokat",
+          "x": 20,
+          "y": 350,
+          "w": 48,
+          "h": 40,
+          "etykieta": "cue"
+        },
+        {
+          "k": "Suwak TEMPO (100 mm)",
+          "ksztalt": "prostokat",
+          "x": 260,
+          "y": 175,
+          "w": 20,
+          "h": 190,
+          "etykieta": ""
+        },
+        {
+          "k": "TEMPO RANGE (±6 / 10 / 16 / WIDE)",
+          "ksztalt": "prostokat",
+          "x": 254,
+          "y": 150,
+          "w": 32,
+          "h": 17,
+          "etykieta": "range"
+        },
+        {
+          "k": "MASTER TEMPO",
+          "ksztalt": "prostokat",
+          "x": 254,
+          "y": 375,
+          "w": 32,
+          "h": 17,
+          "etykieta": "m.t"
+        },
+        {
+          "k": "KEY SYNC / KEY RESET",
+          "ksztalt": "prostokat",
+          "x": 222,
+          "y": 375,
+          "w": 34,
+          "h": 17,
+          "etykieta": "key"
+        },
+        {
+          "k": "BEAT SYNC",
+          "ksztalt": "prostokat",
+          "x": 182,
+          "y": 375,
+          "w": 34,
+          "h": 17,
+          "etykieta": "sync"
+        }
+      ]
+    },
+    {
+      "id": "djm",
+      "nazwa": "DJM-900NXS2",
+      "podpis": "mikser",
+      "x": 320,
+      "y": 0,
+      "w": 360,
+      "h": 420,
+      "elementy": [
+        {
+          "k": "BEAT FX",
+          "ksztalt": "prostokat",
+          "x": 14,
+          "y": 18,
+          "w": 200,
+          "h": 60,
+          "etykieta": "BEAT FX"
+        },
+        {
+          "k": "SEND / RETURN",
+          "ksztalt": "prostokat",
+          "x": 224,
+          "y": 18,
+          "w": 122,
+          "h": 27,
+          "etykieta": "send/ret"
+        },
+        {
+          "k": "SOUND COLOR FX",
+          "ksztalt": "prostokat",
+          "x": 224,
+          "y": 51,
+          "w": 122,
+          "h": 27,
+          "etykieta": "COLOR FX"
+        },
+        {
+          "k": "TRIM",
+          "ksztalt": "rzad_kol",
+          "y": 100,
+          "r": 13,
+          "etykieta": "trim"
+        },
+        {
+          "k": "EQ HI / MID / LOW",
+          "ksztalt": "rzad_kol",
+          "y": 140,
+          "r": 13,
+          "etykieta": "hi"
+        },
+        {
+          "k": "EQ HI / MID / LOW",
+          "ksztalt": "rzad_kol",
+          "y": 175,
+          "r": 13,
+          "etykieta": "mid"
+        },
+        {
+          "k": "EQ HI / MID / LOW",
+          "ksztalt": "rzad_kol",
+          "y": 210,
+          "r": 13,
+          "etykieta": "low"
+        },
+        {
+          "k": "Filtr kanałowy (osobne pokrętło)",
+          "ksztalt": "rzad_kol",
+          "y": 245,
+          "r": 13,
+          "etykieta": "color"
+        },
+        {
+          "k": "Fader kanału",
+          "ksztalt": "rzad_sw",
+          "y": 272,
+          "w": 18,
+          "h": 90,
+          "etykieta": ""
+        },
+        {
+          "k": "CUE kanału",
+          "ksztalt": "rzad_prost",
+          "y": 368,
+          "w": 26,
+          "h": 15,
+          "etykieta": "cue"
+        },
+        {
+          "k": "Cztery kanały zamiast dwóch",
+          "ksztalt": "prostokat",
+          "x": 14,
+          "y": 84,
+          "w": 332,
+          "h": 6,
+          "etykieta": ""
+        },
+        {
+          "k": "Crossfader",
+          "ksztalt": "prostokat",
+          "x": 60,
+          "y": 392,
+          "w": 240,
+          "h": 18,
+          "etykieta": ""
+        },
+        {
+          "k": "Przełącznik krzywej crossfadera i faderów",
+          "ksztalt": "prostokat",
+          "x": 306,
+          "y": 392,
+          "w": 40,
+          "h": 18,
+          "etykieta": "krzywa"
+        },
+        {
+          "k": "MASTER LEVEL",
+          "ksztalt": "kolo",
+          "x": 326,
+          "y": 112,
+          "r": 15,
+          "etykieta": "mst"
+        },
+        {
+          "k": "BOOTH z własnym poziomem",
+          "ksztalt": "kolo",
+          "x": 326,
+          "y": 152,
+          "r": 13,
+          "etykieta": "bth"
+        },
+        {
+          "k": "Słuchawki: MIXING / LEVEL",
+          "ksztalt": "kolo",
+          "x": 326,
+          "y": 190,
+          "r": 13,
+          "etykieta": "hp"
+        }
+      ],
+      "kanaly_x": [
+        40,
+        110,
+        180,
+        250
+      ]
+    },
+    {
+      "id": "cdj_p",
+      "nazwa": "CDJ-3000",
+      "podpis": "prawy",
+      "x": 700,
+      "y": 0,
+      "w": 300,
+      "h": 420,
+      "kopia_z": "cdj_l"
+    }
+  ]
+}

@@ -1,119 +1,325 @@
 {
-  "schema_version": "sprzet-klubowy-v1",
-  "zrodlo_flx4": "experiments_priv/2026-08-23_flx4_mapowanie/NOTATKI_INSTRUKCJA.md (zmierzone na sprzęcie 23.08.2026)",
-  "uwaga": "Stany 'brak' i 'inaczej' opisują RÓŻNICĘ względem DDJ-FLX4. Geometria (pozycje, rozmiary) jest schematyczna do czasu wczytania instrukcji CDJ-3000 i DJM-900NXS2.",
-  "legenda": {
-    "jest": "Masz to na FLX4 i działa tak samo. Przećwiczysz w domu.",
-    "inaczej": "Masz coś podobnego, ale zachowuje się inaczej. Zaskoczy Cię za pulpitem.",
-    "brak": "Nie masz tego na FLX4 w ogóle. Pierwszy raz zobaczysz w klubie.",
-    "pulapka": "Masz to na FLX4, ale w klubie tego NIE MA. Nie przyzwyczajaj się."
-  },
-  "urzadzenia": [
+ "schema_version": "sprzet-klubowy-v1",
+ "zrodlo_flx4": "experiments_priv/2026-08-23_flx4_mapowanie/NOTATKI_INSTRUKCJA.md (zmierzone na sprzęcie 23.08.2026)",
+ "uwaga": "Stany 'brak' i 'inaczej' opisują RÓŻNICĘ względem DDJ-FLX4. Geometria (pozycje, rozmiary) jest schematyczna do czasu wczytania instrukcji CDJ-3000 i DJM-900NXS2.",
+ "legenda": {
+  "jest": "Masz to na FLX4 i działa tak samo. Przećwiczysz w domu.",
+  "inaczej": "Masz coś podobnego, ale zachowuje się inaczej. Zaskoczy Cię za pulpitem.",
+  "brak": "Nie masz tego na FLX4 w ogóle. Pierwszy raz zobaczysz w klubie.",
+  "pulapka": "Masz to na FLX4, ale w klubie tego NIE MA. Nie przyzwyczajaj się."
+ },
+ "urzadzenia": [
+  {
+   "id": "cdj",
+   "nazwa": "CDJ-3000",
+   "rola": "odtwarzacz — nie ma EQ ani faderów, sam nie zagra",
+   "sekcje": [
     {
-      "id": "cdj",
-      "nazwa": "CDJ-3000",
-      "rola": "odtwarzacz — nie ma EQ ani faderów, sam nie zagra",
-      "sekcje": [
-        {
-          "nazwa": "Ekran i przeglądanie",
-          "kontrolki": [
-            {"nazwa": "Ekran dotykowy 9\"", "stan": "brak", "co_robi": "Fala utworu, siatka bitów, przeglądanie biblioteki palcem, podgląd pętli.", "dlaczego_wazne": "To jest główne okno pracy na CDJ. FLX4 nie ma ŻADNEGO ekranu — patrzysz w laptopa. Za pulpitem laptopa może nie być."},
-            {"nazwa": "Pokrętło ROTARY SELECTOR", "stan": "jest", "co_robi": "Przewijanie listy i zatwierdzanie.", "flx4": "BROWSE (obrót CC 64, naciśnięcie nuta 65)"},
-            {"nazwa": "TAG LIST / playlisty na urządzeniu", "stan": "brak", "co_robi": "Odkładanie utworów na bok w trakcie grania, bez laptopa.", "dlaczego_wazne": "Na FLX4 tę rolę pełni Rekordbox na ekranie komputera."},
-            {"nazwa": "Dwa gniazda USB + PRO DJ LINK", "stan": "brak", "co_robi": "Muzyka z pendrive'a, sieć między odtwarzaczami, wspólny zegar.", "dlaczego_wazne": "W klubie zwykle grasz z USB, nie z laptopa. Zupełnie inny nawyk przygotowania."}
-          ]
-        },
-        {
-          "nazwa": "Talerz",
-          "kontrolki": [
-            {"nazwa": "Jog 206 mm z regulacją oporu", "stan": "inaczej", "co_robi": "Duży talerz, ciężki, opór regulowany pokrętłem.", "flx4": "jog talerz (CC 34/35), jog bok (CC 33), dotyk (nuta 54)", "dlaczego_wazne": "Talerz FLX4 jest mały i lekki, bez regulacji. Ruch, który wyćwiczysz w domu, na CDJ da inny efekt — to jedyna rzecz, której nie da się przenieść przez ekran."},
-            {"nazwa": "Ekran na talerzu", "stan": "brak", "co_robi": "Pozycja w utworze, BPM, ostrzeżenie o końcu ścieżki — pod ręką, bez patrzenia w bok."},
-            {"nazwa": "VINYL SPEED ADJUST (TOUCH / RELEASE)", "stan": "brak", "co_robi": "Jak szybko utwór zatrzymuje się i rusza po dotknięciu talerza.", "dlaczego_wazne": "Ustawienie zmienia charakter każdego zatrzymania. Na FLX4 nie masz nad tym kontroli."},
-            {"nazwa": "Tryb VINYL / CDJ", "stan": "jest", "co_robi": "Czy dotknięcie talerza zatrzymuje dźwięk.", "flx4": "osobne CC dla trybu (34 vinyl ON, 35 vinyl OFF)"}
-          ]
-        },
-        {
-          "nazwa": "Odtwarzanie",
-          "kontrolki": [
-            {"nazwa": "PLAY / PAUSE", "stan": "jest", "flx4": "nuta 11", "co_robi": "Start i pauza."},
-            {"nazwa": "CUE", "stan": "jest", "flx4": "nuta 12", "co_robi": "Powrót do punktu startowego."},
-            {"nazwa": "REVERSE", "stan": "brak", "co_robi": "Gra do tyłu, dźwignią obok talerza."},
-            {"nazwa": "SLIP", "stan": "brak", "co_robi": "Utwór leci dalej po cichu, gdy scratchujesz albo grasz pętlę — po puszczeniu wracasz tam, gdzie byłby.", "dlaczego_wazne": "Jedna z najważniejszych rzeczy na klubowym sprzęcie. Na FLX4 jej nie ma i nie wyćwiczysz."},
-            {"nazwa": "QUANTIZE", "stan": "brak", "co_robi": "Przyciąga cue i pętle do siatki bitów, żeby nie dało się chybić.", "dlaczego_wazne": "Zmienia to, ile precyzji wymaga od Ciebie sprzęt. Bez tego trafiasz ręką."}
-          ]
-        },
-        {
-          "nazwa": "Tempo i tonacja",
-          "kontrolki": [
-            {"nazwa": "Suwak TEMPO (100 mm)", "stan": "inaczej", "flx4": "TEMPO (CC 0/32, 14-bit)", "co_robi": "Zmiana prędkości.", "dlaczego_wazne": "Suwak CDJ jest DŁUŻSZY — ten sam ruch palca daje inną zmianę. Precyzja, którą wyrobisz na FLX4, nie przeniesie się jeden do jednego."},
-            {"nazwa": "TEMPO RANGE (±6 / 10 / 16 / WIDE)", "stan": "brak", "co_robi": "Przełącza, jak mocno suwak działa.", "dlaczego_wazne": "FLX4 ma na sztywno ±6%. Jeśli w klubie zastaniesz WIDE, ten sam ruch zrobi coś zupełnie innego."},
-            {"nazwa": "MASTER TEMPO", "stan": "brak", "co_robi": "Trzyma tonację przy zmianie prędkości.", "dlaczego_wazne": "Na CDJ to fizyczny przycisk, który ktoś mógł zostawić wyłączony."},
-            {"nazwa": "KEY SYNC / KEY RESET", "stan": "brak", "co_robi": "Dostraja tonację utworu do drugiego decka.", "dlaczego_wazne": "Osobne narzędzie harmoniczne, którego na FLX4 nie ma wcale."},
-            {"nazwa": "BEAT SYNC", "stan": "jest", "flx4": "nuta 88 (wysyła przy PUSZCZENIU)", "co_robi": "Zrównanie tempa z drugim deckiem."}
-          ]
-        },
-        {
-          "nazwa": "Pętle i pady",
-          "kontrolki": [
-            {"nazwa": "HOT CUE A–H (osiem)", "stan": "inaczej", "flx4": "pady, nuty 27+indeks (kanał 8/10) — CZTERY na deck", "co_robi": "Skoki do zapamiętanych miejsc.", "dlaczego_wazne": "Masz cztery, w klubie jest osiem. Układ, który zaplanujesz w domu, nie wypełni klubowego decka."},
-            {"nazwa": "LOOP IN / OUT", "stan": "jest", "flx4": "nuty 16 / 17", "co_robi": "Ręczne ustawianie pętli."},
-            {"nazwa": "AUTO BEAT LOOP", "stan": "jest", "flx4": "4 BEAT / EXIT (nuta 77)", "co_robi": "Pętla o długości w bitach."},
-            {"nazwa": "CALL ◁ ▷", "stan": "jest", "flx4": "nuty 81 / 83", "co_robi": "Przywoływanie zapisanych pętli i cue."}
-          ]
-        }
-      ]
+     "nazwa": "Ekran i przeglądanie",
+     "kontrolki": [
+      {
+       "nazwa": "Ekran dotykowy 9\"",
+       "stan": "brak",
+       "co_robi": "Fala utworu, siatka bitów, przeglądanie biblioteki palcem, podgląd pętli.",
+       "dlaczego_wazne": "To jest główne okno pracy na CDJ. FLX4 nie ma ŻADNEGO ekranu — patrzysz w laptopa. Za pulpitem laptopa może nie być."
+      },
+      {
+       "nazwa": "Pokrętło ROTARY SELECTOR",
+       "stan": "jest",
+       "co_robi": "Przewijanie listy i zatwierdzanie.",
+       "flx4": "BROWSE (obrót CC 64, naciśnięcie nuta 65)"
+      },
+      {
+       "nazwa": "TAG LIST / playlisty na urządzeniu",
+       "stan": "brak",
+       "co_robi": "Odkładanie utworów na bok w trakcie grania, bez laptopa.",
+       "dlaczego_wazne": "Na FLX4 tę rolę pełni Rekordbox na ekranie komputera."
+      },
+      {
+       "nazwa": "Dwa gniazda USB + PRO DJ LINK",
+       "stan": "brak",
+       "co_robi": "Muzyka z pendrive'a, sieć między odtwarzaczami, wspólny zegar.",
+       "dlaczego_wazne": "W klubie zwykle grasz z USB, nie z laptopa. Zupełnie inny nawyk przygotowania."
+      }
+     ]
     },
     {
-      "id": "djm",
-      "nazwa": "DJM-900NXS2",
-      "rola": "mikser — tu mieszkają EQ, fadery i efekty",
-      "sekcje": [
-        {
-          "nazwa": "Kanał (×4)",
-          "kontrolki": [
-            {"nazwa": "TRIM", "stan": "jest", "flx4": "CC 4/36", "co_robi": "Poziom wejścia."},
-            {"nazwa": "EQ HI / MID / LOW", "stan": "jest", "flx4": "CC 7/39, 11/43, 15/47", "co_robi": "Trzy pasma — ten sam układ co u Ciebie."},
-            {"nazwa": "Filtr kanałowy (osobne pokrętło)", "stan": "inaczej", "flx4": "CFX (CC 23/55, 24/56) — inna funkcja", "co_robi": "Filtr dolno/górnoprzepustowy na każdym kanale.", "dlaczego_wazne": "Twoje CFX robi kilka rzeczy naraz (filtr, echo, gate). Klubowe pokrętło robi TYLKO filtr, za to zawsze."},
-            {"nazwa": "Fader kanału", "stan": "jest", "flx4": "CC 19/51", "co_robi": "Głośność kanału."},
-            {"nazwa": "CUE kanału", "stan": "jest", "flx4": "nuta 84", "co_robi": "Odsłuch w słuchawkach."},
-            {"nazwa": "Cztery kanały zamiast dwóch", "stan": "brak", "co_robi": "Kanały 3 i 4.", "dlaczego_wazne": "Przy graniu b2b albo z trzeciego źródła po prostu ich potrzebujesz. Na FLX4 nie istnieją."}
-          ]
-        },
-        {
-          "nazwa": "Wyjście i krzywe",
-          "kontrolki": [
-            {"nazwa": "Crossfader", "stan": "jest", "flx4": "CC 31/63", "co_robi": "Przenikanie między kanałami."},
-            {"nazwa": "Przełącznik krzywej crossfadera i faderów", "stan": "brak", "co_robi": "Ostra krzywa do cięcia albo łagodna do mieszania.", "dlaczego_wazne": "Ten sam ruch faderem brzmi inaczej przy innej krzywej. Ktoś przed Tobą mógł ją przestawić."},
-            {"nazwa": "MASTER LEVEL", "stan": "jest", "flx4": "CC 8/40", "co_robi": "Głośność wyjścia."},
-            {"nazwa": "BOOTH z własnym poziomem", "stan": "brak", "co_robi": "Osobne wyjście na monitor dla DJ-a.", "dlaczego_wazne": "W klubie to Twój odsłuch. Ustawiasz go inaczej niż salę."},
-            {"nazwa": "Słuchawki: MIXING / LEVEL", "stan": "jest", "flx4": "CC 12/44, 13/45", "co_robi": "Proporcja odsłuchu i głośność."}
-          ]
-        },
-        {
-          "nazwa": "Efekty",
-          "kontrolki": [
-            {"nazwa": "BEAT FX", "stan": "jest", "flx4": "kanał 5/6 — SELECT, BEAT ◁▷, ON/OFF, LEVEL/DEPTH", "co_robi": "Echo, reverb, roll i reszta rodziny."},
-            {"nazwa": "SOUND COLOR FX", "stan": "inaczej", "flx4": "CFX (przybliżenie)", "co_robi": "Efekt na pokrętle kanału.", "dlaczego_wazne": "Na DJM wybierasz efekt osobnym przyciskiem dla wszystkich kanałów. Na FLX4 masz jedno pokrętło na deck i mniej wyboru."},
-            {"nazwa": "SEND / RETURN", "stan": "brak", "co_robi": "Wpięcie zewnętrznego efektu, na przykład RMX-a.", "dlaczego_wazne": "Cała klasa brzmień, do której FLX4 nie ma wejścia."}
-          ]
-        }
-      ]
+     "nazwa": "Talerz",
+     "kontrolki": [
+      {
+       "nazwa": "Jog ⌀202 mm z regulacją oporu",
+       "stan": "inaczej",
+       "co_robi": "Duży talerz, ciężki, opór regulowany pokrętłem.",
+       "flx4": "jog talerz (CC 34/35), jog bok (CC 33), dotyk (nuta 54)",
+       "dlaczego_wazne": "Talerz FLX4 jest mały i lekki, bez regulacji. Ruch, który wyćwiczysz w domu, na CDJ da inny efekt — to jedyna rzecz, której nie da się przenieść przez ekran."
+      },
+      {
+       "nazwa": "Ekran na talerzu",
+       "stan": "brak",
+       "co_robi": "Pozycja w utworze, BPM, ostrzeżenie o końcu ścieżki — pod ręką, bez patrzenia w bok."
+      },
+      {
+       "nazwa": "VINYL SPEED ADJUST (TOUCH / RELEASE)",
+       "stan": "brak",
+       "co_robi": "Jak szybko utwór zatrzymuje się i rusza po dotknięciu talerza.",
+       "dlaczego_wazne": "Ustawienie zmienia charakter każdego zatrzymania. Na FLX4 nie masz nad tym kontroli."
+      },
+      {
+       "nazwa": "Tryb VINYL / CDJ",
+       "stan": "jest",
+       "co_robi": "Czy dotknięcie talerza zatrzymuje dźwięk.",
+       "flx4": "osobne CC dla trybu (34 vinyl ON, 35 vinyl OFF)"
+      }
+     ]
     },
     {
-      "id": "flx4",
-      "nazwa": "DDJ-FLX4 — czego klub NIE MA",
-      "rola": "pułapki: rzeczy, które masz u siebie i których zabraknie",
-      "sekcje": [
-        {
-          "nazwa": "Automatyka dla początkujących",
-          "kontrolki": [
-            {"nazwa": "SMART FADER", "stan": "pulapka", "flx4": "kanał 7, nuta 1", "co_robi": "Sam prowadzi tempo i bas przy przejściu.", "dlaczego_wazne": "Za pulpitem robisz to ręką. Jeśli przywykniesz, przejście po prostu Ci się rozjedzie."},
-            {"nazwa": "SMART CFX", "stan": "pulapka", "flx4": "kanał 7, nuta 0", "co_robi": "Dobiera efekt do pozycji pokrętła.", "dlaczego_wazne": "Na DJM wybierasz efekt świadomie. Tu wybiera za Ciebie."},
-            {"nazwa": "Fader start / crossfader start", "stan": "pulapka", "flx4": "nuty 102 / 82", "co_robi": "Ruch faderem sam włącza odtwarzanie.", "dlaczego_wazne": "Na klubowym zestawie fader to tylko głośność. PLAY wciskasz sam."},
-            {"nazwa": "Sterowanie z laptopa jednym kablem", "stan": "pulapka", "co_robi": "Cały set żyje w Rekordboksie na ekranie.", "dlaczego_wazne": "W klubie muzyka idzie z USB, a ekran masz mały i na urządzeniu."}
-          ]
-        }
-      ]
+     "nazwa": "Odtwarzanie",
+     "kontrolki": [
+      {
+       "nazwa": "PLAY / PAUSE",
+       "stan": "jest",
+       "flx4": "nuta 11",
+       "co_robi": "Start i pauza."
+      },
+      {
+       "nazwa": "CUE",
+       "stan": "jest",
+       "flx4": "nuta 12",
+       "co_robi": "Powrót do punktu startowego."
+      },
+      {
+       "nazwa": "REVERSE",
+       "stan": "brak",
+       "co_robi": "Gra do tyłu, dźwignią obok talerza."
+      },
+      {
+       "nazwa": "SLIP",
+       "stan": "brak",
+       "co_robi": "Utwór leci dalej po cichu, gdy scratchujesz albo grasz pętlę — po puszczeniu wracasz tam, gdzie byłby.",
+       "dlaczego_wazne": "Jedna z najważniejszych rzeczy na klubowym sprzęcie. Na FLX4 jej nie ma i nie wyćwiczysz."
+      },
+      {
+       "nazwa": "QUANTIZE",
+       "stan": "brak",
+       "co_robi": "Przyciąga cue i pętle do siatki bitów, żeby nie dało się chybić.",
+       "dlaczego_wazne": "Zmienia to, ile precyzji wymaga od Ciebie sprzęt. Bez tego trafiasz ręką."
+      }
+     ]
+    },
+    {
+     "nazwa": "Tempo i tonacja",
+     "kontrolki": [
+      {
+       "nazwa": "Suwak TEMPO (100 mm)",
+       "stan": "inaczej",
+       "flx4": "TEMPO (CC 0/32, 14-bit)",
+       "co_robi": "Zmiana prędkości.",
+       "dlaczego_wazne": "Suwak CDJ jest DŁUŻSZY — ten sam ruch palca daje inną zmianę. Precyzja, którą wyrobisz na FLX4, nie przeniesie się jeden do jednego."
+      },
+      {
+       "nazwa": "TEMPO RANGE (±6 / 10 / 16 / WIDE)",
+       "stan": "brak",
+       "co_robi": "Przełącza, jak mocno suwak działa.",
+       "dlaczego_wazne": "FLX4 ma na sztywno ±6%. Jeśli w klubie zastaniesz WIDE, ten sam ruch zrobi coś zupełnie innego."
+      },
+      {
+       "nazwa": "MASTER TEMPO",
+       "stan": "brak",
+       "co_robi": "Trzyma tonację przy zmianie prędkości.",
+       "dlaczego_wazne": "Na CDJ to fizyczny przycisk, który ktoś mógł zostawić wyłączony."
+      },
+      {
+       "nazwa": "KEY SYNC / KEY RESET",
+       "stan": "brak",
+       "co_robi": "Dostraja tonację utworu do drugiego decka.",
+       "dlaczego_wazne": "Osobne narzędzie harmoniczne, którego na FLX4 nie ma wcale."
+      },
+      {
+       "nazwa": "BEAT SYNC",
+       "stan": "jest",
+       "flx4": "nuta 88 (wysyła przy PUSZCZENIU)",
+       "co_robi": "Zrównanie tempa z drugim deckiem."
+      }
+     ]
+    },
+    {
+     "nazwa": "Pętle i pady",
+     "kontrolki": [
+      {
+       "nazwa": "HOT CUE A–H (osiem)",
+       "stan": "inaczej",
+       "flx4": "pady, nuty 27+indeks (kanał 8/10) — CZTERY na deck",
+       "co_robi": "Skoki do zapamiętanych miejsc.",
+       "dlaczego_wazne": "Masz cztery, w klubie jest osiem. Układ, który zaplanujesz w domu, nie wypełni klubowego decka."
+      },
+      {
+       "nazwa": "LOOP IN / OUT",
+       "stan": "jest",
+       "flx4": "nuty 16 / 17",
+       "co_robi": "Ręczne ustawianie pętli."
+      },
+      {
+       "nazwa": "AUTO BEAT LOOP",
+       "stan": "jest",
+       "flx4": "4 BEAT / EXIT (nuta 77)",
+       "co_robi": "Pętla o długości w bitach."
+      },
+      {
+       "nazwa": "CALL ◁ ▷",
+       "stan": "jest",
+       "flx4": "nuty 81 / 83",
+       "co_robi": "Przywoływanie zapisanych pętli i cue."
+      }
+     ]
     }
-  ]
+   ]
+  },
+  {
+   "id": "djm",
+   "nazwa": "DJM-900NXS2",
+   "rola": "mikser — tu mieszkają EQ, fadery i efekty",
+   "sekcje": [
+    {
+     "nazwa": "Kanał (×4)",
+     "kontrolki": [
+      {
+       "nazwa": "TRIM",
+       "stan": "jest",
+       "flx4": "CC 4/36",
+       "co_robi": "Poziom wejścia."
+      },
+      {
+       "nazwa": "EQ HI / MID / LOW",
+       "stan": "jest",
+       "flx4": "CC 7/39, 11/43, 15/47",
+       "co_robi": "Trzy pasma — ten sam układ co u Ciebie."
+      },
+      {
+       "nazwa": "Filtr kanałowy (osobne pokrętło)",
+       "stan": "inaczej",
+       "flx4": "CFX (CC 23/55, 24/56) — inna funkcja",
+       "co_robi": "Filtr dolno/górnoprzepustowy na każdym kanale.",
+       "dlaczego_wazne": "Twoje CFX robi kilka rzeczy naraz (filtr, echo, gate). Klubowe pokrętło robi TYLKO filtr, za to zawsze."
+      },
+      {
+       "nazwa": "Fader kanału",
+       "stan": "jest",
+       "flx4": "CC 19/51",
+       "co_robi": "Głośność kanału."
+      },
+      {
+       "nazwa": "CUE kanału",
+       "stan": "jest",
+       "flx4": "nuta 84",
+       "co_robi": "Odsłuch w słuchawkach."
+      },
+      {
+       "nazwa": "Cztery kanały zamiast dwóch",
+       "stan": "brak",
+       "co_robi": "Kanały 3 i 4.",
+       "dlaczego_wazne": "Przy graniu b2b albo z trzeciego źródła po prostu ich potrzebujesz. Na FLX4 nie istnieją."
+      }
+     ]
+    },
+    {
+     "nazwa": "Wyjście i krzywe",
+     "kontrolki": [
+      {
+       "nazwa": "Crossfader",
+       "stan": "jest",
+       "flx4": "CC 31/63",
+       "co_robi": "Przenikanie między kanałami."
+      },
+      {
+       "nazwa": "Przełącznik krzywej crossfadera i faderów",
+       "stan": "brak",
+       "co_robi": "Ostra krzywa do cięcia albo łagodna do mieszania.",
+       "dlaczego_wazne": "Ten sam ruch faderem brzmi inaczej przy innej krzywej. Ktoś przed Tobą mógł ją przestawić."
+      },
+      {
+       "nazwa": "MASTER LEVEL",
+       "stan": "jest",
+       "flx4": "CC 8/40",
+       "co_robi": "Głośność wyjścia."
+      },
+      {
+       "nazwa": "BOOTH z własnym poziomem",
+       "stan": "brak",
+       "co_robi": "Osobne wyjście na monitor dla DJ-a.",
+       "dlaczego_wazne": "W klubie to Twój odsłuch. Ustawiasz go inaczej niż salę."
+      },
+      {
+       "nazwa": "Słuchawki: MIXING / LEVEL",
+       "stan": "jest",
+       "flx4": "CC 12/44, 13/45",
+       "co_robi": "Proporcja odsłuchu i głośność."
+      }
+     ]
+    },
+    {
+     "nazwa": "Efekty",
+     "kontrolki": [
+      {
+       "nazwa": "BEAT FX",
+       "stan": "jest",
+       "flx4": "kanał 5/6 — SELECT, BEAT ◁▷, ON/OFF, LEVEL/DEPTH",
+       "co_robi": "Echo, reverb, roll i reszta rodziny."
+      },
+      {
+       "nazwa": "SOUND COLOR FX",
+       "stan": "inaczej",
+       "flx4": "CFX (przybliżenie)",
+       "co_robi": "Efekt na pokrętle kanału.",
+       "dlaczego_wazne": "Na DJM wybierasz efekt osobnym przyciskiem dla wszystkich kanałów. Na FLX4 masz jedno pokrętło na deck i mniej wyboru."
+      },
+      {
+       "nazwa": "SEND / RETURN",
+       "stan": "brak",
+       "co_robi": "Wpięcie zewnętrznego efektu, na przykład RMX-a.",
+       "dlaczego_wazne": "Cała klasa brzmień, do której FLX4 nie ma wejścia."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "flx4",
+   "nazwa": "DDJ-FLX4 — czego klub NIE MA",
+   "rola": "pułapki: rzeczy, które masz u siebie i których zabraknie",
+   "sekcje": [
+    {
+     "nazwa": "Automatyka dla początkujących",
+     "kontrolki": [
+      {
+       "nazwa": "SMART FADER",
+       "stan": "pulapka",
+       "flx4": "kanał 7, nuta 1",
+       "co_robi": "Sam prowadzi tempo i bas przy przejściu.",
+       "dlaczego_wazne": "Za pulpitem robisz to ręką. Jeśli przywykniesz, przejście po prostu Ci się rozjedzie."
+      },
+      {
+       "nazwa": "SMART CFX",
+       "stan": "pulapka",
+       "flx4": "kanał 7, nuta 0",
+       "co_robi": "Dobiera efekt do pozycji pokrętła.",
+       "dlaczego_wazne": "Na DJM wybierasz efekt świadomie. Tu wybiera za Ciebie."
+      },
+      {
+       "nazwa": "Fader start / crossfader start",
+       "stan": "pulapka",
+       "flx4": "nuty 102 / 82",
+       "co_robi": "Ruch faderem sam włącza odtwarzanie.",
+       "dlaczego_wazne": "Na klubowym zestawie fader to tylko głośność. PLAY wciskasz sam."
+      },
+      {
+       "nazwa": "Sterowanie z laptopa jednym kablem",
+       "stan": "pulapka",
+       "co_robi": "Cały set żyje w Rekordboksie na ekranie.",
+       "dlaczego_wazne": "W klubie muzyka idzie z USB, a ekran masz mały i na urządzeniu."
+      }
+     ]
+    }
+   ]
+  }
+ ]
 }

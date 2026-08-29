@@ -138,7 +138,11 @@ function zbudujIndeks() {
 
 function ksztaltSVG(e, ox, oy, kolor, klasy, tytul) {
   const wsp = `data-k="${esc(e.k)}"`;
-  const st = `class="ksztalt" fill="${kolor}" fill-opacity="0.22" stroke="${kolor}"`;
+  // Pozycja zmierzona z instrukcji rysuje się kreską ciągłą, schematyczna
+  // przerywaną. Bez tego rozróżnienia rysunek twierdzi więcej, niż wie.
+  const kreska = e.zmierzone ? '' : ' stroke-dasharray="5 4"';
+  const st = `class="ksztalt" fill="${kolor}" fill-opacity="0.22" `
+           + `stroke="${kolor}"${kreska}`;
   let ksz = '', tx = 0, ty = 0;
   if (e.ksztalt === 'kolo') {
     ksz = `<circle cx="${ox + e.x}" cy="${oy + e.y}" r="${e.r}" ${st}/>`;
@@ -162,10 +166,11 @@ function rysujSchemat() {
 
   uklad.urzadzenia.forEach(u => {
     const el = u.elementy || zrodla[u.kopia_z] || [];
-    tresc += `<rect class="obudowa" x="${u.x + 4}" y="12" width="${u.w - 8}"
-                    height="${u.h - 4}" rx="8"/>`;
-    tresc += `<text class="podpis-urz" x="${u.x + 12}" y="8">${esc(u.nazwa)}
-              — ${esc(u.podpis)}</text>`;
+    // obrys = prawdziwe wymiary urządzenia w milimetrach, bez marginesów na oko
+    tresc += `<rect class="obudowa" x="${u.x}" y="0" width="${u.w}"
+                    height="${u.h}" rx="6"/>`;
+    tresc += `<text class="podpis-urz" x="${u.x + 4}" y="-1">${esc(u.nazwa)}
+              — ${esc(u.podpis)} · ${u.w} × ${u.h} mm</text>`;
 
     el.forEach(e => {
       const k = indeks[e.k];
@@ -178,9 +183,11 @@ function rysujSchemat() {
       if (e.ksztalt.startsWith('rzad_')) {
         // one control repeated across every mixer channel
         (u.kanaly_x || []).forEach(kx => {
+          // kanaly_x to ZMIERZONE środki kanałów (82,0 · 124,6 · 167,4 ·
+          // 210,2 mm), więc żadnego przesunięcia na oko już tu nie ma
           const kopia = e.ksztalt === 'rzad_kol'
-            ? {...e, ksztalt: 'kolo', x: kx + 14}
-            : {...e, ksztalt: 'prostokat', x: kx + 14 - (e.w / 2)};
+            ? {...e, ksztalt: 'kolo', x: kx}
+            : {...e, ksztalt: 'prostokat', x: kx - (e.w / 2)};
           tresc += ksztaltSVG(kopia, u.x, 0, kolor, `${przygas} ${wyb}`, tytul);
         });
       } else {
@@ -190,7 +197,7 @@ function rysujSchemat() {
   });
 
   $('#rysunek').innerHTML =
-    `<svg viewBox="0 0 1000 440" xmlns="http://www.w3.org/2000/svg">${tresc}</svg>`;
+    `<svg viewBox="-6 -6 1046 465" xmlns="http://www.w3.org/2000/svg">${tresc}</svg>`;
   $('#schemat-nota').textContent = uklad.UWAGA;
 
   document.querySelectorAll('.el').forEach(g => {
