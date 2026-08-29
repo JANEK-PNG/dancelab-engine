@@ -76,24 +76,39 @@ def swiatlo(nazwa, loc, energia, rozmiar):
 
 
 def kamera_z_gory(mini, maxi, margines=1.02):
-    """Ortograficzna, patrząca w dół osi wysokości modelu (tu: Y)."""
+    """Ortograficzna, patrząca wzdłuż osi o NAJMNIEJSZYM rozmiarze.
+
+    Pierwsza wersja zakładała, że wysokość to Y — i wyrenderowała pusty kadr,
+    bo w tym pliku wysokością jest Z. Oś wybieramy więc z danych: płyta jest
+    płaska, więc oś najcieńsza to ta, wzdłuż której się na nią patrzy.
+    """
+    rozmiar = maxi - mini
+    os_h = min(range(3), key=lambda i: rozmiar[i])       # oś „w dół"
+    plaskie = [i for i in range(3) if i != os_h]
     srodek = (mini + maxi) / 2
-    szer = maxi.x - mini.x
-    glab = maxi.z - mini.z
+
     dane = bpy.data.cameras.new("kamera")
     dane.type = "ORTHO"
-    dane.ortho_scale = max(szer, glab) * margines
+    dane.ortho_scale = max(rozmiar[i] for i in plaskie) * margines
     ob = bpy.data.objects.new("kamera", dane)
     bpy.context.collection.objects.link(ob)
-    ob.location = (srodek.x, maxi.y + (maxi.y - mini.y) * 6 + 1.0, srodek.z)
-    ob.rotation_euler = (math.radians(90), 0, 0)   # patrzy w −Y
+
+    poz = list(srodek)
+    poz[os_h] = maxi[os_h] + rozmiar[os_h] * 10 + 1.0
+    ob.location = poz
+    # patrzenie w ujemną stronę osi os_h
+    kierunek = mathutils.Vector((0.0, 0.0, 0.0))
+    kierunek[os_h] = -1.0
+    ob.rotation_euler = kierunek.to_track_quat("-Z", "Y").to_euler()
     bpy.context.scene.camera = ob
-    return ob, szer, glab
+    print(f"  oś patrzenia: {'XYZ'[os_h]} · kadr {rozmiar[plaskie[0]]:.2f} × "
+          f"{rozmiar[plaskie[1]]:.2f} jednostek")
+    return ob, rozmiar[plaskie[0]], rozmiar[plaskie[1]]
 
 
 def ustaw_render(px_x: int, px_y: int) -> None:
     sc = bpy.context.scene
-    sc.render.engine = "BLENDER_EEVEE_NEXT"
+    sc.render.engine = "BLENDER_EEVEE"   # w Blenderze 5.2 EEVEE Next nazywa się po prostu EEVEE
     sc.render.resolution_x = px_x
     sc.render.resolution_y = px_y
     sc.render.resolution_percentage = 100
