@@ -28,6 +28,23 @@ LITERY = {"T": "bpm_grid_sync", "S": "style_genre_mood", "E": "energy_curve",
           "K": "playlist_context"}
 
 
+def dolacz_wyniki_silnika(katalog: pathlib.Path, wiersze: list[dict]) -> None:
+    """Wynik silnika wchodzi DOPIERO po bramce — bo zdradza przydział.
+
+    Złapane w przeglądzie 29.08: w rundzie 1 żadne przejście z grupy silnika
+    nie miało wyniku poniżej 1,0, a w kontroli miało go 53%. Kolumna leżąca
+    w arkuszu ocen odtwarzała więc przydział bezbłędnie i pieczęć na
+    PRZYDZIAL_NIE_OTWIERAC.json była ozdobą. Od rundy 2 wyniki leżą osobno,
+    zapieczętowane tak samo jak przydział.
+    """
+    plik = katalog / "WYNIKI_SILNIKA_NIE_OTWIERAC.json"
+    if not plik.exists():
+        return                      # runda 1: kolumna została w arkuszach
+    wyniki = json.loads(plik.read_text(encoding="utf-8"))["wyniki"]
+    for r in wiersze:
+        r["engine_score"] = wyniki[r["pair_id"]]
+
+
 def wczytaj_przejscia(katalog: pathlib.Path) -> list[dict]:
     wiersze = []
     for p in sorted(katalog.glob("SESJA_*_transition_ratings.csv")):
@@ -201,7 +218,8 @@ def main() -> int:
         print(f"   • {pid} wyłączone — {w.get('powod', 'bez powodu')} "
               f"[{w.get('decyzja', 'bez decyzji')}]")
 
-    # dopiero teraz wolno otworzyć przydział
+    # dopiero teraz wolno otworzyć obie pieczęcie: przydział i wyniki silnika
+    dolacz_wyniki_silnika(katalog, wiersze)
     przydzial = json.loads((katalog / "PRZYDZIAL_NIE_OTWIERAC.json")
                            .read_text(encoding="utf-8"))["przydzial"]
 
