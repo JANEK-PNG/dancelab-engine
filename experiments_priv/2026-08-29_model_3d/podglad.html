@@ -1,0 +1,28 @@
+<!doctype html><meta charset="utf-8"><title>CDJ-3000 — 70 części z modelu</title>
+<style>
+ body{background:#0e1217;color:#e6e9ee;font:14px system-ui;margin:0;padding:14px}
+ h1{font-size:15px;margin:0 0 4px} p{color:#98a1ae;margin:0 0 10px;max-width:72ch}
+ .stos{position:relative;width:700px}
+ .stos img{width:100%;display:block;border-radius:8px}
+ .stos svg{position:absolute;inset:0;width:100%;height:100%}
+ rect{fill:none;stroke:#5ee0ff;stroke-width:.45;opacity:.9}
+ text{font:3.4px sans-serif;fill:#ffd166;paint-order:stroke;stroke:#000;stroke-width:.6}
+</style>
+<h1>CDJ-3000 · 70 części z modelu 3D na tle rzutu ortograficznego</h1>
+<p>Ramki i numery pochodzą z siatki modelu (rozdzielenie po wyspach geometrii),
+tło to render z tego samego modelu. Jeśli ramki siedzą na kontrolkach — pozycje
+z modelu są użyteczne i można je przypisać do nazw.</p>
+<div class="stos">
+  <img src="render/podglad_male.png" alt="rzut z góry CDJ-3000">
+  <svg viewBox="0 0 329 453" id="siatka"></svg>
+</div>
+<script>
+fetch('czesci_uklad.json').then(r=>r.json()).then(d=>{
+  const s=document.getElementById('siatka');
+  d.czesci.filter(c=>Math.max(c.szer_mm,c.wys_mm)<250).forEach(c=>{
+    s.insertAdjacentHTML('beforeend',
+      `<rect x="${c.x_mm}" y="${c.y_mm}" width="${c.szer_mm}" height="${c.wys_mm}"/>`+
+      `<text x="${c.x_mm+c.szer_mm/2}" y="${c.y_mm+c.wys_mm/2+1.2}" text-anchor="middle">${c.nr}</text>`);
+  });
+});
+</script>
