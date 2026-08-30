@@ -219,15 +219,30 @@ function aura(e, kolor, ox) {
            height="${(e.h ?? 6) + 2 * o}" rx="${(e.rx ?? 1.6) + o}" ${st}/>`;
 }
 
+// Napis MUSI się zmieścić w kształcie, na którym leży. Po wstawieniu
+// prawdziwych wymiarów kontrolek audytor zgłosił 99 kolizji tej jednej klasy:
+// podpisy rysowane w środku 8-milimetrowego przycisku wychodziły na sąsiadów.
+// Reguła: skalujemy do szerokości, a jeśli wychodzi mniej niż 1,7 mm — napisu
+// NIE MA. Nazwa i tak jest w dymku i w karcie po kliknięciu.
+const MIN_ROZMIAR = 1.7;
+
+function rozmiarDo(tekst, szerokosc, maks = 2.6) {
+  // 0,58 to średnia szerokość znaku względem wysokości w tym kroju
+  return Math.min(maks, (szerokosc * 0.86) / (String(tekst).length * 0.58));
+}
+
 function napis(x, y, tekst, rozm = 2.6, kolor = '#8d939f') {
+  if (!tekst || rozm < MIN_ROZMIAR) return '';
   return `<text x="${x}" y="${y}" text-anchor="middle" font-size="${rozm}"
            fill="${kolor}" style="letter-spacing:.06em">${esc(tekst)}</text>`;
 }
 
 const RYSUJ = {
   guzik(e, ox) {
-    const et = e.etykieta ? napis(ox + e.x + e.w / 2, e.y + e.h / 2 + .9, e.etykieta,
-                                  Math.min(2.6, e.h * .5)) : '';
+    const et = e.etykieta
+      ? napis(ox + e.x + e.w / 2, e.y + e.h / 2 + .9, e.etykieta,
+              Math.min(rozmiarDo(e.etykieta, e.w), e.h * .55))
+      : '';
     // PLAY jest zielony, CUE bursztynowy — to po nich rozpoznaje się ten sprzęt
     // na pierwszy rzut oka. Kolory odczytane z renderu modelu, nie z pamięci.
     const wypelnienie = e.led ? e.led : 'url(#guzikG)';
@@ -237,7 +252,10 @@ const RYSUJ = {
                filter="url(#cien)"/>
               <circle cx="${ox + e.x}" cy="${e.y}" r="${e.r}" fill="${wypelnienie}"
                stroke="${obrys}" stroke-width=".5" opacity="${e.led ? .92 : 1}"/>` +
-             (e.etykieta ? napis(ox + e.x, e.y + .9, e.etykieta, Math.min(2.6, e.r)) : '');
+             (e.etykieta
+               ? napis(ox + e.x, e.y + .9, e.etykieta,
+                       Math.min(rozmiarDo(e.etykieta, e.r * 1.8), e.r))
+               : '');
     return `<rect x="${ox + e.x - .7}" y="${e.y - .7}" width="${e.w + 1.4}"
              height="${e.h + 1.4}" rx="1.9" fill="url(#bezelG)" filter="url(#cien)"/>
             <rect x="${ox + e.x}" y="${e.y}" width="${e.w}" height="${e.h}" rx="1.5"
@@ -263,7 +281,10 @@ const RYSUJ = {
             <circle cx="${cx}" cy="${cy}" r="${r * .58}" fill="url(#czapkaG)"/>
             <line x1="${cx}" y1="${cy - r * .3}" x2="${cx}" y2="${cy - r + .8}"
              stroke="#e6e9ee" stroke-width=".7" stroke-linecap="round"/>` +
-           (e.etykieta ? napis(cx, cy + r + 2.6, e.etykieta, 2.2, '#6a7180') : '');
+           (e.etykieta
+             ? napis(cx, cy + r + 2.6, e.etykieta,
+                     Math.min(2.2, rozmiarDo(e.etykieta, r * 3.4, 2.2)), '#6a7180')
+             : '');
   },
 
   suwak(e, ox) {
@@ -292,7 +313,10 @@ const RYSUJ = {
              fill="url(#uchwytG)" filter="url(#cien)"/>
             <line x1="${kx + .8}" y1="${ky + kh / 2}" x2="${kx + kw - .8}"
              y2="${ky + kh / 2}" stroke="#d8dbe1" stroke-width=".6"/>` +
-           (e.etykieta ? napis(x + e.w / 2, y + e.h + 3, e.etykieta, 2.2, '#6a7180') : '');
+           (e.etykieta
+             ? napis(x + e.w / 2, y + e.h + 3, e.etykieta,
+                     Math.min(2.2, rozmiarDo(e.etykieta, e.w * 1.6, 2.2)), '#6a7180')
+             : '');
   },
 
   listwa_padow(e, ox) {
@@ -378,6 +402,40 @@ function rowek(x1, y1, x2, y2) {
            stroke-width=".4" opacity=".55"/>`;
 }
 
+// Napis, który wchodzi na sąsiednią kontrolkę, jest gorszy niż brak napisu:
+// na prawdziwym panelu opis nigdy nie przecina sąsiedniego elementu, bo to
+// fizycznie niemożliwe. Skalowanie do własnego kształtu nie wystarczyło —
+// „browse" mieścił się w swojej gałce i wchodził na przycisk obok. Dlatego
+// sprawdzamy PO narysowaniu, kiedy znane są prawdziwe obwiednie, i kasujemy
+// napisy, które kolidują. Nazwa zostaje w dymku i w karcie po kliknięciu.
+function usunKolidujaceNapisy() {
+  const svg = $('#rysunek').querySelector('svg');
+  if (!svg) return;
+  const ksztalty = [...svg.querySelectorAll('rect, circle, ellipse')]
+    .map(el => ({el, g: el.closest('g'), b: el.getBBox()}))
+    .filter(k => k.b.width > 1 && k.b.height > 1);
+  let usuniete = 0;
+  [...svg.querySelectorAll('text')].forEach(t => {
+    const b = t.getBBox();
+    const g = t.closest('g');
+    const koliduje = ksztalty.some(k => {
+      if (k.g === g) return false;                       // własna kontrolka
+      // Napis LEŻĄCY W CAŁOŚCI na jakimś kształcie jest w porządku — to jest
+      // tło: obudowa albo listwa. Pierwsza wersja tego nie odróżniała i skasowała
+      // 84 podpisy z 85, bo każdy leży na obudowie urządzenia.
+      const wCalosci = b.x >= k.b.x && b.y >= k.b.y
+        && b.x + b.width <= k.b.x + k.b.width
+        && b.y + b.height <= k.b.y + k.b.height;
+      if (wCalosci) return false;
+      const dx = Math.min(b.x + b.width, k.b.x + k.b.width) - Math.max(b.x, k.b.x);
+      const dy = Math.min(b.y + b.height, k.b.y + k.b.height) - Math.max(b.y, k.b.y);
+      return dx > 0.3 && dy > 0.3;                       // wystaje na sąsiada
+    });
+    if (koliduje) { t.remove(); usuniete++; }
+  });
+  if (usuniete) console.log(`[rysunek] usunięto ${usuniete} kolidujących napisów`);
+}
+
 function rysujSchemat() {
   if (!uklad || !dane) return;
   let tresc = DEFS;
@@ -420,6 +478,7 @@ function rysujSchemat() {
 
   $('#rysunek').innerHTML =
     `<svg viewBox="-6 -6 1046 465" xmlns="http://www.w3.org/2000/svg">${tresc}</svg>`;
+  usunKolidujaceNapisy();
   $('#schemat-nota').textContent = uklad.UWAGA;
 
   document.querySelectorAll('.el').forEach(g => {
