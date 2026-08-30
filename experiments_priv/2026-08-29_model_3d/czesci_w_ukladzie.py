@@ -13,6 +13,13 @@ wychodzą 15,6 mm w X, 15,6 mm w Y i 2,8 mm w Z — czyli okrągłe i płaskie,
 a nie okrągłe i wysokie. Pierwsza wersja tego skryptu brała Z za głębokość
 i wszystkie części wylądowały w jednym pasie na wysokości 94 mm.
 
+**Zwrot osi Y też trzeba odwrócić** i to złapał Janek patrząc na podgląd:
+w modelu Y rośnie ku TYŁOWI urządzenia, a na rysunku panelu y rośnie w DÓŁ,
+czyli ku przedniej krawędzi. Bez odwrócenia talerz (207 × 207 mm) lądował
+u góry, ekran (232 × 155 mm) na dole, a rząd sześciu przycisków SOURCE /
+BROWSE / TAG LIST / PLAYLIST / SEARCH / MENU — który na sprzęcie jest
+najwyżej — wychodził przy przedniej krawędzi.
+
 ## Do czego to służy, a do czego nie
 
 Rozjemca talerza rozstrzygnął, że **wymiary bezwzględne bierzemy z instrukcji**
@@ -67,7 +74,7 @@ def main() -> int:
 
     obwiednie = [(o, *obw(o)) for o in czesci]
     x0 = min(mi.x for _, mi, _ in obwiednie)
-    y0 = min(mi.y for _, mi, _ in obwiednie)
+    y1 = max(ma.y for _, _, ma in obwiednie)         # TYŁ urządzenia
     z_gora = max(ma.z for _, _, ma in obwiednie)     # wierzch panelu
 
     spis = []
@@ -75,7 +82,9 @@ def main() -> int:
         spis.append({
             "nr": i,
             "x_mm": round((mi.x - x0) * skala, 1),
-            "y_mm": round((mi.y - y0) * skala, 1),      # głębokość = oś Y rysunku
+            # y rysunku liczone od TYŁU urządzenia w dół, bo w modelu oś Y
+            # rośnie do tyłu, a na rysunku panelu w dół, ku DJ-owi
+            "y_mm": round((y1 - ma.y) * skala, 1),
             "szer_mm": round((ma.x - mi.x) * skala, 1),
             "wys_mm": round((ma.y - mi.y) * skala, 1),
             "grubosc_mm": round((ma.z - mi.z) * skala, 1),
