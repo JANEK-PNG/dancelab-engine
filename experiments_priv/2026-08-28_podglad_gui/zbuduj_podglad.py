@@ -32,7 +32,13 @@ window.pywebview = {api: {
   wczytaj_utwor: () => echo(DANE.utwor || {}),
   przebieg_utworu: () => echo(DANE.przebieg || {}),
   pady: () => echo(DANE.pady || {pady: {}}),
-  stan_rekordboxa: () => echo(DANE.stan_rb || {}),
+  /* Przełączalny stan Rekordboxa: bez tego nie da się OBEJRZEĆ, czy
+     zamknięcie programu odblokowuje przyciski zapisu. */
+  stan_rekordboxa: () => echo(window.__RB_OTWARTY__
+    ? {otwarty: true, zapis_dozwolony: false,
+       powod: 'Rekordbox jest otwarty — zapis skorumpowałby bazę'}
+    : {otwarty: false, zapis_dozwolony: true,
+       powod: 'Rekordbox zamknięty — zapis dostępny'}),
   wczytaj_edycje: () => echo({wczytano: 0}),
   zapisz_edycje: () => echo({zapisano: 0}),
   postep_budowy: () => echo(DANE.set || {stan: 'bezczynny'}),
@@ -40,7 +46,7 @@ window.pywebview = {api: {
   zapis_stan: () => echo({set: (DANE.set?.utwory || []).length,
                           propozycje: true, policzone: false,
                           playlista_policzona: !!window.__PL__,
-                          rekordbox_otwarty: false}),
+                          rekordbox_otwarty: !!window.__RB_OTWARTY__}),
   /* Playlista: podgląd zwraca liczby, wysyłka udaje sukces — w przeglądarce
      nic do bazy nie idzie i iść nie może. */
   podglad_playlisty: (nazwa) => {

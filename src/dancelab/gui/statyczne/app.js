@@ -19,7 +19,7 @@ let stan = {
   widoczne: [], znalezione: 0, wszystkich: 0,
   tylkoUlubione: false, sortowanie: '',
   filary: [], role: {},
-  djGrupy: null, djKolekcja: [], djFiltr: 'wszyscy',
+  djGrupy: null, djKolekcja: [], djFiltr: 'wszyscy', rbDozwolony: null,
   // ekran Set: zaznaczona pozycja, wiersze setu, otwarty panel kandydatów
   set: [], filary: [], pozycja: null, ostatniSet: null,
   kandydaci: null, kandCel: null, kandTryb: 'smart', kandWybor: null,
@@ -218,6 +218,14 @@ async function odswiezStanRb() {
   if (s.blad) { el.innerHTML = `<span class="kropka zle"></span> ${s.blad}`; return; }
   el.innerHTML = `<span class="kropka ${s.zapis_dozwolony ? 'ok' : 'zle'}"></span> ${s.powod}`;
 
+  // Zamknięcie Rekordboxa musi ODBLOKOWAĆ przyciski zapisu, a nie tylko
+  // zmienić kropkę u góry. Bez tego DJ zamykał Rekordboxa, widział „zapis
+  // dostępny" i dalej miał wyszarzony guzik playlisty — wyglądało to tak,
+  // jakby playlista się nie oddawała.
+  if (stan.rbDozwolony !== s.zapis_dozwolony) {
+    stan.rbDozwolony = s.zapis_dozwolony;
+    if (!$('#ekran-set').hidden) odswiezZapis();
+  }
 }
 
 /* ---------- lista utworów ---------- */
@@ -767,6 +775,19 @@ async function odswiezZapis() {
   $('#playlista-warunek').textContent = s.rekordbox_otwarty
     ? 'Rekordbox jest otwarty — zamknij go, żeby zapisać'
     : `${s.set} utworów w kolejności z ekranu`;
+  // Powód blokady musi stać TAM, gdzie DJ patrzy, czyli przy liczbach —
+  // drobny druk w nagłówku ginie i wygląda to jak zepsuty przycisk.
+  if (s.rekordbox_otwarty) {
+    $('#playlista-liczby').innerHTML = '<span class="ostroznie">Zamknij '
+      + 'Rekordboxa — przy otwartym jego własny bufor nadpisałby zapis.</span>';
+    $('#zapis-liczby').innerHTML = $('#zapis-liczby').innerHTML
+      || '<span class="ostroznie">Zamknij Rekordboxa, żeby zapisać cue.</span>';
+  } else {
+    // blokada minęła — obie sekcje muszą przestać o niej mówić
+    for (const id of ['#playlista-liczby', '#zapis-liczby']) {
+      if ($(id).textContent.startsWith('Zamknij')) $(id).textContent = '';
+    }
+  }
   $('#btn-wyslij').hidden = !s.policzone;
   $('#btn-policz').disabled = s.rekordbox_otwarty;
   $('#zapis-warunek').textContent = s.rekordbox_otwarty
