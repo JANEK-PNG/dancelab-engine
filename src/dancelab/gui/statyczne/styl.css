@@ -43,8 +43,10 @@ body{margin:0;background:var(--tlo);color:var(--tekst);font-family:var(--font);
 /* Ekran Set nie wybiera utworu z listy, więc lista znika — a razem z nią JEJ
    KOLUMNA. Bez tego główny obszar wskakuje w miejsce listy (264 px) i tabela
    setu jest ucięta. */
-:root[data-ekran="set"] .korpus{grid-template-columns:56px 1fr 320px}
-:root[data-ekran="set"] .lista-utworow{display:none}
+:root[data-ekran="set"] .korpus,
+:root[data-ekran="dj"] .korpus{grid-template-columns:56px 1fr 320px}
+:root[data-ekran="set"] .lista-utworow,
+:root[data-ekran="dj"] .lista-utworow{display:none}
 .lista-utworow{border-right:1px solid var(--kreska);display:flex;
   flex-direction:column;min-height:0}
 .szukajka{padding:9px 10px;border-bottom:1px solid var(--kreska)}
@@ -259,3 +261,25 @@ td.wynik{font-family:var(--mono);font-variant-numeric:tabular-nums;
   border-radius:6px;color:var(--tekst);font:12.5px var(--font);padding:5px 7px}
 .param.przelacznik{flex-direction:row;align-items:center;gap:6px}
 .param.przelacznik input{width:15px;height:15px;accent-color:var(--bursztyn)}
+/* Karta INFO i pasek szwu: fakty, nie ozdoba — monospace, bo to liczby
+   ze źródłami, a te muszą się dać porównać wzrokiem kolumna w kolumnę. */
+.karta-info{background:var(--karta);border:1px solid var(--kreska);
+  border-left:3px solid var(--blekit);border-radius:var(--r);
+  padding:10px 13px;margin-top:var(--luz)}
+.karta-info pre{margin:6px 0 0;font:12px/1.5 var(--mono);color:var(--tekst);
+  white-space:pre-wrap;word-break:break-word;max-height:34vh;overflow:auto}
+#szew-info{line-height:1.7}
+/* Ściana DJ-ów: grupy brzmieniowe jedna pod drugą, karty w siatce. */
+.dj-grupa{margin-bottom:14px}
+.dj-glowa{font:600 11px var(--mono);letter-spacing:.05em;color:var(--cichy);
+  text-transform:uppercase;padding:6px 10px;position:sticky;top:0;
+  background:var(--karta);border-bottom:1px solid var(--kreska);z-index:1}
+.dj-karta{display:flex;align-items:center;gap:9px;padding:6px 10px;
+  border-bottom:1px solid rgba(36,42,50,.5);cursor:pointer}
+.dj-karta:hover{background:#1a1f26}
+.dj-karta b{font-weight:600;font-size:13px}
+.dj-karta .drobne{color:var(--cichszy)}
+.dj-karta button.kolekcja{margin-left:auto;background:none;
+  border:1px solid var(--kreska);border-radius:999px;width:22px;height:22px;
+  color:var(--cichy);cursor:pointer;font-size:12px;line-height:1}
+.dj-karta button.kolekcja:hover{border-color:var(--bursztyn);color:var(--bursztyn)}

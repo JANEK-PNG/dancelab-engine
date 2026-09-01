@@ -904,6 +904,119 @@ class Most:
             "playlista_policzona": self._playlista_gotowa is not None,
         }
 
+    # ------------------------------------------------------------- DJ-e
+
+    @_bezpiecznie
+    def djs(self) -> dict[str, Any]:
+        """Kotwice brzmienia: grupy po ZMIERZONYM brzmieniu, nie po gatunku.
+
+        Grupowanie robi `grupy_dj.grupuj` (te same klastry co w terminalu);
+        bez biblioteki do grupowania zwraca JEDNĄ grupę „wszyscy" zamiast
+        zmyślonego podziału, i tak też to pokazujemy.
+        """
+        from dancelab.decision.anchors import MOJE_ULUBIONE, load_anchor_book
+        from dancelab.tui import grupy_dj as G
+        from dancelab.tui.user_store import kolekcja_djow
+
+        try:
+            ksiega = load_anchor_book()
+        except Exception as exc:                       # noqa: BLE001
+            # brak księgi to STAN, nie awaria — pole „brzmi jak" nadal działa
+            return {"blad": f"kotwice niedostępne: {exc}"}
+
+        kolekcja = kolekcja_djow(self._stan_uzytkownika())
+        grupy = []
+        for etykieta, czlonkowie in G.grupuj(ksiega["djs"]):
+            grupy.append({
+                "etykieta": etykieta,
+                "djs": [{"nazwa": dj, "wektorow": n,
+                         # mediana skoku: im niżej, tym odważniej ten DJ
+                         # przeskakuje między utworami (zmierzone na jego setach)
+                         "skok": skok,
+                         "odwaga": (None if skok is None else
+                                    "odważny" if skok < 0.70 else
+                                    "gładki" if skok > 0.80 else "pośrodku"),
+                         "w_kolekcji": dj in kolekcja}
+                        for dj, n, skok in czlonkowie],
+            })
+        return {"grupy": grupy, "kolekcja": kolekcja,
+                "moje_ulubione": MOJE_ULUBIONE,
+                "ulubionych_utworow": len(
+                    self._stan_uzytkownika().get("ulubione_utwory", []))}
+
+    @_bezpiecznie
+    def przelacz_kolekcje_dj(self, dj: str) -> dict[str, Any]:
+        """DJ w kolekcji dostaje pierwszeństwo w polu „brzmi jak…"."""
+        from dancelab.tui.user_store import przelacz_kolekcje_dj
+        teraz = przelacz_kolekcje_dj(self._stan_uzytkownika(), dj)
+        self._zapisz_stan_uzytkownika()
+        return {"w_kolekcji": bool(teraz), "dj": dj}
+
+    # ----------------------------------------------- narzędzia utworu
+
+    @_bezpiecznie
+    def info_utworu(self, track_id: str) -> dict[str, Any]:
+        """Karta INFO: metadane z NAZWANYM źródłem każdej liczby.
+
+        Ten sam tekst, który składa terminal (`_format_track_info`) — silnik
+        osobno, Rekordbox osobno, bo tempo z Rekordboxa jest niezależnym
+        sędzią naszego pomiaru, a nie jego potwierdzeniem.
+        """
+        from dancelab.tui.app import _format_track_info
+
+        analiza = self._analizy.get(track_id)
+        if analiza is None:
+            from dancelab.storage.repositories import FileAnalysisRepository
+            try:
+                analiza = FileAnalysisRepository(self._katalog).get(track_id)
+                self._analizy[track_id] = analiza
+            except Exception as exc:                   # noqa: BLE001
+                return {"blad": f"nie mam analizy dla {track_id!r}: {exc}"}
+
+        rb, rb_notka = None, None
+        try:
+            from dancelab.ingestion.rekordbox_lookup import track_in_rekordbox
+            rb = track_in_rekordbox(analiza.track.source_path)
+        except Exception as exc:                       # noqa: BLE001
+            # karta ma powiedzieć, czego NIE WIE, zamiast milczeć
+            rb_notka = f"master.db nieodczytany: {exc}"
+        return {"tekst": _format_track_info(analiza.track, rb, rb_notka),
+                "track_id": track_id}
+
+    @_bezpiecznie
+    def porownaj_pare(self, pozycja: int) -> dict[str, Any]:
+        """Fakty o szwie między pozycją a następną — bez odsłuchu.
+
+        Liczy `seam_preview.zaplanuj_szew`, ten sam, który rysuje szew
+        w terminalu. Ostatni utwór nie ma następnika i to nie jest błąd.
+        """
+        idx = int(pozycja)
+        if not (0 <= idx < len(self._kolejnosc)):
+            return {"blad": f"pozycja {idx + 1} poza setem"}
+        if idx + 1 >= len(self._kolejnosc):
+            return {"blad": "ostatni utwór nie ma następnika — "
+                            "porównanie dotyczy PARY"}
+        wagi = (self._ctx_edycji or {}).get("wagi")
+        if wagi is None:
+            return {"blad": "plan wczytany z pliku nie niesie wag budowy — "
+                            "zbuduj set w oknie, żeby porównać parę"}
+        a = self._analizy.get(self._kolejnosc[idx])
+        b = self._analizy.get(self._kolejnosc[idx + 1])
+        if a is None or b is None:
+            return {"blad": "brakuje analizy jednego z utworów pary"}
+
+        from dancelab.stan import szew as SZ
+        plan_szwu = SZ.zaplanuj_szew(a, b, wagi)
+        return {
+            "pozycja": idx,
+            "a": self._wiersz(a.track.track_id, self._analizy),
+            "b": self._wiersz(b.track.track_id, self._analizy),
+            "uderzen": plan_szwu["beats"],
+            "bpm": plan_szwu["bpm"],
+            "cue_a_sec": plan_szwu["cue_a_sec"],
+            "cue_b_sec": plan_szwu["cue_b_sec"],
+        }
+
     # ---------------------------------------- playlisty, filary, ulubione
 
     def _stan_uzytkownika(self) -> dict:

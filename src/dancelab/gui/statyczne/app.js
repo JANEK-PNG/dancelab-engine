@@ -19,6 +19,7 @@ let stan = {
   widoczne: [], znalezione: 0, wszystkich: 0,
   tylkoUlubione: false, sortowanie: '',
   filary: [], role: {},
+  djGrupy: null, djKolekcja: [], djFiltr: 'wszyscy',
   // ekran Set: zaznaczona pozycja, wiersze setu, otwarty panel kandydatów
   set: [], filary: [], pozycja: null, ostatniSet: null,
   kandydaci: null, kandCel: null, kandTryb: 'smart', kandWybor: null,
@@ -303,8 +304,8 @@ function rysujFilary() {
     : '— brak, silnik ułoży set sam';
   const el = $('#filary-lista');
   if (!lista.length) {
-    el.innerHTML = '<div class="pusto">Zaznacz utwór na liście po lewej '
-      + 'i naciśnij <b>F</b> — filar to utwór, który MUSI zagrać.</div>';
+    el.innerHTML = '<div class="pusto">Filar to utwór, który MUSI zagrać. '
+      + 'Wybierz go na ekranie <b>1</b> (lista utworów) i naciśnij <b>F</b>.</div>';
     return;
   }
   const role = stan.role || {'': 'bez roli'};
@@ -371,9 +372,11 @@ async function wybierzUtwor(trackId) {
 /* ---------- ekran Set ---------- */
 let odpytywanie = null;
 
+const EKRANY = {szew: 'szew', set: 'ekran-set', dj: 'ekran-dj'};
+
 function pokazEkran(nazwa) {
   document.querySelectorAll('main > section').forEach(x =>
-    x.hidden = x.id !== (nazwa === 'set' ? 'ekran-set' : 'szew'));
+    x.hidden = x.id !== (EKRANY[nazwa] || 'szew'));
   document.querySelectorAll('#nawigacja button').forEach(b =>
     b.setAttribute('aria-pressed', String(b.dataset.ekran === nazwa)));
   /* Sam `display:none` na liście NIE wystarczy: siatka ma cztery kolumny,
@@ -387,6 +390,73 @@ function pokazEkran(nazwa) {
   $('#skroty-set').hidden = nazwa !== 'set';
   if (nazwa !== 'set') zamknijKandydatow();
   if (nazwa === 'set') { kontekstSet(); odswiezZapis(); }
+  if (nazwa === 'dj') rysujDjow();
+}
+
+/* ---------- DJ-e: kotwice brzmienia ----------
+   Grupy liczy Python (klastry centroidów z ich własnych setów). „Odważny"
+   i „gładki" to mediana skoku między utworami — zmierzona, nie opisowa. */
+
+async function rysujDjow() {
+  if (!api()) return;
+  const el = $('#dj-sciana');
+  if (!stan.djGrupy) {
+    el.innerHTML = '<div class="pusto">liczę grupy brzmieniowe…</div>';
+    const odp = await api().djs();
+    if (odp.blad) {
+      el.innerHTML = `<div class="pusto">${odp.blad}</div>`;
+      $('#dj-licznik').textContent = '';
+      return;
+    }
+    stan.djGrupy = odp.grupy || [];
+    stan.djKolekcja = odp.kolekcja || [];
+    stan.mojeUlubione = odp.moje_ulubione;
+    stan.ulubionychUtworow = odp.ulubionych_utworow;
+  }
+  const tylkoKolekcja = stan.djFiltr === 'kolekcja';
+  const grupy = stan.djGrupy
+    .map(g => ({...g, djs: tylkoKolekcja ? g.djs.filter(d => d.w_kolekcji) : g.djs}))
+    .filter(g => g.djs.length);
+  const ilu = grupy.reduce((n, g) => n + g.djs.length, 0);
+  $('#dj-licznik').textContent =
+    `${ilu} DJ-ów w ${grupy.length} grupach · w kolekcji ${stan.djKolekcja.length}`;
+
+  // „moje ulubione" to kotwica policzona z Twoich ♥ — stoi osobno, bo nie
+  // pochodzi z księgi, tylko z Twojej biblioteki
+  let html = `<div class="dj-grupa"><div class="dj-glowa">— twoje brzmienie —</div>
+    <div class="dj-karta" data-dj="${stan.mojeUlubione}">
+      <b>${stan.mojeUlubione}</b>
+      <span class="drobne">kotwica z Twoich ♥ (${stan.ulubionychUtworow} utworów)</span>
+    </div></div>`;
+  html += grupy.map(g => `
+    <div class="dj-grupa">
+      <div class="dj-glowa">${g.etykieta.replace(/</g, '&lt;')} · ${g.djs.length}</div>
+      ${g.djs.map(d => `
+        <div class="dj-karta" data-dj="${d.nazwa.replace(/"/g, '&quot;')}">
+          <b>${d.nazwa.replace(/</g, '&lt;')}</b>
+          <span class="drobne">${d.wektorow} wekt.${
+            d.odwaga ? ' · ' + d.odwaga : ''}</span>
+          <button class="kolekcja" data-kol="${d.nazwa.replace(/"/g, '&quot;')}"
+            title="${d.w_kolekcji ? 'w kolekcji' : 'dodaj do kolekcji'}"
+            >${d.w_kolekcji ? '✓' : '+'}</button>
+        </div>`).join('')}
+    </div>`).join('');
+  el.innerHTML = html;
+
+  el.querySelectorAll('.dj-karta').forEach(k =>
+    k.addEventListener('click', () => {
+      $('#p-dj').value = k.dataset.dj;      // kotwica idzie do briefu
+      pokazEkran('set');
+      rysujNotki([`kotwica ustawiona: ${k.dataset.dj} — teraz Buduj set`]);
+    }));
+  el.querySelectorAll('button.kolekcja').forEach(b =>
+    b.addEventListener('click', async ev => {
+      ev.stopPropagation();
+      const odp = await api().przelacz_kolekcje_dj(b.dataset.kol);
+      if (czyBlad(odp, 'Kolekcja DJ-ów')) return;
+      stan.djGrupy = null;                  // przelicz z nowym ✓
+      await rysujDjow();
+    }));
 }
 
 function rysujNotki(notki, stanFilarow, zgloszone) {
@@ -732,6 +802,40 @@ async function policzZapis() {
   $('#btn-wyslij').hidden = w.do_zapisu === 0;
 }
 
+/* ---------- info o utworze i porównanie pary ---------- */
+
+async function pokazInfo() {
+  if (!api() || !stan.trackId) return;
+  const box = $('#info-box');
+  if (!box.hidden) { box.hidden = true; return; }   // I zamyka, jak w terminalu
+  box.hidden = false;
+  $('#info-tekst').textContent = 'czytam metadane i master.db…';
+  const odp = await api().info_utworu(stan.trackId);
+  if (czyBlad(odp, 'Info o utworze')) { box.hidden = true; return; }
+  $('#info-tekst').textContent = odp.tekst;
+}
+
+async function porownajPare() {
+  if (!api()) return;
+  const box = $('#szew-box');
+  if (!box.hidden) { box.hidden = true; return; }
+  if (stan.pozycja === null) {
+    rysujNotki(['zaznacz pozycję w secie — porównanie dotyczy PARY']);
+    return;
+  }
+  const odp = await api().porownaj_pare(stan.pozycja);
+  if (czyBlad(odp, 'Porównanie pary')) return;
+  box.hidden = false;
+  const nazwa = u => [u.wykonawca, u.tytul].filter(Boolean).join(' — ').slice(0, 42);
+  $('#szew-tytul').textContent =
+    `Szew #${odp.pozycja + 1} ⇄ #${odp.pozycja + 2}`;
+  $('#szew-info').innerHTML =
+    `${nazwa(odp.a).replace(/</g, '&lt;')} → ${nazwa(odp.b).replace(/</g, '&lt;')}<br>` +
+    `<b>${odp.uderzen}</b> uderzeń @ ${odp.bpm.toFixed(1)} BPM · ` +
+    `wyjście z A ${mmss(odp.cue_a_sec * 1000)} · wejście w B ${mmss(odp.cue_b_sec * 1000)}` +
+    ` <span class="ostroznie">— tu się patrzy; słucha się z Twoich padów</span>`;
+}
+
 /* ---------- zapisane plany ---------- */
 /* Każda budowa zapisuje plan sama, ale do dziś okno nie miało jak do niego
    wrócić. Dopasowanie planu do puli robi Python i trwa (potrzebuje całej
@@ -950,6 +1054,15 @@ document.querySelectorAll('#nawigacja button').forEach(b =>
 $('#btn-buduj').addEventListener('click', budujSet);
 $('#btn-policz').addEventListener('click', policzZapis);
 $('#btn-plany').addEventListener('click', otworzPlany);
+document.querySelectorAll('#dj-filtry button').forEach(b =>
+  b.addEventListener('click', () => {
+    stan.djFiltr = b.dataset.df;
+    document.querySelectorAll('#dj-filtry button').forEach(x =>
+      x.setAttribute('aria-pressed', String(x === b)));
+    rysujDjow();
+  }));
+$('#btn-info-zamknij').addEventListener('click', () => { $('#info-box').hidden = true; });
+$('#btn-szew-zamknij').addEventListener('click', () => { $('#szew-box').hidden = true; });
 $('#btn-plany-zamknij').addEventListener('click', () => {
   clearInterval(odpytywaniePlanu); $('#plany-box').hidden = true;
 });
@@ -960,6 +1073,7 @@ document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
   if (e.key === '1') { pokazEkran('szew'); return; }
   if (e.key === '2') { pokazEkran('set'); return; }
+  if (e.key === '3') { pokazEkran('dj'); return; }
 
   // Ekran Set ma własny komplet — te same litery co w terminalu (Z/A/X).
   if (!$('#ekran-set').hidden) {
@@ -978,6 +1092,7 @@ document.addEventListener('keydown', e => {
     }
     if (e.key === 'a' || e.key === 'A') { otworzKandydatow('dopisanie'); return; }
     if (e.key === 'x' || e.key === 'X') { wytnijPozycje(); return; }
+    if (e.key === 'c' || e.key === 'C') { porownajPare(); return; }
     if (e.shiftKey && e.key === 'ArrowUp') { przesunPozycje(-1); e.preventDefault(); return; }
     if (e.shiftKey && e.key === 'ArrowDown') { przesunPozycje(1); e.preventDefault(); return; }
     if (e.key === 'ArrowUp' && stan.pozycja !== null) {
@@ -990,6 +1105,7 @@ document.addEventListener('keydown', e => {
     return;                       // reszta skrótów należy do ekranu szwu
   }
 
+  if (e.key === 'i' || e.key === 'I') { pokazInfo(); return; }
   if (e.key === 'u' || e.key === 'U') { przelaczUlubiony(); return; }
   if (e.key === 'f' || e.key === 'F') { przypnijFilar(''); return; }
   if (e.key === 'ArrowLeft') { przesun(-1); e.preventDefault(); }

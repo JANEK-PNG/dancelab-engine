@@ -121,6 +121,32 @@ window.pywebview = {api: {
       notki: ['BRAK W PULI (pominięty): stary utwór'], parametry: {}}; }, 500);
     return echo({ruszylo: true}); },
   postep_planu: () => echo(window.__PLAN__ || {stan: 'bezczynny'}),
+  info_utworu: (tid) => echo({track_id: tid, tekst: [
+    'SILNIK:', '  BPM 127.0 · ton 5A (pew. 0.62)', '  gatunek: —',
+    '  długość: 4:37', '  wektor brzmienia: brak', '',
+    'PLIK:', '  /Users/…/Dub Champion (UKG VIP).aiff', '',
+    'REKORDBOX:', '  BPM wg Rekordboxa: 127.0',
+    '  poza wszystkimi playlistami'].join(String.fromCharCode(10))}),
+  porownaj_pare: (poz) => echo({pozycja: poz,
+    a: (DANE.set?.utwory || [])[poz] || {tytul: 'A'},
+    b: (DANE.set?.utwory || [])[poz + 1] || {tytul: 'B'},
+    uderzen: 64, bpm: 127.0, cue_a_sec: 245.5, cue_b_sec: 12.0}),
+  djs: () => echo({moje_ulubione: '★ moje ulubione', ulubionych_utworow: 7,
+    kolekcja: window.__KOL__ || [],
+    grupy: [{etykieta: 'brzmi jak: Ben UFO · Joy O · Pearson Sound',
+             djs: [{nazwa: 'Ben UFO', wektorow: 42, skok: 0.68, odwaga: 'odważny',
+                    w_kolekcji: (window.__KOL__ || []).includes('Ben UFO')},
+                   {nazwa: 'Joy Orbison', wektorow: 31, skok: 0.77,
+                    odwaga: 'pośrodku', w_kolekcji: false}]},
+            {etykieta: 'brzmi jak: Sarah Story · Storm Mollison',
+             djs: [{nazwa: 'Sarah Story', wektorow: 18, skok: 0.83,
+                    odwaga: 'gładki', w_kolekcji: false}]}]}),
+  przelacz_kolekcje_dj: (dj) => {
+    window.__KOL__ = window.__KOL__ || [];
+    const i = window.__KOL__.indexOf(dj);
+    if (i >= 0) window.__KOL__.splice(i, 1); else window.__KOL__.push(dj);
+    return echo({w_kolekcji: i < 0, dj});
+  },
 
   /* Edycja setu (01.09). Podgląd MUSI tu udawać stan, bo inaczej po
      kliknięciu „podmień" tabela wróciłaby niezmieniona i obraz nie

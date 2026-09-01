@@ -28,6 +28,9 @@
     <button data-ekran="set" title="Budowa setu (2)">
       <svg viewBox="0 0 24 24"><path d="M4 17V9M9 17V5M14 17v-6M19 17v-9"/></svg>
       <span class="skrot">2</span></button>
+    <button data-ekran="dj" title="Brzmi jak… — kotwice brzmienia (3)">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>
+      <span class="skrot">3</span></button>
   </nav>
 
   <div class="lista-utworow">
@@ -89,6 +92,16 @@
       </p>
 
       <div class="tabela" id="lista-padow"></div>
+
+      <!-- Karta INFO: każda liczba z nazwanym źródłem. Tempo z Rekordboxa
+           jest niezależnym sędzią naszego pomiaru, nie jego potwierdzeniem. -->
+      <div class="karta-info" id="info-box" hidden>
+        <div class="krzywa-glowa">
+          <h2>Info o utworze</h2>
+          <button class="btn maly" id="btn-info-zamknij">Zamknij <kbd>I</kbd></button>
+        </div>
+        <pre id="info-tekst"></pre>
+      </div>
     </section>
     <section id="ekran-set" hidden>
       <div class="narzedzia">
@@ -194,6 +207,15 @@
 
       <div id="notki-box" class="notki" hidden></div>
 
+      <!-- Porównanie pary: fakty o szwie z planu silnika, bez odsłuchu. -->
+      <div class="karta-info" id="szew-box" hidden>
+        <div class="krzywa-glowa">
+          <h2 id="szew-tytul">Szew</h2>
+          <button class="btn maly" id="btn-szew-zamknij">Zamknij <kbd>C</kbd></button>
+        </div>
+        <div class="drobne" id="szew-info"></div>
+      </div>
+
       <div class="tabela" id="tabela-set">
         <div class="pusto">Ustaw parametry i naciśnij <b>Buduj set</b>.</div>
       </div>
@@ -247,6 +269,20 @@
         </div>
       </div>
     </section>
+
+    <!-- DJ-e: grupy po ZMIERZONYM brzmieniu (klastry centroidów), nie po
+         gatunku. „Odważny/gładki" to mediana skoku z ich własnych setów. -->
+    <section id="ekran-dj" hidden>
+      <div class="narzedzia">
+        <span class="tytul-utworu">Brzmi jak…</span>
+        <span class="drobne" id="dj-licznik"></span>
+        <div class="chip-gest" id="dj-filtry" style="margin-left:auto">
+          <button data-df="wszyscy" aria-pressed="true">wszyscy</button>
+          <button data-df="kolekcja">moja kolekcja</button>
+        </div>
+      </div>
+      <div class="tabela" id="dj-sciana"></div>
+    </section>
   </main>
 
   <aside id="kontekst"></aside>
@@ -264,8 +300,9 @@
     <span><b>⌫</b> zdejmij</span>
     <span><b>←→</b> o uderzenie</span>
     <span><b>⌘Z</b> cofnij</span>
-    <span><b>P</b> podgląd</span>
-    <span><b>S</b> posłuchaj</span>
+    <span><b>I</b> info</span>
+    <span><b>U</b> ♥ ulubiony</span>
+    <span><b>F</b> filar</span>
   </div>
   <div class="skroty" id="skroty-set" hidden>
     <span><b>klik</b> zaznacz pozycję</span>
@@ -273,6 +310,8 @@
     <span><b>A</b> dopisz za</span>
     <span><b>X</b> wytnij</span>
     <span><b>⇧↑↓</b> przesuń</span>
+    <span><b>C</b> szew</span>
+    <span><b>O</b> plany</span>
     <span><b>B</b> buduj</span>
   </div>
 </div>

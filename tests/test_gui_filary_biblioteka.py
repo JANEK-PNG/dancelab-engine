@@ -200,3 +200,77 @@ def test_wczytanie_planu_dociaga_pule_zanim_dopasuje(most, monkeypatch, tmp_path
     # plan z pliku nie niesie wag budowy — panel kandydatów ma odmówić
     assert m._ctx_edycji is None
     assert "wag budowy" in m.kandydaci(0)["blad"]
+
+
+def test_info_utworu_nazywa_zrodlo_kazdej_liczby(most, monkeypatch):
+    """Karta INFO składa się TYM SAMYM formatterem co terminal, więc tempo
+    z Rekordboxa stoi osobno — jest niezależnym sędzią naszego pomiaru."""
+    m, _ = most
+
+    class _T:
+        track_id, source_path = "t1", "/m/t1.aiff"
+        bpm_estimate, key_estimate, key_confidence = 127.0, "5A", 0.62
+        key_detection_source, style_label = None, "house"
+        duration_sec, sound_embedding = 277.0, None
+
+    class _A:
+        track = _T()
+
+    m._analizy["t1"] = _A()
+    monkeypatch.setattr("dancelab.ingestion.rekordbox_lookup.track_in_rekordbox",
+                        lambda p: {"bpm": 127.0, "playlists": ["Piątek"]})
+    tekst = m.info_utworu("t1")["tekst"]
+    assert "SILNIK:" in tekst and "REKORDBOX:" in tekst
+    assert "BPM wg Rekordboxa: 127.0" in tekst
+    assert "wektor brzmienia: brak" in tekst
+
+
+def test_info_mowi_czego_nie_wie_zamiast_milczec(most, monkeypatch):
+    m, _ = most
+
+    class _T:
+        track_id, source_path = "t1", "/m/t1.aiff"
+        bpm_estimate, key_estimate, key_confidence = 127.0, "5A", None
+        key_detection_source, style_label = None, None
+        duration_sec, sound_embedding = 277.0, None
+
+    class _A:
+        track = _T()
+
+    m._analizy["t1"] = _A()
+
+    def wybuch(_p):
+        raise RuntimeError("baza zajęta")
+
+    monkeypatch.setattr("dancelab.ingestion.rekordbox_lookup.track_in_rekordbox",
+                        wybuch)
+    tekst = m.info_utworu("t1")["tekst"]
+    assert "master.db nieodczytany: baza zajęta" in tekst
+
+
+def test_porownanie_ostatniej_pozycji_odmawia_z_powodem(most):
+    m, _ = most
+    m._kolejnosc = ["t1", "t2"]
+    m._ctx_edycji = {"wagi": object()}
+    assert "następnika" in m.porownaj_pare(1)["blad"]
+    assert "poza setem" in m.porownaj_pare(9)["blad"]
+
+
+def test_kolekcja_djow_zapisuje_sie_na_dysku(most, tmp_path):
+    m, plik = most
+    assert m.przelacz_kolekcje_dj("Ben UFO")["w_kolekcji"] is True
+    assert json.loads(plik.read_text())["kolekcja_djow"] == ["Ben UFO"]
+    assert m.przelacz_kolekcje_dj("Ben UFO")["w_kolekcji"] is False
+    assert json.loads(plik.read_text())["kolekcja_djow"] == []
+
+
+def test_brak_ksiegi_kotwic_to_stan_nie_awaria(most, monkeypatch):
+    m, _ = most
+    from dancelab.decision import anchors
+
+    def brak(*a, **kw):
+        raise anchors.AnchorError("brak pliku kotwic")
+
+    monkeypatch.setattr(anchors, "load_anchor_book", brak)
+    odp = m.djs()
+    assert "blad" in odp and "kotwice niedostępne" in odp["blad"]
