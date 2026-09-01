@@ -34,8 +34,28 @@
     <div class="szukajka">
       <input id="filtr" placeholder="szukaj utworu…" spellcheck="false">
     </div>
+    <!-- Filtry biblioteki: te same reguły co w terminalu. Okno tempa znaczy
+         to, co mówi — utwór bez tempa przy aktywnym oknie odpada. -->
+    <div class="filtry-lib">
+      <input id="filtr-ton" placeholder="tonacja 8A" spellcheck="false">
+      <input id="filtr-bpm" placeholder="BPM 124-134" spellcheck="false">
+      <button class="btn maly" id="btn-ulubione" aria-pressed="false"
+              title="tylko ulubione">♥</button>
+    </div>
+    <div class="filtry-lib">
+      <span class="drobne">sortuj</span>
+      <div class="chip-gest" id="sortowanie">
+        <button data-s="" aria-pressed="true">—</button>
+        <button data-s="tytul">tytuł</button>
+        <button data-s="bpm">BPM</button>
+        <button data-s="tonacja">ton</button>
+      </div>
+    </div>
     <div class="spis" id="spis"><div class="pusto">wczytuję…</div></div>
     <div class="licznik" id="licznik"></div>
+    <div class="skroty lib-skroty">
+      <span><b>U</b> ♥ ulubiony</span><span><b>F</b> filar</span>
+    </div>
   </div>
 
   <main>
@@ -72,6 +92,14 @@
     </section>
     <section id="ekran-set" hidden>
       <div class="narzedzia">
+        <!-- Źródło puli rozstrzyga, czy set DA SIĘ ZAGRAĆ: utwory z Apple
+             Music Rekordbox pokazuje, ale nie ładuje na deck (Janek 13.08). -->
+        <label class="param"><span>pula</span>
+          <select id="p-pula">
+            <option value="library">MIX — wszystko</option>
+            <option value="library-dysk">▣ tylko z dysku (grywalne)</option>
+            <option value="library-apple">☁ tylko Apple Music</option>
+          </select></label>
         <label class="param"><span>długość</span>
           <input id="p-minuty" value="90"></label>
         <label class="param"><span>tempo</span>
@@ -80,7 +108,74 @@
           <input id="p-dj" placeholder="nazwa DJ-a albo puste" spellcheck="false"></label>
         <label class="param"><span>ziarno</span>
           <input id="p-ziarno" placeholder="losowe"></label>
+        <button class="btn" id="btn-plany" title="wczytaj zapisany plan (O)">Plany <kbd>O</kbd></button>
         <button class="btn glowny" id="btn-buduj">Buduj set <kbd>B</kbd></button>
+      </div>
+      <div class="narzedzia druga-linia">
+        <label class="param rozciag"><span>gatunki</span>
+          <input id="p-gatunki" placeholder="Tech House, UK Garage — po przecinku"
+                 spellcheck="false"></label>
+        <label class="param"><span>łuk</span>
+          <select id="p-luk">
+            <option value="off">bez łuku (zmierzone)</option>
+            <option value="build">build</option>
+            <option value="peak">peak</option>
+            <option value="flat">flat</option>
+          </select></label>
+        <label class="param"><span>plan tempa</span>
+          <select id="p-tempo-plan">
+            <option value="staircase">staircase</option>
+            <option value="linear">linear</option>
+            <option value="off">off</option>
+          </select></label>
+        <label class="param"><span>ocena</span>
+          <select id="p-planer">
+            <option value="smart">smart</option>
+            <option value="harmonic">tonacja</option>
+            <option value="bpm">BPM</option>
+          </select></label>
+        <label class="param"><span>świeżość</span>
+          <select id="p-nowosc">
+            <option value="deterministic">zawsze ten sam</option>
+            <option value="conservative">zachowawczy</option>
+            <option value="balanced">zrównoważony</option>
+            <option value="fresh">świeży</option>
+            <option value="exploratory">odkrywczy</option>
+          </select></label>
+        <label class="param przelacznik" title="kontur skoków tego DJ-a">
+          <input type="checkbox" id="p-kontur"><span>kontur</span></label>
+      </div>
+
+      <!-- Zapisane plany: każda budowa zapisuje plan sama, więc bez tej
+           listy praca z poprzedniej sesji była w oknie nie do odzyskania. -->
+      <div class="kandydaci" id="plany-box" hidden>
+        <div class="kandydaci-glowa">
+          <h2>Zapisane plany</h2>
+          <button class="btn" id="btn-plany-zamknij">Zostaw <kbd>Esc</kbd></button>
+        </div>
+        <div class="tabela" id="tabela-planow"></div>
+      </div>
+
+      <!-- Filary: utwory, które MUSZĄ zagrać, z rolą mówiącą GDZIE.
+           Żyją w playlistach (decyzja 11.08), więc bez wybranej playlisty
+           nie ma gdzie ich wpisać — panel mówi to wprost zamiast milczeć. -->
+      <div class="filary-box" id="filary-box">
+        <div class="krzywa-glowa">
+          <h2>Filary <span class="drobne" id="filary-licznik"></span></h2>
+          <div class="chip-gest" id="tryb-filarow">
+            <button data-tf="rozstaw" aria-pressed="true"
+                    title="filary rozstawione równo w secie">rozstaw</button>
+            <button data-tf="rama" title="filary jako rama: otwarcie i zamknięcie">rama</button>
+            <button data-tf="podpory" title="filary jako podpory, reszta między nimi">podpory</button>
+          </div>
+        </div>
+        <div class="filary-playlisty">
+          <span class="drobne">playlista</span>
+          <select id="wybor-playlisty"></select>
+          <input id="nowa-playlista" placeholder="nowa playlista…" spellcheck="false">
+          <button class="btn maly" id="btn-nowa-playlista">Dodaj</button>
+        </div>
+        <div id="filary-lista"></div>
       </div>
 
       <div class="krzywa" id="krzywa-box" hidden>

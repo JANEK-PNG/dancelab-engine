@@ -15,6 +15,10 @@ const NAZWY_PADOW = ['A', 'B', 'C', 'D'];
 let stan = {
   trackId: null, przebieg: null, pady: {}, wybrany: null, bpm: null,
   ostatniBlad: null, spis: [], filtr: '',
+  // biblioteka: filtrowanie robi Python, tu trzymamy tylko wynik i ustawienia
+  widoczne: [], znalezione: 0, wszystkich: 0,
+  tylkoUlubione: false, sortowanie: '',
+  filary: [], role: {},
   // ekran Set: zaznaczona pozycja, wiersze setu, otwarty panel kandydatów
   set: [], filary: [], pozycja: null, ostatniSet: null,
   kandydaci: null, kandCel: null, kandTryb: 'smart', kandWybor: null,
@@ -216,35 +220,134 @@ async function odswiezStanRb() {
 }
 
 /* ---------- lista utworów ---------- */
+let szukanieWToku = null;
+
+/* Filtrowanie robi PYTHON, nie przeglądarka: te same reguły co w terminalu
+   (okno tempa odrzuca utwory bez tempa, tonacja dokładna, fraza po tytule,
+   wykonawcy i gatunku). Filtrowanie tutaj rozjechałoby obie skóry. */
+function odswiezSpis() {
+  clearTimeout(szukanieWToku);
+  szukanieWToku = setTimeout(async () => {
+    if (!api()) return;
+    const odp = await api().szukaj(
+      stan.filtr, $('#filtr-ton').value, $('#filtr-bpm').value,
+      stan.tylkoUlubione, stan.sortowanie, 400);
+    if (odp.blad) {
+      $('#licznik').innerHTML = `<span class="ostroznie">${odp.blad}</span>`;
+      return;
+    }
+    stan.widoczne = odp.utwory || [];
+    stan.znalezione = odp.znalezione;
+    stan.wszystkich = odp.wszystkich;
+    rysujSpis();
+  }, 160);
+}
+
 function rysujSpis() {
   const el = $('#spis');
-  const f = stan.filtr.toLowerCase();
-  const widoczne = f
-    ? stan.spis.filter(u => ((u.tytul || '') + ' ' + (u.wykonawca || '')).toLowerCase().includes(f))
-    : stan.spis;
-
-  $('#licznik').textContent = f
-    ? `${widoczne.length} z ${stan.spis.length}`
-    : `${stan.spis.length} utworów`;
+  const widoczne = stan.widoczne || [];
+  const filtrowane = stan.znalezione !== stan.wszystkich || stan.tylkoUlubione;
+  $('#licznik').textContent = filtrowane
+    ? `${stan.znalezione} z ${stan.wszystkich}`
+    : `${stan.wszystkich} utworów`;
 
   if (!widoczne.length) {
     el.innerHTML = '<div class="pusto">nic nie pasuje</div>';
     return;
   }
-  // Renderujemy najwyżej 300 wierszy: przy ośmiu tysiącach pozycji reszta i tak
-  // nie jest widoczna, a pełna lista zabija płynność przewijania.
-  el.innerHTML = widoczne.slice(0, 300).map(u => `
+  el.innerHTML = widoczne.map(u => {
+    const znaki = (u.ulubiony ? '<span class="znak-ulub">♥</span>' : '')
+                + (u.filar ? '<span class="znak-filar">⚑</span>' : '');
+    return `
     <div class="utwor" data-id="${u.track_id}"
          ${stan.trackId === u.track_id ? 'aria-selected="true"' : ''}>
-      <div class="t">${(u.tytul || u.track_id).replace(/</g, '&lt;')}</div>
-      <div class="d">${u.bpm ? u.bpm.toFixed(1) : '—'} · ${u.tonacja || '—'}</div>
-    </div>`).join('') +
-    (widoczne.length > 300
-      ? `<div class="pusto">…i ${widoczne.length - 300} dalszych — zawęź szukaniem</div>`
+      <div class="t">${(u.tytul || u.track_id).replace(/</g, '&lt;')}
+        <span class="znaki">${znaki}</span></div>
+      <div class="d">${u.bpm ? u.bpm.toFixed(1) : '—'} · ${u.tonacja || '—'}${
+        u.tonacja_zrodlo === 'rekordbox' ? ' RB' : ''}</div>
+    </div>`;
+  }).join('') +
+    (stan.znalezione > widoczne.length
+      ? `<div class="pusto">…i ${stan.znalezione - widoczne.length} dalszych — zawęź szukaniem</div>`
       : '');
 
   el.querySelectorAll('.utwor').forEach(d =>
     d.addEventListener('click', () => wybierzUtwor(d.dataset.id)));
+}
+
+/* ---------- ulubione i filary ---------- */
+
+async function przelaczUlubiony() {
+  if (!api() || !stan.trackId) return;
+  const odp = await api().przelacz_ulubiony(stan.trackId);
+  if (czyBlad(odp, 'Ulubione')) return;
+  odswiezSpis();
+}
+
+async function przypnijFilar(rola) {
+  if (!api() || !stan.trackId) return;
+  const juz = (stan.widoczne || []).find(u => u.track_id === stan.trackId);
+  const odp = juz && juz.filar
+    ? await api().zdejmij_filar(stan.trackId)
+    : await api().ustaw_filar(stan.trackId, rola || '');
+  if (czyBlad(odp, 'Filary')) return;
+  stan.filary = odp.filary || [];
+  rysujFilary();
+  odswiezSpis();
+}
+
+function rysujFilary() {
+  const lista = stan.filary || [];
+  $('#filary-licznik').textContent = lista.length
+    ? `${lista.length} z 10`
+    : '— brak, silnik ułoży set sam';
+  const el = $('#filary-lista');
+  if (!lista.length) {
+    el.innerHTML = '<div class="pusto">Zaznacz utwór na liście po lewej '
+      + 'i naciśnij <b>F</b> — filar to utwór, który MUSI zagrać.</div>';
+    return;
+  }
+  const role = stan.role || {'': 'bez roli'};
+  el.innerHTML = lista.map(f => `
+    <div class="filar-wiersz" data-id="${f.track_id}">
+      <span class="nazwa">${(f.tytul || f.track_id).replace(/</g, '&lt;')}</span>
+      <select data-rola="${f.track_id}">${Object.entries(role).map(([k, opis]) =>
+        `<option value="${k}" ${f.rola === k ? 'selected' : ''}>${opis}</option>`
+      ).join('')}</select>
+      <button class="zdejmij" data-zdejmij="${f.track_id}" title="zdejmij filar">✕</button>
+    </div>`).join('');
+  el.querySelectorAll('select[data-rola]').forEach(sel =>
+    sel.addEventListener('change', async () => {
+      const odp = await api().ustaw_filar(sel.dataset.rola, sel.value);
+      if (czyBlad(odp, 'Rola filara')) return;
+      stan.filary = odp.filary || [];
+      rysujFilary();
+    }));
+  el.querySelectorAll('button[data-zdejmij]').forEach(b =>
+    b.addEventListener('click', async () => {
+      const odp = await api().zdejmij_filar(b.dataset.zdejmij);
+      if (czyBlad(odp, 'Filary')) return;
+      stan.filary = odp.filary || [];
+      rysujFilary(); odswiezSpis();
+    }));
+}
+
+async function odswiezPlaylisty() {
+  if (!api()) return;
+  const p = await api().playlisty();
+  if (p.blad) return;
+  stan.role = p.role;
+  const sel = $('#wybor-playlisty');
+  sel.innerHTML = (p.playlisty || []).length
+    ? p.playlisty.map((pl, i) =>
+        `<option value="${i}" ${p.aktywna === i ? 'selected' : ''}>${
+          pl.nazwa.replace(/</g, '&lt;')} (${pl.filarow})</option>`).join('')
+    : '<option value="">— brak playlist —</option>';
+  document.querySelectorAll('#tryb-filarow button').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.tf === p.tryb_filarow)));
+  const f = await api().filary();
+  stan.filary = f.filary || [];
+  rysujFilary();
 }
 
 async function wybierzUtwor(trackId) {
@@ -406,7 +509,9 @@ async function otworzKandydatow(cel) {
   clearInterval(odpytywanieKand);
   odpytywanieKand = setInterval(async () => {
     const s = await api().postep_kandydatow();
-    if (!s || s.stan === 'trwa') return;
+    // „bezczynny" to NIE wynik, tylko brak startu — potraktowanie go jak
+    // wyniku dawało puste liczby zamiast czekania.
+    if (!s || s.stan === 'trwa' || s.stan === 'bezczynny') return;
     clearInterval(odpytywanieKand);
     if (czyBlad(s, 'Kandydaci')) { zamknijKandydatow(); return; }
     stan.kandydaci = s.kandydaci || [];
@@ -536,6 +641,13 @@ async function budujSet() {
     tempo_okno: $('#p-tempo').value,
     dj: $('#p-dj').value.trim(),
     ziarno: $('#p-ziarno').value.trim(),
+    zrodlo_puli: $('#p-pula').value,
+    style: $('#p-gatunki').value,
+    luk: $('#p-luk').value,
+    tempo: $('#p-tempo-plan').value,
+    planer: $('#p-planer').value,
+    nowosc: $('#p-nowosc').value,
+    kontur: $('#p-kontur').checked,
   });
   if (odp && odp.blad) { rysujNotki([`ODMOWA: ${odp.blad}`]); return; }
 
@@ -618,6 +730,73 @@ async function policzZapis() {
   }
   $('#zapis-liczby').innerHTML = czesci.join('');
   $('#btn-wyslij').hidden = w.do_zapisu === 0;
+}
+
+/* ---------- zapisane plany ---------- */
+/* Każda budowa zapisuje plan sama, ale do dziś okno nie miało jak do niego
+   wrócić. Dopasowanie planu do puli robi Python i trwa (potrzebuje całej
+   puli), więc tu odpytujemy — tak jak przy budowie i kandydatach. */
+
+let odpytywaniePlanu = null;
+
+async function otworzPlany() {
+  if (!api()) return;
+  const box = $('#plany-box');
+  box.hidden = false;
+  $('#tabela-planow').innerHTML = '<div class="pusto">czytam listę planów…</div>';
+  const odp = await api().lista_planow();
+  if (czyBlad(odp, 'Plany')) { box.hidden = true; return; }
+  const plany = odp.plany || [];
+  if (!plany.length) {
+    $('#tabela-planow').innerHTML =
+      '<div class="pusto">Nie ma zapisanych planów — zbuduj pierwszy set.</div>';
+    return;
+  }
+  $('#tabela-planow').innerHTML = `<table><thead><tr>
+      <th style="width:150px">zapisano</th><th style="width:44px">n</th>
+      <th style="width:80px">BPM</th><th>nazwa</th>
+    </tr></thead><tbody>${plany.map((p, i) => `
+      <tr data-plan="${i}">
+        <td class="num">${(p.zapisano || '?').replace(/</g, '&lt;')}</td>
+        <td class="num">${p.n}</td>
+        <td class="num">${p.bpm || '—'}</td>
+        <td>${(p.nazwa || '').replace(/</g, '&lt;')}${
+          p.biezacy ? ' <span class="drobne">— bieżący</span>' : ''}${
+          p.dj ? ` <span class="drobne">jak ${p.dj}</span>` : ''}</td>
+      </tr>`).join('')}</tbody></table>`;
+  $('#tabela-planow').querySelectorAll('tr[data-plan]').forEach(tr =>
+    tr.addEventListener('click', () => wczytajPlan(plany[Number(tr.dataset.plan)])));
+}
+
+async function wczytajPlan(p) {
+  $('#tabela-planow').innerHTML =
+    '<div class="pusto">wczytuję plan i dopasowuję go do puli…</div>';
+  const start = await api().wczytaj_plan(p.path);
+  if (czyBlad(start, 'Wczytywanie planu')) return;
+  clearInterval(odpytywaniePlanu);
+  odpytywaniePlanu = setInterval(async () => {
+    const s = await api().postep_planu();
+    if (!s || s.stan === 'trwa' || s.stan === 'bezczynny') return;
+    clearInterval(odpytywaniePlanu);
+    if (czyBlad(s, 'Wczytywanie planu')) return;
+    $('#plany-box').hidden = true;
+    if (!s.utwory || !s.utwory.length) {
+      rysujNotki([s.powod || 'plan pusty']);
+      return;
+    }
+    stan.pozycja = null;
+    rysujTabeleSetu(s.utwory, []);
+    rysujKrzywa(s.utwory);
+    // Notki dopasowania to nie ozdoba: utwór, którego nie ma już w puli,
+    // został POMINIĘTY, a DJ musi o tym wiedzieć przed wysyłką.
+    rysujNotki([`WCZYTANY PLAN: ${s.nazwa || ''} (${s.utwory.length} z ${
+      s.zapisanych}）`, ...(s.notki || [])]);
+    stan.ostatniSet = {stan: 'gotowe', utwory: s.utwory, filary: [],
+                       kotwica: (s.parametry || {}).dj || null,
+                       filary_stan: 'brak', filary_zgloszone: 0};
+    kontekstSet(stan.ostatniSet);
+    odswiezZapis();
+  }, 400);
 }
 
 /* ---------- playlista do Rekordboxa ---------- */
@@ -711,7 +890,8 @@ async function start() {
   stan.spis = b.utwory || [];
   const w = await api().wczytaj_edycje();
   if (w && w.wczytano) console.log(`[gui] wczytano ${w.wczytano} padów z poprzedniej sesji`);
-  rysujSpis();
+  await odswiezPlaylisty();
+  odswiezSpis();
   if (stan.spis.length) await wybierzUtwor(stan.spis[0].track_id);
 }
 
@@ -723,7 +903,40 @@ $('#fala-obszar').addEventListener('mousemove', e => {
   $('#czas-kursora').textContent = mmss(u * stan.przebieg.dlugosc_sec * 1000);
 });
 $('#btn-cofnij').addEventListener('click', cofnij);
-$('#filtr').addEventListener('input', e => { stan.filtr = e.target.value; rysujSpis(); });
+$('#filtr').addEventListener('input', e => { stan.filtr = e.target.value; odswiezSpis(); });
+$('#filtr-ton').addEventListener('input', odswiezSpis);
+$('#filtr-bpm').addEventListener('input', odswiezSpis);
+$('#btn-ulubione').addEventListener('click', () => {
+  stan.tylkoUlubione = !stan.tylkoUlubione;
+  $('#btn-ulubione').setAttribute('aria-pressed', String(stan.tylkoUlubione));
+  odswiezSpis();
+});
+document.querySelectorAll('#sortowanie button').forEach(b =>
+  b.addEventListener('click', () => {
+    stan.sortowanie = b.dataset.s;
+    document.querySelectorAll('#sortowanie button').forEach(x =>
+      x.setAttribute('aria-pressed', String(x === b)));
+    odswiezSpis();
+  }));
+document.querySelectorAll('#tryb-filarow button').forEach(b =>
+  b.addEventListener('click', async () => {
+    const odp = await api().ustaw_tryb_filarow(b.dataset.tf);
+    if (czyBlad(odp, 'Tryb filarów')) return;
+    document.querySelectorAll('#tryb-filarow button').forEach(x =>
+      x.setAttribute('aria-pressed', String(x === b)));
+  }));
+$('#wybor-playlisty').addEventListener('change', async e => {
+  const odp = await api().wybierz_playliste(Number(e.target.value));
+  if (czyBlad(odp, 'Playlisty')) return;
+  await odswiezPlaylisty(); odswiezSpis();
+});
+$('#btn-nowa-playlista').addEventListener('click', async () => {
+  const pole = $('#nowa-playlista');
+  const odp = await api().nowa_playlista(pole.value);
+  if (czyBlad(odp, 'Nowa playlista')) return;
+  pole.value = '';
+  await odswiezPlaylisty(); odswiezSpis();
+});
 document.querySelectorAll('#gestosc button').forEach(b =>
   b.addEventListener('click', () => {
     document.querySelectorAll('#gestosc button')
@@ -736,6 +949,10 @@ document.querySelectorAll('#nawigacja button').forEach(b =>
   b.addEventListener('click', () => pokazEkran(b.dataset.ekran)));
 $('#btn-buduj').addEventListener('click', budujSet);
 $('#btn-policz').addEventListener('click', policzZapis);
+$('#btn-plany').addEventListener('click', otworzPlany);
+$('#btn-plany-zamknij').addEventListener('click', () => {
+  clearInterval(odpytywaniePlanu); $('#plany-box').hidden = true;
+});
 $('#btn-pl-policz').addEventListener('click', policzPlayliste);
 $('#btn-pl-wyslij').addEventListener('click', wyslijPlayliste);
 $('#btn-wyslij').addEventListener('click', wyslijZapis);
@@ -746,7 +963,12 @@ document.addEventListener('keydown', e => {
 
   // Ekran Set ma własny komplet — te same litery co w terminalu (Z/A/X).
   if (!$('#ekran-set').hidden) {
-    if (e.key === 'Escape') { zamknijKandydatow(); return; }
+    if (e.key === 'Escape') {
+      zamknijKandydatow();
+      clearInterval(odpytywaniePlanu); $('#plany-box').hidden = true;
+      return;
+    }
+    if (e.key === 'o' || e.key === 'O') { otworzPlany(); return; }
     if (e.key === 'Enter' && stan.kandWybor !== null) {
       potwierdzKandydata(); e.preventDefault(); return;
     }
@@ -768,6 +990,8 @@ document.addEventListener('keydown', e => {
     return;                       // reszta skrótów należy do ekranu szwu
   }
 
+  if (e.key === 'u' || e.key === 'U') { przelaczUlubiony(); return; }
+  if (e.key === 'f' || e.key === 'F') { przypnijFilar(''); return; }
   if (e.key === 'ArrowLeft') { przesun(-1); e.preventDefault(); }
   if (e.key === 'ArrowRight') { przesun(1); e.preventDefault(); }
   if (e.key === 'Backspace' || e.key === 'Delete') { zdejmij(); e.preventDefault(); }

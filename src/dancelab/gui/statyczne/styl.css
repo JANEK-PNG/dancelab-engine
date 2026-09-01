@@ -206,6 +206,9 @@ h2{font-size:12px;font-weight:600;color:var(--cichy);text-transform:uppercase;
   gap:12px;margin-bottom:8px}
 .kandydaci-glowa h2{margin:0;color:var(--tekst)}
 .kandydaci .tabela{flex:1;min-height:80px}
+/* Lista planów rośnie do trzech wierszy zanim zacznie się przewijać —
+   przy dwóch planach widać było jeden i pół. */
+#plany-box .tabela{min-height:104px}
 /* „dlaczego" pod nazwą utworu: liczby silnika, w jego własnych słowach */
 .kandydaci .why{color:var(--cichszy);font-size:11px;font-family:var(--mono)}
 td.ranga{font-family:var(--mono);color:var(--cichszy);text-align:right}
@@ -213,3 +216,46 @@ td.wynik{font-family:var(--mono);font-variant-numeric:tabular-nums;
   color:var(--volt);text-align:right}
 /* Wycięty filar musi być widoczny jako strata, nie jako zwykła zmiana. */
 .uwaga-edycji{color:var(--bursztyn);font-size:12px;margin-top:6px}
+
+/* Filtry biblioteki i skróty pod listą — lista utworów jest wąska, więc
+   filtry idą w dwa rzędy zamiast jednego ściśniętego. */
+.filtry-lib{display:flex;gap:6px;align-items:center;
+  padding:0 var(--luz) 6px;border-bottom:1px solid var(--kreska)}
+.filtry-lib input{flex:1;min-width:0;background:var(--karta2);
+  border:1px solid var(--kreska);border-radius:6px;color:var(--tekst);
+  font:12px var(--font);padding:5px 8px}
+.filtry-lib input::placeholder{color:var(--cichszy)}
+.btn.maly{padding:4px 9px;font-size:12px}
+.btn.maly[aria-pressed="true"]{border-color:var(--bursztyn);color:var(--bursztyn)}
+.lib-skroty{font-size:11px;padding:6px var(--luz);border-top:1px solid var(--kreska)}
+/* ♥ i ⚑ przy utworze: status, nie ozdoba — muszą być czytelne z odległości */
+.spis .znaki{float:right;font-size:11px;letter-spacing:2px}
+.spis .znak-ulub{color:var(--alarm)}
+.spis .znak-filar{color:var(--bursztyn)}
+
+/* Filary stoją NAD krzywą, bo są wejściem do budowy, nie jej wynikiem. */
+.filary-box{background:var(--karta);border:1px solid var(--kreska);
+  border-left:3px solid var(--bursztyn);border-radius:var(--r);
+  padding:10px 13px;margin-bottom:var(--luz)}
+.filary-playlisty{display:flex;gap:7px;align-items:center;margin:7px 0}
+.filary-playlisty select,.filary-playlisty input{background:var(--karta2);
+  border:1px solid var(--kreska);border-radius:6px;color:var(--tekst);
+  font:12px var(--font);padding:5px 8px}
+.filary-playlisty select{min-width:150px}
+.filary-playlisty input{flex:1;min-width:0}
+.filar-wiersz{display:flex;gap:8px;align-items:center;padding:3px 0;
+  font-size:12.5px}
+.filar-wiersz .nazwa{flex:1;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.filar-wiersz select{background:var(--karta2);border:1px solid var(--kreska);
+  border-radius:6px;color:var(--tekst);font:11.5px var(--font);padding:3px 6px}
+.filar-wiersz .zdejmij{background:none;border:none;color:var(--cichszy);
+  cursor:pointer;font-size:14px;padding:0 4px}
+.filar-wiersz .zdejmij:hover{color:var(--alarm)}
+/* Druga linia formularza: dziewięć pól nie zmieści się w jednym rzędzie,
+   a zwijanie ich pod „więcej" chowałoby to, czym set naprawdę powstaje. */
+.narzedzia.druga-linia{border-top:none;padding-top:0}
+.narzedzia select{background:var(--karta2);border:1px solid var(--kreska);
+  border-radius:6px;color:var(--tekst);font:12.5px var(--font);padding:5px 7px}
+.param.przelacznik{flex-direction:row;align-items:center;gap:6px}
+.param.przelacznik input{width:15px;height:15px;accent-color:var(--bursztyn)}

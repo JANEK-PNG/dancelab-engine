@@ -62,6 +62,66 @@ window.pywebview = {api: {
   propozycje: () => echo({propozycje: []}),
   biezacy_plan: () => echo({kolejnosc: []}),
 
+  /* Biblioteka z filtrami, filary, playlisty (01.09). Filtrowanie w oknie
+     robi Python; tutaj udajemy je na spisie, żeby dało się OBEJRZEĆ układ. */
+  szukaj: (fraza, ton, bpm, tylkoUlub, sortuj, limit) => {
+    let u = (DANE.biblioteka?.utwory || []).map(x => ({
+      ...x, ulubiony: (window.__ULUB__ || []).includes(x.track_id),
+      filar: (window.__FIL__ || []).some(f => f.track_id === x.track_id)}));
+    const f = (fraza || '').toLowerCase();
+    if (f) u = u.filter(x => (x.tytul || '').toLowerCase().includes(f));
+    if (ton) u = u.filter(x => (x.tonacja || '').toUpperCase() === ton.toUpperCase());
+    if (tylkoUlub) u = u.filter(x => x.ulubiony);
+    if (sortuj === 'bpm') u.sort((a, b) => (a.bpm || 0) - (b.bpm || 0));
+    if (sortuj === 'tytul') u.sort((a, b) => (a.tytul || '').localeCompare(b.tytul || ''));
+    return echo({utwory: u.slice(0, limit || 400), znalezione: u.length,
+                 wszystkich: (DANE.biblioteka?.utwory || []).length});
+  },
+  ulubione: () => echo({ulubione: window.__ULUB__ || []}),
+  przelacz_ulubiony: (tid) => {
+    window.__ULUB__ = window.__ULUB__ || [];
+    const i = window.__ULUB__.indexOf(tid);
+    if (i >= 0) window.__ULUB__.splice(i, 1); else window.__ULUB__.push(tid);
+    return echo({ulubiony: i < 0, track_id: tid});
+  },
+  playlisty: () => echo({
+    playlisty: [{nazwa: 'Piątek', filarow: (window.__FIL__ || []).length,
+                 kotwica: null}],
+    aktywna: 0, tryb_filarow: 'rozstaw',
+    role: {'': 'bez roli — po prostu musi zagrać', otwarcie: 'pierwszy utwór',
+           buildup: 'rozpędza w górę', oddech: 'zejście w środku',
+           zamkniecie: 'ostatni utwór'}}),
+  nowa_playlista: () => echo({playlisty: [{nazwa: 'Piątek', filarow: 0}],
+                              aktywna: 0, role: {}, tryb_filarow: 'rozstaw'}),
+  wybierz_playliste: () => echo({playlisty: [], aktywna: 0, role: {}}),
+  filary: () => echo({filary: window.__FIL__ || [], tryb_filarow: 'rozstaw',
+                      aktywna: 0}),
+  ustaw_filar: (tid, rola) => {
+    window.__FIL__ = window.__FIL__ || [];
+    const u = (DANE.biblioteka?.utwory || []).find(x => x.track_id === tid);
+    const i = window.__FIL__.findIndex(f => f.track_id === tid);
+    if (i >= 0) window.__FIL__[i].rola = rola;
+    else window.__FIL__.push({track_id: tid, rola,
+                              tytul: (u && u.tytul) || tid});
+    return echo({filary: window.__FIL__, tryb_filarow: 'rozstaw'});
+  },
+  zdejmij_filar: (tid) => {
+    window.__FIL__ = (window.__FIL__ || []).filter(f => f.track_id !== tid);
+    return echo({filary: window.__FIL__, tryb_filarow: 'rozstaw'});
+  },
+  ustaw_tryb_filarow: (t) => echo({tryb_filarow: t}),
+  lista_planow: () => echo({plany: [
+    {path: '/p/1.json', zapisano: '2026-09-01 14:20', nazwa: 'Piątek 126–134',
+     n: 12, bpm: '126-134', dj: 'Ben UFO', biezacy: true},
+    {path: '/p/2.json', zapisano: '2026-08-30 22:10', nazwa: 'Sobota',
+     n: 18, bpm: '', dj: '', biezacy: false}]}),
+  wczytaj_plan: () => { window.__PLAN__ = {stan: 'trwa'};
+    setTimeout(() => { window.__PLAN__ = {stan: 'gotowe', nazwa: 'Piątek 126–134',
+      zapisanych: 12, utwory: (DANE.set?.utwory || []).slice(0, 6),
+      notki: ['BRAK W PULI (pominięty): stary utwór'], parametry: {}}; }, 500);
+    return echo({ruszylo: true}); },
+  postep_planu: () => echo(window.__PLAN__ || {stan: 'bezczynny'}),
+
   /* Edycja setu (01.09). Podgląd MUSI tu udawać stan, bo inaczej po
      kliknięciu „podmień" tabela wróciłaby niezmieniona i obraz nie
      powiedziałby nic o tym, czy funkcja działa. Kandydaci to utwory

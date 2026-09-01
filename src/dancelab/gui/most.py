@@ -65,6 +65,10 @@ class Most:
         # policzono liczby. Zmiana któregokolwiek unieważnia je — inaczej DJ
         # potwierdzałby liczby innego setu.
         self._playlista_gotowa: dict[str, Any] | None = None
+        # Stan DJ-a (playlisty, filary, ulubione) — ten sam plik, który czyta
+        # terminal. Wczytany raz; każda zmiana od razu leci na dysk, żeby obie
+        # skóry widziały to samo bez restartu którejkolwiek.
+        self._stan_dja: dict | None = None
         # Dziennik decyzji (Q14): utwory, których pady widok narysował przy
         # istniejącym planie. Pad silnika w utworze spoza tej listy przeszedł
         # DOMYŚLNIE — nazwanie go „zaakceptowanym" byłoby zmyśleniem.
@@ -85,6 +89,8 @@ class Most:
         # Liczenie kandydatów trwa ~4 s na pełnej puli (pomiar 01.09), więc
         # chodzi w wątku i ma własny stan odpytywany przez widok — jak budowa.
         self._kandydaci_stan: dict[str, Any] = {"stan": "bezczynny"}
+        # Wczytanie planu wymaga całej puli (~20 s zimno) — też w wątku.
+        self._plan_stan: dict[str, Any] = {"stan": "bezczynny"}
         self._plan_cue_przeliczony = False
         # Po edycji kolejności propozycje padów silnika dotyczą STAREGO setu.
         # Flaga każe je przeliczyć w stopniu pierwszym zapisu — liczby, które
@@ -117,7 +123,9 @@ class Most:
         for plik in sorted(katalog.glob("*.json")):
             try:
                 with plik.open("rb") as f:
-                    prefiks = f.read(4096).decode("utf-8", "replace")
+                    # 4 kB obcinało obiekt „track" przed gatunkiem i źródłem
+                    # tonacji — pola były, tylko poza oknem odczytu
+                    prefiks = f.read(16384).decode("utf-8", "replace")
                 start = prefiks.find('"track"')
                 if start == -1:
                     continue
@@ -153,12 +161,74 @@ class Most:
                 "wykonawca": t.get("artist"),
                 "bpm": t.get("bpm_estimate"),
                 "tonacja": t.get("key_estimate"),
+                # źródło tonacji jest częścią prawdy o niej — „RB" to sędzia
+                # niezależny od naszego detektora, który na elektronice bywa słaby
+                "tonacja_zrodlo": t.get("key_detection_source"),
+                "gatunek": t.get("style_label"),
+                # ścieżka jest potrzebna filarom i ulubionym: wpis trzyma ID
+                # ORAZ ścieżkę, żeby przeżyć przebudowę katalogu analiz
+                "sciezka": t.get("source_path"),
                 "dlugosc_sec": t.get("duration_sec"),
             })
 
         self._spis = spis
         return {"utwory": spis[:limit], "wszystkich": len(spis),
                 "katalog": self._katalog}
+
+    @_bezpiecznie
+    def szukaj(self, fraza: str = "", tonacja: str = "", bpm: str = "",
+               tylko_ulubione: bool = False, sortuj: str = "",
+               limit: int = 400) -> dict[str, Any]:
+        """Biblioteka z filtrami — te same reguły co w terminalu.
+
+        Okno tempa działa jak w `tui.app.filter_library`: utwór BEZ tempa przy
+        aktywnym oknie odpada, bo okno ma znaczyć to, co mówi. Tonacja jest
+        dokładna, fraza szuka w tytule, wykonawcy i gatunku.
+        """
+        spis = self.biblioteka(limit=10 ** 9).get("utwory") or []
+        f = (fraza or "").strip().lower()
+        ton = (tonacja or "").strip().upper()
+        lo = hi = None
+        okno = (bpm or "").replace(",", ".").strip()
+        if okno:
+            from dancelab.stan.budowa import rozbierz_tempo
+            lo, hi, blad = rozbierz_tempo(okno)
+            if blad:
+                return {"blad": blad, "pole": "bpm"}
+
+        ulubione = set(self.ulubione().get("ulubione") or [])
+        filary = {w["track_id"] for w in (self.filary().get("filary") or [])}
+
+        wynik = []
+        for u in spis:
+            if f and f not in " ".join(
+                    str(u.get(k) or "") for k in ("tytul", "wykonawca",
+                                                  "gatunek")).lower():
+                continue
+            if ton and (u.get("tonacja") or "").upper() != ton:
+                continue
+            if lo is not None or hi is not None:
+                b = u.get("bpm")
+                if b is None:
+                    continue                      # brak tempa ≠ w oknie
+                if (lo is not None and b < lo) or (hi is not None and b > hi):
+                    continue
+            if tylko_ulubione and u["track_id"] not in ulubione:
+                continue
+            wynik.append({**u,
+                          "ulubiony": u["track_id"] in ulubione,
+                          "filar": u["track_id"] in filary})
+
+        klucze = {"tytul": lambda u: (u.get("tytul") or "").lower(),
+                  "bpm": lambda u: (u.get("bpm") is None, u.get("bpm") or 0),
+                  "tonacja": lambda u: (not u.get("tonacja"),
+                                        u.get("tonacja") or ""),
+                  "dlugosc": lambda u: (u.get("dlugosc_sec") is None,
+                                        u.get("dlugosc_sec") or 0)}
+        if sortuj in klucze:
+            wynik.sort(key=klucze[sortuj])
+        return {"utwory": wynik[:limit], "znalezione": len(wynik),
+                "wszystkich": len(spis)}
 
     @_bezpiecznie
     def wczytaj_utwor(self, track_id: str) -> dict[str, Any]:
@@ -394,8 +464,9 @@ class Most:
         try:
             stan_u = None
             try:
-                from dancelab.tui.user_store import load_state
-                stan_u = load_state(self._katalog)
+                # ten sam stan, który edytuje panel filarów — inaczej okno
+                # budowałoby z filarów sprzed własnych zmian
+                stan_u = self._stan_uzytkownika()
             except Exception:                          # noqa: BLE001
                 pass                                   # filary są opcjonalne
 
@@ -512,14 +583,56 @@ class Most:
 
     @_bezpiecznie
     def wczytaj_plan(self, sciezka: str) -> dict[str, Any]:
+        """Rusz wczytywanie planu W TLE. Wynik odbiera `postep_planu`.
+
+        Dopasowanie planu do puli wymaga CAŁEJ puli analiz (~20 s przy zimnym
+        starcie): plan zna identyfikatory, a te trzeba znaleźć wśród ośmiu
+        tysięcy utworów. Bez tego dopasowanie zwracałoby pustkę i wyglądałoby
+        jak „plan pusty" zamiast „jeszcze nie wczytałem puli".
+        """
+        if self._plan_stan.get("stan") == "trwa":
+            return {"blad": "wczytuję już plan — chwila"}
+        self._plan_stan = {"stan": "trwa"}
+        threading.Thread(target=self._wczytaj_plan_w_tle,
+                         args=(str(sciezka),), daemon=True).start()
+        return {"ruszylo": True}
+
+    @_bezpiecznie
+    def postep_planu(self) -> dict[str, Any]:
+        return dict(self._plan_stan)
+
+    def _wczytaj_plan_w_tle(self, sciezka: str) -> None:
+        wynik = self._wczytaj_plan_teraz(sciezka)
+        wynik["stan"] = "blad" if "blad" in wynik else "gotowe"
+        self._plan_stan = wynik
+
+    @_bezpiecznie
+    def _wczytaj_plan_teraz(self, sciezka: str) -> dict[str, Any]:
         """Wczytaj wskazany plan i uczyń go bieżącym dla obu skór."""
+        for a in self._pula():
+            self._analizy.setdefault(a.track.track_id, a)
         wynik = plan.wczytaj(self._analizy, sciezka)
-        if wynik.get("kolejnosc"):
-            self._kolejnosc = list(wynik["kolejnosc"])
-            plan.WSKAZNIK.parent.mkdir(parents=True, exist_ok=True)
-            plan.WSKAZNIK.write_text(
-                json.dumps({"plan": str(sciezka)}, ensure_ascii=False),
-                encoding="utf-8")
+        if not wynik.get("kolejnosc"):
+            wynik.setdefault("powod", "żaden utwór planu nie jest w puli")
+            return wynik
+        self._kolejnosc = list(wynik["kolejnosc"])
+        self._zapis_gotowy = None
+        self._playlista_gotowa = None
+        self._plan_cue = None
+        # Plan z pliku nie niesie wag budowy, więc panel kandydatów musi
+        # odmówić zamiast liczyć czymkolwiek — mówi to wprost.
+        self._ctx_edycji = None
+        self._parametry_budowy = dict(wynik.get("parametry") or {})
+        plan.WSKAZNIK.parent.mkdir(parents=True, exist_ok=True)
+        plan.WSKAZNIK.write_text(
+            json.dumps({"plan": str(sciezka)}, ensure_ascii=False),
+            encoding="utf-8")
+        dziennik.dopisz("wczytanie_planu", plan=str(sciezka),
+                        utworow=len(self._kolejnosc),
+                        pominietych=len([n for n in wynik.get("notki") or []
+                                         if n.startswith("BRAK")]))
+        wynik["utwory"] = [self._wiersz(t, self._analizy)
+                           for t in self._kolejnosc]
         return wynik
 
     # ------------------------------------------------------------- kolizje
@@ -790,6 +903,136 @@ class Most:
             "policzone": self._zapis_gotowy is not None,
             "playlista_policzona": self._playlista_gotowa is not None,
         }
+
+    # ---------------------------------------- playlisty, filary, ulubione
+
+    def _stan_uzytkownika(self) -> dict:
+        """Stan DJ-a wczytany raz na sesję okna. Ten sam plik, który czyta
+        terminal — obie skóry mają widzieć te same filary i playlisty."""
+        from dancelab.tui.user_store import load_state
+        if self._stan_dja is None:
+            self._stan_dja = load_state(self._katalog)
+        return self._stan_dja
+
+    def _zapisz_stan_uzytkownika(self) -> None:
+        from dancelab.tui.user_store import save_state
+        save_state(self._stan_uzytkownika(), self._katalog)
+
+    def _sciezka_utworu(self, track_id: str) -> str:
+        """Ścieżka pliku utworu — filary trzymają ID ORAZ ścieżkę, żeby
+        przeżyć przebudowę katalogu analiz."""
+        s = self._sciezka(track_id)
+        if s:
+            return s
+        wpis = next((u for u in self._spis if u["track_id"] == track_id), None)
+        return (wpis or {}).get("sciezka") or ""
+
+    @_bezpiecznie
+    def playlisty(self) -> dict[str, Any]:
+        """Playlisty DJ-a z liczbą filarów. Filary żyją W PLAYLISTACH
+        (decyzja z 11.08), więc bez wybranej playlisty nie ma gdzie ich wpisać.
+        """
+        from dancelab.tui.user_store import ROLE_FILARA
+        stan = self._stan_uzytkownika()
+        return {
+            "playlisty": [{"nazwa": p.get("nazwa", "—"),
+                           "filarow": len(p.get("filary") or []),
+                           "kotwica": p.get("kotwica")}
+                          for p in stan.get("playlisty", [])],
+            "aktywna": stan.get("aktywna_playlista"),
+            "role": ROLE_FILARA,
+            "tryb_filarow": stan.get("tryb_filarow", "rozstaw"),
+        }
+
+    @_bezpiecznie
+    def nowa_playlista(self, nazwa: str) -> dict[str, Any]:
+        from dancelab.tui.user_store import nowa_playlista
+        if not (nazwa or "").strip():
+            return {"blad": "playlista bez nazwy jest nie do odnalezienia"}
+        nowa_playlista(self._stan_uzytkownika(), nazwa.strip())
+        self._zapisz_stan_uzytkownika()
+        return self.playlisty()
+
+    @_bezpiecznie
+    def wybierz_playliste(self, indeks: int) -> dict[str, Any]:
+        stan = self._stan_uzytkownika()
+        ile = len(stan.get("playlisty", []))
+        if not (0 <= int(indeks) < ile):
+            return {"blad": f"nie ma playlisty numer {int(indeks) + 1}"}
+        stan["aktywna_playlista"] = int(indeks)
+        self._zapisz_stan_uzytkownika()
+        return self.playlisty()
+
+    @_bezpiecznie
+    def filary(self) -> dict[str, Any]:
+        """Filary aktywnej playlisty, z rolami i tytułami do wyświetlenia."""
+        from dancelab.tui.user_store import filary_wpisy
+        import pathlib as _p
+
+        stan = self._stan_uzytkownika()
+        wpisy = []
+        for e in filary_wpisy(stan):
+            tid = e.get("track_id")
+            spis = next((u for u in self._spis if u["track_id"] == tid), None)
+            wpisy.append({
+                "track_id": tid,
+                "rola": e.get("rola", ""),
+                "tytul": ((spis or {}).get("tytul")
+                          or _p.Path(e.get("path") or "?").stem[:48]),
+            })
+        return {"filary": wpisy,
+                "tryb_filarow": stan.get("tryb_filarow", "rozstaw"),
+                "aktywna": stan.get("aktywna_playlista")}
+
+    @_bezpiecznie
+    def ustaw_filar(self, track_id: str, rola: str = "") -> dict[str, Any]:
+        """Przypnij utwór jako filar z rolą. Odmowa mówi dlaczego — limit
+        dziesięciu i brak playlisty to dwie różne przeszkody."""
+        from dancelab.tui.user_store import ustaw_filar
+        udalo, powod = ustaw_filar(self._stan_uzytkownika(), track_id,
+                                   self._sciezka_utworu(track_id), rola)
+        if not udalo:
+            return {"blad": powod or "filara nie wpisałem"}
+        self._zapisz_stan_uzytkownika()
+        wynik = self.filary()
+        wynik["ustawiony"] = track_id
+        return wynik
+
+    @_bezpiecznie
+    def zdejmij_filar(self, track_id: str) -> dict[str, Any]:
+        from dancelab.tui.user_store import zdejmij_filar
+        udalo = zdejmij_filar(self._stan_uzytkownika(), track_id,
+                              self._sciezka_utworu(track_id))
+        if not udalo:
+            return {"blad": "ten utwór nie jest filarem aktywnej playlisty"}
+        self._zapisz_stan_uzytkownika()
+        return self.filary()
+
+    @_bezpiecznie
+    def ustaw_tryb_filarow(self, tryb: str) -> dict[str, Any]:
+        """rozstaw | rama | podpory — trzy sposoby użycia filarów przy budowie.
+        """
+        if tryb not in ("rozstaw", "rama", "podpory"):
+            return {"blad": f"nieznany tryb filarów: {tryb!r}"}
+        self._stan_uzytkownika()["tryb_filarow"] = tryb
+        self._zapisz_stan_uzytkownika()
+        return {"tryb_filarow": tryb}
+
+    @_bezpiecznie
+    def przelacz_ulubiony(self, track_id: str) -> dict[str, Any]:
+        from dancelab.tui.user_store import toggle_track
+        teraz, powod = toggle_track(self._stan_uzytkownika(), "ulubione_utwory",
+                                    track_id, self._sciezka_utworu(track_id))
+        if powod:
+            return {"blad": powod}
+        self._zapisz_stan_uzytkownika()
+        return {"ulubiony": bool(teraz), "track_id": track_id}
+
+    @_bezpiecznie
+    def ulubione(self) -> dict[str, Any]:
+        stan = self._stan_uzytkownika()
+        return {"ulubione": [e.get("track_id")
+                             for e in stan.get("ulubione_utwory", [])]}
 
     # ------------------------------------------------- playlista do RB
 
