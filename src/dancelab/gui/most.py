@@ -67,6 +67,11 @@ class Most:
         self._parametry_budowy: dict[str, Any] = {}
         self._ostatni_przygotuj: dict[str, Any] | None = None
         self._wagi_budowy: Any = None
+        # Nakładka edycji przeżywa przebudowę setu (celowo — ręczne pady DJ-a
+        # nie znikają, bo silnik policzył nowy plan). Werdykt musi jednak
+        # odróżniać nadpisanie TEJ propozycji od nadpisania sprzed niej —
+        # stąd migawka kluczy edycji zastanych w chwili budowy planu.
+        self._edycje_sprzed_planu: set[str] = set()
 
     # ------------------------------------------------------------ biblioteka
 
@@ -269,9 +274,20 @@ class Most:
     def cofnij(self, track_id: str) -> dict[str, Any]:
         """Cofnięcie jest w rdzeniu, nie w widoku — terminal ma je tak samo."""
         self._zapis_gotowy = None
+        przed_n = dict(self._edycje.get("nadpisania") or {})
+        przed_z = set(self._edycje.get("zdjete") or [])
         udalo = edycje.cofnij(self._edycje)
-        blad = dziennik.dopisz("cue_cofniecie", track_id=track_id,
-                               cofnieto=bool(udalo)) if udalo else None
+        blad = None
+        if udalo:
+            # Cofnięcie działa na WSPÓLNEJ historii edycji, nie na otwartym
+            # utworze — może przywrócić pad zupełnie innego utworu niż ten
+            # na ekranie. Zdarzenie niesie klucze, które naprawdę wróciły.
+            po_n = self._edycje.get("nadpisania") or {}
+            po_z = set(self._edycje.get("zdjete") or [])
+            zmienione = sorted(
+                {k for k in set(przed_n) | set(po_n)
+                 if przed_n.get(k) != po_n.get(k)} | (przed_z ^ po_z))
+            blad = dziennik.dopisz("cue_cofniecie", zmienione=zmienione)
         wynik = self._z_dziennikiem(self.pady(track_id), blad)
         wynik["cofnieto"] = bool(udalo)
         return wynik
@@ -316,6 +332,10 @@ class Most:
         self._edycje["nadpisania"] = dane.get("nadpisania") or {}
         self._edycje["zdjete"] = dane.get("zdjete") or []
         self._edycje["historia"] = []
+        # Edycje z dysku pochodzą sprzed bieżącego planu z definicji —
+        # werdykt nie ma prawa policzyć ich jako reakcji na jego propozycje.
+        self._edycje_sprzed_planu |= (set(self._edycje["nadpisania"])
+                                      | set(self._edycje["zdjete"]))
         return {"wczytano": len(self._edycje["nadpisania"])}
 
     # ------------------------------------------------------------- budowa
@@ -399,12 +419,16 @@ class Most:
                 "minuty": par.minuty, "bpm_min": par.bpm_min,
                 "bpm_max": par.bpm_max, "dj": par.dj}
             self._wagi_budowy = wynik.get("wagi")
+            self._edycje_sprzed_planu = (
+                set(self._edycje.get("nadpisania") or {})
+                | set(self._edycje.get("zdjete") or []))
             dziennik.dopisz(
                 "budowa", parametry=self._parametry_budowy,
                 utworow=len(wynik["kolejnosc"]),
                 kolejnosc=list(wynik["kolejnosc"]),
                 pady_silnika=(sum(len(t.cues) for t in self._plan_cue.tracks)
                               if self._plan_cue is not None else 0),
+                edycje_zastane=len(self._edycje_sprzed_planu),
                 plan=str(sciezka))
 
             self._budowa = {
@@ -591,19 +615,30 @@ class Most:
 
         utwory: list[dict[str, Any]] = []
         miara = {"z_silnika": 0, "nadpisane": 0, "reczne": 0, "zdjete": 0,
-                 "przeszlo_domyslnie": 0, "utwory_z_widzianymi": 0}
+                 "przeszlo_domyslnie": 0, "utwory_z_widzianymi": 0,
+                 "edycje_sprzed_planu": 0}
+
+        def sprzed(klucz: str, wpis: dict[str, Any]) -> dict[str, Any]:
+            # Edycja zastana w chwili budowy planu nie jest reakcją na jego
+            # propozycje — bez tego znacznika „nadpisany" kłamałby o zgodzie.
+            if klucz in self._edycje_sprzed_planu:
+                wpis["sprzed_planu"] = True
+                miara["edycje_sprzed_planu"] += 1
+            return wpis
+
         for tid in self._kolejnosc:
             widziane = tid in self._pady_pokazane
             pady: dict[str, dict[str, Any]] = {}
             for pad, c in propozycje.get(tid, {}).items():
                 klucz = f"{tid}|{pad}"
                 if klucz in zdjete:
-                    pady[pad] = {"los": "zdjety", "silnik_ms": c.position_ms}
+                    pady[pad] = sprzed(klucz, {"los": "zdjety",
+                                               "silnik_ms": c.position_ms})
                     miara["zdjete"] += 1
                 elif klucz in nadpisania:
-                    pady[pad] = {"los": "nadpisany",
-                                 "silnik_ms": c.position_ms,
-                                 "position_ms": nadpisania[klucz]["position_ms"]}
+                    pady[pad] = sprzed(klucz, {
+                        "los": "nadpisany", "silnik_ms": c.position_ms,
+                        "position_ms": nadpisania[klucz]["position_ms"]})
                     miara["nadpisane"] += 1
                 else:
                     pady[pad] = {"los": "z_silnika",
@@ -614,8 +649,8 @@ class Most:
             for klucz, wpis in nadpisania.items():
                 t_id, pad = klucz.rsplit("|", 1)
                 if t_id == tid and pad not in pady and klucz not in zdjete:
-                    pady[pad] = {"los": "reczny",
-                                 "position_ms": wpis["position_ms"]}
+                    pady[pad] = sprzed(klucz, {
+                        "los": "reczny", "position_ms": wpis["position_ms"]})
                     miara["reczne"] += 1
             if widziane:
                 miara["utwory_z_widzianymi"] += 1

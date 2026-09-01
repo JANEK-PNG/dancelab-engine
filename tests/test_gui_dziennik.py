@@ -113,7 +113,8 @@ def test_klasyfikacja_losow_padow(most):
     assert t1["pady"]["B"]["los"] == "reczny"
     assert t2["pady"]["A"] == {"los": "zdjety", "silnik_ms": 20_000}
     assert miara == {"z_silnika": 0, "nadpisane": 1, "reczne": 1, "zdjete": 1,
-                     "przeszlo_domyslnie": 0, "utwory_z_widzianymi": 2}
+                     "przeszlo_domyslnie": 0, "utwory_z_widzianymi": 2,
+                     "edycje_sprzed_planu": 0}
 
 
 def test_werdykt_przezywa_niezapisywalne_wagi(most, tmp_path):
@@ -128,6 +129,32 @@ def test_werdykt_przezywa_niezapisywalne_wagi(most, tmp_path):
     assert dane["miara"]["z_silnika"] == 2
 
 
+def test_cofniecie_loguje_co_naprawde_wrocilo(most, tmp_path):
+    # Historia edycji jest wspólna: pad postawiony na t2, cofnięcie zrobione
+    # z ekranu t1 — zdarzenie ma nieść klucz t2, nie utwór z ekranu.
+    most.pady("t2")
+    most.postaw_pad("t2", "B", 7_000)
+    odp = most.cofnij("t1")
+    assert odp["cofnieto"] is True
+    zd = _zdarzenia(tmp_path)
+    assert zd[-1]["typ"] == "cue_cofniecie"
+    assert zd[-1]["zmienione"] == ["t2|B"]
+    assert "track_id" not in zd[-1]
+
+
+def test_edycje_sprzed_planu_nie_licza_sie_jako_reakcja(most):
+    # Nadpisanie pada A na t1 istniało już w chwili budowy planu — werdykt
+    # nie ma prawa policzyć go jako odpowiedzi na propozycję tego planu.
+    most.pady("t1")
+    most.przesun_pad("t1", "A", 4, 120.0)
+    most._edycje_sprzed_planu = {"t1|A"}
+    utwory, miara = most._klasyfikuj_pady()
+    t1 = next(u for u in utwory if u["track_id"] == "t1")
+    assert t1["pady"]["A"]["los"] == "nadpisany"
+    assert t1["pady"]["A"]["sprzed_planu"] is True
+    assert miara["edycje_sprzed_planu"] == 1
+
+
 def test_awaria_dziennika_nie_blokuje_edycji(most, tmp_path, monkeypatch):
     # KATALOG wskazuje na PLIK → mkdir się wywróci → edycja ma przejść,
     # a ostrzeżenie wrócić do widoku.
@@ -139,3 +166,72 @@ def test_awaria_dziennika_nie_blokuje_edycji(most, tmp_path, monkeypatch):
     assert "blad" not in odp
     assert odp["pady"]["B"]["position_ms"] == 5_000
     assert "dziennik nie zapisał" in odp.get("dziennik", "")
+
+
+def test_zapis_cue_konczy_sie_werdyktem_na_dysku(tmp_path, monkeypatch):
+    """Pełna droga okna na KOPII master.db: podgląd → zapis → werdykt.
+
+    Testuje sam szew, którego testy jednostkowe nie widzą: że `zapisz_cue`
+    naprawdę odkłada `gui_werdykt_*.json` i wskazuje go w odpowiedzi.
+    """
+    from pathlib import Path
+    import shutil
+
+    pytest.importorskip("pyrekordbox")
+    zywa = Path.home() / "Library/Pioneer/rekordbox/master.db"
+    if not zywa.exists():
+        pytest.skip("brak lokalnej master.db do skopiowania")
+
+    import pyrekordbox.db6.database as _db
+    from dancelab.ingestion import cue_ledger, rekordbox_cue_writer as W
+    from dancelab.stan import zapis_cue
+
+    monkeypatch.setattr(_db, "get_rekordbox_pid", lambda *a, **k: 0)
+    monkeypatch.setattr(W, "is_rekordbox_running", lambda: False)
+    monkeypatch.setattr(cue_ledger, "SCIEZKA", tmp_path / "rejestr.json")
+    monkeypatch.setattr(dziennik, "KATALOG", tmp_path / "werdykty")
+    kopia = tmp_path / "master.db"
+    shutil.copy2(zywa, kopia)
+    monkeypatch.setattr(zapis_cue, "BAZA_DOMYSLNA", kopia)
+    monkeypatch.setattr(zapis_cue, "BACKUP_DIR", tmp_path / "kopie")
+    monkeypatch.setattr(zapis_cue, "rekordbox_otwarty", lambda: False)
+
+    from pyrekordbox import Rekordbox6Database
+    from pyrekordbox.db6 import tables
+    db = Rekordbox6Database(path=str(kopia))
+    try:
+        wiersz = db.session.query(tables.DjmdContent).filter(
+            tables.DjmdContent.FolderPath != None).first()  # noqa: E711
+        sciezka = str(wiersz.FolderPath)
+    finally:
+        db.close()
+
+    class _T:
+        track_id, source_path, title, artist = "t1", sciezka, "Testowy", "Test"
+
+    class _A:
+        track = _T()
+
+    m = Most(katalog=str(tmp_path / "analizy"))
+    m._plan_cue = CuePlan(tracks=[TrackCuePlan(content_id="t1", cues=[
+        PlannedCue(content_id="t1", position_ms=61_500, kind=1,
+                   pad_label="A", cue_type="mix_in")])])
+    m._kolejnosc = ["t1"]
+    m._analizy = {"t1": _A()}
+    m.pady("t1")
+
+    podglad = m.przygotuj_zapis_cue()
+    assert "blad" not in podglad, podglad
+    wynik = m.zapisz_cue(nazwa="test dziennika")
+    assert "blad" not in wynik, wynik
+    assert wynik["zapisane"] >= 1
+
+    werdykt = json.loads(Path(wynik["werdykt"]).read_text())
+    assert werdykt["powod"] == "zapis_cue"
+    assert werdykt["liczby_podgladu"]["do_zapisu"] == podglad["do_zapisu"]
+    t1 = next(u for u in werdykt["utwory"] if u["track_id"] == "t1")
+    assert t1["propozycje_widziane"] is True
+    assert t1["pady"]["A"]["los"] == "z_silnika"
+    zd = _zdarzenia(tmp_path)
+    assert zd[-1]["typ"] == "zapis_cue"
+    assert zd[-1]["werdykt"] == wynik["werdykt"]
