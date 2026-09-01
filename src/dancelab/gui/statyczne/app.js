@@ -15,6 +15,9 @@ const NAZWY_PADOW = ['A', 'B', 'C', 'D'];
 let stan = {
   trackId: null, przebieg: null, pady: {}, wybrany: null, bpm: null,
   ostatniBlad: null, spis: [], filtr: '',
+  // ekran Set: zaznaczona pozycja, wiersze setu, otwarty panel kandydatów
+  set: [], filary: [], pozycja: null, ostatniSet: null,
+  kandydaci: null, kandCel: null, kandTryb: 'smart', kandWybor: null,
 };
 
 /* ---------- pomocnicze ---------- */
@@ -275,6 +278,11 @@ function pokazEkran(nazwa) {
      kontekstu rozlewa się na resztę. Złapane na zrzucie — ekran Set ściskał
      się do 264 px z uciętą tabelą. Kolumny przełącza CSS po tym atrybucie. */
   document.documentElement.dataset.ekran = nazwa;
+  // Skróty pod ręką muszą pasować do ekranu — inaczej pas na dole obiecuje
+  // klawisze, które tu nic nie robią.
+  $('#skroty-szew').hidden = nazwa === 'set';
+  $('#skroty-set').hidden = nazwa !== 'set';
+  if (nazwa !== 'set') zamknijKandydatow();
   if (nazwa === 'set') { kontekstSet(); odswiezZapis(); }
 }
 
@@ -319,11 +327,17 @@ function rysujKrzywa(utwory) {
 
 function rysujTabeleSetu(utwory, filary) {
   const el = $('#tabela-set');
+  stan.set = utwory || [];
+  if (filary !== undefined) stan.filary = filary || [];
   if (!utwory || !utwory.length) {
     el.innerHTML = '<div class="pusto">Silnik nie zbudował setu — powód wyżej.</div>';
+    stan.pozycja = null;
     return;
   }
-  const zbior = new Set(filary || []);
+  if (stan.pozycja !== null && stan.pozycja >= utwory.length) {
+    stan.pozycja = utwory.length - 1;
+  }
+  const zbior = new Set(stan.filary);
   let suma = 0;
   el.innerHTML = `<table><thead><tr>
       <th style="width:34px">#</th><th style="width:54px">BPM</th>
@@ -336,7 +350,7 @@ function rysujTabeleSetu(utwory, filary) {
         ? `<span class="ton">${u.tonacja}</span>` +
           (u.tonacja_zrodlo === 'rekordbox' ? ' <span class="drobne">RB</span>' : '')
         : '<span class="pusto">—</span>';
-      return `<tr>
+      return `<tr data-poz="${i}" ${stan.pozycja === i ? 'aria-selected="true"' : ''}>
         <td class="num">${i + 1}</td>
         <td class="num">${u.bpm ? u.bpm.toFixed(1) : '—'}</td>
         <td>${ton}</td>
@@ -346,6 +360,129 @@ function rysujTabeleSetu(utwory, filary) {
         <td style="color:var(--bursztyn)">${zbior.has(u.track_id) ? 'FILAR' : ''}</td>
       </tr>`;
     }).join('')}</tbody></table>`;
+  el.querySelectorAll('tr[data-poz]').forEach(tr =>
+    tr.addEventListener('click', () => zaznaczPozycje(Number(tr.dataset.poz))));
+}
+
+/* ---------- edycja setu ----------
+   Ten sam wzór dwóch kroków co w terminalu: zaznaczasz pozycję, klawisz
+   otwiera panel kandydatów, dopiero potwierdzenie zmienia set. Wszystko
+   liczy Python — tu tylko klikanie. */
+
+function zaznaczPozycje(i) {
+  stan.pozycja = i;
+  rysujTabeleSetu(stan.set);
+  const u = stan.set[i];
+  if (u) $('#czas-kursora').textContent = `#${i + 1} ${u.tytul || ''}`.slice(0, 60);
+}
+
+function zamknijKandydatow() {
+  stan.kandydaci = null; stan.kandCel = null; stan.kandWybor = null;
+  $('#kandydaci-box').hidden = true;
+}
+
+async function otworzKandydatow(cel) {
+  if (!api()) return;
+  if (stan.pozycja === null) {
+    rysujNotki(['zaznacz pozycję w secie — kliknij wiersz']);
+    return;
+  }
+  stan.kandCel = cel;
+  const box = $('#kandydaci-box');
+  box.hidden = false;
+  $('#tabela-kandydatow').innerHTML = '<div class="pusto">liczę kandydatów…</div>';
+  const odp = await api().kandydaci(stan.pozycja, stan.kandTryb, cel);
+  if (czyBlad(odp, 'Kandydaci')) { zamknijKandydatow(); return; }
+  stan.kandydaci = odp.kandydaci || [];
+  stan.kandWybor = null;
+  rysujKandydatow(odp.uwaga);
+}
+
+function rysujKandydatow(uwaga) {
+  const el = $('#tabela-kandydatow');
+  const poz = stan.pozycja === null ? '' : `#${stan.pozycja + 1}`;
+  $('#kandydaci-tytul').textContent = stan.kandCel === 'podmiana'
+    ? `Podmiana ${poz} — wybierz i potwierdź`
+    : `Dopisanie za ${poz} — wybierz i potwierdź`;
+  if (!stan.kandydaci || !stan.kandydaci.length) {
+    el.innerHTML = `<div class="pusto">${uwaga || 'brak kandydatów'}</div>`;
+    return;
+  }
+  el.innerHTML = `<table><thead><tr>
+      <th style="width:30px">#</th><th style="width:54px">BPM</th>
+      <th style="width:50px">ton</th><th style="width:52px">ocena</th>
+      <th>utwór</th>
+    </tr></thead><tbody>${stan.kandydaci.map((k, i) => `
+      <tr data-kand="${i}" ${stan.kandWybor === i ? 'aria-selected="true"' : ''}>
+        <td class="ranga">${k.ranga}</td>
+        <td class="num">${k.bpm ? k.bpm.toFixed(1) : '—'}</td>
+        <td>${k.tonacja || '—'}</td>
+        <td class="wynik">${k.score.toFixed(2)}</td>
+        <td>${(k.wykonawca ? k.wykonawca + ' — ' : '').replace(/</g, '&lt;')}${
+          (k.tytul || '').replace(/</g, '&lt;')}
+          <div class="why">${(k.why || '').replace(/</g, '&lt;')}</div></td>
+      </tr>`).join('')}</tbody></table>`;
+  el.querySelectorAll('tr[data-kand]').forEach(tr =>
+    tr.addEventListener('click', () => {
+      const i = Number(tr.dataset.kand);
+      // pierwszy klik zaznacza, drugi w ten sam wiersz potwierdza
+      if (stan.kandWybor === i) { potwierdzKandydata(); return; }
+      stan.kandWybor = i;
+      rysujKandydatow();
+    }));
+}
+
+async function potwierdzKandydata() {
+  if (!api() || stan.kandWybor === null) return;
+  const k = stan.kandydaci[stan.kandWybor];
+  const cel = stan.kandCel, poz = stan.pozycja;
+  const odp = cel === 'podmiana'
+    ? await api().podmien(poz, k.track_id)
+    : await api().dopisz_utwor(poz, k.track_id);
+  if (czyBlad(odp, cel === 'podmiana' ? 'Podmiana' : 'Dopisanie')) return;
+  zamknijKandydatow();
+  if (cel !== 'podmiana') stan.pozycja = poz + 1;
+  poEdycjiSetu(odp, cel === 'podmiana'
+    ? `PODMIANA #${poz + 1}: ${k.tytul || k.track_id}`
+    : `DOPISANE #${poz + 2}: ${k.tytul || k.track_id}`);
+}
+
+async function wytnijPozycje() {
+  if (!api() || stan.pozycja === null) return;
+  const u = stan.set[stan.pozycja];
+  const odp = await api().wytnij(stan.pozycja);
+  if (czyBlad(odp, 'Wycięcie')) return;
+  zamknijKandydatow();
+  poEdycjiSetu(odp, `WYCIĘTE: ${u ? (u.tytul || u.track_id) : ''}`);
+}
+
+async function przesunPozycje(kierunek) {
+  if (!api() || stan.pozycja === null) return;
+  const odp = await api().przesun_utwor(stan.pozycja, kierunek);
+  if (czyBlad(odp, 'Przesunięcie')) return;
+  if (odp.na !== undefined) stan.pozycja = odp.na;
+  poEdycjiSetu(odp, null);
+}
+
+function poEdycjiSetu(odp, komunikat) {
+  rysujTabeleSetu(odp.utwory, odp.filary);
+  rysujKrzywa(odp.utwory);
+  const uwagi = [odp.uwaga, odp.dziennik, komunikat].filter(Boolean);
+  if (uwagi.length) rysujNotki(uwagi);
+  // Liczby po prawej muszą dotyczyć setu PO edycji — inaczej panel mówi
+  // „8 utworów / 42 min" nad krzywą, która pokazuje już co innego.
+  if (stan.ostatniSet) {
+    stan.ostatniSet.utwory = odp.utwory;
+    if (odp.filary) stan.ostatniSet.filary = odp.filary;
+    kontekstSet(stan.ostatniSet);
+  }
+  if (stan.pozycja !== null && stan.set[stan.pozycja]) {
+    const u = stan.set[stan.pozycja];
+    $('#czas-kursora').textContent =
+      `#${stan.pozycja + 1} ${u.tytul || ''}`.slice(0, 60);
+  }
+  // Kolejność się zmieniła, więc policzony plan zapisu przestał obowiązywać.
+  odswiezZapis();
 }
 
 function kontekstSet(s) {
@@ -396,6 +533,9 @@ async function budujSet() {
     $('#postep-box').hidden = true;
     $('#btn-buduj').disabled = false;
     if (s.stan === 'gotowe') {
+      // Ostatni wynik budowy zostaje: panel kontekstu po edycji setu musi
+      // przeliczyć utwory i minuty, a kotwicę i filary bierze stąd.
+      stan.ostatniSet = s;
       rysujNotki(s.notki, s.filary_stan, s.filary_zgloszone);
       rysujKrzywa(s.utwory);
       rysujTabeleSetu(s.utwory, s.filary);
@@ -521,12 +661,45 @@ document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
   if (e.key === '1') { pokazEkran('szew'); return; }
   if (e.key === '2') { pokazEkran('set'); return; }
-  if (e.key === 'b' && !$('#ekran-set').hidden) { budujSet(); return; }
+
+  // Ekran Set ma własny komplet — te same litery co w terminalu (Z/A/X).
+  if (!$('#ekran-set').hidden) {
+    if (e.key === 'Escape') { zamknijKandydatow(); return; }
+    if (e.key === 'Enter' && stan.kandWybor !== null) {
+      potwierdzKandydata(); e.preventDefault(); return;
+    }
+    if (e.key === 'b' || e.key === 'B') { budujSet(); return; }
+    if (e.key === 'z' || e.key === 'Z') {
+      if (!(e.metaKey || e.ctrlKey)) { otworzKandydatow('podmiana'); return; }
+    }
+    if (e.key === 'a' || e.key === 'A') { otworzKandydatow('dopisanie'); return; }
+    if (e.key === 'x' || e.key === 'X') { wytnijPozycje(); return; }
+    if (e.shiftKey && e.key === 'ArrowUp') { przesunPozycje(-1); e.preventDefault(); return; }
+    if (e.shiftKey && e.key === 'ArrowDown') { przesunPozycje(1); e.preventDefault(); return; }
+    if (e.key === 'ArrowUp' && stan.pozycja !== null) {
+      zaznaczPozycje(Math.max(0, stan.pozycja - 1)); e.preventDefault(); return;
+    }
+    if (e.key === 'ArrowDown' && stan.pozycja !== null) {
+      zaznaczPozycje(Math.min(stan.set.length - 1, stan.pozycja + 1));
+      e.preventDefault(); return;
+    }
+    return;                       // reszta skrótów należy do ekranu szwu
+  }
+
   if (e.key === 'ArrowLeft') { przesun(-1); e.preventDefault(); }
   if (e.key === 'ArrowRight') { przesun(1); e.preventDefault(); }
   if (e.key === 'Backspace' || e.key === 'Delete') { zdejmij(); e.preventDefault(); }
   if ((e.metaKey || e.ctrlKey) && e.key === 'z') { cofnij(); e.preventDefault(); }
 });
+
+$('#btn-kand-zamknij').addEventListener('click', zamknijKandydatow);
+document.querySelectorAll('#tryb-oceny button').forEach(b =>
+  b.addEventListener('click', () => {
+    stan.kandTryb = b.dataset.t;
+    document.querySelectorAll('#tryb-oceny button').forEach(x =>
+      x.setAttribute('aria-pressed', String(x === b)));
+    if (stan.kandCel) otworzKandydatow(stan.kandCel);   // przelicz na żywo
+  }));
 window.addEventListener('resize', () => requestAnimationFrame(rysujFale));
 window.addEventListener('pywebviewready', start);
 if (window.pywebview) start();

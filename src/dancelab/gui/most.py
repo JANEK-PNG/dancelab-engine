@@ -72,6 +72,16 @@ class Most:
         # odróżniać nadpisanie TEJ propozycji od nadpisania sprzed niej —
         # stąd migawka kluczy edycji zastanych w chwili budowy planu.
         self._edycje_sprzed_planu: set[str] = set()
+        # Edycja setu: to, czym set był oceniany przy budowie (wagi, łuk,
+        # planer, okno tempa, kotwica) — panel podmian liczy kandydatów
+        # dokładnie tym samym, inaczej sugestie miałyby inny gust niż set.
+        self._ctx_edycji: dict[str, Any] | None = None
+        self._kandydaci_meta: dict[str, dict[str, Any]] = {}
+        self._plan_cue_przeliczony = False
+        # Po edycji kolejności propozycje padów silnika dotyczą STAREGO setu.
+        # Flaga każe je przeliczyć w stopniu pierwszym zapisu — liczby, które
+        # DJ potwierdza, muszą dotyczyć planu, który naprawdę pójdzie do bazy.
+        self._plan_cue_nieaktualny = False
 
     # ------------------------------------------------------------ biblioteka
 
@@ -422,6 +432,15 @@ class Most:
             self._edycje_sprzed_planu = (
                 set(self._edycje.get("nadpisania") or {})
                 | set(self._edycje.get("zdjete") or []))
+            self._ctx_edycji = {
+                "wagi": wynik.get("wagi"), "luk": par.luk,
+                "planer": par.planer, "bpm_min": par.bpm_min,
+                "bpm_max": par.bpm_max,
+                "kotwica_centroid": wynik.get("kotwica_centroid"),
+                "filary": list(wynik.get("filary") or [])}
+            self._kandydaci_meta = {}
+            self._plan_cue_nieaktualny = False
+            self._plan_cue_przeliczony = False
             dziennik.dopisz(
                 "budowa", parametry=self._parametry_budowy,
                 utworow=len(wynik["kolejnosc"]),
@@ -535,6 +554,159 @@ class Most:
             return {"blad": f"nie mam analizy dla {track_id!r}"}
         return {"propozycje": cue.propozycje_czasu(analiza, silnik_ms)}
 
+    # --------------------------------------------------------- edycja setu
+
+    def _sciezka(self, tid: str) -> str | None:
+        a = self._analizy.get(tid)
+        return getattr(getattr(a, "track", None), "source_path", None)
+
+    def _po_edycji_setu(self) -> dict[str, Any]:
+        """Wspólny ogon każdej edycji kolejności: unieważnij policzony zapis,
+        oznacz propozycje padów jako nieaktualne, oddaj świeże wiersze."""
+        self._zapis_gotowy = None
+        self._plan_cue_nieaktualny = True
+        filary = (self._ctx_edycji or {}).get("filary") or []
+        return {"utwory": [self._wiersz(t, self._analizy)
+                           for t in self._kolejnosc],
+                "filary": [f for f in filary if f in self._kolejnosc]}
+
+    def _zrodlo_kandydata(self, tid: str) -> dict[str, Any]:
+        """Skąd wziął się wstawiony utwór — z listy silnika czy z ręki DJ-a.
+
+        Ta sama zasada co w terminalu (`app.py::_zrodlo_kandydata`): wybór bez
+        metadanych panelu jest uczciwie opisany jako własny, nie zgadywany.
+        """
+        meta = self._kandydaci_meta.get(tid)
+        return dict(meta) if meta else {"zrodlo": "reka_dj"}
+
+    @_bezpiecznie
+    def kandydaci(self, pozycja: int, tryb: str = "smart",
+                  cel: str = "podmiana") -> dict[str, Any]:
+        """Kandydaci do szczeliny: podmiana `pozycja` albo dopisanie ZA nią.
+
+        Oceniani dokładnie tym, czym set powstał (wagi, łuk, planer, okno
+        tempa, kotwica z budowy) — sugestie nie mogą mieć innego gustu niż
+        set. Tryby bpm/tonacja to oficjalne tryby plannera, bez kotwicy.
+        """
+        if not self._kolejnosc:
+            return {"blad": "najpierw zbuduj set — nie ma szczelin bez setu"}
+        ctx = self._ctx_edycji
+        if ctx is None or ctx.get("wagi") is None:
+            return {"blad": ("plan wczytany z pliku nie niesie wag budowy — "
+                             "zbuduj set w oknie, żeby dostać sugestie")}
+        idx = int(pozycja)
+        if not (0 <= idx < len(self._kolejnosc)):
+            return {"blad": f"pozycja {idx + 1} poza setem "
+                            f"({len(self._kolejnosc)} pozycji)"}
+        from dancelab.decision import slot_suggest
+        from dancelab.stan import filary as F
+
+        energia, rozpietosc = F.energia_do_oceny(self._analizy)
+        if tryb == "bpm":
+            planer, kotwica = "bpm", None
+        elif tryb == "harmonic":
+            planer, kotwica = "harmonic", None
+        else:
+            planer, kotwica = ctx["planer"], ctx.get("kotwica_centroid")
+        fn = (slot_suggest.suggest_for_slot if cel == "podmiana"
+              else slot_suggest.suggest_for_insertion)
+        sugestie = fn(self._analizy, self._kolejnosc, idx, k=10,
+                      weights=ctx["wagi"], arc=ctx["luk"], planner_mode=planer,
+                      energy=energia, energy_range=rozpietosc,
+                      bpm_min=ctx["bpm_min"], bpm_max=ctx["bpm_max"],
+                      anchor=kotwica)
+        self._kandydaci_meta = {}
+        wiersze = []
+        for ranga, s in enumerate(sugestie, start=1):
+            w = self._wiersz(s.track_id, self._analizy)
+            w.update({"score": round(float(s.score), 4), "why": s.why,
+                      "ranga": ranga})
+            wiersze.append(w)
+            # ranga = miejsce kandydata na liście; bez niej nie wiadomo, czy
+            # ranking silnika cokolwiek wnosi (pytanie otwarte po ślepym
+            # odsłuchu, gdzie 133/158 przejść miało jeden maksymalny wynik)
+            self._kandydaci_meta[s.track_id] = {
+                "zrodlo": "panel_silnika", "ranga": ranga,
+                "score": round(float(s.score), 4), "tryb": tryb,
+                "kandydatow": len(sugestie)}
+        if not wiersze:
+            return {"kandydaci": [], "tryb": tryb, "cel": cel,
+                    "uwaga": "brak kandydatów do tej szczeliny "
+                             "(okno tempa? pula?)"}
+        return {"kandydaci": wiersze, "tryb": tryb, "cel": cel}
+
+    @_bezpiecznie
+    def podmien(self, pozycja: int, track_id: str) -> dict[str, Any]:
+        """Podmiana jednej pozycji — reszta setu zamrożona z konstrukcji."""
+        idx = int(pozycja)
+        if not (0 <= idx < len(self._kolejnosc)):
+            return {"blad": f"pozycja {idx + 1} poza setem"}
+        if track_id not in self._analizy:
+            return {"blad": f"nie mam analizy dla {track_id!r}"}
+        if track_id in self._kolejnosc:
+            return {"blad": "ten utwór już jest w secie"}
+        stary = self._kolejnosc[idx]
+        self._kolejnosc[idx] = track_id
+        blad = dziennik.dopisz(
+            "podmiana", pozycja=idx + 1,
+            **{"out": self._sciezka(stary), "in": self._sciezka(track_id)},
+            **self._zrodlo_kandydata(track_id))
+        self._kandydaci_meta = {}
+        return self._z_dziennikiem(self._po_edycji_setu(), blad)
+
+    @_bezpiecznie
+    def dopisz_utwor(self, po_pozycji: int, track_id: str) -> dict[str, Any]:
+        """Dopisanie ZA wskazaną pozycją — nic nie wypada."""
+        idx = int(po_pozycji)
+        if not (0 <= idx < len(self._kolejnosc)):
+            return {"blad": f"pozycja {idx + 1} poza setem"}
+        if track_id not in self._analizy:
+            return {"blad": f"nie mam analizy dla {track_id!r}"}
+        if track_id in self._kolejnosc:
+            return {"blad": "ten utwór już jest w secie"}
+        self._kolejnosc.insert(idx + 1, track_id)
+        blad = dziennik.dopisz(
+            "dopisanie", pozycja=idx + 2,
+            **{"in": self._sciezka(track_id)},
+            **self._zrodlo_kandydata(track_id))
+        self._kandydaci_meta = {}
+        return self._z_dziennikiem(self._po_edycji_setu(), blad)
+
+    @_bezpiecznie
+    def wytnij(self, pozycja: int) -> dict[str, Any]:
+        """Wycięcie pozycji. Filar wycina się tak samo — ale mówi to wprost."""
+        idx = int(pozycja)
+        if not (0 <= idx < len(self._kolejnosc)):
+            return {"blad": f"pozycja {idx + 1} poza setem"}
+        tid = self._kolejnosc.pop(idx)
+        filar = tid in ((self._ctx_edycji or {}).get("filary") or [])
+        blad = dziennik.dopisz("ciecie", pozycja=idx + 1,
+                               out=self._sciezka(tid), filar=filar)
+        wynik = self._po_edycji_setu()
+        if filar:
+            wynik["uwaga"] = "wyciąłeś FILAR — set stracił jeden z punktów, " \
+                             "na których był rozpięty"
+        return self._z_dziennikiem(wynik, blad)
+
+    @_bezpiecznie
+    def przesun_utwor(self, pozycja: int, kierunek: int) -> dict[str, Any]:
+        """Zamiana miejscami z sąsiadem (±1). Brzeg setu to nie błąd."""
+        idx = int(pozycja)
+        j = idx + (1 if int(kierunek) > 0 else -1)
+        if not (0 <= idx < len(self._kolejnosc)):
+            return {"blad": f"pozycja {idx + 1} poza setem"}
+        if not (0 <= j < len(self._kolejnosc)):
+            wynik = self._po_edycji_setu()
+            wynik["uwaga"] = "brzeg setu — nie ma dokąd przesunąć"
+            return wynik
+        self._kolejnosc[idx], self._kolejnosc[j] = \
+            self._kolejnosc[j], self._kolejnosc[idx]
+        blad = dziennik.dopisz("przesuniecie", z=idx + 1, na=j + 1,
+                               utwor=self._sciezka(self._kolejnosc[j]))
+        wynik = self._po_edycji_setu()
+        wynik["na"] = j
+        return self._z_dziennikiem(wynik, blad)
+
     # -------------------------------------------------------- zapis cue
 
     @_bezpiecznie
@@ -558,6 +730,22 @@ class Most:
             return {"blad": "najpierw zbuduj set — bez niego nie ma czego zapisywać"}
         if zapis_cue.rekordbox_otwarty():
             return {"blad": "Rekordbox jest otwarty — zamknij go przed zapisem cue"}
+
+        # Po edycji kolejności propozycje silnika dotyczą starego setu —
+        # liczby, które DJ za chwilę potwierdzi, muszą dotyczyć nowego.
+        if (self._plan_cue_nieaktualny and self._plan_cue is not None
+                and (self._ctx_edycji or {}).get("wagi") is not None):
+            by_id = {t: self._analizy[t] for t in self._kolejnosc
+                     if t in self._analizy}
+            try:
+                self._plan_cue = zapis_cue.propozycje(
+                    self._kolejnosc, by_id, self._ctx_edycji["wagi"])
+            except Exception as exc:                   # noqa: BLE001
+                return {"blad": f"propozycji po edycji setu nie przeliczyłem "
+                                f"({exc}) — zapis wstrzymany, bo liczyłby "
+                                f"stary set"}
+            self._plan_cue_nieaktualny = False
+            self._plan_cue_przeliczony = True
 
         wynik = zapis_cue.przygotuj(
             self._plan_cue or _pusty_plan_cue(), self._edycje,
@@ -688,6 +876,9 @@ class Most:
                           for t in self._kolejnosc],
             "utwory": utwory,
             "miara": miara,
+            # Prawda o rodowodzie propozycji: po edycji setu były przeliczone
+            # w stopniu pierwszym, więc DJ widział je dopiero od podglądu.
+            "plan_cue_przeliczony_po_edycji": self._plan_cue_przeliczony,
             "zapis": wynik_zapisu,
         }
 

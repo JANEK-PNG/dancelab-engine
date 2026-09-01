@@ -103,6 +103,22 @@
         <div class="pusto">Ustaw parametry i naciśnij <b>Buduj set</b>.</div>
       </div>
 
+      <!-- Panel kandydatów: ten sam wzór dwóch kroków co w terminalu —
+           najpierw wybierasz z listy, potem potwierdzasz. Jedno kliknięcie
+           nie zmienia setu. -->
+      <div class="kandydaci" id="kandydaci-box" hidden>
+        <div class="kandydaci-glowa">
+          <h2 id="kandydaci-tytul">Kandydaci</h2>
+          <div class="chip-gest" id="tryb-oceny">
+            <button data-t="smart" aria-pressed="true" title="ocena, którą powstał set">smart</button>
+            <button data-t="bpm" title="tempo najpierw">BPM</button>
+            <button data-t="harmonic" title="tonacja najpierw">tonacja</button>
+          </div>
+          <button class="btn" id="btn-kand-zamknij">Zostaw <kbd>Esc</kbd></button>
+        </div>
+        <div class="tabela" id="tabela-kandydatow"></div>
+      </div>
+
       <!-- Zapis jest DWUSTOPNIOWY i tak zostaje: najpierw liczby, potem baza.
            Jednym kliknięciem nie wysyłamy nic do biblioteki DJ-a. -->
       <div class="zapis" id="zapis-box" hidden>
@@ -129,13 +145,21 @@
     <span class="drobne">dźwięk gra tylko wtedy, gdy sam go włączysz</span>
     <span class="czas" id="czas-kursora" style="margin-left:auto">—</span>
   </div>
-  <div class="skroty">
+  <div class="skroty" id="skroty-szew">
     <span><b>klik</b> postaw pad</span>
     <span><b>⌫</b> zdejmij</span>
     <span><b>←→</b> o uderzenie</span>
     <span><b>⌘Z</b> cofnij</span>
     <span><b>P</b> podgląd</span>
     <span><b>S</b> posłuchaj</span>
+  </div>
+  <div class="skroty" id="skroty-set" hidden>
+    <span><b>klik</b> zaznacz pozycję</span>
+    <span><b>Z</b> podmień</span>
+    <span><b>A</b> dopisz za</span>
+    <span><b>X</b> wytnij</span>
+    <span><b>⇧↑↓</b> przesuń</span>
+    <span><b>B</b> buduj</span>
   </div>
 </div>
 

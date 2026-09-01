@@ -122,6 +122,9 @@ tbody tr{cursor:pointer}
 tbody tr:hover{background:#1a1f26}
 tbody tr[aria-selected="true"]{background:#1f2630;box-shadow:inset 2px 0 0 var(--bursztyn)}
 td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+/* Tabela setu zostaje widoczna także przy otwartym panelu kandydatów —
+   podmiana bez widoku sąsiadów to wybór w ciemno. Złapane na zrzucie. */
+#tabela-set{min-height:132px}
 
 .pole{margin-bottom:13px}
 .pole .et{font-size:11px;color:var(--cichy);margin-bottom:3px}
@@ -191,3 +194,22 @@ h2{font-size:12px;font-weight:600;color:var(--cichy);text-transform:uppercase;
 .zapis-liczby b{color:var(--tekst);font-family:var(--mono);font-weight:600}
 .zapis-liczby .ostroznie{color:var(--bursztyn)}
 .zapis-akcje{display:flex;gap:9px;align-items:center}
+
+/* Panel kandydatów do szczeliny — wzór dwóch kroków z terminala: klik
+   zaznacza, przycisk potwierdza. Ta sama rama co panel zapisu, bo obie
+   rzeczy są decyzją do potwierdzenia, nie widokiem. */
+.kandydaci{background:var(--karta);border:1px solid var(--kreska);
+  border-left:3px solid var(--bursztyn);border-radius:var(--r);
+  padding:11px 13px;margin-top:var(--luz);
+  display:flex;flex-direction:column;min-height:0;max-height:38vh}
+.kandydaci-glowa{display:flex;justify-content:space-between;align-items:center;
+  gap:12px;margin-bottom:8px}
+.kandydaci-glowa h2{margin:0;color:var(--tekst)}
+.kandydaci .tabela{flex:1;min-height:80px}
+/* „dlaczego" pod nazwą utworu: liczby silnika, w jego własnych słowach */
+.kandydaci .why{color:var(--cichszy);font-size:11px;font-family:var(--mono)}
+td.ranga{font-family:var(--mono);color:var(--cichszy);text-align:right}
+td.wynik{font-family:var(--mono);font-variant-numeric:tabular-nums;
+  color:var(--volt);text-align:right}
+/* Wycięty filar musi być widoczny jako strata, nie jako zwykła zmiana. */
+.uwaga-edycji{color:var(--bursztyn);font-size:12px;margin-top:6px}

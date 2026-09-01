@@ -327,6 +327,9 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
         "wagi": wagi,
         "notki": notki,
         "kotwica": kotwica.name if kotwica else None,
+        # Centroid wraca w całości, bo panel podmian ocenia kandydatów tą samą
+        # kotwicą, którą set powstał — sugestie nie mogą mieć innego gustu.
+        "kotwica_centroid": (list(kotwica.centroid) if kotwica else None),
         "filary": filary_ids,
         "tryb_filarow": tryb if filary_ids else None,
         # Trzy różne stany, nie dwa. „Nie zaznaczyłeś filarów" i „zaznaczyłeś,
