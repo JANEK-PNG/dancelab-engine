@@ -132,6 +132,25 @@
           <button class="btn glowny" id="btn-wyslij" hidden>Zapisz do Rekordboxa</button>
         </div>
       </div>
+
+      <!-- Playlista to druga, niezależna droga na sprzęt: cue mówią GDZIE
+           w utworze, playlista mówi CO i w jakiej kolejności. Też dwa
+           stopnie — najpierw ile utworów Rekordbox rozpozna. -->
+      <div class="zapis" id="playlista-box" hidden>
+        <div class="zapis-glowa">
+          <h2>Playlista w Rekordboksie</h2>
+          <span class="drobne" id="playlista-warunek"></span>
+        </div>
+        <label class="param rozciag" style="margin-bottom:9px">
+          <span>nazwa</span>
+          <input id="p-nazwa-playlisty" placeholder="DanceLab okno · 90 min"
+                 spellcheck="false"></label>
+        <div id="playlista-liczby" class="zapis-liczby drobne"></div>
+        <div class="zapis-akcje">
+          <button class="btn" id="btn-pl-policz">Policz, ile wejdzie</button>
+          <button class="btn glowny" id="btn-pl-wyslij" hidden>Wyślij playlistę</button>
+        </div>
+      </div>
     </section>
   </main>
 

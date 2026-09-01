@@ -575,9 +575,16 @@ function liczba(etykieta, ile, klasa) {
 
 async function odswiezZapis() {
   const s = await api().zapis_stan();
-  const box = $('#zapis-box');
-  if (!s || s.blad || !s.set) { box.hidden = true; return; }
+  const box = $('#zapis-box'), boxPl = $('#playlista-box');
+  if (!s || s.blad || !s.set) { box.hidden = true; boxPl.hidden = true; return; }
   box.hidden = false;
+  // Playlista jest drugą, niezależną drogą na sprzęt — ma własne dwa stopnie.
+  boxPl.hidden = false;
+  $('#btn-pl-wyslij').hidden = !s.playlista_policzona;
+  $('#btn-pl-policz').disabled = s.rekordbox_otwarty;
+  $('#playlista-warunek').textContent = s.rekordbox_otwarty
+    ? 'Rekordbox jest otwarty — zamknij go, żeby zapisać'
+    : `${s.set} utworów w kolejności z ekranu`;
   $('#btn-wyslij').hidden = !s.policzone;
   $('#btn-policz').disabled = s.rekordbox_otwarty;
   $('#zapis-warunek').textContent = s.rekordbox_otwarty
@@ -611,6 +618,62 @@ async function policzZapis() {
   }
   $('#zapis-liczby').innerHTML = czesci.join('');
   $('#btn-wyslij').hidden = w.do_zapisu === 0;
+}
+
+/* ---------- playlista do Rekordboxa ---------- */
+/* Ta sama zasada dwóch stopni co przy cue, z własnego powodu: dopasowanie
+   idzie po ścieżce pliku, a przy jej braku po tytule i tylko gdy kandydat
+   jest jeden. Lista utworów, które WYPADNĄ, jest właściwym wynikiem
+   pierwszego stopnia — DJ ma ją zobaczyć przed zapisem, nie po. */
+
+function pokazLiczbyPlaylisty(w, poZapisie) {
+  const czesci = [liczba(poZapisie ? 'zapisane utwory' : 'utworów wejdzie',
+                         poZapisie ? w.zapisane : w.dopasowane)];
+  const wypadlo = (w.zgloszone || 0) - (poZapisie ? w.zapisane : w.dopasowane);
+  if (wypadlo > 0) czesci.push(liczba('wypadnie', wypadlo, 'ostroznie'));
+  if (w.bez_sciezki && w.bez_sciezki.length) {
+    czesci.push(liczba('bez pliku na dysku', w.bez_sciezki.length, 'ostroznie'));
+  }
+  if (w.kopia) czesci.push('<span class="ostroznie">kopia bazy zrobiona</span>');
+  if (w.uwaga) czesci.push(`<span class="ostroznie">${w.uwaga}</span>`);
+  let html = czesci.join('');
+  // Powody pominięć własnymi słowami warstwy publikującej — te same, które
+  // widzi terminal; przepisanie ich tutaj rozjechałoby obie skóry.
+  const notki = (w.notki || []).filter(n => /POMINI|bliźniak/i.test(n));
+  if (notki.length) {
+    html += '<div style="width:100%;margin-top:6px">' + notki.map(n =>
+      `<div class="ostroznie">${n.replace(/</g, '&lt;')}</div>`).join('') + '</div>';
+  }
+  $('#playlista-liczby').innerHTML = html;
+}
+
+async function policzPlayliste() {
+  $('#btn-pl-policz').disabled = true;
+  $('#playlista-liczby').textContent = 'sprawdzam, które utwory Rekordbox zna…';
+  const w = await api().podglad_playlisty($('#p-nazwa-playlisty').value);
+  $('#btn-pl-policz').disabled = false;
+  if (w.blad) {
+    $('#playlista-liczby').innerHTML = `<span class="ostroznie">${w.blad}</span>`;
+    $('#btn-pl-wyslij').hidden = true;
+    return;
+  }
+  $('#p-nazwa-playlisty').value = w.nazwa || '';
+  pokazLiczbyPlaylisty(w, false);
+  $('#btn-pl-wyslij').hidden = w.dopasowane === 0;
+}
+
+async function wyslijPlayliste() {
+  $('#btn-pl-wyslij').disabled = true;
+  $('#playlista-liczby').textContent = 'zakładam playlistę (kopia bazy przed zmianą)…';
+  const w = await api().wyslij_playliste($('#p-nazwa-playlisty').value);
+  $('#btn-pl-wyslij').disabled = false;
+  $('#btn-pl-wyslij').hidden = true;
+  if (w.blad) {
+    $('#playlista-liczby').innerHTML =
+      `<span class="ostroznie">ZAPIS NIEUDANY: ${w.blad}</span>`;
+    return;
+  }
+  pokazLiczbyPlaylisty(w, true);
 }
 
 async function wyslijZapis() {
@@ -673,6 +736,8 @@ document.querySelectorAll('#nawigacja button').forEach(b =>
   b.addEventListener('click', () => pokazEkran(b.dataset.ekran)));
 $('#btn-buduj').addEventListener('click', budujSet);
 $('#btn-policz').addEventListener('click', policzZapis);
+$('#btn-pl-policz').addEventListener('click', policzPlayliste);
+$('#btn-pl-wyslij').addEventListener('click', wyslijPlayliste);
 $('#btn-wyslij').addEventListener('click', wyslijZapis);
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;

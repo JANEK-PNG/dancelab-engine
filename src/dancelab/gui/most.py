@@ -18,7 +18,8 @@ import threading
 import traceback
 from typing import Any
 
-from dancelab.stan import budowa, cue, dziennik, edycje, plan, przebieg, zapis_cue
+from dancelab.stan import (budowa, cue, dziennik, edycje, plan, playlista,
+                           przebieg, zapis_cue)
 
 
 def _bezpiecznie(fn):
@@ -60,6 +61,10 @@ class Most:
         # pierwszym. Każda zmiana padów albo setu go kasuje, bo inaczej
         # potwierdzenie zapisałoby stan sprzed edycji.
         self._zapis_gotowy: Any = None
+        # Playlista ma własny stopień pierwszy: nazwa i kolejność, na których
+        # policzono liczby. Zmiana któregokolwiek unieważnia je — inaczej DJ
+        # potwierdzałby liczby innego setu.
+        self._playlista_gotowa: dict[str, Any] | None = None
         # Dziennik decyzji (Q14): utwory, których pady widok narysował przy
         # istniejącym planie. Pad silnika w utworze spoza tej listy przeszedł
         # DOMYŚLNIE — nazwanie go „zaakceptowanym" byłoby zmyśleniem.
@@ -567,6 +572,10 @@ class Most:
         """Wspólny ogon każdej edycji kolejności: unieważnij policzony zapis,
         oznacz propozycje padów jako nieaktualne, oddaj świeże wiersze."""
         self._zapis_gotowy = None
+        # Policzona playlista też przestaje obowiązywać — jej liczby dotyczyły
+        # setu sprzed tej zmiany. Stopień drugi i tak by odmówił, ale przycisk
+        # nie ma prawa wyglądać na gotowy.
+        self._playlista_gotowa = None
         self._plan_cue_nieaktualny = True
         filary = (self._ctx_edycji or {}).get("filary") or []
         return {"utwory": [self._wiersz(t, self._analizy)
@@ -779,7 +788,88 @@ class Most:
             "set": len(self._kolejnosc),
             "propozycje": self._plan_cue is not None,
             "policzone": self._zapis_gotowy is not None,
+            "playlista_policzona": self._playlista_gotowa is not None,
         }
+
+    # ------------------------------------------------- playlista do RB
+
+    def _nazwa_playlisty(self, nazwa: str | None = None) -> str:
+        """Nazwa widoczna w Rekordboksie. Bez nazwy lista dziesięciu playlist
+        „DanceLab" jest bezużyteczna, więc doklejamy parametry budowy."""
+        if nazwa and nazwa.strip():
+            return nazwa.strip()
+        par = self._parametry_budowy or {}
+        minuty = par.get("minuty")
+        dj = par.get("dj")
+        czesci = ["okno"]
+        if minuty:
+            czesci.append(f"{float(minuty):g} min")
+        if dj:
+            czesci.append(str(dj))
+        return "DanceLab " + " · ".join(czesci)
+
+    @_bezpiecznie
+    def podglad_playlisty(self, nazwa: str = "") -> dict[str, Any]:
+        """Stopień pierwszy: ile utworów Rekordbox rozpozna, a które wypadną.
+
+        Baza jest tu tylko czytana. Dopasowanie idzie po ścieżce pliku, a przy
+        jej braku po tytule i tylko przy jednym kandydacie — więc lista
+        pominiętych jest właściwym wynikiem tego kroku, nie przypisem.
+        """
+        if not self._kolejnosc:
+            return {"blad": "najpierw zbuduj set — nie ma czego wysyłać"}
+        if playlista.rekordbox_otwarty():
+            return {"blad": "Rekordbox jest otwarty — zamknij go przed zapisem"}
+        mianowana = self._nazwa_playlisty(nazwa)
+        wynik = playlista.podglad(self._kolejnosc, self._analizy,
+                                  nazwa=mianowana)
+        if "blad" in wynik:
+            return wynik
+        # Liczby, które DJ zaraz potwierdzi, mają dotyczyć TEGO setu i tej
+        # nazwy — stopień drugi sprawdza, że nic się między nimi nie zmieniło.
+        self._playlista_gotowa = {"nazwa": mianowana,
+                                  "kolejnosc": list(self._kolejnosc),
+                                  "dopasowane": wynik["dopasowane"]}
+        return wynik
+
+    @_bezpiecznie
+    def wyslij_playliste(self, nazwa: str = "") -> dict[str, Any]:
+        """Stopień drugi: playlista ląduje w Rekordboksie (z kopią bazy)."""
+        if self._playlista_gotowa is None:
+            return {"blad": "najpierw policz, co wejdzie (podgląd), "
+                            "potem wysyłaj"}
+        mianowana = self._nazwa_playlisty(nazwa)
+        gotowa = self._playlista_gotowa
+        if (gotowa["kolejnosc"] != self._kolejnosc
+                or gotowa["nazwa"] != mianowana):
+            self._playlista_gotowa = None
+            return {"blad": "set albo nazwa zmieniły się po podglądzie — "
+                            "policz jeszcze raz, żeby liczby dotyczyły tego, "
+                            "co naprawdę pójdzie do Rekordboxa"}
+        if playlista.rekordbox_otwarty():
+            return {"blad": "Rekordbox jest otwarty — zamknij go przed zapisem"}
+
+        wynik = playlista.wyslij(self._kolejnosc, self._analizy,
+                                 nazwa=mianowana)
+        self._playlista_gotowa = None
+        if not wynik.get("ok"):
+            dziennik.dopisz("playlista_nieudana", nazwa=mianowana,
+                            powod=wynik.get("blad"))
+            return wynik
+        wynik["uwaga"] = ("otwórz Rekordboksa — playlistę widać dopiero po "
+                          "jego starcie, bo bazę czyta przy uruchomieniu")
+        # Wysłanie setu na sprzęt to koniec drogi decyzyjnej: co poszło do
+        # Rekordboxa, to DJ naprawdę wybrał. Werdykt zapisuje tę chwilę.
+        rec = self._werdykt_zapisu(mianowana, dict(wynik))
+        rec["powod"] = "playlista"
+        plik, blad = dziennik.zapisz_werdykt(rec)
+        dziennik.dopisz("playlista", nazwa=mianowana,
+                        zapisane=wynik.get("zapisane"),
+                        zgloszone=wynik.get("zgloszone"),
+                        werdykt=plik, miara=rec["miara"])
+        if plik:
+            wynik["werdykt"] = plik
+        return self._z_dziennikiem(wynik, blad)
 
     @_bezpiecznie
     def przygotuj_zapis_cue(self) -> dict[str, Any]:

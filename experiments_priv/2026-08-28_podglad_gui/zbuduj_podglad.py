@@ -39,7 +39,19 @@ window.pywebview = {api: {
   buduj_set: () => echo({ruszylo: true}),
   zapis_stan: () => echo({set: (DANE.set?.utwory || []).length,
                           propozycje: true, policzone: false,
+                          playlista_policzona: !!window.__PL__,
                           rekordbox_otwarty: false}),
+  /* Playlista: podgląd zwraca liczby, wysyłka udaje sukces — w przeglądarce
+     nic do bazy nie idzie i iść nie może. */
+  podglad_playlisty: (nazwa) => {
+    const n = (DANE.set?.utwory || []).length;
+    window.__PL__ = true;
+    return echo({ok: true, nazwa: nazwa || 'DanceLab okno · 90 min',
+                 zgloszone: n, dopasowane: Math.max(0, n - 1), zapisane: 0,
+                 bez_sciezki: [], kopia: null,
+                 notki: ['POMINIĘTY (brak/niejednoznaczny): przykład.aiff']});
+  },
+  wyslij_playliste: () => echo({blad: 'podgląd w przeglądarce nie pisze do bazy'}),
   przygotuj_zapis_cue: () => echo(DANE.zapis || {blad: 'brak danych'}),
   zapisz_cue: () => echo({blad: 'podgląd w przeglądarce nie pisze do bazy'}),
   postaw_pad: () => echo(DANE.pady || {pady: {}}),
