@@ -1140,7 +1140,10 @@ function rysujGrajka() {
   // Odmowa PRZED kliknięciem: utwór ze strumienia nie ma czego zagrać i to
   // widać, zamiast czekać, aż DJ kliknie i dostanie komunikat.
   const blokada = cel && cel.grywalny === false;
-  btn.disabled = !cel || blokada;
+  // To, co GRA, zawsze musi dać się zatrzymać. Wyszarzenie dotyczy startu,
+  // nie pauzy — inaczej szew puszczony na secie ze strumieniem grałby do
+  // końca bez guzika, którym można go uciszyć.
+  btn.disabled = !gra && (!cel || blokada);
   $('#btn-szew-graj').disabled = !cel || blokada;
   $('#btn-tyl').disabled = !gra;
   $('#btn-przod').disabled = !gra;
@@ -1189,6 +1192,17 @@ function pilnujGry(wlacz) {
 }
 
 async function graj(pad) {
+  // Pauza tego, co gra, ma zatrzymywać TO, co gra. Szew nie jest utworem —
+  // bez tej gałęzi kliknięcie w pauzę podczas szwu puszczało utwór A od zera.
+  if (stan.gra.gra && stan.gra.rodzaj === 'szew') {
+    clearInterval(odpytywanieSzwu);
+    const odp = await api().stop_dzwieku();
+    if (czyBlad(odp, 'odsłuch')) return;
+    stan.gra = odp;
+    rysujGrajka();
+    pilnujGry(false);
+    return;
+  }
   const cel = utworDoGrania();
   if (!cel) return;
   const odp = await api().graj(cel.trackId, pad || '');
@@ -1247,6 +1261,10 @@ document.addEventListener('keydown', e => {
   // SELECT też przechwytuje litery (wybór opcji po pierwszej literze), więc
   // bez niego „ł" w polu Łuk mogło wyciąć utwór z setu. TEXTAREA na zapas.
   if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+  // Guzik po kliknięciu myszą zostaje z ogniskiem, a przeglądarka zamienia
+  // spację na jego kliknięcie — nasze P/Spacja przełączałoby odsłuch dwa
+  // razy (albo, na guziku „Buduj set", grało I przebudowywało set naraz).
+  if (e.key === ' ' && e.target.tagName === 'BUTTON') return;
   if (e.key === '1') { pokazEkran('szew'); return; }
   if (e.key === '2') { pokazEkran('set'); return; }
   if (e.key === '3') { pokazEkran('dj'); return; }

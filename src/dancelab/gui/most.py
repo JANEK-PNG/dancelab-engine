@@ -95,13 +95,18 @@ class Most:
         # bo dwa naraz to dwa utwory grające przez siebie. Proces jest ZEWNĘTRZNY
         # (ffplay/afplay), więc `zamknij` wisi na zdarzeniu zamknięcia okna.
         self._audio = odtwarzacz.Odtwarzacz()
+        # pywebview odpala OSOBNY WĄTEK na każde wywołanie z JS
+        # (`webview/util.py::js_bridge_call`), a `stan_odtwarzania` chodzi
+        # cztery razy na sekundę i sam zabija martwy proces. Bez zamka
+        # odpytywanie mogło ubić proces, który `graj` właśnie uruchomił:
+        # poll widzi starą, martwą klamkę, `graj` startuje nową, poll ją tnie.
+        self._zamek_audio = threading.Lock()
         # Czego słuchasz: utwór czy szew, i którego. Sam odtwarzacz zna tylko
         # ścieżkę pliku — po ścieżce szwu z cache nie poznasz pary utworów.
         self._gra_co: dict[str, Any] | None = None
         # Render szwu to sekundy pracy (dekodowanie dwóch utworów), więc wątek
         # i odpytywanie — tak samo jak kandydaci i budowa. Dźwięk rusza dopiero
-        # w `postep_szwu`, na wątku wywołania z JS: proces audio ma należeć do
-        # jednego wątku, a start ma być skutkiem TWOJEGO klawisza.
+        # w `postep_szwu`, czyli po TWOIM geście, a nie w środku renderu.
         self._szew_stan: dict[str, Any] = {"stan": "bezczynny"}
         self._plan_cue_przeliczony = False
         # Po edycji kolejności propozycje padów silnika dotyczą STAREGO setu.
@@ -1207,7 +1212,7 @@ class Most:
         return getattr(siatka, "bpm", None) or analiza.track.bpm_estimate
 
     @_bezpiecznie
-    def graj(self, track_id: str, pad: str = "") -> dict[str, Any]:
+    def _graj(self, track_id: str, pad: str = "") -> dict[str, Any]:
         """P na utworze: gra→pauza, ten sam→wznowienie, inny→od zera.
 
         Z padem: start od TEGO pada (ffplay umie wejść w środek utworu).
@@ -1224,7 +1229,7 @@ class Most:
         # P na innym utworze przełącza, a nie zatrzymuje tamten w ciszy.
         if self._audio.gra() and self._audio.sciezka == sciezka:
             self._audio.stop()
-            return dict(self.stan_odtwarzania(), akcja="pauza")
+            return dict(self._stan_odtwarzania(), akcja="pauza")
 
         if pad:
             pady = self._pady_bez_sladu(track_id).get("pady") or {}
@@ -1244,25 +1249,25 @@ class Most:
             return {"blad": f"odsłuch nie wyszedł: {blad}"}
         self._gra_co = {"rodzaj": "utwor", "track_id": track_id,
                         "opis": self._tytul(track_id), "skad": skad}
-        return dict(self.stan_odtwarzania(), akcja=akcja)
+        return dict(self._stan_odtwarzania(), akcja=akcja)
 
     @_bezpiecznie
-    def stop_dzwieku(self) -> dict[str, Any]:
+    def _stop_dzwieku(self) -> dict[str, Any]:
         """Zatrzymanie z zapamiętaniem miejsca — kolejne P wznawia stąd."""
         gralo = self._audio.stop()
-        return dict(self.stan_odtwarzania(), akcja="pauza" if gralo else "cisza")
+        return dict(self._stan_odtwarzania(), akcja="pauza" if gralo else "cisza")
 
     @_bezpiecznie
-    def skocz(self, uderzenia: int) -> dict[str, Any]:
+    def _skocz(self, uderzenia: int) -> dict[str, Any]:
         """±N uderzeń wg tempa utworu, nie wg sekund. Restart procesu daje
         0,1–0,2 s ciszy — to podgląd, nie miks na żywo."""
         _, blad = self._audio.skocz(int(uderzenia))
         if blad:
             return {"blad": blad}
-        return dict(self.stan_odtwarzania(), akcja="skok")
+        return dict(self._stan_odtwarzania(), akcja="skok")
 
     @_bezpiecznie
-    def stan_odtwarzania(self) -> dict[str, Any]:
+    def _stan_odtwarzania(self) -> dict[str, Any]:
         """Odpytywane co ćwierć sekundy, gdy coś gra — stąd głowica na fali.
 
         Tu, i tylko tu, sprawdzamy, czy utwór skończył się SAM. Bez tego
@@ -1282,7 +1287,9 @@ class Most:
         return {
             "gra": self._audio.gra(),
             "pozycja_sec": round(self._audio.pozycja(), 2),
-            "dlugosc_sec": (analiza.track.duration_sec if analiza else None),
+            # szew ma własną długość; utwór — swoją z analizy
+            "dlugosc_sec": (co.get("dlugosc_sec")
+                            or (analiza.track.duration_sec if analiza else None)),
             "rodzaj": co.get("rodzaj"),
             "track_id": tid,
             "para": co.get("para"),
@@ -1294,7 +1301,8 @@ class Most:
     @_bezpiecznie
     def zamknij(self) -> None:
         """Okno się zamyka — proces audio ma zginąć razem z nim."""
-        self._audio.stop()
+        with self._zamek_audio:
+            self._audio.stop()
 
     # --------------------------------------------------------------- szew
 
@@ -1341,7 +1349,7 @@ class Most:
 
     def _szew_w_tle(self, tid_a: str, tid_b: str, z_padow: bool) -> None:
         """Render jest CICHY — do pliku w cache. Dźwięku tu nie ma i nie może
-        być: proces audio należy do wątku wywołań z JS."""
+        być: granie ma być skutkiem gestu DJ-a, nie skutkiem końca renderu."""
         try:
             a, b = self._analizy[tid_a], self._analizy[tid_b]
             if z_padow:
@@ -1378,9 +1386,9 @@ class Most:
         return load_weights(load_config().weights_file)
 
     @_bezpiecznie
-    def postep_szwu(self) -> dict[str, Any]:
-        """Stan renderu; gdy gotowy — DOPIERO TU rusza dźwięk, na tym samym
-        wątku co reszta wywołań odtwarzacza."""
+    def _postep_szwu(self) -> dict[str, Any]:
+        """Stan renderu; gdy gotowy — DOPIERO TU rusza dźwięk, pod zamkiem,
+        tak jak każde inne dotknięcie odtwarzacza."""
         st = dict(self._szew_stan)
         if st.get("stan") != "gotowe":
             return st
@@ -1390,15 +1398,52 @@ class Most:
             self._szew_stan = {"stan": "blad",
                                "blad": f"odsłuch szwu nie wyszedł: {blad}"}
             return dict(self._szew_stan)
+        # Szew trwa tyle, ile trwa szew: uderzenia planu podzielone przez
+        # tempo mastera. Bez tego pasek pokazywał długość utworu A — liczba
+        # na ekranie byłaby po prostu nieprawdziwa.
+        beats, bpm = info.get("beats"), info.get("bpm")
+        dlugosc = (float(beats) * 60.0 / float(bpm)) if beats and bpm else None
         self._gra_co = {"rodzaj": "szew", "track_id": para[0], "para": para,
+                        "dlugosc_sec": dlugosc,
                         "opis": f"{st['etykieta']}: "
                                 f"{self._tytul(para[0])[:22]} → "
                                 f"{self._tytul(para[1])[:22]}",
                         "skad": st["etykieta"]}
         self._szew_stan = {"stan": "gra"}
-        return {"stan": "gra", "odtwarzanie": self.stan_odtwarzania(),
+        return {"stan": "gra", "odtwarzanie": self._stan_odtwarzania(),
                 "cue_a_sec": info.get("cue_a_sec"),
                 "cue_b_sec": info.get("cue_b_sec")}
+
+
+    # Publiczne wejścia do odtwarzacza. Każde bierze ten sam zamek, bo
+    # pywebview daje każdemu wywołaniu z JS własny wątek, a odpytywanie stanu
+    # (4×/s) samo zabija martwy proces — dwa wątki naraz w jednym `Popen`
+    # kończyły się ciszą po naciśnięciu P.
+
+    @_bezpiecznie
+    def graj(self, track_id: str, pad: str = "") -> dict[str, Any]:
+        with self._zamek_audio:
+            return self._graj(track_id, pad)
+
+    @_bezpiecznie
+    def stop_dzwieku(self) -> dict[str, Any]:
+        with self._zamek_audio:
+            return self._stop_dzwieku()
+
+    @_bezpiecznie
+    def skocz(self, uderzenia: int) -> dict[str, Any]:
+        with self._zamek_audio:
+            return self._skocz(int(uderzenia))
+
+    @_bezpiecznie
+    def stan_odtwarzania(self) -> dict[str, Any]:
+        with self._zamek_audio:
+            return self._stan_odtwarzania()
+
+    @_bezpiecznie
+    def postep_szwu(self) -> dict[str, Any]:
+        with self._zamek_audio:
+            return self._postep_szwu()
 
     def _tytul(self, track_id: str) -> str:
         wpis = next((u for u in self._spis if u["track_id"] == track_id), None)

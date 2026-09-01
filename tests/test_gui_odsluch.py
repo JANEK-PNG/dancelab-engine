@@ -215,3 +215,64 @@ def test_odsluch_od_pada_nie_udaje_ze_dj_widzial_pady(most, procesy):
 
     most.pady("t1")                              # ekran otwarty — TO jest pokazanie
     assert most._pady_pokazane == {"t1"}
+
+
+def test_szew_daje_sie_zatrzymac(most, procesy, tmp_path):
+    """To, co gra, musi dać się uciszyć — także szew."""
+    plik = tmp_path / "szew.wav"
+    plik.write_bytes(b"RIFF")
+    most._szew_stan = {"stan": "gotowe", "etykieta": "szew silnika",
+                       "para": ["t1", "t2"],
+                       "info": {"output": plik, "bpm": 128.0, "beats": 64,
+                                "cue_a_sec": 200.0, "cue_b_sec": 12.0}}
+    most.postep_szwu()
+    assert most.stan_odtwarzania()["gra"] is True
+
+    assert most.stop_dzwieku()["akcja"] == "pauza"
+    assert procesy[-1].zakonczony is True
+    assert most.stan_odtwarzania()["gra"] is False
+
+
+def test_pasek_pokazuje_dlugosc_SZWU_a_nie_utworu(most, procesy, tmp_path):
+    """64 uderzenia przy 128 BPM to 30 s. Utwór A trwa 300 s — pokazanie
+    jego długości przy grającym szwie byłoby liczbą nieprawdziwą."""
+    plik = tmp_path / "szew.wav"
+    plik.write_bytes(b"RIFF")
+    most._szew_stan = {"stan": "gotowe", "etykieta": "szew silnika",
+                       "para": ["t1", "t2"],
+                       "info": {"output": plik, "bpm": 128.0, "beats": 64,
+                                "cue_a_sec": 200.0, "cue_b_sec": 12.0}}
+    most.postep_szwu()
+    assert most.stan_odtwarzania()["dlugosc_sec"] == pytest.approx(30.0)
+
+
+def test_odpytywanie_stanu_nie_zabija_swiezo_puszczonego_utworu(most, procesy):
+    """pywebview daje KAŻDEMU wywołaniu z JS własny wątek, a odpytywanie
+    stanu samo sprząta martwy proces. Bez zamka poll trafiał w proces, który
+    `graj` właśnie podmienił — i P kończyło się ciszą."""
+    import threading
+
+    most.graj("t1")
+    procesy[-1].zakonczony = True          # utwór dobiegł końca
+
+    bledy = []
+
+    def pytaj():
+        for _ in range(60):
+            try:
+                most.stan_odtwarzania()
+            except Exception as exc:       # noqa: BLE001
+                bledy.append(exc)
+
+    watki = [threading.Thread(target=pytaj) for _ in range(4)]
+    for w in watki:
+        w.start()
+    for _ in range(30):
+        most.graj("t2")
+    for w in watki:
+        w.join()
+
+    assert bledy == []
+    # ostatni start musi być tym, który naprawdę gra
+    zywe = [p for p in procesy if not p.zakonczony]
+    assert len(zywe) <= 1
