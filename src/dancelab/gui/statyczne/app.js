@@ -23,6 +23,8 @@ let stan = {
   // ekran Set: zaznaczona pozycja, wiersze setu, otwarty panel kandydatów
   set: [], filary: [], pozycja: null, ostatniSet: null,
   kandydaci: null, kandCel: null, kandTryb: 'smart', kandWybor: null,
+  // co gra: {gra, pozycja_sec, dlugosc_sec, rodzaj, track_id, opis, skad}
+  gra: {gra: false, pozycja_sec: 0},
 };
 
 /* ---------- pomocnicze ---------- */
@@ -162,6 +164,7 @@ function rysujKontekst() {
 
 function przerysuj() {
   rysujSekcje(); rysujFale(); rysujPady(); rysujOs(); rysujListe(); rysujKontekst();
+  rysujGrajka();
 }
 
 /* ---------- działania (każde idzie do Pythona) ---------- */
@@ -266,7 +269,12 @@ function rysujSpis() {
   }
   el.innerHTML = widoczne.map(u => {
     const znaki = (u.ulubiony ? '<span class="znak-ulub">♥</span>' : '')
-                + (u.filar ? '<span class="znak-filar">⚑</span>' : '');
+                + (u.filar ? '<span class="znak-filar">⚑</span>' : '')
+                // 7935 z 8261 utworów to strumienie bez pliku — DJ ma to
+                // wiedzieć z listy, a nie dopiero po naciśnięciu P
+                + (u.grywalny === false
+                   ? '<span class="nagra" title="strumień — bez pliku na dysku, nie zagrasz tu">STR</span>'
+                   : '');
     return `
     <div class="utwor" data-id="${u.track_id}"
          ${stan.trackId === u.track_id ? 'aria-selected="true"' : ''}>
@@ -399,6 +407,9 @@ function pokazEkran(nazwa) {
   if (nazwa !== 'set') zamknijKandydatow();
   if (nazwa === 'set') { kontekstSet(); odswiezZapis(); }
   if (nazwa === 'dj') rysujDjow();
+  // guzik odsłuchu dotyczy INNEGO utworu na każdym ekranie — po przełączeniu
+  // musi od razu wiedzieć, czy da się go zagrać
+  rysujGrajka();
 }
 
 /* ---------- DJ-e: kotwice brzmienia ----------
@@ -523,7 +534,7 @@ function rysujTabeleSetu(utwory, filary) {
   el.innerHTML = `<table><thead><tr>
       <th style="width:34px">#</th><th style="width:54px">BPM</th>
       <th style="width:60px">ton</th><th style="width:56px">Σ min</th>
-      <th>wykonawca</th><th>tytuł</th><th style="width:70px">filar</th>
+      <th>wykonawca</th><th>tytuł</th><th style="width:44px" title="czy da się posłuchać w oknie">gra</th><th style="width:70px">filar</th>
     </tr></thead><tbody>${utwory.map((u, i) => {
       suma += (u.dlugosc_sec || 0) / 60;
       // źródło tonacji jest częścią prawdy o niej — „RB" to niezależny sędzia
@@ -538,6 +549,9 @@ function rysujTabeleSetu(utwory, filary) {
         <td class="num">${suma.toFixed(0)}</td>
         <td>${(u.wykonawca || '—').replace(/</g, '&lt;')}</td>
         <td>${(u.tytul || '').replace(/</g, '&lt;')}</td>
+        <td class="nagra" title="${u.grywalny === false
+          ? 'strumień — nie ma pliku na dysku' : 'ma plik — P zagra'}">${
+          u.grywalny === false ? 'STR' : '♪'}</td>
         <td style="color:var(--bursztyn)">${zbior.has(u.track_id) ? 'FILAR' : ''}</td>
       </tr>`;
     }).join('')}</tbody></table>`;
@@ -555,6 +569,7 @@ function zaznaczPozycje(i) {
   rysujTabeleSetu(stan.set);
   const u = stan.set[i];
   if (u) $('#czas-kursora').textContent = `#${i + 1} ${u.tytul || ''}`.slice(0, 60);
+  rysujGrajka();
 }
 
 function zamknijKandydatow() {
@@ -1090,6 +1105,144 @@ $('#btn-plany-zamknij').addEventListener('click', () => {
 $('#btn-pl-policz').addEventListener('click', policzPlayliste);
 $('#btn-pl-wyslij').addEventListener('click', wyslijPlayliste);
 $('#btn-wyslij').addEventListener('click', wyslijZapis);
+
+/* ---------- odsłuch ----------
+   Dźwięk startuje WYŁĄCZNIE z gestu: P, S, kliknięcie w guzik. Nigdy przy
+   wczytaniu ekranu, nigdy „na sprawdzenie" — to zasada projektu, ta sama co
+   w terminalu. Cała maszyneria (proces, pozycja, skoki) siedzi w Pythonie;
+   tu jest rysowanie głowicy i pytanie „co gra?" dziesięć razy na sekundę. */
+
+let odpytywanieGry = null;
+let odpytywanieSzwu = null;
+
+function utworDoGrania() {
+  // Który utwór ma zagrać P: na ekranie Set zaznaczona pozycja, na ekranie
+  // szwu — otwarty utwór. Bez tego P na Secie grałoby coś z innego ekranu.
+  if (!$('#ekran-set').hidden) {
+    const u = stan.set[stan.pozycja];
+    return u ? {trackId: u.track_id, tytul: u.tytul, grywalny: u.grywalny} : null;
+  }
+  if (!stan.trackId) return null;
+  const w = stan.spis.find(u => u.track_id === stan.trackId);
+  return {trackId: stan.trackId, tytul: (w && w.tytul) || '',
+          grywalny: w ? w.grywalny !== false : true};
+}
+
+function rysujGrajka() {
+  const g = stan.gra || {};
+  const cel = utworDoGrania();
+  const btn = $('#btn-graj');
+  const gra = !!g.gra;
+  btn.setAttribute('aria-pressed', String(gra));
+  btn.innerHTML = gra
+    ? '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>'
+    : '<svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>';
+  // Odmowa PRZED kliknięciem: utwór ze strumienia nie ma czego zagrać i to
+  // widać, zamiast czekać, aż DJ kliknie i dostanie komunikat.
+  const blokada = cel && cel.grywalny === false;
+  btn.disabled = !cel || blokada;
+  $('#btn-szew-graj').disabled = !cel || blokada;
+  $('#btn-tyl').disabled = !gra;
+  $('#btn-przod').disabled = !gra;
+
+  const dl = g.dlugosc_sec ? ` / ${mmss(g.dlugosc_sec * 1000)}` : '';
+  $('#czas-gry').textContent = gra || g.pozycja_sec
+    ? mmss((g.pozycja_sec || 0) * 1000) + dl : '0:00';
+  const opis = $('#opis-gry');
+  opis.classList.toggle('zle', !!blokada);
+  if (blokada) {
+    opis.textContent = 'utwór ze strumienia — nie ma pliku na dysku, ' +
+      'zagrasz go w Rekordboksie';
+  } else if (gra) {
+    opis.textContent = `${g.opis || ''}${g.skad ? ' · ' + g.skad : ''}`.slice(0, 96);
+  } else if (g.pozycja_sec) {
+    opis.textContent = 'pauza — P wznawia od tego miejsca';
+  } else {
+    opis.textContent = 'dźwięk gra tylko wtedy, gdy sam go włączysz';
+  }
+  rysujGlowice();
+}
+
+function rysujGlowice() {
+  const el = $('#glowica'), g = stan.gra || {}, p = stan.przebieg;
+  // Głowica należy do TEGO utworu. Gdy gra co innego (albo szew), znika —
+  // linia na cudzej fali kłamałaby o tym, gdzie jest dźwięk.
+  if (!p || !g.gra || g.rodzaj !== 'utwor' || g.track_id !== stan.trackId) {
+    el.hidden = true;
+    return;
+  }
+  el.hidden = false;
+  el.style.left = `${Math.min(100, (g.pozycja_sec / p.dlugosc_sec) * 100)}%`;
+}
+
+function pilnujGry(wlacz) {
+  clearInterval(odpytywanieGry);
+  odpytywanieGry = null;
+  if (!wlacz) return;
+  odpytywanieGry = setInterval(async () => {
+    const s = await api().stan_odtwarzania();
+    if (czyBlad(s, 'odsłuch')) { pilnujGry(false); return; }
+    stan.gra = s;
+    rysujGrajka();
+    if (!s.gra) pilnujGry(false);      // koniec albo pauza — przestań pytać
+  }, 250);
+}
+
+async function graj(pad) {
+  const cel = utworDoGrania();
+  if (!cel) return;
+  const odp = await api().graj(cel.trackId, pad || '');
+  if (odp && odp.blad) {
+    // odmowa „bez pliku" nie jest awarią — mówimy ją w pasku, nie na czerwono
+    // w panelu błędów, bo to normalny stan większości biblioteki
+    if (odp.bez_pliku) {
+      stan.gra = {gra: false, pozycja_sec: 0};
+      $('#opis-gry').classList.add('zle');
+      $('#opis-gry').textContent = odp.blad;
+      return;
+    }
+    pokazBlad('odsłuch', odp.blad);
+    return;
+  }
+  stan.gra = odp;
+  rysujGrajka();
+  pilnujGry(!!odp.gra);
+}
+
+async function skok(uderzenia) {
+  const odp = await api().skocz(uderzenia);
+  if (czyBlad(odp, 'skok')) return;
+  stan.gra = odp;
+  rysujGrajka();
+}
+
+async function graj_szew(zPadow) {
+  const cel = utworDoGrania();
+  if (!cel) return;
+  const odp = await api().graj_szew(cel.trackId, '', !!zPadow);
+  if (odp && odp.blad) {
+    $('#opis-gry').classList.add('zle');
+    $('#opis-gry').textContent = odp.blad;
+    return;
+  }
+  $('#opis-gry').classList.remove('zle');
+  $('#opis-gry').textContent = 'zszywam parę… (render jest cichy)';
+  clearInterval(odpytywanieSzwu);
+  odpytywanieSzwu = setInterval(async () => {
+    const s = await api().postep_szwu();
+    if (s.stan === 'trwa' || s.stan === 'bezczynny') return;
+    clearInterval(odpytywanieSzwu);
+    if (s.stan === 'blad' || s.blad) {
+      $('#opis-gry').classList.add('zle');
+      $('#opis-gry').textContent = s.blad || 'szew nie wyszedł';
+      return;
+    }
+    stan.gra = s.odtwarzanie;
+    rysujGrajka();
+    pilnujGry(true);
+  }, 400);
+}
+
 document.addEventListener('keydown', e => {
   // SELECT też przechwytuje litery (wybór opcji po pierwszej literze), więc
   // bez niego „ł" w polu Łuk mogło wyciąć utwór z setu. TEXTAREA na zapas.
@@ -1116,6 +1269,14 @@ document.addEventListener('keydown', e => {
     if (e.key === 'a' || e.key === 'A') { otworzKandydatow('dopisanie'); return; }
     if (e.key === 'x' || e.key === 'X') { wytnijPozycje(); return; }
     if (e.key === 'c' || e.key === 'C') { porownajPare(); return; }
+    if (e.key === 'p' || e.key === 'P' || e.key === ' ') {
+      graj(); e.preventDefault(); return;
+    }
+    if (e.key === 's' || e.key === 'S') { graj_szew(false); return; }
+    // strzałki poziome należą do odtwarzacza TYLKO wtedy, gdy coś gra —
+    // ta sama reguła co w terminalu, żeby nie zabrać ich edycji
+    if (stan.gra.gra && e.key === 'ArrowLeft') { skok(-8); e.preventDefault(); return; }
+    if (stan.gra.gra && e.key === 'ArrowRight') { skok(8); e.preventDefault(); return; }
     if (e.shiftKey && e.key === 'ArrowUp') { przesunPozycje(-1); e.preventDefault(); return; }
     if (e.shiftKey && e.key === 'ArrowDown') { przesunPozycje(1); e.preventDefault(); return; }
     if (e.key === 'ArrowUp' && stan.pozycja !== null) {
@@ -1131,12 +1292,27 @@ document.addEventListener('keydown', e => {
   if (e.key === 'i' || e.key === 'I') { pokazInfo(); return; }
   if (e.key === 'u' || e.key === 'U') { przelaczUlubiony(); return; }
   if (e.key === 'f' || e.key === 'F') { przypnijFilar(''); return; }
+  // P gra od ZAZNACZONEGO pada, jeśli jakiś jest — słyszysz dokładnie to
+  // miejsce, które właśnie ustawiasz, a nie początek utworu.
+  if (e.key === 'p' || e.key === 'P' || e.key === ' ') {
+    graj(stan.wybrany || ''); e.preventDefault(); return;
+  }
+  if (e.key === 's' || e.key === 'S') { graj_szew(true); return; }
+  // ←→ to przesuwanie pada; odtwarzacz zabiera je WYŁĄCZNIE podczas grania
+  if (stan.gra.gra && e.key === 'ArrowLeft') { skok(-8); e.preventDefault(); return; }
+  if (stan.gra.gra && e.key === 'ArrowRight') { skok(8); e.preventDefault(); return; }
   if (e.key === 'ArrowLeft') { przesun(-1); e.preventDefault(); }
   if (e.key === 'ArrowRight') { przesun(1); e.preventDefault(); }
   if (e.key === 'Backspace' || e.key === 'Delete') { zdejmij(); e.preventDefault(); }
   if ((e.metaKey || e.ctrlKey) && e.key === 'z') { cofnij(); e.preventDefault(); }
 });
 
+$('#btn-graj').addEventListener('click', () =>
+  graj($('#ekran-set').hidden ? (stan.wybrany || '') : ''));
+$('#btn-szew-graj').addEventListener('click', () =>
+  graj_szew($('#ekran-set').hidden));       // na ekranie szwu — z Twoich padów
+$('#btn-tyl').addEventListener('click', () => skok(-8));
+$('#btn-przod').addEventListener('click', () => skok(8));
 $('#btn-kand-zamknij').addEventListener('click', zamknijKandydatow);
 document.querySelectorAll('#tryb-oceny button').forEach(b =>
   b.addEventListener('click', () => {

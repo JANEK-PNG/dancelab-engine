@@ -81,6 +81,10 @@
         <div class="fala-obszar" id="fala-obszar">
           <canvas id="fala"></canvas>
           <div class="warstwa-padow" id="pady"></div>
+          <!-- Głowica: gdzie JEST dźwięk. Rysowana nad falą jako element,
+               nie na płótnie — płótno przerysowuje się przy zmianie utworu,
+               a głowica rusza się dziesięć razy na sekundę. -->
+          <div class="glowica" id="glowica" hidden></div>
         </div>
         <div class="os-czasu" id="os-czasu"></div>
       </div>
@@ -289,10 +293,18 @@
 </div>
 
 <div class="dol">
+  <!-- Odtwarzacz. Dźwięk startuje WYŁĄCZNIE stąd albo z klawisza — nigdy
+       sam z siebie, nigdy przy wczytaniu ekranu. To zasada projektu, nie
+       ustawienie. Guzik jest wyszarzony, gdy utwór jest ze strumienia:
+       powód stoi obok, zamiast czekać na kliknięcie, żeby odmówić. -->
   <div class="grajek">
-    <button class="graj" id="btn-graj" title="posłuchaj szwu (S)">
+    <button class="graj" id="btn-graj" title="graj / pauza (P)">
       <svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg></button>
-    <span class="drobne">dźwięk gra tylko wtedy, gdy sam go włączysz</span>
+    <button class="btn maly" id="btn-szew-graj" title="posłuchaj przejścia do następnego (S)">Szew <kbd>S</kbd></button>
+    <button class="btn maly" id="btn-tyl" title="cofnij o 8 uderzeń (←)" disabled>−8</button>
+    <button class="btn maly" id="btn-przod" title="do przodu o 8 uderzeń (→)" disabled>+8</button>
+    <span class="czas" id="czas-gry">0:00</span>
+    <span class="drobne" id="opis-gry">dźwięk gra tylko wtedy, gdy sam go włączysz</span>
     <span class="czas" id="czas-kursora" style="margin-left:auto">—</span>
   </div>
   <div class="skroty" id="skroty-szew">
@@ -303,6 +315,8 @@
     <span><b>I</b> info</span>
     <span><b>U</b> ♥ ulubiony</span>
     <span><b>F</b> filar</span>
+    <span><b>P</b> graj / pauza</span>
+    <span><b>S</b> szew</span>
   </div>
   <div class="skroty" id="skroty-set" hidden>
     <span><b>klik</b> zaznacz pozycję</span>
@@ -313,6 +327,8 @@
     <span><b>C</b> szew</span>
     <span><b>O</b> plany</span>
     <span><b>B</b> buduj</span>
+    <span><b>P</b> graj / pauza</span>
+    <span><b>S</b> szew</span>
   </div>
 </div>
 

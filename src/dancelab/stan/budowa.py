@@ -385,3 +385,27 @@ def _zbuduj_z_podporami(analizy, by_id, wagi, filary_ids, role, ile, par,
     # zgodność CAŁOŚCI nie jest tą samą liczbą co z budowy — nie udajemy
     return plan.model_copy(update={"track_order": wynik,
                                    "mean_transition_score": None}), notki
+
+
+def bez_pliku(track) -> str | None:
+    """Powód odmowy, gdy czynność wymaga PLIKU, a utwór go nie ma.
+
+    Utwory zaimportowane z analiz Rekordboxa (strumienie Apple Music) mają
+    tempo, siatkę, energię i sekcje, ale nie mają audio na dysku — więc
+    odsłuch i render szwu są niemożliwe. Mówimy to wprost, zamiast pokazywać
+    błąd odtwarzacza.
+
+    Zmierzone 01.09 na prawdziwej puli: 247 z 8261 analiz ma plik, 7935 to
+    strumienie. W SETACH proporcja jest inna (9 i 13 z 17) — dlatego odmowa
+    musi być zdaniem o TYM utworze, nie wyłączeniem całej funkcji.
+
+    Kryterium: ścieżka NIE JEST ścieżką w systemie plików (strumień zapisany
+    jako `apple-music:tracks:123`). Plik, który zniknął, to inny przypadek —
+    tam odtwarzacz ma prawo powiedzieć swoje.
+    """
+    sciezka = str(getattr(track, "source_path", "") or "")
+    if sciezka and not sciezka.startswith("/"):
+        return (f"{(track.title or sciezka)[:38]}: nie ma pliku na dysku "
+                f"(utwór ze strumienia) — zagrasz go w Rekordboksie, "
+                f"tutaj policzymy tylko dobór")
+    return None

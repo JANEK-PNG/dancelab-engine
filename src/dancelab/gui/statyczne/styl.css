@@ -145,7 +145,21 @@ h2{font-size:12px;font-weight:600;color:var(--cichy);text-transform:uppercase;
 .grajek .graj{width:30px;height:30px;border-radius:7px;background:var(--volt);
   border:0;color:#0e1013;cursor:pointer;display:grid;place-items:center}
 .grajek .graj svg{width:13px;height:13px;fill:currentColor}
+.grajek .graj[aria-pressed="true"]{background:var(--bursztyn)}
+/* Wyszarzony guzik ma mówić DLACZEGO — powód stoi w `#opis-gry` obok. */
+.grajek .graj:disabled,.grajek .btn:disabled{opacity:.34;cursor:not-allowed}
 .czas{font-family:var(--mono);font-size:11.5px;color:var(--cichy)}
+#czas-gry{min-width:74px;color:var(--tekst)}
+#opis-gry.zle{color:var(--alarm)}
+
+/* Głowica odtwarzania: gdzie JEST dźwięk. Bursztyn, bo to samo znaczenie co
+   „teraz" na pasku sekcji; pady są błękitne i nie mogą się z nią zlewać. */
+.glowica{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;
+  background:var(--bursztyn);box-shadow:0 0 7px rgba(224,164,88,.75);
+  pointer-events:none;z-index:3}
+/* Utwór ze strumienia — nie ma czego zagrać. Kropka zamiast wykrzyknika:
+   to normalny stan 96% biblioteki, nie błąd. */
+.nagra{color:var(--cichszy);font-size:11px;letter-spacing:.5px}
 .skroty{display:flex;gap:14px;padding:5px 14px 7px;font-size:11.5px;
   color:var(--cichszy);border-top:1px solid rgba(36,42,50,.6)}
 .skroty b{color:var(--bursztyn);font-family:var(--mono);font-weight:500}

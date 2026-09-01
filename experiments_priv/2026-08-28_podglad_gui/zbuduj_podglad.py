@@ -58,6 +58,58 @@ window.pywebview = {api: {
                  notki: ['POMINIĘTY (brak/niejednoznaczny): przykład.aiff']});
   },
   wyslij_playliste: () => echo({blad: 'podgląd w przeglądarce nie pisze do bazy'}),
+  /* ODSŁUCH w podglądzie jest NIEMY — i taki ma być: przeglądarka służy do
+     oglądania wyglądu, a zasada „dźwięk tylko z gestu w prawdziwym oknie"
+     nie ma wyjątku dla wygody. Pozycja tyka udawanym zegarem, żeby dało się
+     ZOBACZYĆ, jak jedzie głowica po fali i jak wygląda pasek podczas grania.
+     `window.__STRUMIEN__ = true` pokazuje wariant „utwór bez pliku". */
+  graj: (tid) => {
+    if (window.__STRUMIEN__) {
+      return echo({blad: 'Utwór ze strumienia: nie ma pliku na dysku '
+                       + '(utwór ze strumienia) — zagrasz go w Rekordboksie, '
+                       + 'tutaj policzymy tylko dobór', bez_pliku: true});
+    }
+    if (window.__GRA__ && window.__GRA__.tid === tid) {
+      window.__GRA__ = null;
+      return echo({gra: false, pozycja_sec: 12, akcja: 'pauza',
+                   rodzaj: 'utwor', track_id: tid, opis: '', skad: ''});
+    }
+    window.__GRA__ = {tid, od: Date.now(), rodzaj: 'utwor'};
+    return echo({gra: true, pozycja_sec: 0, akcja: 'start', rodzaj: 'utwor',
+                 track_id: tid, dlugosc_sec: (DANE.przebieg || {}).dlugosc_sec,
+                 opis: 'podgląd — bez dźwięku', skad: 'od zera'});
+  },
+  stan_odtwarzania: () => {
+    const g = window.__GRA__;
+    if (!g) return echo({gra: false, pozycja_sec: 0, skonczyl_sie: false});
+    return echo({gra: true, rodzaj: g.rodzaj, track_id: g.tid,
+                 pozycja_sec: (Date.now() - g.od) / 1000,
+                 dlugosc_sec: (DANE.przebieg || {}).dlugosc_sec,
+                 opis: 'podgląd — bez dźwięku', skad: 'od zera',
+                 skonczyl_sie: false});
+  },
+  skocz: (n) => {
+    const g = window.__GRA__;
+    if (!g) return echo({blad: 'nic nie gra'});
+    g.od -= n * 60000 / 128;
+    return echo({gra: true, rodzaj: g.rodzaj, track_id: g.tid,
+                 pozycja_sec: (Date.now() - g.od) / 1000,
+                 dlugosc_sec: (DANE.przebieg || {}).dlugosc_sec,
+                 opis: 'podgląd — bez dźwięku', skad: 'skok'});
+  },
+  stop_dzwieku: () => { window.__GRA__ = null;
+                        return echo({gra: false, pozycja_sec: 0}); },
+  graj_szew: () => { window.__SZEW__ = Date.now(); return echo({ruszylo: true}); },
+  postep_szwu: () => {
+    if (!window.__SZEW__) return echo({stan: 'bezczynny'});
+    if (Date.now() - window.__SZEW__ < 1200) return echo({stan: 'trwa'});
+    window.__SZEW__ = null;
+    window.__GRA__ = {tid: 'szew', od: Date.now(), rodzaj: 'szew'};
+    return echo({stan: 'gra', cue_a_sec: 210, cue_b_sec: 14,
+                 odtwarzanie: {gra: true, rodzaj: 'szew', track_id: 'szew',
+                               pozycja_sec: 0, opis: 'szew silnika: A → B',
+                               skad: 'szew silnika', skonczyl_sie: false}});
+  },
   przygotuj_zapis_cue: () => echo(DANE.zapis || {blad: 'brak danych'}),
   zapisz_cue: () => echo({blad: 'podgląd w przeglądarce nie pisze do bazy'}),
   postaw_pad: () => echo(DANE.pady || {pady: {}}),

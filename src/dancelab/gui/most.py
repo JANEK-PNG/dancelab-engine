@@ -18,8 +18,8 @@ import threading
 import traceback
 from typing import Any
 
-from dancelab.stan import (budowa, cue, dziennik, edycje, plan, playlista,
-                           przebieg, zapis_cue)
+from dancelab.stan import (budowa, cue, dziennik, edycje, odtwarzacz, plan,
+                           playlista, przebieg, szew, zapis_cue)
 
 
 def _bezpiecznie(fn):
@@ -91,6 +91,18 @@ class Most:
         self._kandydaci_stan: dict[str, Any] = {"stan": "bezczynny"}
         # Wczytanie planu wymaga całej puli (~20 s zimno) — też w wątku.
         self._plan_stan: dict[str, Any] = {"stan": "bezczynny"}
+        # DŹWIĘK. Jeden odtwarzacz na całe okno — dwa ekrany, jeden proces,
+        # bo dwa naraz to dwa utwory grające przez siebie. Proces jest ZEWNĘTRZNY
+        # (ffplay/afplay), więc `zamknij` wisi na zdarzeniu zamknięcia okna.
+        self._audio = odtwarzacz.Odtwarzacz()
+        # Czego słuchasz: utwór czy szew, i którego. Sam odtwarzacz zna tylko
+        # ścieżkę pliku — po ścieżce szwu z cache nie poznasz pary utworów.
+        self._gra_co: dict[str, Any] | None = None
+        # Render szwu to sekundy pracy (dekodowanie dwóch utworów), więc wątek
+        # i odpytywanie — tak samo jak kandydaci i budowa. Dźwięk rusza dopiero
+        # w `postep_szwu`, na wątku wywołania z JS: proces audio ma należeć do
+        # jednego wątku, a start ma być skutkiem TWOJEGO klawisza.
+        self._szew_stan: dict[str, Any] = {"stan": "bezczynny"}
         self._plan_cue_przeliczony = False
         # Po edycji kolejności propozycje padów silnika dotyczą STAREGO setu.
         # Flaga każe je przeliczyć w stopniu pierwszym zapisu — liczby, które
@@ -169,6 +181,9 @@ class Most:
                 # ORAZ ścieżkę, żeby przeżyć przebudowę katalogu analiz
                 "sciezka": t.get("source_path"),
                 "dlugosc_sec": t.get("duration_sec"),
+                # Grywalny = ma plik na dysku. 7935 z 8261 to strumienie
+                # Apple Music — biblioteka ma to pokazywać, nie ukrywać.
+                "grywalny": str(t.get("source_path") or "").startswith("/"),
             })
 
         self._spis = spis
@@ -285,8 +300,20 @@ class Most:
         chcieć poustawiać cue w pojedynczym utworze, nie budując całego setu —
         i to jest sensowne użycie, nie stan błędu.
         """
+        self._pady_pokazane.add(track_id)
+        return self._pady_bez_sladu(track_id)
+
+    def _pady_bez_sladu(self, track_id: str) -> dict[str, Any]:
+        """Te same pady, ALE bez wpisu do „pokazanych DJ-owi".
+
+        Rozdział jest częścią uczciwości dziennika (ADR-005, Q14): pad silnika
+        liczy się za zaakceptowany dopiero wtedy, gdy DJ go ZOBACZYŁ. Odsłuch
+        od pada i render szwu czytają pady maszynowo — szew czyta nawet pady
+        NASTĘPNEGO utworu, którego ekranu nikt nie otwierał. Gdyby szły przez
+        `pady`, dziennik zapisałby, że DJ widział i przyjął coś, czego nie
+        miał na oczach.
+        """
         if self._plan_cue is not None:
-            self._pady_pokazane.add(track_id)
             return {"pady": edycje.efektywne_pady(self._plan_cue, self._edycje,
                                                   track_id),
                     "zrodlo": "silnik + ręczne"}
@@ -561,6 +588,10 @@ class Most:
             # brak źródła to nasz detektor, który na elektronice bywa słaby
             "tonacja_zrodlo": t.key_detection_source,
             "dlugosc_sec": t.duration_sec,
+            # Czy da się TEGO posłuchać. W puli plik ma 247 z 8261 analiz
+            # (pomiar 01.09) — gdyby widok tego nie pokazywał, DJ klikałby
+            # w guzik odsłuchu i dostawał odmowę zamiast dźwięku.
+            "grywalny": budowa.bez_pliku(t) is None,
         }
 
     @_bezpiecznie
@@ -1146,6 +1177,235 @@ class Most:
         stan = self._stan_uzytkownika()
         return {"ulubione": [e.get("track_id")
                              for e in stan.get("ulubione_utwory", [])]}
+
+    # ------------------------------------------------------------- dźwięk
+    #
+    # Trzy zasady, wszystkie z terminala i wszystkie twarde:
+    #  1. dźwięk startuje WYŁĄCZNIE z jawnego klawisza/kliknięcia — nigdy
+    #     z automatu, nigdy z weryfikacji, nigdy przy wczytaniu ekranu;
+    #  2. utwór bez pliku na dysku (strumień) dostaje ZDANIE o sobie, zanim
+    #     odtwarzacz zostanie dotknięty — nie błąd ffplaya po fakcie;
+    #  3. jeden proces na okno: nowy odsłuch zabija poprzedni.
+
+    def _do_grania(self, track_id: str) -> tuple[Any, str | None]:
+        """Analiza i powód odmowy. Odmowa wygrywa — nie zwracamy obu."""
+        analiza = self._analizy.get(track_id)
+        if analiza is None:
+            from dancelab.storage.repositories import FileAnalysisRepository
+            try:
+                analiza = FileAnalysisRepository(self._katalog).get(track_id)
+            except Exception:                          # noqa: BLE001
+                return None, f"nie mam analizy utworu {track_id!r}"
+            self._analizy[track_id] = analiza
+        return analiza, budowa.bez_pliku(analiza.track)
+
+    @staticmethod
+    def _bpm(analiza) -> float | None:
+        """Tempo do skoków „co N uderzeń". Siatka silnika przed metadanymi —
+        to ona wyznacza uderzenia, po których skaczemy."""
+        siatka = getattr(analiza, "beatgrid", None)
+        return getattr(siatka, "bpm", None) or analiza.track.bpm_estimate
+
+    @_bezpiecznie
+    def graj(self, track_id: str, pad: str = "") -> dict[str, Any]:
+        """P na utworze: gra→pauza, ten sam→wznowienie, inny→od zera.
+
+        Z padem: start od TEGO pada (ffplay umie wejść w środek utworu).
+        Bez pada: od zera — wtedy gra afplay, bo startuje natychmiast, a
+        ffplay potrzebuje pół sekundy na inicjalizację audio.
+        """
+        analiza, powod = self._do_grania(track_id)
+        if powod:
+            return {"blad": powod, "bez_pliku": True}
+        sciezka = analiza.track.source_path
+        bpm = self._bpm(analiza)
+
+        # Pauza dotyczy TEGO, co gra. Drugie P na grającym utworze zatrzymuje;
+        # P na innym utworze przełącza, a nie zatrzymuje tamten w ciszy.
+        if self._audio.gra() and self._audio.sciezka == sciezka:
+            self._audio.stop()
+            return dict(self.stan_odtwarzania(), akcja="pauza")
+
+        if pad:
+            pady = self._pady_bez_sladu(track_id).get("pady") or {}
+            p = pady.get(pad)
+            if p is None:
+                return {"blad": f"utwór nie ma pada {pad}"}
+            blad = self._audio.graj_od(sciezka, bpm,
+                                       p["position_ms"] / 1000.0)
+            akcja, skad = "start", f"od pada {pad}"
+        elif self._audio.sciezka == sciezka and self._audio.pozycja() > 0:
+            blad = self._audio.graj_od(sciezka, bpm, self._audio.pozycja())
+            akcja, skad = "wznowienie", "od miejsca pauzy"
+        else:
+            blad = self._audio.graj_od_zera(sciezka, bpm)
+            akcja, skad = "start", "od zera"
+        if blad:
+            return {"blad": f"odsłuch nie wyszedł: {blad}"}
+        self._gra_co = {"rodzaj": "utwor", "track_id": track_id,
+                        "opis": self._tytul(track_id), "skad": skad}
+        return dict(self.stan_odtwarzania(), akcja=akcja)
+
+    @_bezpiecznie
+    def stop_dzwieku(self) -> dict[str, Any]:
+        """Zatrzymanie z zapamiętaniem miejsca — kolejne P wznawia stąd."""
+        gralo = self._audio.stop()
+        return dict(self.stan_odtwarzania(), akcja="pauza" if gralo else "cisza")
+
+    @_bezpiecznie
+    def skocz(self, uderzenia: int) -> dict[str, Any]:
+        """±N uderzeń wg tempa utworu, nie wg sekund. Restart procesu daje
+        0,1–0,2 s ciszy — to podgląd, nie miks na żywo."""
+        _, blad = self._audio.skocz(int(uderzenia))
+        if blad:
+            return {"blad": blad}
+        return dict(self.stan_odtwarzania(), akcja="skok")
+
+    @_bezpiecznie
+    def stan_odtwarzania(self) -> dict[str, Any]:
+        """Odpytywane co ćwierć sekundy, gdy coś gra — stąd głowica na fali.
+
+        Tu, i tylko tu, sprawdzamy, czy utwór skończył się SAM. Bez tego
+        koniec utworu wygląda identycznie jak pauza: proces nie żyje, pozycja
+        stoi, a głowica zamarza w miejscu, w którym nic już nie gra.
+        """
+        skonczony = self._audio.skonczyl_sie()
+        if skonczony is not None:
+            koniec = self._gra_co or {}
+            self._gra_co = None
+            return {"gra": False, "pozycja_sec": 0.0, "skonczyl_sie": True,
+                    "rodzaj": koniec.get("rodzaj"),
+                    "track_id": koniec.get("track_id"), "opis": ""}
+        co = self._gra_co or {}
+        tid = co.get("track_id")
+        analiza = self._analizy.get(tid) if tid else None
+        return {
+            "gra": self._audio.gra(),
+            "pozycja_sec": round(self._audio.pozycja(), 2),
+            "dlugosc_sec": (analiza.track.duration_sec if analiza else None),
+            "rodzaj": co.get("rodzaj"),
+            "track_id": tid,
+            "para": co.get("para"),
+            "opis": co.get("opis", ""),
+            "skad": co.get("skad", ""),
+            "skonczyl_sie": False,
+        }
+
+    @_bezpiecznie
+    def zamknij(self) -> None:
+        """Okno się zamyka — proces audio ma zginąć razem z nim."""
+        self._audio.stop()
+
+    # --------------------------------------------------------------- szew
+
+    @_bezpiecznie
+    def graj_szew(self, track_id: str, nastepny_id: str = "",
+                  z_padow: bool = False) -> dict[str, Any]:
+        """Zszyj parę i posłuchaj przejścia. Render leci w wątku.
+
+        Dwa różne szwy tej samej pary, oba prawdziwe i nazwane:
+        `z_padow=True` zszywa TWOJE pady (co usłyszysz na sprzęcie po zapisie
+        cue), `z_padow=False` bierze propozycję silnika (okna mix-out/mix-in).
+        """
+        if self._szew_stan.get("stan") == "trwa":
+            return {"blad": "szew już się renderuje — chwila"}
+        drugi = nastepny_id or self._nastepny_w_secie(track_id)
+        if not drugi:
+            return {"blad": "nie ma następnego utworu — szew potrzebuje pary"}
+        for tid in (track_id, drugi):
+            analiza, powod = self._do_grania(tid)
+            if powod:
+                return {"blad": f"szew: {powod}", "bez_pliku": True}
+        if z_padow:
+            brak = [t for t in (track_id, drugi)
+                    if not (self._pady_bez_sladu(t).get("pady") or {})]
+            if brak:
+                czego = ("tego utworu" if brak[0] == track_id
+                         else "następnego utworu")
+                return {"blad": f"{czego} nie ma ani jednego pada — postaw pad, "
+                                f"wtedy zszyję parę z Twoich padów"}
+        self._szew_stan = {"stan": "trwa"}
+        threading.Thread(target=self._szew_w_tle,
+                         args=(track_id, drugi, bool(z_padow)),
+                         daemon=True).start()
+        return {"ruszylo": True}
+
+    def _nastepny_w_secie(self, track_id: str) -> str | None:
+        """Następny utwór SETU. Poza setem szew nie ma z czego powstać —
+        para „ten i przypadkowy z biblioteki" nie jest przejściem."""
+        if track_id in self._kolejnosc:
+            i = self._kolejnosc.index(track_id)
+            if i + 1 < len(self._kolejnosc):
+                return self._kolejnosc[i + 1]
+        return None
+
+    def _szew_w_tle(self, tid_a: str, tid_b: str, z_padow: bool) -> None:
+        """Render jest CICHY — do pliku w cache. Dźwięku tu nie ma i nie może
+        być: proces audio należy do wątku wywołań z JS."""
+        try:
+            a, b = self._analizy[tid_a], self._analizy[tid_b]
+            if z_padow:
+                pady_a = self._pady_bez_sladu(tid_a)["pady"]
+                pady_b = self._pady_bez_sladu(tid_b)["pady"]
+
+                def wybierz(pady: dict, typ: str, ostatni: bool) -> dict:
+                    kand = [v for v in pady.values() if v["typ"] == typ] \
+                        or list(pady.values())
+                    kand.sort(key=lambda v: v["position_ms"])
+                    return kand[-1] if ostatni else kand[0]
+
+                info = szew.zbuduj_szew_z_padow(
+                    a, b,
+                    cue_a_sec=wybierz(pady_a, "mix_out", True)["position_ms"] / 1000.0,
+                    cue_b_sec=wybierz(pady_b, "mix_in", False)["position_ms"] / 1000.0)
+                etykieta = "szew z Twoich padów"
+            else:
+                info = szew.zbuduj_szew(a, b, self._wagi_szwu())
+                etykieta = "szew silnika"
+        except Exception as exc:                       # noqa: BLE001
+            self._szew_stan = {"stan": "blad",
+                               "blad": f"szew nie wyszedł: {exc}"}
+            return
+        self._szew_stan = {"stan": "gotowe", "info": info, "etykieta": etykieta,
+                           "para": [tid_a, tid_b]}
+
+    def _wagi_szwu(self):
+        """Wagi, którymi silnik szukał okien przejścia. Te z budowy, gdy set
+        powstał w tym oknie; domyślne, gdy plan przyszedł z pliku."""
+        if self._wagi_budowy is not None:
+            return self._wagi_budowy
+        from dancelab.core.config import load_config, load_weights
+        return load_weights(load_config().weights_file)
+
+    @_bezpiecznie
+    def postep_szwu(self) -> dict[str, Any]:
+        """Stan renderu; gdy gotowy — DOPIERO TU rusza dźwięk, na tym samym
+        wątku co reszta wywołań odtwarzacza."""
+        st = dict(self._szew_stan)
+        if st.get("stan") != "gotowe":
+            return st
+        info, para = st["info"], st["para"]
+        blad = self._audio.graj_od_zera(str(info["output"]), info["bpm"])
+        if blad:
+            self._szew_stan = {"stan": "blad",
+                               "blad": f"odsłuch szwu nie wyszedł: {blad}"}
+            return dict(self._szew_stan)
+        self._gra_co = {"rodzaj": "szew", "track_id": para[0], "para": para,
+                        "opis": f"{st['etykieta']}: "
+                                f"{self._tytul(para[0])[:22]} → "
+                                f"{self._tytul(para[1])[:22]}",
+                        "skad": st["etykieta"]}
+        self._szew_stan = {"stan": "gra"}
+        return {"stan": "gra", "odtwarzanie": self.stan_odtwarzania(),
+                "cue_a_sec": info.get("cue_a_sec"),
+                "cue_b_sec": info.get("cue_b_sec")}
+
+    def _tytul(self, track_id: str) -> str:
+        wpis = next((u for u in self._spis if u["track_id"] == track_id), None)
+        if wpis:
+            return wpis.get("tytul") or track_id
+        analiza = self._analizy.get(track_id)
+        return (analiza.track.title if analiza else None) or track_id
 
     # ------------------------------------------------- playlista do RB
 
