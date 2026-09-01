@@ -9,6 +9,10 @@ których ta funkcja stoi:
    to jest sygnał, dla którego Q14 w ogóle włączono;
 3. po zmianie kolejności policzony plan zapisu przestaje obowiązywać, a
    propozycje padów są przeliczane, zanim DJ zobaczy liczby do potwierdzenia.
+
+Liczenie kandydatów chodzi w wątku (~4 s na pełnej puli), więc testy wołają
+`_kandydaci_licz` wprost — sprawdzają logikę szczeliny, nie wątek. Osobny
+test pilnuje, że publiczne `kandydaci` naprawdę nie liczy w miejscu.
 """
 
 import json
@@ -75,7 +79,7 @@ def test_kandydaci_ocenia_ta_sama_miara_co_budowa(most, monkeypatch):
     kotwica = [0.1, 0.2]
     most._ctx_edycji["kotwica_centroid"] = kotwica
 
-    odp = most.kandydaci(1, "smart", "podmiana")
+    odp = most._kandydaci_licz(1, "smart", "podmiana")
     assert "blad" not in odp
     assert [k["track_id"] for k in odp["kandydaci"]] == ["k1", "k2"]
     assert [k["ranga"] for k in odp["kandydaci"]] == [1, 2]
@@ -95,7 +99,7 @@ def test_tryb_bpm_nie_niesie_kotwicy(most, monkeypatch):
     monkeypatch.setattr(SS, "suggest_for_slot",
                         lambda *a, **kw: zapamietane.update(kw) or [])
     most._ctx_edycji["kotwica_centroid"] = [0.5]
-    most.kandydaci(0, "bpm", "podmiana")
+    most._kandydaci_licz(0, "bpm", "podmiana")
     assert zapamietane["planner_mode"] == "bpm"
     assert zapamietane["anchor"] is None
 
@@ -106,7 +110,7 @@ def test_podmiana_loguje_range_kandydata(most, tmp_path, monkeypatch):
     monkeypatch.setattr(SS, "suggest_for_slot", lambda *a, **kw: [
         SlotSuggestion("k1", 0.91, "why"), SlotSuggestion("k2", 0.70, "why")])
 
-    most.kandydaci(1, "smart", "podmiana")
+    most._kandydaci_licz(1, "smart", "podmiana")
     odp = most.podmien(1, "k2")
     assert "blad" not in odp
     assert most._kolejnosc == ["t1", "k2", "t3"]
@@ -159,7 +163,7 @@ def test_odmowy_nie_ruszaja_setu(most):
     assert "blad" in most.podmien(9, "k1")
     assert "blad" in most.podmien(0, "nieznany")
     assert "blad" in most.podmien(0, "t2")          # już w secie
-    assert "blad" in most.kandydaci(9)
+    assert "blad" in most.kandydaci(9)   # odmowa PRZED wątkiem
     assert most._kolejnosc == ["t1", "t2", "t3"]
 
     pusty = Most(katalog="x")
@@ -196,3 +200,54 @@ def test_edycja_uniewaznia_policzony_zapis_i_przelicza_pady(most, monkeypatch):
     assert most._plan_cue is swiezy
     assert most._plan_cue_nieaktualny is False
     assert most._werdykt_zapisu("x", {})["plan_cue_przeliczony_po_edycji"] is True
+
+
+def test_zamkniety_panel_nie_dziedziczy_rangi(most, tmp_path, monkeypatch):
+    """Esc gasi metadane: wybór zrobiony później nie podszywa się pod silnik."""
+    import dancelab.decision.slot_suggest as SS
+    from dancelab.decision.slot_suggest import SlotSuggestion
+    monkeypatch.setattr(SS, "suggest_for_slot",
+                        lambda *a, **kw: [SlotSuggestion("k1", 0.9, "why")])
+
+    most._kandydaci_licz(0, "smart", "podmiana")
+    most.zamknij_kandydatow()
+    most.podmien(0, "k1")
+    zd = _zdarzenia(tmp_path)[-1]
+    assert zd["zrodlo"] == "reka_dj"
+    assert "ranga" not in zd
+
+
+def test_kandydaci_nie_licza_w_miejscu(most, monkeypatch):
+    """8143 kandydatów to ~4 s (pomiar 01.09) — w oknie to zamrożenie.
+
+    Publiczne `kandydaci` ma tylko ruszyć wątek i wrócić natychmiast; wynik
+    odbiera się przez `postep_kandydatow`.
+    """
+    import threading
+    import dancelab.decision.slot_suggest as SS
+    from dancelab.decision.slot_suggest import SlotSuggestion
+
+    trwa = threading.Event()
+    puscic = threading.Event()
+
+    def wolno(*a, **kw):
+        trwa.set()
+        puscic.wait(5)
+        return [SlotSuggestion("k1", 0.9, "why")]
+
+    monkeypatch.setattr(SS, "suggest_for_slot", wolno)
+    odp = most.kandydaci(0, "smart", "podmiana")
+    assert odp == {"ruszylo": True}                  # wróciło, nie czekało
+    assert trwa.wait(2), "wątek nie ruszył"
+    assert most.postep_kandydatow()["stan"] == "trwa"
+    assert "blad" in most.kandydaci(0)               # drugi start odmawia
+
+    puscic.set()
+    for _ in range(50):
+        stan = most.postep_kandydatow()
+        if stan["stan"] != "trwa":
+            break
+        import time
+        time.sleep(0.05)
+    assert stan["stan"] == "gotowe"
+    assert [k["track_id"] for k in stan["kandydaci"]] == ["k1"]

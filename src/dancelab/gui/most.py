@@ -77,6 +77,9 @@ class Most:
         # dokładnie tym samym, inaczej sugestie miałyby inny gust niż set.
         self._ctx_edycji: dict[str, Any] | None = None
         self._kandydaci_meta: dict[str, dict[str, Any]] = {}
+        # Liczenie kandydatów trwa ~4 s na pełnej puli (pomiar 01.09), więc
+        # chodzi w wątku i ma własny stan odpytywany przez widok — jak budowa.
+        self._kandydaci_stan: dict[str, Any] = {"stan": "bezczynny"}
         self._plan_cue_przeliczony = False
         # Po edycji kolejności propozycje padów silnika dotyczą STAREGO setu.
         # Flaga każe je przeliczyć w stopniu pierwszym zapisu — liczby, które
@@ -570,6 +573,18 @@ class Most:
                            for t in self._kolejnosc],
                 "filary": [f for f in filary if f in self._kolejnosc]}
 
+    @_bezpiecznie
+    def zamknij_kandydatow(self) -> dict[str, Any]:
+        """Esc: panel zamknięty, metadane kandydatów wygasają.
+
+        Bez tego wybór zrobiony PÓŹNIEJ inną drogą (kiedyś: wstawienie wprost
+        z Biblioteki) odziedziczyłby rangę z panelu, który DJ już zamknął —
+        czyli dziennik przypisałby silnikowi wybór, którego silnik nie podał.
+        Terminal robi to samo przy zamykaniu panelu (`app.py::_close_panel`).
+        """
+        self._kandydaci_meta = {}
+        return {"zamkniete": True}
+
     def _zrodlo_kandydata(self, tid: str) -> dict[str, Any]:
         """Skąd wziął się wstawiony utwór — z listy silnika czy z ręki DJ-a.
 
@@ -582,6 +597,52 @@ class Most:
     @_bezpiecznie
     def kandydaci(self, pozycja: int, tryb: str = "smart",
                   cel: str = "podmiana") -> dict[str, Any]:
+        """Rusz liczenie kandydatów W TLE. Wynik odbiera `postep_kandydatow`.
+
+        Zmierzone 01.09 na prawdziwej puli: 8143 kandydatów to **około
+        czterech sekund**. W pywebview wywołanie z JS jest synchroniczne, więc
+        liczenie wprost zamroziłoby okno na te cztery sekundy — dokładnie ten
+        sam powód, dla którego budowa setu chodzi w wątku.
+        """
+        if self._kandydaci_stan.get("stan") == "trwa":
+            return {"blad": "liczę już kandydatów — chwila"}
+        gotowe = self._kandydaci_teraz(pozycja, tryb, cel)
+        if "blad" in gotowe:
+            return gotowe                        # odmowy wracają natychmiast
+        self._kandydaci_stan = {"stan": "trwa"}
+        threading.Thread(target=self._kandydaci_w_tle,
+                         args=(int(pozycja), tryb, cel), daemon=True).start()
+        return {"ruszylo": True}
+
+    @_bezpiecznie
+    def postep_kandydatow(self) -> dict[str, Any]:
+        """Stan liczenia kandydatów. Widok odpytuje, dopóki trwa."""
+        return dict(self._kandydaci_stan)
+
+    def _kandydaci_w_tle(self, pozycja: int, tryb: str, cel: str) -> None:
+        wynik = self._kandydaci_licz(pozycja, tryb, cel)
+        wynik["stan"] = "blad" if "blad" in wynik else "gotowe"
+        self._kandydaci_stan = wynik
+
+    def _kandydaci_teraz(self, pozycja: int, tryb: str,
+                         cel: str) -> dict[str, Any]:
+        """Same warunki wstępne — sprawdzane przed wątkiem, żeby odmowa
+        wracała od razu, a nie po sekundzie odpytywania."""
+        if not self._kolejnosc:
+            return {"blad": "najpierw zbuduj set — nie ma szczelin bez setu"}
+        ctx = self._ctx_edycji
+        if ctx is None or ctx.get("wagi") is None:
+            return {"blad": ("plan wczytany z pliku nie niesie wag budowy — "
+                             "zbuduj set w oknie, żeby dostać sugestie")}
+        idx = int(pozycja)
+        if not (0 <= idx < len(self._kolejnosc)):
+            return {"blad": f"pozycja {idx + 1} poza setem "
+                            f"({len(self._kolejnosc)} pozycji)"}
+        return {}
+
+    @_bezpiecznie
+    def _kandydaci_licz(self, pozycja: int, tryb: str = "smart",
+                        cel: str = "podmiana") -> dict[str, Any]:
         """Kandydaci do szczeliny: podmiana `pozycja` albo dopisanie ZA nią.
 
         Oceniani dokładnie tym, czym set powstał (wagi, łuk, planer, okno

@@ -377,9 +377,16 @@ function zaznaczPozycje(i) {
 }
 
 function zamknijKandydatow() {
+  clearInterval(odpytywanieKand);
+  const bylOtwarty = !$('#kandydaci-box').hidden;
   stan.kandydaci = null; stan.kandCel = null; stan.kandWybor = null;
   $('#kandydaci-box').hidden = true;
+  // Python też ma zapomnieć rangi zamkniętego panelu — inaczej późniejszy
+  // wybór inną drogą odziedziczyłby ją w dzienniku.
+  if (bylOtwarty && api() && api().zamknij_kandydatow) api().zamknij_kandydatow();
 }
+
+let odpytywanieKand = null;
 
 async function otworzKandydatow(cel) {
   if (!api()) return;
@@ -390,12 +397,22 @@ async function otworzKandydatow(cel) {
   stan.kandCel = cel;
   const box = $('#kandydaci-box');
   box.hidden = false;
-  $('#tabela-kandydatow').innerHTML = '<div class="pusto">liczę kandydatów…</div>';
-  const odp = await api().kandydaci(stan.pozycja, stan.kandTryb, cel);
-  if (czyBlad(odp, 'Kandydaci')) { zamknijKandydatow(); return; }
-  stan.kandydaci = odp.kandydaci || [];
-  stan.kandWybor = null;
-  rysujKandydatow(odp.uwaga);
+  // Ocena 8 tysięcy kandydatów trwa około czterech sekund (pomiar 01.09),
+  // więc Python liczy w wątku, a okno odpytuje — inaczej zamarza na ten czas.
+  $('#tabela-kandydatow').innerHTML =
+    '<div class="pusto">liczę kandydatów w tej szczelinie…</div>';
+  const start = await api().kandydaci(stan.pozycja, stan.kandTryb, cel);
+  if (czyBlad(start, 'Kandydaci')) { zamknijKandydatow(); return; }
+  clearInterval(odpytywanieKand);
+  odpytywanieKand = setInterval(async () => {
+    const s = await api().postep_kandydatow();
+    if (!s || s.stan === 'trwa') return;
+    clearInterval(odpytywanieKand);
+    if (czyBlad(s, 'Kandydaci')) { zamknijKandydatow(); return; }
+    stan.kandydaci = s.kandydaci || [];
+    stan.kandWybor = null;
+    rysujKandydatow(s.uwaga);
+  }, 300);
 }
 
 function rysujKandydatow(uwaga) {

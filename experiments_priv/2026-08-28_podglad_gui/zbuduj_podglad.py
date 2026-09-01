@@ -18,6 +18,15 @@ CEL = TU / "podglad"
 STUB = """/* Udawany most — TYLKO do oglądania wyglądu w przeglądarce. */
 const DANE = window.__DANE__;
 const echo = (x) => Promise.resolve(x);
+window.__LICZ__ = (poz, tryb, cel) => {
+  const set = DANE.set?.utwory || [];
+  const maja = new Set(set.map(u => u.track_id));
+  const pula = (DANE.biblioteka?.utwory || []).filter(u => !maja.has(u.track_id));
+  return {tryb, cel, kandydaci: pula.slice(0, 10).map((u, i) => ({
+    ...u, ranga: i + 1, score: 0.94 - i * 0.06,
+    why: `wejście 0,9${9 - i} · wyjście 0,8${9 - i} [PODGLĄD: liczby zmyślone]`,
+  }))};
+};
 window.pywebview = {api: {
   biblioteka: () => echo(DANE.biblioteka || {utwory: []}),
   wczytaj_utwor: () => echo(DANE.utwor || {}),
@@ -46,15 +55,18 @@ window.pywebview = {api: {
      powiedziałby nic o tym, czy funkcja działa. Kandydaci to utwory
      z biblioteki spoza setu — kolejność i oceny są ZMYŚLONE i tylko
      do oglądania układu; prawdziwe liczy `slot_suggest` w Pythonie. */
+  /* Kandydaci liczą się w wątku (~4 s na pełnej puli), więc most oddaje
+     najpierw {ruszylo}, a wynik idzie przez postep_kandydatow — podgląd
+     musi udawać obie fazy, inaczej nie sprawdza tej drogi wcale. */
   kandydaci: (poz, tryb, cel) => {
-    const set = DANE.set?.utwory || [];
-    const maja = new Set(set.map(u => u.track_id));
-    const pula = (DANE.biblioteka?.utwory || []).filter(u => !maja.has(u.track_id));
-    return echo({tryb, cel, kandydaci: pula.slice(0, 10).map((u, i) => ({
-      ...u, ranga: i + 1, score: 0.94 - i * 0.06,
-      why: `wejście 0,9${9 - i} · wyjście 0,8${9 - i} [PODGLĄD: liczby zmyślone]`,
-    }))});
+    window.__KAND__ = {stan: 'trwa'};
+    setTimeout(() => { window.__KAND__ = {stan: 'gotowe',
+      ...window.__LICZ__(poz, tryb, cel)}; }, 450);
+    return echo({ruszylo: true});
   },
+  postep_kandydatow: () => echo(window.__KAND__ || {stan: 'bezczynny'}),
+  zamknij_kandydatow: () => echo({zamkniete: true}),
+
   podmien: (poz, tid) => {
     const set = DANE.set.utwory, kand = (DANE.biblioteka?.utwory || []);
     set[poz] = kand.find(u => u.track_id === tid) || set[poz];
