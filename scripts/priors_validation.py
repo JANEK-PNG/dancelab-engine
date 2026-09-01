@@ -34,6 +34,7 @@ OUT = ROOT / "data/reports/corpus_priors/validation_v1.json"
 
 from dancelab.decision._common import nearest_bpm_variant
 from dancelab.decision.harmonic import harmonic_compatibility, harmonic_relation
+from dancelab.validation.skladniki import Skladniki
 from dancelab.decision.set_builder import bpm_score
 
 
@@ -76,12 +77,16 @@ def bpm_bucket(bpm_a: float, bpm_b: float) -> str:
     return "0-2%" if v < 2 else "2-4%" if v < 4 else "4-6%" if v < 6 else "6-10%" if v < 10 else ">10%"
 
 
+SKLADNIKI = Skladniki()
+
+
 def score_hand(a: dict, b: dict) -> float:
     """Engine's real component functions, current hand blend (bpm+harmonic+energy)."""
     s = 0.0
     if a["bpm"] and b["bpm"]:
         s += 0.4 * bpm_score(a["bpm"], b["bpm"])
     if a["camelot"] and b["camelot"]:
+        SKLADNIKI.probuje("hand.harmonic")
         try:
             # harmonic_compatibility returns a HarmonicResult, not a float.
             # Multiplying the object raised TypeError straight into the except
@@ -91,8 +96,8 @@ def score_hand(a: dict, b: dict) -> float:
             s += 0.4 * harmonic_compatibility(
                 a["camelot"], b["camelot"]
             ).harmonic_compatibility_score
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            SKLADNIKI.pominiete("hand.harmonic", exc)
     if a["energy"] is not None and b["energy"] is not None:
         s += 0.2 * (1.0 - min(abs(b["energy"] - a["energy"]) * 10, 1.0))
     return s
@@ -104,10 +109,11 @@ def score_measured(a: dict, b: dict, harm_lift: dict, bpm_lift: dict) -> float:
     if a["bpm"] and b["bpm"]:
         s *= bpm_lift.get(bpm_bucket(a["bpm"], b["bpm"]), 1.0)
     if a["camelot"] and b["camelot"]:
+        SKLADNIKI.probuje("measured.harmonic")
         try:
             s *= harm_lift.get(harmonic_relation(a["camelot"], b["camelot"]), 1.0)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            SKLADNIKI.pominiete("measured.harmonic", exc)
     return s
 
 
@@ -186,6 +192,7 @@ def main() -> int:
     res["p_measured_beats_hand"] = round(p_boot, 4)
 
     OUT.write_text(json.dumps({"schema_version": "priors-validation-v2", **res,
+                               "skladniki": SKLADNIKI.jako_dict(),
                                "harm_lift": harm_lift, "bpm_lift": bpm_lift}, indent=2))
 
     print("\n=== KTO PRZEWIDUJE REALNY WYBÓR DJ-a ===")
@@ -198,6 +205,10 @@ def main() -> int:
               f"{r.get('n_ge5','–'):>6} {str(r.get('top1_pct','–')):>5}% {r.get('mrr','–'):>6}")
     print(f"\nparowany bootstrap (zmierzone vs ręczne): p = {p_boot:.4f} "
           f"({'ISTOTNE' if p_boot < 0.05 else 'nieistotne'} przy α=0.05)")
+
+    print("\n=== CZY WSZYSTKIE SKŁADNIKI WESZŁY DO WYNIKU ===")
+    print(SKLADNIKI.raport())
+
     print(f"\n→ {OUT}")
     return 0
 

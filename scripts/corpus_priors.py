@@ -36,6 +36,10 @@ OUT_DIR = ROOT / "data/reports/corpus_priors"
 
 from dancelab.decision._common import nearest_bpm_variant  # octave-fold
 from dancelab.decision.harmonic import harmonic_relation, parse_camelot
+from dancelab.validation.skladniki import Skladniki
+from dancelab.validation.wejscie import BrakDanychWejsciowych, wymagaj_plikow
+
+SKLADNIKI = Skladniki()
 
 
 def load_h_features() -> dict[str, dict]:
@@ -64,11 +68,12 @@ def pair_stats(a: dict, b: dict) -> dict | None:
     out: dict = {}
     ca, cb = a.get("camelot"), b.get("camelot")
     if ca and cb:
+        SKLADNIKI.probuje("priors.relation")
         try:
             parse_camelot(ca), parse_camelot(cb)
             out["relation"] = harmonic_relation(ca, cb)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            SKLADNIKI.pominiete("priors.relation", exc)
     ba, bb = a.get("bpm"), b.get("bpm")
     if ba and bb:
         folded = nearest_bpm_variant(ba, bb)
@@ -88,7 +93,7 @@ def main() -> int:
     pools: list[list[str]] = []  # per-mix youtube pools for the chance baseline
     n_trans = n_valid = n_joined = 0
 
-    for path in sorted(ALIGN_DIR.glob("mix*.json")):
+    for path in wymagaj_plikow(ALIGN_DIR, "mix*.json", "priory z korpusu"):
         try:
             d = json.loads(path.read_text())
         except (OSError, json.JSONDecodeError):
@@ -215,9 +220,15 @@ def main() -> int:
     print(f"\nmediana ΔBPM: DJ-e {report['bpm_delta_median']['real_djs']}% vs losowo {report['bpm_delta_median']['chance']}%")
     print(f"mediana Δenergii: DJ-e {report['energy_delta_median']['real_djs']} vs losowo {report['energy_delta_median']['chance']}")
     print(f"mediana długości przejścia: {report['transition_length_beats_median']} beatów")
+    print("\n=== CZY WSZYSTKIE SKŁADNIKI WESZŁY DO WYNIKU ===")
+    print(SKLADNIKI.raport())
     print(f"\n→ {OUT_DIR/'priors_v1.json'}")
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except BrakDanychWejsciowych as brak:
+        print(f"\nODMAWIAM: {brak}")
+        raise SystemExit(2) from None
