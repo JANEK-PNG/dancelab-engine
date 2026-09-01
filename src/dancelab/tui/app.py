@@ -721,6 +721,7 @@ class DanceLabTUI(App):
         self._cue_prop_i = 0
         self._suggest_slot: int | None = None
         self._panel_mode: str | None = None   # "suggest" | "insert" | "plans"
+        self._suggest_meta: dict[str, dict] = {}   # tid → ranga/score/tryb kandydata
         self._row_cells: list[tuple[str, str]] = []   # (nr, utwór) do poświaty
         self._n_notes = 0
         self._lib: list = []                  # pula Biblioteki (analizy)
@@ -3401,6 +3402,7 @@ class DanceLabTUI(App):
         self.query_one("#suggest").remove_class("open")
         self._suggest_slot = None
         self._panel_mode = None
+        self._suggest_meta = {}
 
     def _cursor_row(self, po_co: str) -> int | None:
         idx = self.query_one("#set", DataTable).cursor_row
@@ -3553,13 +3555,20 @@ class DanceLabTUI(App):
             return
         here = pathlib.Path(by_id[self._order[idx]].track.source_path).stem[:40]
         options = []
-        for sg in sugg:
+        meta = {}
+        for ranga, sg in enumerate(sugg, start=1):
             t = by_id[sg.track_id].track
             options.append((
                 f"{sg.score:.2f} {t.bpm_estimate or 0:5.1f} "
                 f"{str(t.key_estimate or '?'):>3} "
                 f"{pathlib.Path(t.source_path).stem[:30]}",
                 sg.track_id))
+            # ranga = na którym miejscu listy stał kandydat, którego DJ wybrał;
+            # bez tego nie wiadomo, czy ranking silnika cokolwiek wnosi
+            meta[sg.track_id] = {"zrodlo": "panel_silnika", "ranga": ranga,
+                                 "score": round(float(sg.score), 4),
+                                 "tryb": score_mode,
+                                 "kandydatow": len(sugg)}
         mode_label = {"bpm": "BPM najpierw", "harmonic": "tonacja najpierw"} \
             .get(score_mode, "smart")
         if mode == "suggest":
@@ -3568,7 +3577,7 @@ class DanceLabTUI(App):
         else:
             title = (f"DOPISZ za #{idx+1} {here}\n"
                      f"[{mode_label}] klik + A = dopisz · Esc = zostaw")
-        ui(self._open_suggest_panel, idx, title, options, mode)
+        ui(self._open_suggest_panel, idx, title, options, mode, meta)
 
     def on_select_changed(self, event: Select.Changed) -> None:
         """Zmiana trybu oceny przy otwartym panelu → przelicz sugestie na żywo."""
@@ -3579,9 +3588,11 @@ class DanceLabTUI(App):
             self._suggest_worker(self._suggest_slot, self._panel_mode)
 
     def _open_suggest_panel(self, idx: int | None, title: str,
-                            options: list[tuple[str, str]], mode: str) -> None:
+                            options: list[tuple[str, str]], mode: str,
+                            meta: dict[str, dict] | None = None) -> None:
         self._suggest_slot = idx
         self._panel_mode = mode
+        self._suggest_meta = meta or {}
         self.query_one("#suggest-mode", Select).set_class(
             mode not in ("suggest", "insert"), "hide")
         self.query_one("#suggest-list", OptionList).remove_class("hide")
@@ -3605,7 +3616,8 @@ class DanceLabTUI(App):
         self._note(f"PODMIANA #{idx+1}: {old_n} → {new_n} (werdykt zapisany)")
         self._log_verdict("podmiana", pozycja=idx + 1,
                           **{"out": by_id[old_id].track.source_path,
-                             "in": by_id[choice].track.source_path})
+                             "in": by_id[choice].track.source_path},
+                          **self._zrodlo_kandydata(choice))
         self._close_panel()
         table = self.query_one("#set", DataTable)
         table.move_cursor(row=idx)
@@ -3618,11 +3630,25 @@ class DanceLabTUI(App):
         path = by_id[choice].track.source_path
         self._note(f"DOPISANE #{after_idx+2}: {pathlib.Path(path).stem[:40]} "
                    f"(werdykt zapisany)")
-        self._log_verdict("dopisanie", pozycja=after_idx + 2, **{"in": path})
+        self._log_verdict("dopisanie", pozycja=after_idx + 2, **{"in": path},
+                          **self._zrodlo_kandydata(choice))
         self._close_panel()
         table = self.query_one("#set", DataTable)
         table.move_cursor(row=after_idx + 1)
         table.focus()
+
+    def _zrodlo_kandydata(self, tid: str) -> dict:
+        """Skąd wziął się utwór wstawiony do setu — z listy silnika czy z ręki DJ-a.
+
+        Dziś Z i A prowadzą wyłącznie przez panel sugestii, więc źródło jest
+        jedno; pole zapisujemy mimo to, żeby dzień po dodaniu wstawiania
+        z Biblioteki dało się policzyć, ile podmian kończy się wyborem
+        z NASZYCH kandydatów, a ile własnym. Nieznane zostaje nieznane.
+        """
+        meta = self._suggest_meta.get(tid)
+        if meta is None:
+            return {"zrodlo": "reka_dj"}
+        return dict(meta)
 
     def _log_verdict(self, typ: str, **fields) -> None:
         """Każda ręczna edycja to werdykt DJ-a — dopisujemy, nie gubimy."""

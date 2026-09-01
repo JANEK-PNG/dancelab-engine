@@ -536,3 +536,61 @@ def test_werdykt_koncowy_zapisuje_sie_sam_przy_wysylce(tmp_path, monkeypatch):
     assert rec["powod"] == "wysylka_do_rekordboxa"
     assert rec["miara"] == {"utworow_finalnie": 3, "utworow_z_planu": 3,
                             "na_tej_samej_pozycji": 1, "liczba_edycji": 1}
+
+
+def test_podmiana_loguje_skad_wziety_utwor(tmp_path, monkeypatch):
+    """Werdykt podmiany mówi, czyj to był wybór: z listy silnika czy z ręki.
+
+    Bez tego pola metryka „ile podmian kończy się wyborem z NASZYCH kandydatów"
+    jest niemierzalna — log wiedział tylko, CO weszło, nigdy SKĄD. Ranga mówi
+    dodatkowo, czy ranking silnika cokolwiek wnosi, czy DJ i tak schodzi niżej.
+    """
+    import json
+
+    import dancelab.tui.app as app_mod
+    monkeypatch.setattr(app_mod, "WERDYKTY_DIR", tmp_path)
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import TabbedContent
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
+            by_id = _fake_pool("A", "B", "C")
+            app._ctx = dict(by_id=by_id, weights=None, arc="build",
+                            planner="smart", bpm_min=None, bpm_max=None,
+                            anchor=None, params={})
+            app._order = ["A", "B", "C"]
+            app._engine_order = ["A", "B", "C"]
+            app._render_order(by_id)
+            await pilot.pause()
+
+            # panel silnika pokazał trzech kandydatów; DJ bierze DRUGIEGO
+            app._open_suggest_panel(
+                1, "tytuł", [("a", "A"), ("c", "C")], "suggest",
+                {"C": {"zrodlo": "panel_silnika", "ranga": 2, "score": 0.71,
+                       "tryb": "smart", "kandydatow": 3}})
+            app._apply_swap(1, "C")
+            await pilot.pause()
+
+            rec = app._edits[-1]
+            assert rec["typ"] == "podmiana"
+            assert rec["zrodlo"] == "panel_silnika"
+            assert rec["ranga"] == 2          # nie pierwszy z listy
+            assert rec["score"] == 0.71
+            assert rec["tryb"] == "smart"
+            assert rec["kandydatow"] == 3
+
+            # panel zamknięty przy podmianie → następny ruch nie dziedziczy
+            # rangi poprzedniego wyboru, tylko uczciwie mówi „ręka DJ-a"
+            assert app._suggest_meta == {}
+            app._apply_swap(0, "B")
+            await pilot.pause()
+            assert app._edits[-1]["zrodlo"] == "reka_dj"
+            assert "ranga" not in app._edits[-1]
+
+            zapisane = [json.loads(w) for w
+                        in (tmp_path / "tui_edycje.jsonl").read_text().splitlines()]
+            assert [w["zrodlo"] for w in zapisane] == ["panel_silnika", "reka_dj"]
+
+    asyncio.run(go())
