@@ -18,7 +18,7 @@ import threading
 import traceback
 from typing import Any
 
-from dancelab.stan import budowa, cue, edycje, plan, przebieg, zapis_cue
+from dancelab.stan import budowa, cue, dziennik, edycje, plan, przebieg, zapis_cue
 
 
 def _bezpiecznie(fn):
@@ -60,6 +60,13 @@ class Most:
         # pierwszym. Każda zmiana padów albo setu go kasuje, bo inaczej
         # potwierdzenie zapisałoby stan sprzed edycji.
         self._zapis_gotowy: Any = None
+        # Dziennik decyzji (Q14): utwory, których pady widok narysował przy
+        # istniejącym planie. Pad silnika w utworze spoza tej listy przeszedł
+        # DOMYŚLNIE — nazwanie go „zaakceptowanym" byłoby zmyśleniem.
+        self._pady_pokazane: set[str] = set()
+        self._parametry_budowy: dict[str, Any] = {}
+        self._ostatni_przygotuj: dict[str, Any] | None = None
+        self._wagi_budowy: Any = None
 
     # ------------------------------------------------------------ biblioteka
 
@@ -186,6 +193,7 @@ class Most:
         i to jest sensowne użycie, nie stan błędu.
         """
         if self._plan_cue is not None:
+            self._pady_pokazane.add(track_id)
             return {"pady": edycje.efektywne_pady(self._plan_cue, self._edycje,
                                                   track_id),
                     "zrodlo": "silnik + ręczne"}
@@ -198,32 +206,73 @@ class Most:
         }
         return {"pady": wlasne, "zrodlo": "tylko ręczne (brak planu setu)"}
 
+    def _kontekst_propozycji(self, track_id: str, pad: str) -> dict[str, Any]:
+        """Co silnik proponował dla tego pada — o ile DJ to w ogóle oglądał.
+
+        Bez planu albo bez narysowanych padów zwraca pusto: edycja w ciemno
+        nie dostaje pól kontekstu, bo porównanie, którego DJ nie widział,
+        niczego nie mierzy. `silnik_ms: None` to co innego — fakt, że silnik
+        dla tej litery nie proponował nic (czyli pad jest w całości ręczny).
+        """
+        if self._plan_cue is None or track_id not in self._pady_pokazane:
+            return {}
+        for t in self._plan_cue.tracks:
+            if t.content_id == track_id:
+                for c in t.cues:
+                    if c.pad_label == pad:
+                        return {"silnik_ms": c.position_ms, "typ_cue": c.cue_type}
+                return {"silnik_ms": None}
+        return {}
+
+    @staticmethod
+    def _z_dziennikiem(wynik: dict[str, Any], blad: str | None) -> dict[str, Any]:
+        """Ostrzeżenie dziennika dokleja się do odpowiedzi, nie ginie."""
+        if blad:
+            wynik["dziennik"] = blad
+        return wynik
+
     @_bezpiecznie
     def postaw_pad(self, track_id: str, pad: str, position_ms: int) -> dict[str, Any]:
         self._zapis_gotowy = None
+        kontekst = self._kontekst_propozycji(track_id, pad)
         edycje.postaw(self._edycje, track_id, pad, int(position_ms))
-        return self.pady(track_id)
+        blad = dziennik.dopisz("cue_postaw", track_id=track_id, pad=pad,
+                               position_ms=int(position_ms), **kontekst)
+        return self._z_dziennikiem(self.pady(track_id), blad)
 
     @_bezpiecznie
     def przesun_pad(self, track_id: str, pad: str, uderzenia: int,
                     bpm: float) -> dict[str, Any]:
         """Przesuń o całe uderzenia — po to, żeby nie da się trafić między takty."""
         self._zapis_gotowy = None
-        edycje.przesun(self._edycje, track_id, pad, int(uderzenia), float(bpm))
-        return self.pady(track_id)
+        biezacy = self.pady(track_id).get("pady", {}).get(pad)
+        if biezacy is None:
+            return {"blad": f"pad {pad} nie jest postawiony — nie ma czego przesuwać"}
+        nowa = edycje.przesun(self._edycje, track_id, pad, int(uderzenia),
+                              float(bpm), biezacy.get("silnik_ms"),
+                              int(biezacy["position_ms"]))
+        blad = dziennik.dopisz("cue_przesuniecie", track_id=track_id, pad=pad,
+                               uderzenia=int(uderzenia), position_ms=nowa,
+                               **self._kontekst_propozycji(track_id, pad))
+        return self._z_dziennikiem(self.pady(track_id), blad)
 
     @_bezpiecznie
     def zdejmij_pad(self, track_id: str, pad: str) -> dict[str, Any]:
         self._zapis_gotowy = None
+        kontekst = self._kontekst_propozycji(track_id, pad)
         edycje.zdejmij(self._edycje, track_id, pad)
-        return self.pady(track_id)
+        blad = dziennik.dopisz("cue_zdjecie", track_id=track_id, pad=pad,
+                               **kontekst)
+        return self._z_dziennikiem(self.pady(track_id), blad)
 
     @_bezpiecznie
     def cofnij(self, track_id: str) -> dict[str, Any]:
         """Cofnięcie jest w rdzeniu, nie w widoku — terminal ma je tak samo."""
         self._zapis_gotowy = None
         udalo = edycje.cofnij(self._edycje)
-        wynik = self.pady(track_id)
+        blad = dziennik.dopisz("cue_cofniecie", track_id=track_id,
+                               cofnieto=bool(udalo)) if udalo else None
+        wynik = self._z_dziennikiem(self.pady(track_id), blad)
         wynik["cofnieto"] = bool(udalo)
         return wynik
 
@@ -340,6 +389,23 @@ class Most:
                 parametry={"minuty": par.minuty, "bpm_min": par.bpm_min,
                            "bpm_max": par.bpm_max, "dj": par.dj},
                 plan_silnika=wynik["kolejnosc"])
+
+            # Dziennik decyzji (Q14): budowa to PROPOZYCJA silnika — bez jej
+            # zapisu późniejsze edycje wiszą w próżni i nie wiadomo, względem
+            # czego DJ decydował. Świeża budowa zeruje też znacznik „pady
+            # pokazane", bo dotyczył poprzedniego planu.
+            self._pady_pokazane = set()
+            self._parametry_budowy = {
+                "minuty": par.minuty, "bpm_min": par.bpm_min,
+                "bpm_max": par.bpm_max, "dj": par.dj}
+            self._wagi_budowy = wynik.get("wagi")
+            dziennik.dopisz(
+                "budowa", parametry=self._parametry_budowy,
+                utworow=len(wynik["kolejnosc"]),
+                kolejnosc=list(wynik["kolejnosc"]),
+                pady_silnika=(sum(len(t.cues) for t in self._plan_cue.tracks)
+                              if self._plan_cue is not None else 0),
+                plan=str(sciezka))
 
             self._budowa = {
                 "stan": "gotowe",
@@ -473,7 +539,14 @@ class Most:
             self._plan_cue or _pusty_plan_cue(), self._edycje,
             self._analizy, self._kolejnosc)
         self._zapis_gotowy = wynik["plan"]
-        return {k: v for k, v in wynik.items() if k != "plan"}
+        odpowiedz = {k: v for k, v in wynik.items() if k != "plan"}
+        # Liczby, które DJ widział przed potwierdzeniem, idą potem do werdyktu
+        # — werdykt ma mówić, na co się zgodził, a nie co wyszło po fakcie.
+        self._ostatni_przygotuj = {
+            k: odpowiedz[k] for k in ("do_zapisu", "odswiezone",
+                                      "ustapilo_twoim", "utworow",
+                                      "spoza_kolekcji") if k in odpowiedz}
+        return odpowiedz
 
     @_bezpiecznie
     def zapisz_cue(self, nazwa: str = "okno DanceLab") -> dict[str, Any]:
@@ -487,7 +560,101 @@ class Most:
         self._zapis_gotowy = None
         wynik["uwaga"] = ("otwórz Rekordboksa — pady widać dopiero po jego "
                           "starcie, bo bazę czyta przy uruchomieniu")
-        return wynik
+
+        # Dziennik decyzji (Q14): zapis do bazy to moment, w którym propozycje
+        # silnika przestają być podpowiedzią, a stają się przyjęte albo
+        # odrzucone — dopiero tu wolno je tak nazwać.
+        rec = self._werdykt_zapisu(nazwa, dict(wynik))
+        plik, blad = dziennik.zapisz_werdykt(rec)
+        dziennik.dopisz("zapis_cue", nazwa=nazwa, werdykt=plik,
+                        miara=rec["miara"])
+        if plik:
+            wynik["werdykt"] = plik
+        return self._z_dziennikiem(wynik, blad)
+
+    # ---------------------------------------------------- dziennik decyzji
+
+    def _klasyfikuj_pady(self) -> tuple[list[dict[str, Any]], dict[str, int]]:
+        """Los każdego pada setu względem propozycji silnika.
+
+        `z_silnika` mówi o ŹRÓDLE, nie o zgodzie — czy DJ propozycję w ogóle
+        oglądał, niesie osobne pole `propozycje_widziane`. Pad z utworu,
+        którego ekran nigdy nie narysował, przeszedł domyślnie i liczy się
+        w mierze jako `przeszlo_domyslnie`, nie jako akceptacja.
+        """
+        propozycje: dict[str, dict[str, Any]] = {}
+        if self._plan_cue is not None:
+            for t in self._plan_cue.tracks:
+                propozycje[t.content_id] = {c.pad_label: c for c in t.cues}
+        nadpisania = self._edycje.get("nadpisania") or {}
+        zdjete = set(self._edycje.get("zdjete") or [])
+
+        utwory: list[dict[str, Any]] = []
+        miara = {"z_silnika": 0, "nadpisane": 0, "reczne": 0, "zdjete": 0,
+                 "przeszlo_domyslnie": 0, "utwory_z_widzianymi": 0}
+        for tid in self._kolejnosc:
+            widziane = tid in self._pady_pokazane
+            pady: dict[str, dict[str, Any]] = {}
+            for pad, c in propozycje.get(tid, {}).items():
+                klucz = f"{tid}|{pad}"
+                if klucz in zdjete:
+                    pady[pad] = {"los": "zdjety", "silnik_ms": c.position_ms}
+                    miara["zdjete"] += 1
+                elif klucz in nadpisania:
+                    pady[pad] = {"los": "nadpisany",
+                                 "silnik_ms": c.position_ms,
+                                 "position_ms": nadpisania[klucz]["position_ms"]}
+                    miara["nadpisane"] += 1
+                else:
+                    pady[pad] = {"los": "z_silnika",
+                                 "position_ms": c.position_ms}
+                    miara["z_silnika"] += 1
+                    if not widziane:
+                        miara["przeszlo_domyslnie"] += 1
+            for klucz, wpis in nadpisania.items():
+                t_id, pad = klucz.rsplit("|", 1)
+                if t_id == tid and pad not in pady and klucz not in zdjete:
+                    pady[pad] = {"los": "reczny",
+                                 "position_ms": wpis["position_ms"]}
+                    miara["reczne"] += 1
+            if widziane:
+                miara["utwory_z_widzianymi"] += 1
+            utwory.append({"track_id": tid, "propozycje_widziane": widziane,
+                           "pady": pady})
+        return utwory, miara
+
+    def _werdykt_zapisu(self, nazwa: str,
+                        wynik_zapisu: dict[str, Any]) -> dict[str, Any]:
+        """Pełny zapis tego, na co DJ się zgodził — odpowiednik
+        `tui_werdykt_*.json` z terminala, tyle że dla drogi przez okno."""
+        import time
+
+        utwory, miara = self._klasyfikuj_pady()
+
+        def sciezka(tid: str) -> str | None:
+            a = self._analizy.get(tid)
+            return getattr(getattr(a, "track", None), "source_path", None)
+
+        try:
+            wagi = (self._wagi_budowy.model_dump()
+                    if hasattr(self._wagi_budowy, "model_dump")
+                    else self._wagi_budowy if isinstance(self._wagi_budowy, dict)
+                    else None)
+        except Exception:                              # noqa: BLE001
+            wagi = None
+        return {
+            "ts": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "powod": "zapis_cue",
+            "nazwa": nazwa,
+            "parametry_budowy": self._parametry_budowy,
+            "wagi": wagi,
+            "liczby_podgladu": self._ostatni_przygotuj,
+            "kolejnosc": [{"track_id": t, "path": sciezka(t)}
+                          for t in self._kolejnosc],
+            "utwory": utwory,
+            "miara": miara,
+            "zapis": wynik_zapisu,
+        }
 
 
 def _pusty_plan_cue():
