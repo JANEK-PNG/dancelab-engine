@@ -1070,7 +1070,9 @@ $('#btn-pl-policz').addEventListener('click', policzPlayliste);
 $('#btn-pl-wyslij').addEventListener('click', wyslijPlayliste);
 $('#btn-wyslij').addEventListener('click', wyslijZapis);
 document.addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT') return;
+  // SELECT też przechwytuje litery (wybór opcji po pierwszej literze), więc
+  // bez niego „ł" w polu Łuk mogło wyciąć utwór z setu. TEXTAREA na zapas.
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
   if (e.key === '1') { pokazEkran('szew'); return; }
   if (e.key === '2') { pokazEkran('set'); return; }
   if (e.key === '3') { pokazEkran('dj'); return; }
