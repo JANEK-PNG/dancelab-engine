@@ -20,6 +20,14 @@ def _isolate_test_runtime(monkeypatch, tmp_path):
     test_cache = tmp_path / "cache"
     monkeypatch.setattr(cache_manager_module, "default_cache_root", lambda: test_cache)
 
+    # The decision journal is forward-only production data anchored at the
+    # repo root — a test that forgets to redirect it poisons it permanently.
+    # Caught live on 01.09: test_gui_most.py wrote its t1/t9 fixtures into
+    # the real gui_dziennik.jsonl on the day the journal was born.
+    from dancelab.stan import dziennik
+
+    monkeypatch.setattr(dziennik, "KATALOG", tmp_path / "dziennik")
+
 
 @pytest.fixture
 def config():
