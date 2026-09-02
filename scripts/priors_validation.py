@@ -34,17 +34,31 @@ OUT = ROOT / "data/reports/corpus_priors/validation_v1.json"
 
 from dancelab.decision._common import nearest_bpm_variant
 from dancelab.decision.harmonic import harmonic_compatibility, harmonic_relation
-from dancelab.validation.skladniki import Skladniki
 from dancelab.decision.set_builder import bpm_score
+from dancelab.validation.skladniki import Skladniki
+from dancelab.validation.wejscie import BrakDanychWejsciowych, wymagaj_plikow
 
 
 def load_h_features() -> dict[str, dict]:
+    # Refuse before reading, not after: a partly mounted corpus drive makes
+    # every per-file read below fail quietly, `feats` comes back thin, and the
+    # head-to-head is then computed on a fraction of the observations while
+    # the artifact looks complete. Same gate as corpus_priors.py.
+    wymagaj_plikow(H_DIR, "**/*.json", "walidacja priorów (analizy H)")
+    for wymagany, po_co in ((INDEX, "indeks analiz"), (DATASET, "obserwacje"),
+                            (PRIORS, "priors_v1")):
+        if not wymagany.is_file():
+            raise BrakDanychWejsciowych(
+                f"walidacja priorów: brak pliku ({po_co}) — {wymagany}\n"
+                f"  Nie liczę i NIE nadpisuję wyniku pustką.")
     idx = json.loads(INDEX.read_text())["tracks"]
     feats: dict[str, dict] = {}
+    nieodczytane = 0
     for yid, rel in idx.items():
         try:
             d = json.loads((H_DIR / rel).read_text())
         except (OSError, json.JSONDecodeError):
+            nieodczytane += 1
             continue
         tr = d.get("track", {})
         frames = d.get("features") or []
@@ -54,6 +68,14 @@ def load_h_features() -> dict[str, dict]:
             "camelot": tr.get("key_estimate"),
             "energy": (sum(rms) / len(rms)) if rms else None,
         }
+    if not feats:
+        raise BrakDanychWejsciowych(
+            f"walidacja priorów: indeks wymienia {len(idx)} analiz, "
+            f"odczytałem 0 — {H_DIR}\n  Nie liczę i NIE nadpisuję wyniku pustką.")
+    if nieodczytane:
+        # A partial read is reported, not swallowed; the caller decides.
+        print(f"UWAGA: {nieodczytane} z {len(idx)} analiz H nieodczytanych "
+              f"— wynik liczony na {len(feats)}", flush=True)
     return feats
 
 
@@ -214,4 +236,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except BrakDanychWejsciowych as brak:
+        print(f"\nODMAWIAM: {brak}")
+        raise SystemExit(2) from None

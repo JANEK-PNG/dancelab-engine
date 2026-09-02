@@ -198,6 +198,11 @@ def main() -> int:
                                  "chance": med([r.get("energy_delta") for r in fake if "energy_delta" in r])},
         "energy_delta_quintiles": energy,
         "transition_length_beats_median": med(lengths),
+        # Skip accounting travels WITH the artifact, not only to stdout: this
+        # file is what priors_validation.py builds every lift from, and a
+        # reader of the JSON alone must be able to tell a run where the
+        # harmonic relation dropped out from a clean one (D6 in OBALONE.md).
+        "skladniki": SKLADNIKI.jako_dict(),
     }
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / "priors_v1.json").write_text(json.dumps(report, indent=2))
