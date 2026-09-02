@@ -68,6 +68,11 @@ class Most:
         # i stan odpytywany przez `postep_budowy`.
         self._budowa: dict[str, Any] = {"stan": "bezczynny"}
         self._analizy_pula: list | None = None
+        # Notki puli (higiena + dokarmianie) żyją TU, nie w `_budowa`: tamten
+        # słownik każda budowa podmienia, a pula siedzi w cache — bramka
+        # „dokarmianie padło → odmowa" działała więc tylko przy PIERWSZEJ
+        # budowie, a druga szła po cichu na surowej puli.
+        self._notki_puli: list[str] = []
         # Zapis cue jest DWUSTOPNIOWY: tu leży plan policzony w stopniu
         # pierwszym. Każda zmiana padów albo setu go kasuje, bo inaczej
         # potwierdzenie zapisałoby stan sprzed edycji.
@@ -509,8 +514,13 @@ class Most:
             # budową szedł na surowej puli (bez tonacji RB, bez wektorów),
             # a po budowie — na dokarmionej. Terminal dokarmiał zawsze.
             notki += budowa.dokarm(analizy)
-            self._analizy_pula = analizy
-            self._budowa["notki_puli"] = notki
+            self._notki_puli = notki
+            # Niedokarmionej puli NIE zapamiętujemy: następne wejście (po
+            # naprawie Rekordboxa) ma czytać i dokarmiać od nowa, zamiast
+            # dostać z cache listę, która „już była" — surową.
+            if budowa.dokarmianie_padlo(notki) is None:
+                self._analizy_pula = analizy
+            return analizy
         return self._analizy_pula
 
     @_bezpiecznie
@@ -548,7 +558,7 @@ class Most:
                 pass                                   # filary są opcjonalne
 
             pula = self._pula()
-            padlo = budowa.dokarmianie_padlo(self._budowa.get("notki_puli") or [])
+            padlo = budowa.dokarmianie_padlo(self._notki_puli)
             if padlo:
                 raise budowa.OdmowaBudowy(padlo)
             wynik = budowa.zbuduj(par, processed_dir=self._katalog,
@@ -611,7 +621,7 @@ class Most:
             self._budowa = {
                 "stan": "gotowe",
                 "utwory": [self._wiersz(t, wynik["by_id"]) for t in wynik["kolejnosc"]],
-                "notki": (self._budowa.get("notki_puli") or []) + wynik["notki"],
+                "notki": list(self._notki_puli) + wynik["notki"],
                 "kotwica": wynik["kotwica"],
                 "filary": wynik["filary"],
                 "tryb_filarow": wynik["tryb_filarow"],
@@ -737,6 +747,9 @@ class Most:
                                          if n.startswith("BRAK")]))
         wynik["utwory"] = [self._wiersz(t, self._analizy)
                            for t in self._kolejnosc]
+        # notki puli (higiena, dokarmianie) — terminal je pokazuje przy O,
+        # okno do 02.09 gubiło je w podmienionym `_budowa`
+        wynik["notki"] = list(self._notki_puli) + list(wynik.get("notki") or [])
         return wynik
 
     # ------------------------------------------------------------- kolizje

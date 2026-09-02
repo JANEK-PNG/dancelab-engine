@@ -123,3 +123,28 @@ def test_terminal_wczytuje_plan_ta_sama_droga(monkeypatch, tmp_path):
     assert zaladowane["rec"]["edycje"] == [{"typ": "ciecie"}]
     assert zaladowane["rec"]["plan_silnika"] == ["b"]
     assert [n for n, _ in wyw][0] == "attach_sound_embeddings"     # plan: z wektorami
+
+
+def test_niedokarmiona_pula_nie_trafia_do_cache_okna(monkeypatch, tmp_path):
+    """Bramka „dokarmianie padło → odmowa budowy" musi działać także przy
+    DRUGIEJ budowie. Wcześniej notki puli żyły w `_budowa`, który każda
+    budowa podmienia, a pula siedziała w cache — pierwsza budowa odmawiała,
+    druga szła po cichu na surowej puli."""
+    pula = [_A("a"), _A("b")]
+    monkeypatch.setattr(budowa, "pula", lambda katalog: (list(pula), ["higiena: 0"]))
+    proby = []
+
+    def dokarm(analizy, **k):
+        proby.append(1)
+        return ["dokarmianie nie wyszło: master.db zamknięta"] if len(proby) == 1 else ["dokarmianie: ok"]
+    monkeypatch.setattr(budowa, "dokarm", dokarm)
+
+    m = Most(katalog=str(tmp_path))
+    m._pula()
+    assert budowa.dokarmianie_padlo(m._notki_puli)          # pierwsze wejście: awaria
+    assert m._analizy_pula is None                          # …i NIE w cache
+    m._pula()
+    assert len(proby) == 2                                  # drugie wejście dokarmia od nowa
+    assert m._analizy_pula is not None and budowa.dokarmianie_padlo(m._notki_puli) is None
+    m._pula()
+    assert len(proby) == 2                                  # zdrowa pula zostaje w cache

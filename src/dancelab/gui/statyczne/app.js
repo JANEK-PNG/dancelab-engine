@@ -969,7 +969,7 @@ function pokazLiczbyPlaylisty(w, poZapisie) {
   let html = czesci.join('');
   // Powody pominięć własnymi słowami warstwy publikującej — te same, które
   // widzi terminal; przepisanie ich tutaj rozjechałoby obie skóry.
-  const notki = (w.notki || []).filter(n => /POMINI|bliźniak/i.test(n));
+  const notki = (w.notki || []).filter(n => /POMINI|bliźniak|historia świeżości/i.test(n));
   if (notki.length) {
     html += '<div style="width:100%;margin-top:6px">' + notki.map(n =>
       `<div class="ostroznie">${n.replace(/</g, '&lt;')}</div>`).join('') + '</div>';
@@ -1019,7 +1019,10 @@ async function wyslijZapis() {
   $('#zapis-liczby').innerHTML =
     liczba('zapisane pady', w.zapisane)
     + (w.usuniete ? liczba('usunięte', w.usuniete) : '')
-    + `<span class="ostroznie">${w.uwaga}</span>`;
+    + `<span class="ostroznie">${w.uwaga}</span>`
+    // historia świeżości karmiona przy UŻYCIU setu — jak S/W w terminalu,
+    // i tak samo widoczna, nie po cichu
+    + (w.historia ? `<span class="drobne">${w.historia}</span>` : '');
 }
 
 /* ---------- start ---------- */
