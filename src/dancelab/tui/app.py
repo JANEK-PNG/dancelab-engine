@@ -173,22 +173,33 @@ TRYBY_FILAROW = [
 _TRYB_LABEL = dict(TRYBY_FILAROW)
 
 
+#: Kolumny tabeli Biblioteki, które sortują wspólnym kluczem z okna
+#: (`stan.biblioteka.klucz_sortu`); energia, LUFS, pewność, ♥ i ⚑ zostają
+#: tu, bo okno ich nie pokazuje.
+_KOLUMNA_WSPOLNA = {3: "bpm", 4: "tonacja", 8: "gatunek", 9: "dlugosc",
+                    10: "wykonawca", 11: "tytul"}
+
+
+def _pola_sortu(a) -> dict:
+    t = a.track
+    art, tyt = _wykonawca_tytul(t)
+    return dict(sciezka=t.source_path, wykonawca=art, tytul=tyt,
+                bpm=t.bpm_estimate, tonacja=t.key_estimate,
+                dlugosc=t.duration_sec, gatunek=t.style_label)
+
+
 def _lib_sort_missing(col: int, a, energy: dict, lufs: dict) -> bool:
     """Czy utwór nie ma wartości w sortowanej kolumnie — braki idą NA KONIEC
     niezależnie od kierunku sortowania (brak to brak, nie zero)."""
+    if col in _KOLUMNA_WSPOLNA:
+        return _stan_biblioteka.klucz_sortu(_KOLUMNA_WSPOLNA[col], **_pola_sortu(a))[0]
     t = a.track
-    if col == 3:
-        return t.bpm_estimate is None
-    if col == 4:
-        return t.key_estimate is None
     if col == 5:
         return t.key_confidence is None
     if col == 6:
         return energy.get(t.track_id) is None
     if col == 7:
         return lufs.get(t.source_path) is None
-    if col == 8:
-        return not t.style_label
     return False
 
 
@@ -200,29 +211,19 @@ def _lib_sort_key(col: int, favs: set, filary: set, energy: dict,
 
     def key(a):
         t = a.track
+        if col in _KOLUMNA_WSPOLNA:
+            return _stan_biblioteka.klucz_sortu(_KOLUMNA_WSPOLNA[col], **_pola_sortu(a))[1]
         if col == 1:
             return (t.track_id not in favs, name(a))
         if col == 2:
             return (t.track_id not in filary, name(a))
-        if col == 3:
-            return t.bpm_estimate or 0.0
-        if col == 4:
-            k = str(t.key_estimate or "")
-            num = int(k[:-1]) if len(k) > 1 and k[:-1].isdigit() else 99
-            return (num, k[-1:])
         if col == 5:
             return t.key_confidence or 0.0
         if col == 6:
             return energy.get(t.track_id) or 0
         if col == 7:
             return lufs.get(t.source_path) or 0.0
-        if col == 8:
-            return (t.style_label or "").lower()
-        if col == 9:
-            return t.duration_sec or 0.0
-        if col == 10:
-            return (_wykonawca_tytul(t)[0].lower() or "~", name(a))
-        return (_wykonawca_tytul(t)[1].lower() or "~", name(a))
+        return _stan_biblioteka.klucz_sortu("tytul", **_pola_sortu(a))[1]
     return key
 
 

@@ -126,3 +126,60 @@ def karta_info(track: Any, rb: dict | None, rb_note: str | None) -> str:
         else:
             lines.append("  poza wszystkimi playlistami")
     return "\n".join(lines)
+
+
+# ------------------------------------------------------ sekcje i sortowanie
+
+#: Sekcje biblioteki (pasek boczny terminala od 11.08, okno od 02.09).
+SEKCJE = ("", "ulubione", "filary", "dysk", "apple", "brak")
+
+
+def zrodlo_wpisu(sciezka: str | None) -> str:
+    """dysk / apple / brak — „niedostępne" to plik lokalny, którego nie ma
+    (odpięty dysk), a NIE strumień; DJ chce to zobaczyć PRZED setem."""
+    from dancelab.tui import zrodlo as Z
+    return Z.zrodlo(sciezka)
+
+
+#: Kolumny, po których sortują obie skóry; klucz jest jeden.
+KOLUMNY_SORTU = ("tytul", "wykonawca", "bpm", "tonacja", "dlugosc", "gatunek")
+
+
+def klucz_sortu(kolumna: str, *, sciezka: str | None, wykonawca: str | None,
+                tytul: str | None, bpm: float | None, tonacja: str | None,
+                dlugosc: float | None, gatunek: str | None) -> tuple[bool, Any]:
+    """(brak_wartosci, klucz). Braki idą NA KONIEC niezależnie od kierunku —
+    brak to brak, nie zero (reguła terminala `_lib_sort_missing`).
+
+    Tonacja Camelota sortuje się po numerze, potem literze („8A" < „9A",
+    „8A" < „8B"), nie alfabetycznie; wykonawca i tytuł mają nazwę pliku
+    jako drugi klucz, żeby remisy były stabilne.
+    """
+    stem = pathlib.Path(str(sciezka or "")).stem.lower()
+    if kolumna == "bpm":
+        return bpm is None, (bpm or 0.0)
+    if kolumna == "tonacja":
+        k = str(tonacja or "")
+        num = int(k[:-1]) if len(k) > 1 and k[:-1].isdigit() else 99
+        return not k, (num, k[-1:])
+    if kolumna == "dlugosc":
+        return dlugosc is None, (dlugosc or 0.0)
+    if kolumna == "gatunek":
+        return not gatunek, (gatunek or "").lower()
+    if kolumna == "wykonawca":
+        return False, ((wykonawca or "").lower() or "~", stem)
+    return False, ((tytul or "").lower() or "~", stem)
+
+
+def sortuj(wiersze: list, kolumna: str, *, malejaco: bool = False,
+           pola) -> list:
+    """Posortuj po kolumnie; ``pola(w)`` oddaje słownik argumentów dla
+    `klucz_sortu`. Znane wartości w zadanym kierunku, braki zawsze na końcu."""
+    if kolumna not in KOLUMNY_SORTU:
+        return list(wiersze)
+    znane, braki = [], []
+    for w in wiersze:
+        brak, klucz = klucz_sortu(kolumna, **pola(w))
+        (braki if brak else znane).append((klucz, w))
+    znane.sort(key=lambda kw: kw[0], reverse=malejaco)
+    return [w for _, w in znane] + [w for _, w in braki]

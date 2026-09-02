@@ -17,7 +17,7 @@ let stan = {
   ostatniBlad: null, spis: [], filtr: '',
   // biblioteka: filtrowanie robi Python, tu trzymamy tylko wynik i ustawienia
   widoczne: [], znalezione: 0, wszystkich: 0,
-  tylkoUlubione: false, sortowanie: '',
+  tylkoUlubione: false, sortowanie: '', sekcja: '',
   // Filary AKTYWNEJ PLAYLISTY: obiekty {track_id, rola, tytul} do panelu.
   filaryPlaylisty: [], role: {},
   djGrupy: null, djKolekcja: [], djFiltr: 'wszyscy', rbDozwolony: null,
@@ -394,7 +394,7 @@ function odswiezSpis() {
     if (!api()) return;
     const odp = await api().szukaj(
       stan.filtr, $('#filtr-ton').value, $('#filtr-bpm').value,
-      stan.tylkoUlubione, stan.sortowanie, 400);
+      false, stan.sortowanie, 400, stan.sekcja);
     if (odp.blad) {
       $('#licznik').innerHTML = `<span class="ostroznie">${odp.blad}</span>`;
       return;
@@ -409,7 +409,7 @@ function odswiezSpis() {
 function rysujSpis() {
   const el = $('#spis');
   const widoczne = stan.widoczne || [];
-  const filtrowane = stan.znalezione !== stan.wszystkich || stan.tylkoUlubione;
+  const filtrowane = stan.znalezione !== stan.wszystkich || !!stan.sekcja;
   $('#licznik').textContent = filtrowane
     ? `${stan.znalezione} z ${stan.wszystkich}`
     : `${stan.wszystkich} utworów`;
@@ -1232,16 +1232,27 @@ $('#btn-cofnij').addEventListener('click', cofnij);
 $('#filtr').addEventListener('input', e => { stan.filtr = e.target.value; odswiezSpis(); });
 $('#filtr-ton').addEventListener('input', odswiezSpis);
 $('#filtr-bpm').addEventListener('input', odswiezSpis);
-$('#btn-ulubione').addEventListener('click', () => {
-  stan.tylkoUlubione = !stan.tylkoUlubione;
-  $('#btn-ulubione').setAttribute('aria-pressed', String(stan.tylkoUlubione));
-  odswiezSpis();
-});
+document.querySelectorAll('#sekcje button').forEach(b =>
+  b.addEventListener('click', () => {
+    stan.sekcja = b.dataset.sekcja;
+    document.querySelectorAll('#sekcje button').forEach(x =>
+      x.setAttribute('aria-pressed', String(x === b)));
+    odswiezSpis();
+  }));
+/* Sortowanie jak w tabeli terminala (`_cycle_sort`): pierwszy klik rosnąco,
+   drugi malejąco, trzeci kasuje. Kierunek widać na chipie. */
 document.querySelectorAll('#sortowanie button').forEach(b =>
   b.addEventListener('click', () => {
-    stan.sortowanie = b.dataset.s;
-    document.querySelectorAll('#sortowanie button').forEach(x =>
-      x.setAttribute('aria-pressed', String(x === b)));
+    const kol = b.dataset.s;
+    stan.sortowanie = stan.sortowanie === kol ? '-' + kol
+                    : stan.sortowanie === '-' + kol ? '' : kol;
+    document.querySelectorAll('#sortowanie button').forEach(x => {
+      const aktywny = stan.sortowanie.replace('-', '') === x.dataset.s && stan.sortowanie;
+      x.setAttribute('aria-pressed', String(!!aktywny));
+      x.textContent = x.dataset.s === 'dlugosc' ? 'czas' : x.dataset.s === 'bpm' ? 'BPM'
+                    : x.dataset.s === 'tonacja' ? 'ton' : x.dataset.s === 'tytul' ? 'tytuł' : x.dataset.s;
+      if (aktywny) x.textContent += stan.sortowanie.startsWith('-') ? ' ↑' : ' ↓';
+    });
     odswiezSpis();
   }));
 document.querySelectorAll('#tryb-filarow button').forEach(b =>

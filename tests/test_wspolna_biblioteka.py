@@ -72,3 +72,58 @@ def test_rozjazd_2_brak_tempa_odpada_przy_kazdym_progu_w_obu():
     assert "d" not in _okno(hi=140)
     assert "d" not in _terminal(hi=140)
     assert _okno(hi=140) == _terminal(hi=140)
+
+
+# ------------------------------------------------ sekcje i sortowanie (3b)
+
+def _pola(u):
+    return dict(sciezka=u["sciezka"], wykonawca=u["wykonawca"], tytul=u["tytul"],
+                bpm=u["bpm"], tonacja=u["tonacja"], dlugosc=u.get("dlugosc"),
+                gatunek=u["gatunek"])
+
+
+def test_braki_ida_na_koniec_niezaleznie_od_kierunku():
+    """Reguła terminala: brak to brak, nie zero — ani na początku listy
+    rosnącej, ani na początku malejącej."""
+    wiersze = [_naglowek(a) for a in LIB]
+    rosnaco = [u["track_id"] for u in B.sortuj(wiersze, "bpm", pola=_pola)]
+    malejaco = [u["track_id"] for u in B.sortuj(wiersze, "bpm", malejaco=True, pola=_pola)]
+    assert rosnaco == ["b", "e", "a", "c", "d"]
+    assert malejaco == ["c", "a", "e", "b", "d"]        # „d" bez tempa ZAWSZE ostatni
+
+
+def test_tonacja_sortuje_po_numerze_camelota_nie_alfabetycznie():
+    wiersze = [_naglowek(a) for a in LIB]
+    assert [u["tonacja"] for u in B.sortuj(wiersze, "tonacja", pola=_pola)] == \
+        ["1A", "2A", "4A", "5A", None]
+
+
+def test_terminal_sortuje_tym_samym_kluczem():
+    """`_lib_sort_key` terminala dla kolumn wspólnych z oknem woła
+    `stan.biblioteka.klucz_sortu` — jedna kolejność tonacji w obu skórach."""
+    from dancelab.tui.app import _lib_sort_key, _lib_sort_missing
+    klucz = _lib_sort_key(4, set(), set(), {}, {})          # 4 = tonacja
+    posortowane = sorted([a for a in LIB if a.track.key_estimate], key=klucz)
+    assert [a.track.key_estimate for a in posortowane] == ["1A", "2A", "4A", "5A"]
+    assert _lib_sort_missing(3, LIB[3], {}, {}) is True     # „d" bez tempa
+    assert _lib_sort_missing(3, LIB[0], {}, {}) is False
+
+
+def test_sekcje_okna_filtruja_po_zrodle_i_znakach(monkeypatch, tmp_path):
+    from dancelab.gui.most import Most
+    from dancelab.tui import zrodlo as Z
+    monkeypatch.setattr(Z, "zrodlo", lambda p: "apple" if str(p).startswith("apple") else "dysk")
+    m = Most(katalog=str(tmp_path))
+    m._spis = [{"track_id": "a", "tytul": "A", "sciezka": "/m/a.aiff", "bpm": 120.0},
+               {"track_id": "s", "tytul": "S", "sciezka": "apple-music:tracks:1", "bpm": 121.0}]
+    monkeypatch.setattr(m, "biblioteka", lambda limit=400: {"utwory": [], "wszystkich": 2})
+    monkeypatch.setattr(m, "ulubione", lambda: {"ulubione": ["s"]})
+    monkeypatch.setattr(m, "filary", lambda: {"filary": [{"track_id": "a"}]})
+    ids = lambda odp: [u["track_id"] for u in odp["utwory"]]
+    assert ids(m.szukaj(sekcja="dysk")) == ["a"]
+    assert ids(m.szukaj(sekcja="apple")) == ["s"]
+    assert ids(m.szukaj(sekcja="ulubione")) == ["s"]
+    assert ids(m.szukaj(tylko_ulubione=True)) == ["s"]     # stara nazwa sekcji ♥
+    assert ids(m.szukaj(sekcja="filary")) == ["a"]
+    assert ids(m.szukaj(sortuj="-bpm")) == ["s", "a"]
+    assert "nieznana sekcja" in m.szukaj(sekcja="xyz")["blad"]

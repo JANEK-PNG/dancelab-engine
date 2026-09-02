@@ -43,16 +43,29 @@
     <div class="filtry-lib">
       <input id="filtr-ton" placeholder="tonacja 8A" spellcheck="false">
       <input id="filtr-bpm" placeholder="BPM 124-134" spellcheck="false">
-      <button class="btn maly" id="btn-ulubione" aria-pressed="false"
-              title="tylko ulubione">♥</button>
+    </div>
+    <!-- Sekcje jak w pasku bocznym terminala (11.08): skąd bierze się utwór
+         to TRZY kategorie, nie dwie — „niedostępne" to plik lokalny na
+         odpiętym dysku, a nie strumień. -->
+    <div class="filtry-lib">
+      <div class="chip-gest" id="sekcje">
+        <button data-sekcja="" aria-pressed="true" title="cała biblioteka">wszystko</button>
+        <button data-sekcja="ulubione" title="ulubione utwory">♥</button>
+        <button data-sekcja="filary" title="filary aktywnej playlisty">⚑</button>
+        <button data-sekcja="dysk" title="na dysku — da się zagrać">▣</button>
+        <button data-sekcja="apple" title="Apple Music — strumień">☁</button>
+        <button data-sekcja="brak" title="niedostępne — plik lokalny, którego nie ma">⚠</button>
+      </div>
     </div>
     <div class="filtry-lib">
       <span class="drobne">sortuj</span>
-      <div class="chip-gest" id="sortowanie">
-        <button data-s="" aria-pressed="true">—</button>
+      <div class="chip-gest" id="sortowanie" title="klik: rosnąco, drugi: malejąco, trzeci: bez">
         <button data-s="tytul">tytuł</button>
+        <button data-s="wykonawca">wykonawca</button>
         <button data-s="bpm">BPM</button>
         <button data-s="tonacja">ton</button>
+        <button data-s="dlugosc">czas</button>
+        <button data-s="gatunek">gatunek</button>
       </div>
     </div>
     <div class="spis" id="spis"><div class="pusto">wczytuję…</div></div>

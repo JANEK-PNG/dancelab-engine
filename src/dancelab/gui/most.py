@@ -231,7 +231,7 @@ class Most:
     @_bezpiecznie
     def szukaj(self, fraza: str = "", tonacja: str = "", bpm: str = "",
                tylko_ulubione: bool = False, sortuj: str = "",
-               limit: int = 400) -> dict[str, Any]:
+               limit: int = 400, sekcja: str = "") -> dict[str, Any]:
         """Biblioteka z filtrami — TA SAMA reguła co w terminalu.
 
         Nie „takie same reguły", tylko jedna funkcja: `stan.biblioteka.pasuje`
@@ -264,31 +264,41 @@ class Most:
         ulubione = set(odp_ulub.get("ulubione") or [])
         filary = {w["track_id"] for w in (odp_filary.get("filary") or [])}
 
-        from dancelab.stan.biblioteka import pasuje
+        from dancelab.stan import biblioteka as B
 
+        # sekcje z paska bocznego terminala; `tylko_ulubione` zostaje jako
+        # stara nazwa sekcji ♥
+        sekcja = sekcja or ("ulubione" if tylko_ulubione else "")
+        if sekcja not in B.SEKCJE:
+            return {"blad": f"nieznana sekcja biblioteki: {sekcja!r}", "pole": "sekcja"}
         wynik = []
         for u in spis:
-            if not pasuje(sciezka=u.get("sciezka"), wykonawca=u.get("wykonawca"),
-                          tytul=u.get("tytul"), gatunek=u.get("gatunek"),
-                          tonacja=u.get("tonacja"), bpm=u.get("bpm"),
-                          szukaj=f, tonacja_szukana=ton, bpm_lo=lo, bpm_hi=hi):
+            if not B.pasuje(sciezka=u.get("sciezka"), wykonawca=u.get("wykonawca"),
+                            tytul=u.get("tytul"), gatunek=u.get("gatunek"),
+                            tonacja=u.get("tonacja"), bpm=u.get("bpm"),
+                            szukaj=f, tonacja_szukana=ton, bpm_lo=lo, bpm_hi=hi):
                 continue
-            if tylko_ulubione and u["track_id"] not in ulubione:
+            if sekcja == "ulubione" and u["track_id"] not in ulubione:
+                continue
+            if sekcja == "filary" and u["track_id"] not in filary:
+                continue
+            if sekcja in ("dysk", "apple", "brak") \
+                    and B.zrodlo_wpisu(u.get("sciezka")) != sekcja:
                 continue
             wynik.append({**u,
                           "ulubiony": u["track_id"] in ulubione,
                           "filar": u["track_id"] in filary})
 
-        klucze = {"tytul": lambda u: (u.get("tytul") or "").lower(),
-                  "bpm": lambda u: (u.get("bpm") is None, u.get("bpm") or 0),
-                  "tonacja": lambda u: (not u.get("tonacja"),
-                                        u.get("tonacja") or ""),
-                  "dlugosc": lambda u: (u.get("dlugosc_sec") is None,
-                                        u.get("dlugosc_sec") or 0)}
-        if sortuj in klucze:
-            wynik.sort(key=klucze[sortuj])
+        # „-bpm" = malejąco; ten sam klucz, którym sortuje tabela terminala
+        malejaco = sortuj.startswith("-")
+        wynik = B.sortuj(wynik, sortuj.lstrip("-"), malejaco=malejaco,
+                         pola=lambda u: dict(
+                             sciezka=u.get("sciezka"), wykonawca=u.get("wykonawca"),
+                             tytul=u.get("tytul"), bpm=u.get("bpm"),
+                             tonacja=u.get("tonacja"), dlugosc=u.get("dlugosc_sec"),
+                             gatunek=u.get("gatunek")))
         return {"utwory": wynik[:limit], "znalezione": len(wynik),
-                "wszystkich": len(spis)}
+                "wszystkich": len(spis), "sekcja": sekcja}
 
     @_bezpiecznie
     def wczytaj_utwor(self, track_id: str) -> dict[str, Any]:
