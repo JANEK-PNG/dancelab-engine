@@ -218,11 +218,11 @@ class Most:
     def szukaj(self, fraza: str = "", tonacja: str = "", bpm: str = "",
                tylko_ulubione: bool = False, sortuj: str = "",
                limit: int = 400) -> dict[str, Any]:
-        """Biblioteka z filtrami — te same reguły co w terminalu.
+        """Biblioteka z filtrami — TA SAMA reguła co w terminalu.
 
-        Okno tempa działa jak w `tui.app.filter_library`: utwór BEZ tempa przy
-        aktywnym oknie odpada, bo okno ma znaczyć to, co mówi. Tonacja jest
-        dokładna, fraza szuka w tytule, wykonawcy i gatunku.
+        Nie „takie same reguły", tylko jedna funkcja: `stan.biblioteka.pasuje`
+        na polach nagłówka. Do 02.09 okno miało własną kopię, która szukała
+        bez nazwy pliku — terminal i okno dawały różne listy na tę samą frazę.
         """
         # limit=0: wołamy PO TO, żeby spis się wczytał (i żeby odmowa
         # wróciła), a nie po kopię ośmiu tysięcy wpisów na każdy klawisz.
@@ -250,20 +250,15 @@ class Most:
         ulubione = set(odp_ulub.get("ulubione") or [])
         filary = {w["track_id"] for w in (odp_filary.get("filary") or [])}
 
+        from dancelab.stan.biblioteka import pasuje
+
         wynik = []
         for u in spis:
-            if f and f not in " ".join(
-                    str(u.get(k) or "") for k in ("tytul", "wykonawca",
-                                                  "gatunek")).lower():
+            if not pasuje(sciezka=u.get("sciezka"), wykonawca=u.get("wykonawca"),
+                          tytul=u.get("tytul"), gatunek=u.get("gatunek"),
+                          tonacja=u.get("tonacja"), bpm=u.get("bpm"),
+                          szukaj=f, tonacja_szukana=ton, bpm_lo=lo, bpm_hi=hi):
                 continue
-            if ton and (u.get("tonacja") or "").upper() != ton:
-                continue
-            if lo is not None or hi is not None:
-                b = u.get("bpm")
-                if b is None:
-                    continue                      # brak tempa ≠ w oknie
-                if (lo is not None and b < lo) or (hi is not None and b > hi):
-                    continue
             if tylko_ulubione and u["track_id"] not in ulubione:
                 continue
             wynik.append({**u,
@@ -1040,11 +1035,11 @@ class Most:
     def info_utworu(self, track_id: str) -> dict[str, Any]:
         """Karta INFO: metadane z NAZWANYM źródłem każdej liczby.
 
-        Ten sam tekst, który składa terminal (`_format_track_info`) — silnik
-        osobno, Rekordbox osobno, bo tempo z Rekordboxa jest niezależnym
-        sędzią naszego pomiaru, a nie jego potwierdzeniem.
+        Ten sam tekst, który składa terminal (`stan.biblioteka.karta_info`) —
+        silnik osobno, Rekordbox osobno, bo tempo z Rekordboxa jest
+        niezależnym sędzią naszego pomiaru, a nie jego potwierdzeniem.
         """
-        from dancelab.tui.app import _format_track_info
+        from dancelab.stan.biblioteka import karta_info
 
         analiza = self._analizy.get(track_id)
         if analiza is None:
@@ -1062,7 +1057,7 @@ class Most:
         except Exception as exc:                       # noqa: BLE001
             # karta ma powiedzieć, czego NIE WIE, zamiast milczeć
             rb_notka = f"master.db nieodczytany: {exc}"
-        return {"tekst": _format_track_info(analiza.track, rb, rb_notka),
+        return {"tekst": karta_info(analiza.track, rb, rb_notka),
                 "track_id": track_id}
 
     @_bezpiecznie

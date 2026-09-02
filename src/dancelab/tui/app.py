@@ -77,6 +77,7 @@ RAPORT_ART = pathlib.Path("data/exports/artwork_raport.json")
 _TAB_ORDER = ("tab-lib", "tab-dj", "tab-set", "tab-export")
 
 
+from dancelab.stan import biblioteka as _stan_biblioteka
 from dancelab.stan import budowa as _stan_budowa
 from dancelab.stan import filary as _stan_filary
 
@@ -95,34 +96,10 @@ _rozstaw_filary = _stan_filary.rozstaw
 _filary_for_build = _stan_filary.wybierz
 _zastosuj_role_krancowe = _stan_filary.role_krancowe
 _wstaw_podpory = _stan_filary.wstaw_podpory
-
-
-def filter_library(analyses, *, search: str = "", key: str = "",
-                   bpm_lo: float | None = None,
-                   bpm_hi: float | None = None) -> list:
-    """Filtr Biblioteki: podciąg w nazwie pliku LUB gatunku (bez wielkości
-    liter), dokładna tonacja Camelota, domknięte okno BPM. Utwór bez tempa
-    przy aktywnym oknie BPM odpada — okno ma znaczyć to, co mówi."""
-    s = search.strip().lower()
-    k = key.strip().upper()
-    out = []
-    for a in analyses:
-        t = a.track
-        if s:
-            art, tit = _wykonawca_tytul(t)
-            haystack = " ".join((pathlib.Path(t.source_path).stem,
-                                 art, tit, t.style_label or "")).lower()
-            if s not in haystack:
-                continue
-        if k and str(t.key_estimate or "").upper() != k:
-            continue
-        bpm = t.bpm_estimate or 0.0
-        if bpm_lo is not None and bpm < bpm_lo:
-            continue
-        if bpm_hi is not None and bpm > bpm_hi:
-            continue
-        out.append(a)
-    return out
+# Krok 3 (02.09): nazwa utworu, filtr i karta INFO — `stan.biblioteka`.
+_wykonawca_tytul = _stan_biblioteka.wykonawca_tytul
+filter_library = _stan_biblioteka.filtruj
+_format_track_info = _stan_biblioteka.karta_info
 
 
 def _opcje_kotwic(wpisy: list[tuple], kolekcja: list[str]) -> list[tuple[str, str]]:
@@ -161,20 +138,6 @@ def _bpm_cell(t):
 # even functional, just for the look purposes". Wróciliśmy do wzorca z CURVE
 # (poprzedni projekt): między parą utworów tylko JEDEN przycisk odsłuchu.
 # Ta notka zostaje, żeby waveformy nie wróciły bez pamięci o werdykcie.
-
-def _wykonawca_tytul(t) -> tuple[str, str]:
-    """Wykonawca i tytuł do kolumn Biblioteki: tag z analizy → uzupełnienie
-    z RB (enrichment) → parsowanie nazwy pliku „Artysta - Tytuł" → sam stem."""
-    art = (getattr(t, "artist", None) or "").strip()
-    tit = (getattr(t, "title", None) or "").strip()
-    if art and tit:
-        return art, tit
-    stem = pathlib.Path(t.source_path).stem
-    if " - " in stem:
-        a, b = stem.split(" - ", 1)
-        return (art or a.strip()), (tit or b.strip())
-    return art, (tit or stem)
-
 
 def _conf_cell(t):
     zrodlo = getattr(t, "key_detection_source", None)
@@ -255,49 +218,6 @@ def _lib_sort_key(col: int, favs: set, filary: set, energy: dict,
             return (_wykonawca_tytul(t)[0].lower() or "~", name(a))
         return (_wykonawca_tytul(t)[1].lower() or "~", name(a))
     return key
-
-
-def _format_track_info(track, rb: dict | None, rb_note: str | None) -> str:
-    """Karta INFO (klawisz I): metadane zaznaczonego utworu z NAZWANYM źródłem
-    każdej liczby — silnik osobno, Rekordbox osobno (niezależny sędzia tempa)."""
-    conf = track.key_confidence
-    dur = track.duration_sec or 0
-    lines = [
-        "SILNIK:",
-        f"  BPM {track.bpm_estimate or '—'} · ton {track.key_estimate or '?'}"
-        + (" (źródło: Rekordbox)"
-           if getattr(track, "key_detection_source", None) == "rekordbox"
-           else (f" (pew. {conf:.2f})" if conf is not None else "")),
-        f"  gatunek: {track.style_label or '—'}",
-        f"  długość: {int(dur // 60)}:{int(dur % 60):02d}",
-        "  wektor brzmienia: "
-        + ("jest" if getattr(track, "sound_embedding", None) is not None
-           else "brak"),
-        "",
-        "PLIK:",
-        f"  {track.source_path}",
-        "",
-        "REKORDBOX:",
-    ]
-    if rb_note:
-        lines.append(f"  {rb_note}")
-    elif rb is None:
-        lines.append("  nie ma w kolekcji")
-    else:
-        if rb.get("matched_by") == "twin":
-            lines.append("  (dopasowany po tytule — inna ścieżka)")
-        lines.append(f"  BPM wg Rekordboxa: {rb.get('bpm') or '—'}")
-        if rb.get("comment"):
-            lines.append(f"  komentarz: {str(rb['comment'])[:60]}")
-        pls = rb.get("playlists") or []
-        if pls:
-            lines.append(f"  playlisty ({len(pls)}):")
-            lines += [f"   · {p}" for p in pls[:12]]
-            if len(pls) > 12:
-                lines.append(f"   … i {len(pls) - 12} więcej")
-        else:
-            lines.append("  poza wszystkimi playlistami")
-    return "\n".join(lines)
 
 
 def _mode_params(mode: object, ctx: dict) -> tuple[str, object]:

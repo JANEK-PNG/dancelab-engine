@@ -143,7 +143,7 @@ def synchronizuj(analyses, *, progress=None, should_stop=None,
                  http=_http, osadz=osadz_okladke,
                  przerwa_sek: float = 0.4) -> dict:
     """Uzupełnij brakujące okładki w plikach. Zwraca i zapisuje raport."""
-    from dancelab.tui.app import _wykonawca_tytul
+    from dancelab.stan.biblioteka import wykonawca_tytul as _wykonawca_tytul
     from dancelab.tui.okladki import _bajty_okladki
 
     braki = [a for a in analyses
