@@ -10,7 +10,11 @@ const KOLORY_SEKCJI = {
   intro: '#5aa9e6', build: '#e0a458', drop: '#9ede73',
   breakdown: '#8a94a2', outro: '#5e6773',
 };
-const NAZWY_PADOW = ['A', 'B', 'C', 'D'];
+// Osiem padów jak w Rekordboksie i na CDJ-3000 (decyzja 09.08: „tabelka
+// ośmiu padów"); okno miało cztery od 28.08 — ostatnia różnica z terminalem,
+// zamknięta 02.09. Klawisze: CYFRY 1–8 (jak na kontrolerze), bo litery
+// E–H kolidowałyby z F = filar; litery skrótów zostają.
+const NAZWY_PADOW = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
 let stan = {
   trackId: null, przebieg: null, pady: {}, wybrany: null, bpm: null,
@@ -302,7 +306,7 @@ function rysujKontekst() {
         <div class="wa duza">${p.bpm ? p.bpm.toFixed(1) : '—'}</div></div>
     </div>
     <div class="rozdziel"></div>
-    <div class="pole"><div class="et">pady</div><div class="wa">${ile} z 4</div></div>
+    <div class="pole"><div class="et">pady</div><div class="wa">${ile} z ${NAZWY_PADOW.length}</div></div>
     <div class="pole"><div class="et">sekcje</div>
       <div class="wa">${p.sekcje.map(s => s.nazwa).join(' · ') || '—'}</div></div>
     ${bezDanych ? `<div class="powod"><b>Miejsca bez pomiaru:</b>
@@ -337,7 +341,7 @@ async function postawZKlikniecia(ev) {
   const ulamek = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width));
   const ms = Math.round(ulamek * stan.przebieg.dlugosc_sec * 1000);
   const pad = stan.wybrany || wolnyPad();
-  if (!pad) { pokazBlad('Pady', 'Wszystkie cztery pady zajęte — zdejmij któryś (⌫).'); return; }
+  if (!pad) { pokazBlad('Pady', 'Wszystkie osiem padów zajęte — zdejmij któryś (⌫).'); return; }
   const odp = await api().postaw_pad(stan.trackId, pad, ms);
   if (czyBlad(odp, 'Stawianie pada')) return;
   stan.pady = odp.pady || {}; stan.wybrany = pad; przerysuj(); odloz();
@@ -1636,9 +1640,14 @@ document.addEventListener('keydown', e => {
   // spację na jego kliknięcie — nasze P/Spacja przełączałoby odsłuch dwa
   // razy (albo, na guziku „Buduj set", grało I przebudowywało set naraz).
   if (e.key === ' ' && e.target.tagName === 'BUTTON') return;
-  if (e.key === '1') { pokazEkran('szew'); return; }
-  if (e.key === '2') { pokazEkran('set'); return; }
-  if (e.key === '3') { pokazEkran('dj'); return; }
+  // Ekrany: Tab w przód, ⇧Tab w tył (jak Ctrl+Tab w terminalu). Cyfry
+  // 1–8 należą do padów. F1–F3 odpadły: macOS przechwytuje je na jasność.
+  if (e.key === 'Tab') {
+    const kolej = ['szew', 'set', 'dj'];
+    const teraz = kolej.indexOf(document.documentElement.dataset.ekran || 'szew');
+    pokazEkran(kolej[(teraz + (e.shiftKey ? kolej.length - 1 : 1)) % kolej.length]);
+    e.preventDefault(); return;
+  }
   // Ściana DJ-ów nie ma klawiszy poza 1/2/3. Bez tej linii wpadała do
   // bloku ekranu szwu: ⌫ zdejmowało pad utworu, którego nie widać, ←→ go
   // przesuwały — i każdy taki ruch szedł do dziennika decyzji jako Twoja
@@ -1690,8 +1699,8 @@ document.addEventListener('keydown', e => {
     return;                       // reszta skrótów należy do ekranu szwu
   }
 
-  if (['a', 'b', 'c', 'd', 'A', 'B', 'C', 'D'].includes(e.key) && !e.metaKey && !e.ctrlKey) {
-    literaPada(e.key.toUpperCase()); return;
+  if (/^[1-8]$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    literaPada(NAZWY_PADOW[Number(e.key) - 1]); return;
   }
   if (e.key === 't' || e.key === 'T') { edytujCzasPada(); return; }
   if (e.key === 'k' || e.key === 'K') { przelaczOkladki(); return; }
