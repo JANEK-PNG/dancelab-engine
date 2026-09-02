@@ -18,10 +18,15 @@ let stan = {
   // biblioteka: filtrowanie robi Python, tu trzymamy tylko wynik i ustawienia
   widoczne: [], znalezione: 0, wszystkich: 0,
   tylkoUlubione: false, sortowanie: '',
-  filary: [], role: {},
+  // Filary AKTYWNEJ PLAYLISTY: obiekty {track_id, rola, tytul} do panelu.
+  filaryPlaylisty: [], role: {},
   djGrupy: null, djKolekcja: [], djFiltr: 'wszyscy', rbDozwolony: null,
-  // ekran Set: zaznaczona pozycja, wiersze setu, otwarty panel kandydatów
-  set: [], filary: [], pozycja: null, ostatniSet: null,
+  // ekran Set: zaznaczona pozycja, wiersze setu, otwarty panel kandydatów.
+  // `filarySetu` to SAME identyfikatory użyte przy budowie — inny kształt
+  // niż panel, i do 02.09 oba siedziały pod jednym kluczem `filary`
+  // (zdublowanym w tym literale): po każdym ruchu w panelu kolumna FILAR
+  // w tabeli setu gasła, bo `Set` z obiektów nie zawiera napisu.
+  set: [], filarySetu: [], pozycja: null, ostatniSet: null,
   kandydaci: null, kandCel: null, kandTryb: 'smart', kandWybor: null,
   // co gra: {gra, pozycja_sec, dlugosc_sec, rodzaj, track_id, opis, skad}
   gra: {gra: false, pozycja_sec: 0},
@@ -176,8 +181,11 @@ function wolnyPad() {
 
 async function odloz() {
   // Po każdej zmianie, nie na zamknięciu okna: zamknięcie bywa nagłe,
-  // a edycje mają przeżyć także wtedy.
-  if (api()) await api().zapisz_edycje();
+  // a edycje mają przeżyć także wtedy. Odpowiedź CZYTAMY: odrzucony zapis
+  // (zły `cwd`, katalog bez prawa zapisu) wyglądał jak sukces, a pady
+  // znikały razem z oknem.
+  if (!api()) return;
+  czyBlad(await api().zapisz_edycje(), 'Zapis edycji na dysk');
 }
 
 async function postawZKlikniecia(ev) {
@@ -308,13 +316,13 @@ async function przypnijFilar(rola) {
     ? await api().zdejmij_filar(stan.trackId)
     : await api().ustaw_filar(stan.trackId, rola || '');
   if (czyBlad(odp, 'Filary')) return;
-  stan.filary = odp.filary || [];
+  stan.filaryPlaylisty = odp.filary || [];
   rysujFilary();
   odswiezSpis();
 }
 
 function rysujFilary() {
-  const lista = stan.filary || [];
+  const lista = stan.filaryPlaylisty || [];
   $('#filary-licznik').textContent = lista.length
     ? `${lista.length} z 10`
     : '— brak, silnik ułoży set sam';
@@ -337,14 +345,14 @@ function rysujFilary() {
     sel.addEventListener('change', async () => {
       const odp = await api().ustaw_filar(sel.dataset.rola, sel.value);
       if (czyBlad(odp, 'Rola filara')) return;
-      stan.filary = odp.filary || [];
+      stan.filaryPlaylisty = odp.filary || [];
       rysujFilary();
     }));
   el.querySelectorAll('button[data-zdejmij]').forEach(b =>
     b.addEventListener('click', async () => {
       const odp = await api().zdejmij_filar(b.dataset.zdejmij);
       if (czyBlad(odp, 'Filary')) return;
-      stan.filary = odp.filary || [];
+      stan.filaryPlaylisty = odp.filary || [];
       rysujFilary(); odswiezSpis();
     }));
 }
@@ -363,7 +371,7 @@ async function odswiezPlaylisty() {
   document.querySelectorAll('#tryb-filarow button').forEach(b =>
     b.setAttribute('aria-pressed', String(b.dataset.tf === p.tryb_filarow)));
   const f = await api().filary();
-  stan.filary = f.filary || [];
+  stan.filaryPlaylisty = f.filary || [];
   rysujFilary();
 }
 
@@ -402,7 +410,7 @@ function pokazEkran(nazwa) {
   document.documentElement.dataset.ekran = nazwa;
   // Skróty pod ręką muszą pasować do ekranu — inaczej pas na dole obiecuje
   // klawisze, które tu nic nie robią.
-  $('#skroty-szew').hidden = nazwa === 'set';
+  $('#skroty-szew').hidden = nazwa !== 'szew';
   $('#skroty-set').hidden = nazwa !== 'set';
   if (nazwa !== 'set') zamknijKandydatow();
   if (nazwa === 'set') { kontekstSet(); odswiezZapis(); }
@@ -520,7 +528,7 @@ function rysujKrzywa(utwory) {
 function rysujTabeleSetu(utwory, filary) {
   const el = $('#tabela-set');
   stan.set = utwory || [];
-  if (filary !== undefined) stan.filary = filary || [];
+  if (filary !== undefined) stan.filarySetu = filary || [];
   if (!utwory || !utwory.length) {
     el.innerHTML = '<div class="pusto">Silnik nie zbudował setu — powód wyżej.</div>';
     stan.pozycja = null;
@@ -529,7 +537,7 @@ function rysujTabeleSetu(utwory, filary) {
   if (stan.pozycja !== null && stan.pozycja >= utwory.length) {
     stan.pozycja = utwory.length - 1;
   }
-  const zbior = new Set(stan.filary);
+  const zbior = new Set(stan.filarySetu);
   let suma = 0;
   el.innerHTML = `<table><thead><tr>
       <th style="width:34px">#</th><th style="width:54px">BPM</th>
@@ -865,10 +873,13 @@ async function porownajPare() {
   const nazwa = u => [u.wykonawca, u.tytul].filter(Boolean).join(' — ').slice(0, 42);
   $('#szew-tytul').textContent =
     `Szew #${odp.pozycja + 1} ⇄ #${odp.pozycja + 2}`;
+  // nieznane rysujemy jako kreskę, jak wszędzie — nie jako TypeError w konsoli
+  const sek = x => (typeof x === 'number' ? mmss(x * 1000) : '—');
   $('#szew-info').innerHTML =
     `${nazwa(odp.a).replace(/</g, '&lt;')} → ${nazwa(odp.b).replace(/</g, '&lt;')}<br>` +
-    `<b>${odp.uderzen}</b> uderzeń @ ${odp.bpm.toFixed(1)} BPM · ` +
-    `wyjście z A ${mmss(odp.cue_a_sec * 1000)} · wejście w B ${mmss(odp.cue_b_sec * 1000)}` +
+    `<b>${odp.uderzen ?? '—'}</b> uderzeń @ ${
+      typeof odp.bpm === 'number' ? odp.bpm.toFixed(1) : '—'} BPM · ` +
+    `wyjście z A ${sek(odp.cue_a_sec)} · wejście w B ${sek(odp.cue_b_sec)}` +
     ` <span class="ostroznie">— tu się patrzy; słucha się z Twoich padów</span>`;
 }
 
@@ -1159,7 +1170,12 @@ function rysujGrajka() {
   } else if (gra) {
     opis.textContent = `${g.opis || ''}${g.skad ? ' · ' + g.skad : ''}`.slice(0, 96);
   } else if (g.pozycja_sec) {
-    opis.textContent = 'pauza — P wznawia od tego miejsca';
+    // Spacja wznawia; P od pada, gdy jakiś jest zaznaczony. Tekst musi
+    // mówić to, co klawisz naprawdę robi — wcześniej obiecywał wznowienie,
+    // a P z zaznaczonym padem startowało od pada.
+    opis.textContent = stan.wybrany && $('#ekran-set').hidden
+      ? 'pauza — spacja wznawia od tego miejsca, P gra od pada'
+      : 'pauza — spacja albo P wznawia od tego miejsca';
   } else {
     opis.textContent = 'dźwięk gra tylko wtedy, gdy sam go włączysz';
   }
@@ -1192,10 +1208,15 @@ function pilnujGry(wlacz) {
 }
 
 async function graj(pad) {
+  // Każdy gest odsłuchu unieważnia czekający render szwu. Bez tego P w
+  // trakcie renderu puszczało utwór, a po sekundach gotowy szew go ucinał
+  // i startował sam — dźwięk zmieniał się bez gestu, czego zasada projektu
+  // zabrania. Dźwięk szwu rusza WYŁĄCZNIE z `postep_szwu`, a `postep_szwu`
+  // woła tylko ta pętla — więc jej zdjęcie wystarcza.
+  clearInterval(odpytywanieSzwu);
   // Pauza tego, co gra, ma zatrzymywać TO, co gra. Szew nie jest utworem —
   // bez tej gałęzi kliknięcie w pauzę podczas szwu puszczało utwór A od zera.
   if (stan.gra.gra && stan.gra.rodzaj === 'szew') {
-    clearInterval(odpytywanieSzwu);
     const odp = await api().stop_dzwieku();
     if (czyBlad(odp, 'odsłuch')) return;
     stan.gra = odp;
@@ -1268,6 +1289,11 @@ document.addEventListener('keydown', e => {
   if (e.key === '1') { pokazEkran('szew'); return; }
   if (e.key === '2') { pokazEkran('set'); return; }
   if (e.key === '3') { pokazEkran('dj'); return; }
+  // Ściana DJ-ów nie ma klawiszy poza 1/2/3. Bez tej linii wpadała do
+  // bloku ekranu szwu: ⌫ zdejmowało pad utworu, którego nie widać, ←→ go
+  // przesuwały — i każdy taki ruch szedł do dziennika decyzji jako Twoja
+  // decyzja. Guziki odtwarzacza w stopce działają dalej (mysz, nie klawisz).
+  if (!$('#ekran-dj').hidden) return;
 
   // Ekran Set ma własny komplet — te same litery co w terminalu (Z/A/X).
   if (!$('#ekran-set').hidden) {
@@ -1310,9 +1336,13 @@ document.addEventListener('keydown', e => {
   if (e.key === 'i' || e.key === 'I') { pokazInfo(); return; }
   if (e.key === 'u' || e.key === 'U') { przelaczUlubiony(); return; }
   if (e.key === 'f' || e.key === 'F') { przypnijFilar(''); return; }
-  // P gra od ZAZNACZONEGO pada, jeśli jakiś jest — słyszysz dokładnie to
-  // miejsce, które właśnie ustawiasz, a nie początek utworu.
-  if (e.key === 'p' || e.key === 'P' || e.key === ' ') {
+  // Dwa klawisze, bo to dwie różne rzeczy: SPACJA to przełącznik
+  // (graj → pauza → wznów od miejsca pauzy), P gra od ZAZNACZONEGO pada —
+  // słyszysz dokładnie to miejsce, które właśnie ustawiasz. Jeden klawisz
+  // na oba nie umiał wznowić, gdy pad był zaznaczony: zawsze startował od
+  // pada, a pasek obiecywał wznowienie.
+  if (e.key === ' ') { graj(''); e.preventDefault(); return; }
+  if (e.key === 'p' || e.key === 'P') {
     graj(stan.wybrany || ''); e.preventDefault(); return;
   }
   if (e.key === 's' || e.key === 'S') { graj_szew(true); return; }
@@ -1325,8 +1355,8 @@ document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key === 'z') { cofnij(); e.preventDefault(); }
 });
 
-$('#btn-graj').addEventListener('click', () =>
-  graj($('#ekran-set').hidden ? (stan.wybrany || '') : ''));
+// Guzik to przełącznik graj/pauza — jak spacja. Od pada gra P.
+$('#btn-graj').addEventListener('click', () => graj(''));
 $('#btn-szew-graj').addEventListener('click', () =>
   graj_szew($('#ekran-set').hidden));       // na ekranie szwu — z Twoich padów
 $('#btn-tyl').addEventListener('click', () => skok(-8));
