@@ -469,6 +469,7 @@ async function dociagnijOkladkiWidoczne() {
   }
 }
 async function przelaczOkladki() {
+  if (stan.okladki && dociaganieTrwa) przerwijOkladki();   // OFF przerywa, jak w terminalu
   const odp = await api().przelacz_okladki();
   if (czyBlad(odp, 'Okładki')) return;
   ustawOkladki(!!odp.wlaczone);
@@ -486,19 +487,29 @@ async function rysujOkladkeGry() {
   const dane = await okladkaDla(tid);
   img.hidden = !dane; if (dane) img.src = dane;
 }
-let odpytywanieOkladek = null;
+let odpytywanieOkladek = null, dociaganieTrwa = false;
+async function przerwijOkladki() {
+  await api().przerwij_okladki();
+  $('#skan-postep').textContent = 'Artwork: przerywam po bieżącym utworze…';
+}
 async function dociagnijOkladki() {
+  if (dociaganieTrwa) { przerwijOkladki(); return; }
   const el = $('#skan-postep');
   const odp = await api().dociagnij_okladki();
   if (odp && odp.blad) { el.textContent = odp.blad; el.classList.add('zle'); return; }
   el.classList.remove('zle');
-  $('#btn-dociagnij').disabled = true;
+  // W trakcie guzik staje się „przerwij" — iTunes to 0,4 s na utwór bez
+  // okładki, czyli na tej bibliotece godziny; jedyny stop nie może być
+  // zamknięciem okna (terminal przerywa przełącznikiem OFF).
+  dociaganieTrwa = true;
+  $('#btn-dociagnij').textContent = 'przerwij';
   clearInterval(odpytywanieOkladek);
   odpytywanieOkladek = setInterval(async () => {
     const s = await api().postep_okladek();
     if (s.stan === 'trwa') { el.textContent = s.etap || 'Artwork…'; return; }
     clearInterval(odpytywanieOkladek);
-    $('#btn-dociagnij').disabled = false;
+    dociaganieTrwa = false;
+    $('#btn-dociagnij').textContent = 'dociągnij z iTunes';
     if (s.stan !== 'gotowe') { el.textContent = s.blad || 'Artwork: nie wyszło'; el.classList.add('zle'); return; }
     el.textContent = `Artwork: osadzone ${s.osadzone} · niejednoznaczne ${s.niejednoznaczne} · ` +
       `nieznalezione ${s.nieznalezione} · błędy ${s.bledy} · miały już ${s.mialy_juz} — ${s.uwaga}`;

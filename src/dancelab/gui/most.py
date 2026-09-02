@@ -28,6 +28,7 @@ from dancelab.stan import (budowa, cue, dziennik, edycje, odtwarzacz, plan,
 ZDJETY = "zdjety"
 
 
+@functools.lru_cache(maxsize=512)
 def _okladka_data_uri(sciezka: str) -> str | None:
     """Okładka z tagów pliku jako data URI — albo None (brak = pustka, nie
     zmyślony obrazek). To samo źródło co mozaika w terminalu
@@ -43,7 +44,6 @@ def _okladka_data_uri(sciezka: str) -> str | None:
     return f"data:{typ};base64,{base64.b64encode(dane).decode('ascii')}"
 
 
-_OKLADKI: dict[str, str | None] = {}     # ścieżka → data URI (na sesję okna)
 
 
 def _bezpiecznie(fn):
@@ -93,6 +93,10 @@ class Most:
         # i stan odpytywany przez `postep_budowy`.
         self._budowa: dict[str, Any] = {"stan": "bezczynny"}
         self._analizy_pula: list | None = None
+        # Pulę wołają cztery wątki (budowa, plan, gatunki, okładki); bez zamka
+        # dwa naraz widziały `None`, wczytywały 8 tys. analiz i czytały
+        # master.db podwójnie.
+        self._zamek_puli = threading.Lock()
         # Notki puli (higiena + dokarmianie) żyją TU, nie w `_budowa`: tamten
         # słownik każda budowa podmienia, a pula siedzi w cache — bramka
         # „dokarmianie padło → odmowa" działała więc tylko przy PIERWSZEJ
@@ -547,6 +551,10 @@ class Most:
 
     def _pula(self) -> list:
         """Pula analiz, wczytana raz. 8 tysięcy plików to kilkanaście sekund."""
+        with self._zamek_puli:
+            return self._pula_pod_zamkiem()
+
+    def _pula_pod_zamkiem(self) -> list:
         if self._analizy_pula is None:
             analizy, notki = budowa.pula(self._katalog)
             # Dokarmienie TU, nie w budowie: plan wczytany przed pierwszą
@@ -854,8 +862,14 @@ class Most:
                     "uwaga": "tego utworu nie ma w bibliotece Rekordboxa — "
                              "nie mam z czym porównać",
                     "sprawdzono": len(pady)}
-        return {"kolizje": [], "content_id": content_id,
-                "sprawdzono": len(pady)}
+        # NIE „zero kolizji": tu sprawdziliśmy tylko, że utwór JEST w kolekcji.
+        # Kolizje z Twoimi cue liczy stopień pierwszy zapisu
+        # (`zapis_cue.przygotuj`, jak w terminalu) — do 02.09 ta gałąź
+        # odpowiadała pustą listą bez patrzenia (ADR-005: nie wiem ≠ czysto).
+        return {"kolizje": None, "content_id": content_id,
+                "sprawdzono": len(pady),
+                "uwaga": "kolizje z Twoimi cue policzy podgląd zapisu — "
+                         "tu tylko: utwór jest w kolekcji Rekordboxa"}
 
     def _takty(self, track_id: str) -> list[float]:
         """Takty wg Rekordboxa — te same czerwone linie, które widzisz w jego
@@ -1228,9 +1242,7 @@ class Most:
         sciezka = self._sciezka_utworu(track_id)
         if not budowa.ma_plik(sciezka):
             return {"dane": None}
-        if sciezka not in _OKLADKI:
-            _OKLADKI[sciezka] = _okladka_data_uri(sciezka)
-        return {"dane": _OKLADKI[sciezka]}
+        return {"dane": _okladka_data_uri(sciezka)}
 
     @_bezpiecznie
     def okladki_stan(self) -> dict[str, Any]:
@@ -1278,7 +1290,7 @@ class Most:
             self._okladki_stan = {"stan": "blad",
                                   "blad": f"Artwork: synchronizacja nie wyszła: {exc}"}
             return
-        _OKLADKI.clear()                               # tagi się zmieniły
+        _okladka_data_uri.cache_clear()               # tagi się zmieniły
         self._okladki_stan = {
             "stan": "gotowe",
             "osadzone": len(raport["osadzone"]),

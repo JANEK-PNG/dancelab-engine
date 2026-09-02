@@ -12,7 +12,7 @@ def _most(tmp_path, monkeypatch, sciezka="/m/a.aiff"):
                {"track_id": "s", "sciezka": "apple-music:tracks:1", "tytul": "S"}]
     m._stan_dja = {"okladki_w_liscie": False}
     monkeypatch.setattr(m, "_zapisz_stan_uzytkownika", lambda: None)
-    M._OKLADKI.clear()
+    M._okladka_data_uri.cache_clear()
     return m
 
 
@@ -43,7 +43,7 @@ def test_dociaganie_w_tle_raportuje_i_czysci_cache(tmp_path, monkeypatch):
                                         "bledy": [], "z_okladka_juz": 5}))
     m = _most(tmp_path, monkeypatch)
     monkeypatch.setattr(m, "_pula", lambda: [])
-    M._OKLADKI["/m/a.aiff"] = "stare"
+    M._okladka_data_uri("/nieistniejacy.aiff")          # coś w cache
     assert m.dociagnij_okladki() == {"ruszylo": True}
     for _ in range(50):
         if m.postep_okladek()["stan"] != "trwa":
@@ -52,4 +52,4 @@ def test_dociaganie_w_tle_raportuje_i_czysci_cache(tmp_path, monkeypatch):
     st = m.postep_okladek()
     assert st["stan"] == "gotowe" and (st["osadzone"], st["nieznalezione"], st["mialy_juz"]) == (1, 1, 5)
     assert "Reload Tags" in st["uwaga"] and st["raport"].endswith("artwork_raport.json")
-    assert M._OKLADKI == {}                        # tagi się zmieniły — okładki od nowa
+    assert M._okladka_data_uri.cache_info().currsize == 0   # tagi się zmieniły — od nowa

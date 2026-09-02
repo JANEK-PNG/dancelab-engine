@@ -108,7 +108,7 @@ def test_kolizje_odmawiaja_gdy_nie_ma_z_czym_porownac(most):
     podstawy do wyroku, i musi być nazwany."""
     most.postaw_pad("t1", "A", 1000)
     odp = most.kolizje("t1")
-    assert odp["kolizje"] == []
+    assert not odp["kolizje"]                      # [] (brak w RB) albo None (nieliczone)
     assert "uwaga" in odp or "blad" in odp, "cisza sugerowałaby, że jest czysto"
 
 
