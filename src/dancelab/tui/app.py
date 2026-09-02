@@ -63,7 +63,16 @@ MAX_TRACK_SEC = 15 * 60
 
 # Dziennik werdyktów DJ-a: każda ręczna edycja setu (podmiana, cięcie,
 # przesunięcie, dopisanie) to darmowa prawda o guście — dopisujemy, nie gubimy.
-WERDYKTY_DIR = pathlib.Path("experiments_priv/2026-08-04_werdykty")
+from dancelab.stan import biblioteka as _stan_biblioteka
+from dancelab.stan import budowa as _stan_budowa
+from dancelab.stan import dziennik as _stan_dziennik
+from dancelab.stan import filary as _stan_filary
+
+# Od 02.09 terminal NIE pisze tu sam — pisze `stan.dziennik` (jeden pisarz
+# dla obu skór, katalog zakotwiczony w korzeniu, nie w `cwd`). Nazwa zostaje
+# jako odnośnik do katalogu; wcześniej była względna i działała tylko dlatego,
+# że terminal startował z korzenia repo.
+WERDYKTY_DIR = _stan_dziennik.KATALOG
 
 # Historia zbudowanych setów (odciski) — karmi tryby świeżości silnika:
 # „fresh" umie omijać utwory i przejścia grane w poprzednich budowach.
@@ -77,9 +86,6 @@ RAPORT_ART = pathlib.Path("data/exports/artwork_raport.json")
 _TAB_ORDER = ("tab-lib", "tab-dj", "tab-set", "tab-export")
 
 
-from dancelab.stan import biblioteka as _stan_biblioteka
-from dancelab.stan import budowa as _stan_budowa
-from dancelab.stan import filary as _stan_filary
 
 # JEDEN KOD DLA OBU SKÓR (Janek 02.09: „połącz elementy wspólne zbioru A ze
 # zbiorem B"). Te siedem funkcji miało tu własne kopie — commity „Move … into
@@ -3389,10 +3395,12 @@ class DanceLabTUI(App):
         import json
         import time
         rec = {"ts": time.strftime("%Y-%m-%d %H:%M:%S"), "typ": typ, **fields}
-        self._edits.append(rec)
-        WERDYKTY_DIR.mkdir(parents=True, exist_ok=True)
-        with (WERDYKTY_DIR / "tui_edycje.jsonl").open("a") as f:
-            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        self._edits.append(rec)          # do zapisu planu i werdyktu końcowego
+        # Na dysk pisze WSPÓLNY dziennik obu skór; awaria zapisu wraca jako
+        # notka, nie wywraca edycji — ta już się udała.
+        blad = _stan_dziennik.dopisz(typ, skora="tui", **fields)
+        if blad:
+            self._note(blad)
 
     def _usun_plan(self) -> None:
         """X na liście planów: usunięcie MIĘKKIE (do kosza obok planów),
@@ -3596,12 +3604,13 @@ class DanceLabTUI(App):
                          "utworow_z_planu": len(wspolne),
                          "na_tej_samej_pozycji": te_same_pozycje,
                          "liczba_edycji": len(self._edits)}}
-        WERDYKTY_DIR.mkdir(parents=True, exist_ok=True)
-        path = WERDYKTY_DIR / f"tui_werdykt_{time.strftime('%Y%m%d_%H%M%S')}.json"
-        path.write_text(json.dumps(rec, ensure_ascii=False, indent=1))
+        path, blad = _stan_dziennik.zapisz_werdykt(rec, skora="tui")
+        if blad:
+            self._note(blad)
+            return
         self._note(f"werdykt końcowy zapisany automatycznie: "
                    f"{te_same_pozycje}/{len(self._order)} pozycji bez zmian, "
-                   f"edycji {len(self._edits)} → {path.name}")
+                   f"edycji {len(self._edits)} → {pathlib.Path(path).name}")
 
     # ---------------------------------------------------- odsłuch szwu (P)
 

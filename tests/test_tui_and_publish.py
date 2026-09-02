@@ -165,11 +165,14 @@ def test_tui_ciecie_i_przesuniecie_loguja_werdykty(tmp_path, monkeypatch):
             assert "bold" in str(bpm_cell.style)  # bold, nie tło — oba motywy
     asyncio.run(go())
 
-    log = (tmp_path / "tui_edycje.jsonl").read_text().splitlines()
+    # od 02.09 pisze wspólny `stan.dziennik` (conftest kieruje go do tmp)
+    from dancelab.stan import dziennik
+    log = (dziennik.KATALOG / dziennik.PLIK_ZDARZEN).read_text().splitlines()
     assert len(log) == 2 and '"ciecie"' in log[0] and '"przesuniecie"' in log[1]
+    assert all('"skora": "tui"' in w for w in log)
     # zrzut „silnik vs DJ" powstaje wyłącznie automatycznie przy W —
     # test wysyłkowy: test_werdykt_koncowy_zapisuje_sie_sam_przy_wysylce
-    assert list(tmp_path.glob("tui_werdykt_*.json")) == []
+    assert list(dziennik.KATALOG.glob("tui_werdykt_*.json")) == []
 
 
 def test_tui_budowa_bez_kotwicy_nie_pada_na_noselection():
@@ -537,10 +540,12 @@ def test_werdykt_koncowy_zapisuje_sie_sam_przy_wysylce(tmp_path, monkeypatch):
     app._note = lambda *a, **k: None
 
     app._zapisz_werdykt_koncowy()
-    pliki = list(tmp_path.glob("tui_werdykt_*.json"))
+    from dancelab.stan import dziennik
+    pliki = list(dziennik.KATALOG.glob("tui_werdykt_*.json"))
     assert len(pliki) == 1
     rec = json.loads(pliki[0].read_text())
     assert rec["powod"] == "wysylka_do_rekordboxa"
+    assert rec["skora"] == "tui"
     assert rec["miara"] == {"utworow_finalnie": 3, "utworow_z_planu": 3,
                             "na_tej_samej_pozycji": 1, "liczba_edycji": 1}
 
@@ -596,8 +601,9 @@ def test_podmiana_loguje_skad_wziety_utwor(tmp_path, monkeypatch):
             assert app._edits[-1]["zrodlo"] == "reka_dj"
             assert "ranga" not in app._edits[-1]
 
-            zapisane = [json.loads(w) for w
-                        in (tmp_path / "tui_edycje.jsonl").read_text().splitlines()]
+            from dancelab.stan import dziennik
+            zapisane = [json.loads(w) for w in (dziennik.KATALOG / dziennik.PLIK_ZDARZEN)
+                        .read_text().splitlines()]
             assert [w["zrodlo"] for w in zapisane] == ["panel_silnika", "reka_dj"]
 
     asyncio.run(go())

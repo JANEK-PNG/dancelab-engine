@@ -123,7 +123,7 @@ def test_werdykt_przezywa_niezapisywalne_wagi(most, tmp_path):
 
     most._wagi_budowy = Dziwne()
     rec = most._werdykt_zapisu("test", {"zapisane": 0})
-    plik, blad = dziennik.zapisz_werdykt(rec)
+    plik, blad = dziennik.zapisz_werdykt(rec, skora="gui")
     assert blad is None
     dane = json.loads((tmp_path / "werdykty" / plik.split("/")[-1]).read_text())
     assert dane["miara"]["z_silnika"] == 2

@@ -400,7 +400,7 @@ class Most:
         self._zapis_gotowy = None
         kontekst = self._kontekst_propozycji(track_id, pad)
         edycje.postaw(self._edycje, track_id, pad, int(position_ms))
-        blad = dziennik.dopisz("cue_postaw", track_id=track_id, pad=pad,
+        blad = dziennik.dopisz("cue_postaw", skora="gui", track_id=track_id, pad=pad,
                                position_ms=int(position_ms), **kontekst)
         return self._z_dziennikiem(self.pady(track_id), blad)
 
@@ -415,7 +415,7 @@ class Most:
         nowa = edycje.przesun(self._edycje, track_id, pad, int(uderzenia),
                               float(bpm), biezacy.get("silnik_ms"),
                               int(biezacy["position_ms"]))
-        blad = dziennik.dopisz("cue_przesuniecie", track_id=track_id, pad=pad,
+        blad = dziennik.dopisz("cue_przesuniecie", skora="gui", track_id=track_id, pad=pad,
                                uderzenia=int(uderzenia), position_ms=nowa,
                                **self._kontekst_propozycji(track_id, pad))
         return self._z_dziennikiem(self.pady(track_id), blad)
@@ -425,7 +425,7 @@ class Most:
         self._zapis_gotowy = None
         kontekst = self._kontekst_propozycji(track_id, pad)
         edycje.zdejmij(self._edycje, track_id, pad)
-        blad = dziennik.dopisz("cue_zdjecie", track_id=track_id, pad=pad,
+        blad = dziennik.dopisz("cue_zdjecie", skora="gui", track_id=track_id, pad=pad,
                                **kontekst)
         return self._z_dziennikiem(self.pady(track_id), blad)
 
@@ -446,7 +446,7 @@ class Most:
             zmienione = sorted(
                 {k for k in set(przed_n) | set(po_n)
                  if przed_n.get(k) != po_n.get(k)} | (przed_z ^ po_z))
-            blad = dziennik.dopisz("cue_cofniecie", zmienione=zmienione)
+            blad = dziennik.dopisz("cue_cofniecie", skora="gui", zmienione=zmienione)
         wynik = self._z_dziennikiem(self.pady(track_id), blad)
         wynik["cofnieto"] = bool(udalo)
         return wynik
@@ -590,8 +590,7 @@ class Most:
             self._kandydaci_meta = {}
             self._plan_cue_nieaktualny = False
             self._plan_cue_przeliczony = False
-            dziennik.dopisz(
-                "budowa", parametry=self._parametry_budowy,
+            dziennik.dopisz("budowa", skora="gui", parametry=self._parametry_budowy,
                 utworow=len(wynik["kolejnosc"]),
                 kolejnosc=list(wynik["kolejnosc"]),
                 pady_silnika=(sum(len(t.cues) for t in self._plan_cue.tracks)
@@ -705,7 +704,7 @@ class Most:
         plan.WSKAZNIK.write_text(
             json.dumps({"plan": str(sciezka)}, ensure_ascii=False),
             encoding="utf-8")
-        dziennik.dopisz("wczytanie_planu", plan=str(sciezka),
+        dziennik.dopisz("wczytanie_planu", skora="gui", plan=str(sciezka),
                         utworow=len(self._kolejnosc),
                         pominietych=len([n for n in wynik.get("notki") or []
                                          if n.startswith("BRAK")]))
@@ -907,8 +906,7 @@ class Most:
             return {"blad": "ten utwór już jest w secie"}
         stary = self._kolejnosc[idx]
         self._kolejnosc[idx] = track_id
-        blad = dziennik.dopisz(
-            "podmiana", pozycja=idx + 1,
+        blad = dziennik.dopisz("podmiana", skora="gui", pozycja=idx + 1,
             **{"out": self._sciezka(stary), "in": self._sciezka(track_id)},
             **self._zrodlo_kandydata(track_id))
         self._kandydaci_meta = {}
@@ -925,8 +923,7 @@ class Most:
         if track_id in self._kolejnosc:
             return {"blad": "ten utwór już jest w secie"}
         self._kolejnosc.insert(idx + 1, track_id)
-        blad = dziennik.dopisz(
-            "dopisanie", pozycja=idx + 2,
+        blad = dziennik.dopisz("dopisanie", skora="gui", pozycja=idx + 2,
             **{"in": self._sciezka(track_id)},
             **self._zrodlo_kandydata(track_id))
         self._kandydaci_meta = {}
@@ -940,7 +937,7 @@ class Most:
             return {"blad": f"pozycja {idx + 1} poza setem"}
         tid = self._kolejnosc.pop(idx)
         filar = tid in ((self._ctx_edycji or {}).get("filary") or [])
-        blad = dziennik.dopisz("ciecie", pozycja=idx + 1,
+        blad = dziennik.dopisz("ciecie", skora="gui", pozycja=idx + 1,
                                out=self._sciezka(tid), filar=filar)
         wynik = self._po_edycji_setu()
         if filar:
@@ -961,7 +958,7 @@ class Most:
             return wynik
         self._kolejnosc[idx], self._kolejnosc[j] = \
             self._kolejnosc[j], self._kolejnosc[idx]
-        blad = dziennik.dopisz("przesuniecie", z=idx + 1, na=j + 1,
+        blad = dziennik.dopisz("przesuniecie", skora="gui", z=idx + 1, na=j + 1,
                                utwor=self._sciezka(self._kolejnosc[j]))
         wynik = self._po_edycji_setu()
         wynik["na"] = j
@@ -1579,7 +1576,7 @@ class Most:
                                  nazwa=mianowana)
         self._playlista_gotowa = None
         if not wynik.get("ok"):
-            dziennik.dopisz("playlista_nieudana", nazwa=mianowana,
+            dziennik.dopisz("playlista_nieudana", skora="gui", nazwa=mianowana,
                             powod=wynik.get("blad"))
             return wynik
         wynik["uwaga"] = ("otwórz Rekordboksa — playlistę widać dopiero po "
@@ -1588,8 +1585,8 @@ class Most:
         # Rekordboxa, to DJ naprawdę wybrał. Werdykt zapisuje tę chwilę.
         rec = self._werdykt_zapisu(mianowana, dict(wynik))
         rec["powod"] = "playlista"
-        plik, blad = dziennik.zapisz_werdykt(rec)
-        dziennik.dopisz("playlista", nazwa=mianowana,
+        plik, blad = dziennik.zapisz_werdykt(rec, skora="gui")
+        dziennik.dopisz("playlista", skora="gui", nazwa=mianowana,
                         zapisane=wynik.get("zapisane"),
                         zgloszone=wynik.get("zgloszone"),
                         werdykt=plik, miara=rec["miara"])
@@ -1654,8 +1651,8 @@ class Most:
         # silnika przestają być podpowiedzią, a stają się przyjęte albo
         # odrzucone — dopiero tu wolno je tak nazwać.
         rec = self._werdykt_zapisu(nazwa, dict(wynik))
-        plik, blad = dziennik.zapisz_werdykt(rec)
-        dziennik.dopisz("zapis_cue", nazwa=nazwa, werdykt=plik,
+        plik, blad = dziennik.zapisz_werdykt(rec, skora="gui")
+        dziennik.dopisz("zapis_cue", skora="gui", nazwa=nazwa, werdykt=plik,
                         miara=rec["miara"])
         if plik:
             wynik["werdykt"] = plik
