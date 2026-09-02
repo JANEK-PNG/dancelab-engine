@@ -77,7 +77,7 @@ WERDYKTY_DIR = _stan_dziennik.KATALOG
 # Historia zbudowanych setów (odciski) — karmi tryby świeżości silnika:
 # „fresh" umie omijać utwory i przejścia grane w poprzednich budowach.
 HISTORIA_SETOW = _stan_budowa.HISTORIA_SETOW   # jedna historia dla obu skór
-RAPORT_ART = pathlib.Path("data/exports/artwork_raport.json")
+from dancelab.ingestion.artwork_sync import RAPORT as RAPORT_ART   # jedno miejsce
 
 
 # Zakładki wg TUI_WIZJA_2 (inspiracja rmpc, układ zatwierdzony 05.08):

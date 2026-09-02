@@ -297,3 +297,10 @@ td.wynik{font-family:var(--mono);font-variant-numeric:tabular-nums;
   border:1px solid var(--kreska);border-radius:999px;width:22px;height:22px;
   color:var(--cichy);cursor:pointer;font-size:12px;line-height:1}
 .dj-karta button.kolekcja:hover{border-color:var(--bursztyn);color:var(--bursztyn)}
+
+/* Okładki: z tagów plików, brak = pusta kratka (nie zmyślony obrazek). */
+.okl{width:28px;height:28px;border-radius:4px;object-fit:cover;background:var(--karta2);
+  flex:none;vertical-align:middle}
+.spis .utwor{display:flex;gap:8px;align-items:center}
+.spis .utwor .tresc{flex:1;min-width:0}
+.okl-gry{width:30px;height:30px;border-radius:7px}

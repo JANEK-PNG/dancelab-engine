@@ -28,7 +28,10 @@ import time
 import urllib.parse
 import urllib.request
 
-RAPORT = pathlib.Path("data/exports/artwork_raport.json")
+from dancelab.sciezki import KORZEN
+
+# Na korzeniu repo, nie w `cwd` — jak dziennik, plany i cache szwów.
+RAPORT = KORZEN / "data/exports/artwork_raport.json"
 _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15")
 

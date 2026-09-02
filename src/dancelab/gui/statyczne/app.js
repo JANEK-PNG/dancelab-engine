@@ -17,7 +17,7 @@ let stan = {
   ostatniBlad: null, spis: [], filtr: '',
   // biblioteka: filtrowanie robi Python, tu trzymamy tylko wynik i ustawienia
   widoczne: [], znalezione: 0, wszystkich: 0,
-  tylkoUlubione: false, sortowanie: '', sekcja: '',
+  tylkoUlubione: false, sortowanie: '', sekcja: '', okladki: false,
   // Filary AKTYWNEJ PLAYLISTY: obiekty {track_id, rola, tytul} do panelu.
   filaryPlaylisty: [], role: {},
   djGrupy: null, djKolekcja: [], djFiltr: 'wszyscy', rbDozwolony: null,
@@ -429,10 +429,13 @@ function rysujSpis() {
     return `
     <div class="utwor" data-id="${u.track_id}"
          ${stan.trackId === u.track_id ? 'aria-selected="true"' : ''}>
+      ${stan.okladki ? `<img class="okl" data-okl="${u.track_id}" alt="">` : ''}
+      <div class="tresc">
       <div class="t">${(u.tytul || u.track_id).replace(/</g, '&lt;')}
         <span class="znaki">${znaki}</span></div>
       <div class="d">${u.bpm ? u.bpm.toFixed(1) : '—'} · ${u.tonacja || '—'}${
         u.tonacja_zrodlo === 'rekordbox' ? ' RB' : ''}</div>
+      </div>
     </div>`;
   }).join('') +
     (stan.znalezione > widoczne.length
@@ -441,6 +444,66 @@ function rysujSpis() {
 
   el.querySelectorAll('.utwor').forEach(d =>
     d.addEventListener('click', () => wybierzUtwor(d.dataset.id)));
+  if (stan.okladki) dociagnijOkladkiWidoczne();
+}
+
+/* ---------- okładki (K) ----------
+   Z tagów plików, jak mozaika w terminalu; brak = pusta kratka. Ładowane
+   LENIWIE po jednej dla widocznych wierszy — lista ma do 400 pozycji, a
+   data URI okładki waży dziesiątki kB. */
+const okladkiCache = new Map();
+let okladkiKolejka = 0;
+async function okladkaDla(trackId) {
+  if (okladkiCache.has(trackId)) return okladkiCache.get(trackId);
+  const odp = await api().okladka(trackId);
+  const dane = (odp && odp.dane) || null;
+  okladkiCache.set(trackId, dane);
+  return dane;
+}
+async function dociagnijOkladkiWidoczne() {
+  const moja = ++okladkiKolejka;                 // nowa lista unieważnia starą pętlę
+  for (const img of document.querySelectorAll('img.okl[data-okl]')) {
+    if (moja !== okladkiKolejka) return;
+    const dane = await okladkaDla(img.dataset.okl);
+    if (dane) img.src = dane; else img.removeAttribute('src');
+  }
+}
+async function przelaczOkladki() {
+  const odp = await api().przelacz_okladki();
+  if (czyBlad(odp, 'Okładki')) return;
+  ustawOkladki(!!odp.wlaczone);
+  rysujSpis();
+}
+function ustawOkladki(wlaczone) {
+  stan.okladki = wlaczone;
+  $('#btn-okladki').setAttribute('aria-pressed', String(wlaczone));
+  $('#btn-dociagnij').hidden = !wlaczone;
+}
+async function rysujOkladkeGry() {
+  const g = stan.gra || {}, img = $('#okladka-gry');
+  const tid = g.rodzaj === 'utwor' ? g.track_id : null;
+  if (!tid || !stan.okladki) { img.hidden = true; return; }
+  const dane = await okladkaDla(tid);
+  img.hidden = !dane; if (dane) img.src = dane;
+}
+let odpytywanieOkladek = null;
+async function dociagnijOkladki() {
+  const el = $('#skan-postep');
+  const odp = await api().dociagnij_okladki();
+  if (odp && odp.blad) { el.textContent = odp.blad; el.classList.add('zle'); return; }
+  el.classList.remove('zle');
+  $('#btn-dociagnij').disabled = true;
+  clearInterval(odpytywanieOkladek);
+  odpytywanieOkladek = setInterval(async () => {
+    const s = await api().postep_okladek();
+    if (s.stan === 'trwa') { el.textContent = s.etap || 'Artwork…'; return; }
+    clearInterval(odpytywanieOkladek);
+    $('#btn-dociagnij').disabled = false;
+    if (s.stan !== 'gotowe') { el.textContent = s.blad || 'Artwork: nie wyszło'; el.classList.add('zle'); return; }
+    el.textContent = `Artwork: osadzone ${s.osadzone} · niejednoznaczne ${s.niejednoznaczne} · ` +
+      `nieznalezione ${s.nieznalezione} · błędy ${s.bledy} · miały już ${s.mialy_juz} — ${s.uwaga}`;
+    okladkiCache.clear(); rysujSpis(); rysujOkladkeGry();
+  }, 700);
 }
 
 /* ---------- ulubione i filary ---------- */
@@ -1202,6 +1265,8 @@ async function start() {
 
   if (!api()) { $('#tytul').textContent = 'brak mostu do Pythona'; return; }
 
+  const okl = await api().okladki_stan();
+  if (okl && !okl.blad) ustawOkladki(!!okl.wlaczone);
   const wersja = await api().wersja();
   if (wersja && wersja.dancelab) $('#wersja').textContent = `v${wersja.dancelab}`;
   const b = await api().biblioteka(100000);   // spis to same nagłówki
@@ -1317,6 +1382,8 @@ async function skanujFolder() {
   }, 500);
 }
 $('#btn-skan').addEventListener('click', skanujFolder);
+$('#btn-okladki').addEventListener('click', przelaczOkladki);
+$('#btn-dociagnij').addEventListener('click', dociagnijOkladki);
 $('#skan-folder').addEventListener('keydown', e => { if (e.key === 'Enter') skanujFolder(); });
 $('#btn-szkic').addEventListener('click', szkicZFilarow);
 $('#btn-gatunki-zamknij').addEventListener('click', przelaczGatunki);
@@ -1379,6 +1446,7 @@ function rysujGrajka() {
   $('#btn-przod').disabled = !gra;
 
   const dl = g.dlugosc_sec ? ` / ${mmss(g.dlugosc_sec * 1000)}` : '';
+  rysujOkladkeGry();
   $('#czas-gry').textContent = gra || g.pozycja_sec
     ? mmss((g.pozycja_sec || 0) * 1000) + dl : '0:00';
   const opis = $('#opis-gry');
@@ -1615,6 +1683,7 @@ document.addEventListener('keydown', e => {
     literaPada(e.key.toUpperCase()); return;
   }
   if (e.key === 't' || e.key === 'T') { edytujCzasPada(); return; }
+  if (e.key === 'k' || e.key === 'K') { przelaczOkladki(); return; }
   if (e.key === 'i' || e.key === 'I') { pokazInfo(); return; }
   if (e.key === 'u' || e.key === 'U') { przelaczUlubiony(); return; }
   if (e.key === 'f' || e.key === 'F') { przypnijFilar(''); return; }

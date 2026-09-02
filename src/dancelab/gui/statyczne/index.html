@@ -57,6 +57,10 @@
         <button data-sekcja="brak" title="niedostępne — plik lokalny, którego nie ma">⚠</button>
       </div>
     </div>
+    <div class="filtry-lib" id="okladki-pasek">
+      <button class="btn maly" id="btn-okladki" aria-pressed="false" title="okładki w liście (K) — z tagów plików, brak = pustka">okładki <kbd>K</kbd></button>
+      <button class="btn maly" id="btn-dociagnij" hidden title="brakujące okładki z iTunes → tagi plików, z weryfikacją">dociągnij z iTunes</button>
+    </div>
     <div class="filtry-lib">
       <span class="drobne">sortuj</span>
       <div class="chip-gest" id="sortowanie" title="klik: rosnąco, drugi: malejąco, trzeci: bez">
@@ -341,6 +345,7 @@
        ustawienie. Guzik jest wyszarzony, gdy utwór jest ze strumienia:
        powód stoi obok, zamiast czekać na kliknięcie, żeby odmówić. -->
   <div class="grajek">
+    <img class="okl okl-gry" id="okladka-gry" alt="" hidden>
     <button class="graj" id="btn-graj" title="graj / pauza (spacja; P gra od pada)">
       <svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg></button>
     <button class="btn maly" id="btn-szew-graj" title="posłuchaj przejścia do następnego (S)">Szew <kbd>S</kbd></button>
@@ -360,6 +365,7 @@
     <span><b>I</b> info</span>
     <span><b>U</b> ♥ ulubiony</span>
     <span><b>F</b> filar</span>
+    <span><b>K</b> okładki</span>
     <span><b>␣</b> graj / pauza</span>
     <span><b>P</b> od pada</span>
     <span><b>S</b> szew</span>

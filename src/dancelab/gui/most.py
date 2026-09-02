@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import functools
 import json
+import pathlib
 import threading
 import traceback
 from typing import Any
@@ -25,6 +26,24 @@ from dancelab.stan import (budowa, cue, dziennik, edycje, odtwarzacz, plan,
 #: Wartość w migawce edycji dla pada ZDJĘTEGO — odróżnia „zdjęty" od
 #: „przesunięty na 0 ms", bo to dwie różne decyzje DJ-a.
 ZDJETY = "zdjety"
+
+
+def _okladka_data_uri(sciezka: str) -> str | None:
+    """Okładka z tagów pliku jako data URI — albo None (brak = pustka, nie
+    zmyślony obrazek). To samo źródło co mozaika w terminalu
+    (`tui/okladki._bajty_okladki`): zero sieci, zero pobierania."""
+    import base64
+    from dancelab.tui.okladki import _bajty_okladki
+    dane = _bajty_okladki(sciezka)
+    if not dane:
+        return None
+    typ = ("image/png" if dane[:8] == b"\x89PNG\r\n\x1a\n"
+           else "image/jpeg" if dane[:3] == b"\xff\xd8\xff"
+           else "image/webp" if dane[8:12] == b"WEBP" else "image/jpeg")
+    return f"data:{typ};base64,{base64.b64encode(dane).decode('ascii')}"
+
+
+_OKLADKI: dict[str, str | None] = {}     # ścieżka → data URI (na sesję okna)
 
 
 def _bezpiecznie(fn):
@@ -141,6 +160,8 @@ class Most:
         self._szew_stan: dict[str, Any] = {"stan": "bezczynny"}
         self._gatunki_stan: dict[str, Any] = {"stan": "bezczynny"}
         self._skan_stan: dict[str, Any] = {"stan": "bezczynny"}
+        self._okladki_stan: dict[str, Any] = {"stan": "bezczynny"}
+        self._okladki_przerwij = threading.Event()
         self._plan_cue_przeliczony = False
         # Po edycji kolejności propozycje padów silnika dotyczą STAREGO setu.
         # Flaga każe je przeliczyć w stopniu pierwszym zapisu — liczby, które
@@ -1193,6 +1214,81 @@ class Most:
         self._spis, self._analizy_pula, self._notki_puli = [], None, []
         self._skan_stan = {"stan": "gotowe", "przeanalizowane": len(analizy),
                            "notki": notki}
+
+    # ---------------------------------------------------------- okładki
+    #
+    # Jak K w terminalu (Janek 06.08, 08.08): okładki z tagów plików, brak =
+    # pustka; przełącznik trwały we wspólnym stanie DJ-a (`okladki_w_liscie`),
+    # więc terminal i okno pokazują to samo. Dociąganie braków z iTunes to
+    # w oknie OSOBNY guzik, nie skutek włączenia pokazywania — ruch po sieci
+    # zasługuje na własny gest.
+
+    @_bezpiecznie
+    def okladka(self, track_id: str) -> dict[str, Any]:
+        sciezka = self._sciezka_utworu(track_id)
+        if not budowa.ma_plik(sciezka):
+            return {"dane": None}
+        if sciezka not in _OKLADKI:
+            _OKLADKI[sciezka] = _okladka_data_uri(sciezka)
+        return {"dane": _OKLADKI[sciezka]}
+
+    @_bezpiecznie
+    def okladki_stan(self) -> dict[str, Any]:
+        return {"wlaczone": bool(self._stan_uzytkownika().get("okladki_w_liscie")),
+                "dociaganie": dict(self._okladki_stan)}
+
+    @_bezpiecznie
+    def przelacz_okladki(self) -> dict[str, Any]:
+        """K: pokazuj / schowaj. OFF tylko chowa, niczego nie kasuje."""
+        stan = self._stan_uzytkownika()
+        stan["okladki_w_liscie"] = not stan.get("okladki_w_liscie")
+        self._zapisz_stan_uzytkownika()
+        return {"wlaczone": bool(stan["okladki_w_liscie"])}
+
+    @_bezpiecznie
+    def dociagnij_okladki(self) -> dict[str, Any]:
+        """iTunes → tagi plików (z weryfikacją), w tle z postępem. Po Twoim
+        „Reload Tags" w Rekordboksie okładki wchodzą na CDJ-e."""
+        if self._okladki_stan.get("stan") == "trwa":
+            return {"blad": "dociąganie okładek już trwa — chwila"}
+        self._okladki_przerwij.clear()
+        self._okladki_stan = {"stan": "trwa", "etap": "Artwork: szukam braków i pytam iTunes…"}
+        threading.Thread(target=self._okladki_w_tle, daemon=True).start()
+        return {"ruszylo": True}
+
+    @_bezpiecznie
+    def postep_okladek(self) -> dict[str, Any]:
+        return dict(self._okladki_stan)
+
+    @_bezpiecznie
+    def przerwij_okladki(self) -> dict[str, Any]:
+        self._okladki_przerwij.set()
+        return {"przerwane": True}
+
+    def _okladki_w_tle(self) -> None:
+        from dancelab.ingestion.artwork_sync import RAPORT, synchronizuj
+
+        def postep(i: int, n: int, sciezka: str) -> None:
+            self._okladki_stan["etap"] = (f"Artwork: {i}/{n} · "
+                                          f"{pathlib.Path(sciezka).stem[:40]}")
+        try:
+            raport = synchronizuj(self._pula(), progress=postep,
+                                  should_stop=self._okladki_przerwij.is_set)
+        except Exception as exc:                       # noqa: BLE001
+            self._okladki_stan = {"stan": "blad",
+                                  "blad": f"Artwork: synchronizacja nie wyszła: {exc}"}
+            return
+        _OKLADKI.clear()                               # tagi się zmieniły
+        self._okladki_stan = {
+            "stan": "gotowe",
+            "osadzone": len(raport["osadzone"]),
+            "niejednoznaczne": len(raport["niejednoznaczne"]),
+            "nieznalezione": len(raport["nieznalezione"]),
+            "bledy": len(raport["bledy"]),
+            "mialy_juz": raport["z_okladka_juz"],
+            "raport": str(RAPORT),
+            "uwaga": "w Rekordboksie zaznacz utwory i daj Reload Tags — "
+                     "wtedy okładki wejdą na CDJ-e"}
 
     # ---------------------------------------------------------- gatunki
 
