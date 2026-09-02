@@ -1828,15 +1828,8 @@ class DanceLabTUI(App):
             ui(self._note, f"Biblioteka nie wstała: {exc}")
             return
         if analyses:
-            try:
-                from dancelab.ingestion.analysis_enrichment import (
-                    attach_rekordbox_genres, attach_rekordbox_keys,
-                    attach_rekordbox_meta)
-                attach_rekordbox_genres(analyses)
-                attach_rekordbox_keys(analyses)
-                attach_rekordbox_meta(analyses)
-            except Exception as exc:  # noqa: BLE001 — brak RB != martwa Biblioteka
-                notes.append(f"dokarmianie Biblioteki nie wyszło: {exc}")
+            # bez wektorów (koszt) i tolerancyjnie: brak RB != martwa Biblioteka
+            notes += _stan_budowa.dokarm(analyses, wektory=False)
         for note in notes:
             ui(self._note, note)
         if not analyses and self._lib:
@@ -2790,47 +2783,10 @@ class DanceLabTUI(App):
         )
 
     def _library_analyses(self):
-        """Pula z cache analiz + higiena (stemy, >15 min, brakujące pliki)."""
-        from dancelab.storage.repositories import FileAnalysisRepository
-        repo = FileAnalysisRepository(self.processed_dir)
-        analyses = [repo.get(t) for t in repo.list_track_ids()]
-        before = len(analyses)
-        # Kryterium jest to samo, co przy odmowie odsłuchu (`_bez_pliku`):
-        # ŚCIEŻKA NIE JEST ŚCIEŻKĄ W SYSTEMIE PLIKÓW = utwór ze źródła bez
-        # pliku (strumień) i to jest jego stan normalny. Sito „brak pliku"
-        # powstało przeciw plikom, które ZNIKNĘŁY.
-        # Wcześniej przepustka była przywiązana do jednej wersji silnika
-        # (`rekordbox-anlz`) — złapane 09.08 testem person: biblioteka
-        # zbudowana z innego źródła znikała w całości, a użytkownik dostawał
-        # „pusta pula" i notkę o stemach.
-        odrzucone = {"stem": 0, "dlugosc": 0, "brak_pliku": 0}
-
-        def zdrowy(a) -> bool:
-            if (a.track.duration_sec or 0) > MAX_TRACK_SEC:
-                odrzucone["dlugosc"] += 1
-                return False
-            sciezka = str(a.track.source_path or "")
-            if not sciezka.startswith("/"):
-                return True                     # źródło bez pliku — w porządku
-            p = pathlib.Path(sciezka)
-            if not p.exists():
-                odrzucone["brak_pliku"] += 1
-                return False
-            if p.stem.strip().lower() in STEM_NAMES:
-                odrzucone["stem"] += 1
-                return False
-            return True
-
-        analyses = [a for a in analyses if zdrowy(a)]
-        notes = []
-        if before - len(analyses):
-            powody = ", ".join(f"{n}: {i}" for n, i in (
-                ("stemy", odrzucone["stem"]),
-                ("dłuższe niż 15 min", odrzucone["dlugosc"]),
-                ("brak pliku na dysku", odrzucone["brak_pliku"])) if i)
-            notes.append(f"higiena puli: odrzucone {before - len(analyses)} "
-                         f"({powody})")
-        return analyses, notes
+        """Pula z cache analiz + higiena. Od 02.09 to `stan.budowa.pula` —
+        te same sita w obu skórach; metoda zostaje jako punkt podmiany
+        w testach."""
+        return _stan_budowa.pula(self.processed_dir)
 
     def _build_plan(self):
         from dancelab.core.config import load_config, load_weights
@@ -3483,16 +3439,22 @@ class DanceLabTUI(App):
 
     @work(thread=True, exclusive=True)
     def _load_plan_worker(self, path: str) -> None:
-        from dancelab.tui.plan_store import match_order, read_plan
+        from dancelab.stan import plan as _stan_plan
+        from dancelab.tui.plan_store import read_plan
         ui = self.call_from_thread
         try:
-            rec = read_plan(path)
             if not self._ctx:
-                self._ctx = self._pool_ctx_for(rec.get("parametry", {}))
-            order, notes = match_order(rec, self._ctx["by_id"])
+                # parametry z pliku potrzebne ZANIM pula powstanie (kotwica)
+                self._ctx = self._pool_ctx_for(read_plan(path).get("parametry", {}))
+            # ta sama droga co okno: `stan.plan.wczytaj` dopasowuje do puli
+            rec = _stan_plan.wczytaj(self._ctx["by_id"], path)
         except Exception as exc:  # noqa: BLE001 — powód, nie traceback
             ui(self._note, f"wczytanie nie wyszło: {exc}")
             return
+        if rec.get("powod"):
+            ui(self._note, f"wczytanie nie wyszło: {rec['powod']}")
+            return
+        order, notes = rec["kolejnosc"], rec["notki"]
         if not order:
             ui(self._note, "w planie nie został żaden utwór obecny w puli — nie wczytuję")
             return
@@ -3503,9 +3465,6 @@ class DanceLabTUI(App):
         pula z biblioteki + dokarmienie + parametry zapisane w planie —
         dzięki temu Z/A po samym O oceniają tak, jak oceniała budowa."""
         from dancelab.core.config import load_config, load_weights
-        from dancelab.ingestion.analysis_enrichment import (
-            attach_rekordbox_genres, attach_rekordbox_keys,
-            attach_rekordbox_meta, attach_sound_embeddings)
         ui = self.call_from_thread
         ui(self.query_one("#progress", Static).update,
            "Wczytuję pulę z biblioteki pod plan…")
@@ -3514,10 +3473,8 @@ class DanceLabTUI(App):
             ui(self._note, note)
         if not analyses:
             raise ValueError("pusta pula — nie mam do czego dopasować planu")
-        attach_sound_embeddings(analyses)
-        attach_rekordbox_genres(analyses)
-        attach_rekordbox_keys(analyses)
-        attach_rekordbox_meta(analyses)
+        for note in _stan_budowa.dokarm(analyses):
+            ui(self._note, note)
         anchor = None
         if params.get("dj"):
             from dancelab.decision.anchors import resolve_anchor

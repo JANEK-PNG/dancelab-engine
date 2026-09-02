@@ -504,6 +504,10 @@ class Most:
         """Pula analiz, wczytana raz. 8 tysięcy plików to kilkanaście sekund."""
         if self._analizy_pula is None:
             analizy, notki = budowa.pula(self._katalog)
+            # Dokarmienie TU, nie w budowie: plan wczytany przed pierwszą
+            # budową szedł na surowej puli (bez tonacji RB, bez wektorów),
+            # a po budowie — na dokarmionej. Terminal dokarmiał zawsze.
+            notki += budowa.dokarm(analizy)
             self._analizy_pula = analizy
             self._budowa["notki_puli"] = notki
         return self._analizy_pula
@@ -543,9 +547,12 @@ class Most:
                 pass                                   # filary są opcjonalne
 
             pula = self._pula()
+            padlo = budowa.dokarmianie_padlo(self._budowa.get("notki_puli") or [])
+            if padlo:
+                raise budowa.OdmowaBudowy(padlo)
             wynik = budowa.zbuduj(par, processed_dir=self._katalog,
                                   postep=etap, analizy=pula,
-                                  stan_uzytkownika=stan_u)
+                                  stan_uzytkownika=stan_u, dokarmione=True)
             self._kolejnosc = list(wynik["kolejnosc"])
             self._zapis_gotowy = None
             for a in wynik["by_id"].values():

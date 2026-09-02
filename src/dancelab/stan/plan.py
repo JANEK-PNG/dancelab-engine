@@ -83,6 +83,10 @@ def wczytaj(by_id: dict, sciezka: str | pathlib.Path | None = None
         "zapisano": rec.get("zapisano"),
         "parametry": rec.get("parametry") or {},
         "zapisanych": len(rec.get("kolejnosc") or []),
+        # terminal potrzebuje ich do werdyktu końcowego („silnik vs DJ")
+        # i do dalszego zapisu planu z historią edycji
+        "plan_silnika": list(rec.get("plan_silnika") or []),
+        "edycje": list(rec.get("edycje") or []),
     }
 
 

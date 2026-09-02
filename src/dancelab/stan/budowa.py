@@ -211,20 +211,63 @@ def _kotwica(nazwa: str | None) -> tuple[Any, list[str]]:
         return None, [f"kotwica {nazwa!r} niedostępna: {exc}"]
 
 
+def dokarm(analizy: list, *, wektory: bool = True) -> list[str]:
+    """Dokarm analizy z Rekordboxa (gatunki, tonacje, wykonawca/tytuł) i —
+    gdy ``wektory`` — wektorami brzmienia. Zwraca notki; awarię ZWRACA jako
+    notkę zaczynającą się od „dokarmianie nie wyszło", nie rzuca.
+
+    Jedno miejsce dla obu skór. Do 02.09 terminal dokarmiał w trzech
+    (Biblioteka bez wektorów i tolerancyjnie, budowa i plan z wektorami),
+    a okno tylko przy budowie — plan wczytany w oknie przed pierwszą budową
+    szedł na SUROWEJ puli: bez tonacji z Rekordboxa, bez wektorów. Stan puli
+    zależał od kolejności kliknięć.
+
+    Wołający decyduje, czy awaria jest odmową: budowa — tak (set na gorszych
+    danych bez słowa to to, czego ADR-005 zabrania); Biblioteka — nie
+    (brak Rekordboxa nie znaczy martwej listy).
+    """
+    from dancelab.ingestion.analysis_enrichment import (
+        attach_rekordbox_genres, attach_rekordbox_keys, attach_rekordbox_meta,
+        attach_sound_embeddings)
+
+    notki: list[str] = []
+    n = len(analizy)
+    try:
+        czesci = []
+        if wektory:
+            emb = attach_sound_embeddings(analizy)
+            czesci.append(f"wektory {emb.attached}/{n}")
+            notki += emb.notes
+        gen = attach_rekordbox_genres(analizy)
+        ton = attach_rekordbox_keys(analizy)
+        attach_rekordbox_meta(analizy)
+        czesci += [f"gatunki RB {gen.attached}/{n}", f"tonacje RB {ton.attached}/{n}"]
+        notki += gen.notes + ton.notes
+        notki.append("dokarmianie: " + ", ".join(czesci))
+    except Exception as exc:                       # noqa: BLE001
+        notki.append(f"dokarmianie nie wyszło: {exc}")
+    return notki
+
+
+def dokarmianie_padlo(notki: list[str]) -> str | None:
+    """Powód awarii dokarmiania z listy notek albo None."""
+    return next((n for n in notki if n.startswith("dokarmianie nie wyszło")), None)
+
+
 def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
            postep: Postep | None = None, analizy: list | None = None,
-           stan_uzytkownika: dict | None = None) -> dict[str, Any]:
+           stan_uzytkownika: dict | None = None,
+           dokarmione: bool = False) -> dict[str, Any]:
     """Zbuduj set. Zwraca plan, pulę po id i notki — wszystko, co widok pokaże.
 
     ``postep`` dostaje krótkie komunikaty o etapie; ``None`` znaczy, że nikt
     nie słucha. ``analizy`` pozwala podać gotową pulę (test albo okno, które
-    już ją ma) zamiast czytać z dysku po raz drugi.
+    już ją ma) zamiast czytać z dysku po raz drugi; ``dokarmione`` mówi, że
+    ta pula już przeszła `dokarm` — drugie dokarmianie to sekundy czytania
+    master.db bez zysku.
     """
     from dancelab.core.config import load_config, load_weights
     from dancelab.decision.set_builder import build_set
-    from dancelab.ingestion.analysis_enrichment import (
-        attach_rekordbox_genres, attach_rekordbox_keys, attach_rekordbox_meta,
-        attach_sound_embeddings)
     from dancelab.workflows.smart_playlist import estimate_track_count_for_duration
 
     mow = postep or (lambda _s: None)
@@ -240,11 +283,15 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
     if not analizy:
         raise OdmowaBudowy("pusta pula — nie ma z czego budować")
 
-    mow("Dokarmianie (wektory, gatunki, tonacje)…")
-    attach_sound_embeddings(analizy)
-    attach_rekordbox_genres(analizy)
-    attach_rekordbox_keys(analizy)
-    attach_rekordbox_meta(analizy)
+    if not dokarmione:
+        mow("Dokarmianie (wektory, gatunki, tonacje)…")
+        notki_d = dokarm(analizy)
+        padlo = dokarmianie_padlo(notki_d)
+        if padlo:
+            # jak dotąd: budowa na niedokarmionej puli to odmowa, nie set
+            # z gorszych danych po cichu — tylko teraz z powodem po polsku
+            raise OdmowaBudowy(padlo)
+        notki += notki_d
 
     kotwica, notki_kotwicy = _kotwica(par.dj)
     notki += notki_kotwicy
