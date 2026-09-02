@@ -125,6 +125,21 @@ const KOLEJNOSC = ['brak', 'inaczej', 'pulapka', 'jest'];
 let dane = null;
 let uklad = null;
 let filtr = null;
+let zewn = null;   // Set('urz|klucz') podświetlonych z zewnątrz (docs/mapowanie/)
+
+// Tryb mapowania (docs/mapowanie/): rodzic mówi, które kontrolki są
+// odpowiednikami klikniętej na FLX4 — reszta gaśnie. Ten sam mechanizm
+// co filtr kafla, więc rysunek nie zna dwóch sposobów przygaszania.
+window.addEventListener('message', ev => {
+  const m = ev.data || {};
+  if (m.typ === 'podswietl') {
+    zewn = new Set((m.klucze || []).map(x => `${x.urz}|${x.k}`));
+    wybrana = (m.klucze && m.klucze[0]) ? m.klucze[0].k : null;
+    rysuj();
+  } else if (m.typ === 'wyczysc') {
+    zewn = null; wybrana = null; rysuj();
+  }
+});
 let wybrana = null;
 let indeks = {};   // nazwa kontrolki -> jej wpis z kontrolki.json
 
@@ -386,12 +401,12 @@ const RYSUJ = {
   },
 };
 
-function ksztaltSVG(e, ox, oy, kolor, klasy, tytul) {
+function ksztaltSVG(e, ox, oy, kolor, klasy, tytul, urz = '') {
   if (e.typ === 'pomin') return '';
   const rysownik = RYSUJ[e.typ] || RYSUJ.guzik;
   const cialo = rysownik(e, ox);
   const obwodka = aura(e, kolor, ox);
-  return `<g class="el ${klasy}" data-k="${esc(e.k)}" tabindex="0" role="button">
+  return `<g class="el ${klasy}" data-k="${esc(e.k)}" data-urz="${esc(urz)}" tabindex="0" role="button">
             <title>${esc(tytul)}</title>${cialo}${obwodka}</g>`;
 }
 
@@ -454,7 +469,10 @@ function rysujSchemat() {
       const k = indeks[e.k];
       if (!k) return;
       const kolor = BARWA[k.stan];
-      const przygas = filtr && k.stan !== filtr ? 'przygaszony' : '';
+      // przygaszenie: filtr kafla ALBO mapowanie z zewnątrz (strona
+      // docs/mapowanie/ podświetla tylko odpowiedniki klikniętej kontrolki)
+      const przygas = ((filtr && k.stan !== filtr)
+                       || (zewn && !zewn.has(u.id + '|' + e.k))) ? 'przygaszony' : '';
       const wyb = wybrana === e.k ? 'wybrany' : '';
       const tytul = `${e.k} — ${OPIS[k.stan][0]}`;
 
@@ -463,10 +481,10 @@ function rysujSchemat() {
           const kopia = e.ksztalt === 'rzad_kol'
             ? {...e, ksztalt: 'kolo', x: kx}
             : {...e, ksztalt: 'prostokat', x: kx - (e.w / 2)};
-          tresc += ksztaltSVG(kopia, u.x, 0, kolor, `${przygas} ${wyb}`, tytul);
+          tresc += ksztaltSVG(kopia, u.x, 0, kolor, `${przygas} ${wyb}`, tytul, u.id);
         });
       } else {
-        tresc += ksztaltSVG(e, u.x, 0, kolor, `${przygas} ${wyb}`, tytul);
+        tresc += ksztaltSVG(e, u.x, 0, kolor, `${przygas} ${wyb}`, tytul, u.id);
       }
     });
   });
@@ -482,7 +500,13 @@ function rysujSchemat() {
   $('#schemat-nota').textContent = uklad.UWAGA;
 
   document.querySelectorAll('.el').forEach(g => {
-    const dzialaj = () => { wybrana = wybrana === g.dataset.k ? null : g.dataset.k; rysuj(); };
+    const dzialaj = () => {
+      wybrana = wybrana === g.dataset.k ? null : g.dataset.k; rysuj();
+      // w ramce strony mapowania klik idzie do rodzica, który podświetla
+      // odpowiedniki na FLX4 (i tylko je)
+      if (window.parent !== window)
+        window.parent.postMessage({typ: 'klik', z: 'klub', k: g.dataset.k, urz: g.dataset.urz}, '*');
+    };
     g.addEventListener('click', dzialaj);
     g.addEventListener('keydown', ev => {
       if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); dzialaj(); }

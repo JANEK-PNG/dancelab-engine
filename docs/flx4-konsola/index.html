@@ -999,5 +999,48 @@ setInterval(async () => {
 }, 2000);
 </script>
 <script src="/audyt-ui.js"></script>
+
+<!-- Tryb mapowania (docs/mapowanie/): klik na kontrolce idzie do rodzica,
+     rodzic przygasza wszystko poza odpowiednikami. Osobny skrypt, żeby nie
+     dotykać funkcji rysujących; KONTROLKI jest stałą na poziomie strony. -->
+<style>.przygaszony-map{opacity:.16}</style>
+<script>
+(() => {
+  const svg = document.getElementById("konsola");
+  // `const KONTROLKI` jest leksykalne — rodzic (ramka mapowania) nie widzi go
+  // jako window.KONTROLKI; wystawiamy jawnie, tylko do odczytu etykiet
+  window.__KONTROLKI = KONTROLKI;
+  const wezly = k => [k.n, k.w, k.u, k.p, k.t, k.glow, k.ul, k.v, k.bokEl, k.goraEl].filter(Boolean);
+  const srodek = (id, k) => {
+    if (k.kind === "suwak") return k.poziomy ? [(k.y1 + k.y2) / 2, k.x] : [k.x, (k.y1 + k.y2) / 2];
+    if (k.x != null && k.y != null) return [k.x, k.y];
+    const n = wezly(k)[0]; if (!n) return null;
+    const b = n.getBBox(); return [b.x + b.width / 2, b.y + b.height / 2];
+  };
+  const promien = k => k.kind === "jog" ? 40 : k.kind === "suwak" ? 16 : 11;
+  svg.style.cursor = "pointer";
+  svg.addEventListener("click", ev => {
+    if (window.parent === window) return;
+    const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    let najblizszy = null, odl = Infinity;
+    for (const [id, k] of Object.entries(KONTROLKI)) {
+      if (k.kind === "tekst") continue;
+      const c = srodek(id, k); if (!c) continue;
+      const d = Math.hypot(c[0] - p.x, c[1] - p.y);
+      if (d <= promien(k) && d < odl) { najblizszy = id; odl = d; }
+    }
+    if (najblizszy) window.parent.postMessage(
+      {typ: "klik", z: "flx4", id: najblizszy, label: KONTROLKI[najblizszy].label || najblizszy}, "*");
+  });
+  window.addEventListener("message", ev => {
+    const m = ev.data || {};
+    if (m.typ !== "podswietl" && m.typ !== "wyczysc") return;
+    const zostaw = new Set(m.ids || []);
+    for (const [id, k] of Object.entries(KONTROLKI))
+      for (const n of wezly(k)) n.classList.toggle("przygaszony-map", m.typ === "podswietl" && !zostaw.has(id));
+  });
+})();
+</script>
 </body>
 </html>
