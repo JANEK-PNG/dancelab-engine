@@ -97,6 +97,10 @@
       </p>
 
       <div class="tabela" id="lista-padow"></div>
+      <!-- Gotowe czasy fraz (POCZĄTKI sekcji + propozycja silnika) dla
+           zaznaczonego pada — zmierzone, nie „co 32 bity". Klik przenosi. -->
+      <div class="drobne" id="frazy" hidden></div>
+      <div class="drobne" id="cue-notka"></div>
 
       <!-- Karta INFO: każda liczba z nazwanym źródłem. Tempo z Rekordboxa
            jest niezależnym sędzią naszego pomiaru, nie jego potwierdzeniem. -->
@@ -167,6 +171,17 @@
           <input type="checkbox" id="p-kontur"><span>kontur</span></label>
       </div>
 
+      <!-- Gatunki Beatportu OBECNE w puli, z liczbą utworów; Enter/klik
+           dopisuje albo zdejmuje w polu briefu, lista zostaje otwarta
+           (Janek 09.08: „Ctrl+G dopiero zamyka, Enter dodaje"). -->
+      <div class="kandydaci" id="gatunki-box" hidden>
+        <div class="kandydaci-glowa">
+          <h2 id="gatunki-tytul">Gatunki</h2>
+          <button class="btn" id="btn-gatunki-zamknij">Zamknij <kbd>⌃G</kbd></button>
+        </div>
+        <div class="tabela" id="tabela-gatunkow"></div>
+      </div>
+
       <!-- Zapisane plany: każda budowa zapisuje plan sama, więc bez tej
            listy praca z poprzedniej sesji była w oknie nie do odzyskania. -->
       <div class="kandydaci" id="plany-box" hidden>
@@ -195,6 +210,7 @@
           <select id="wybor-playlisty"></select>
           <input id="nowa-playlista" placeholder="nowa playlista…" spellcheck="false">
           <button class="btn maly" id="btn-nowa-playlista">Dodaj</button>
+          <button class="btn maly" id="btn-szkic" title="filary → tabela setu jako szkic, bez budowy (G)">→ Zbuduj z filarów <kbd>G</kbd></button>
         </div>
         <div id="filary-lista"></div>
       </div>
@@ -316,6 +332,8 @@
     <span><b>⌫</b> zdejmij</span>
     <span><b>←→</b> o uderzenie · gdy gra: skok 8, <b>⇧</b> 32, <b>PgUp/Dn</b> 128</span>
     <span><b>⌘Z</b> cofnij</span>
+    <span><b>A–D</b> pad: raz wybiera, drugi raz przenosi do głowicy</span>
+    <span><b>T</b> wpisz czas</span>
     <span><b>I</b> info</span>
     <span><b>U</b> ♥ ulubiony</span>
     <span><b>F</b> filar</span>
@@ -332,6 +350,8 @@
     <span><b>C</b> szew</span>
     <span><b>O</b> plany</span>
     <span><b>⌘S</b> zapisz plan</span>
+    <span><b>⌃G</b> gatunki</span>
+    <span><b>G</b> szkic z filarów</span>
     <span><b>B</b> buduj</span>
     <span><b>←→</b> skok 8 · <b>⇧</b> 32 · <b>PgUp/Dn</b> 128</span>
     <span><b>P</b> graj / pauza</span>

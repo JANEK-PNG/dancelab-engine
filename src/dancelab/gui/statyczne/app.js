@@ -139,11 +139,154 @@ function rysujListe() {
       const ud = stan.bpm ? Math.round(ms / 1000 / (60 / stan.bpm)) : '—';
       const skad = (d && d.zrodlo) || (d && d.reczne ? 'ręcznie' : 'silnik');
       return `<tr data-pad="${n}" ${stan.wybrany === n ? 'aria-selected="true"' : ''}>
-        <td>${n}</td><td class="num">${mmss(ms)}</td>
+        <td>${n}</td><td class="num czas-pada" data-czas="${n}" title="klik albo T: wpisz czas">${mmss(ms)}</td>
         <td class="num">${ud}</td><td style="color:var(--cichszy)">${skad}</td></tr>`;
     }).join('')}</tbody></table>`;
   el.querySelectorAll('tr[data-pad]').forEach(tr =>
     tr.addEventListener('click', () => zaznacz(tr.dataset.pad)));
+  el.querySelectorAll('td[data-czas]').forEach(td =>
+    td.addEventListener('click', e => {
+      if (stan.wybrany === td.dataset.czas) { e.stopPropagation(); edytujCzasPada(); }
+    }));
+  rysujFrazy();
+}
+
+/* ---------- precyzja cue: T (czas), A–D (litera), frazy ----------
+   Wszystko z terminala (09.08). Kwantyzacja do taktu jest ZAWSZE — pad
+   ląduje na czerwonej linii Rekordboxa, jeśli ją znamy; powód wraca słowami. */
+
+function cueNotka(tekst, zle) {
+  const el = $('#cue-notka');
+  el.textContent = tekst || '';
+  el.classList.toggle('zle', !!zle);
+}
+
+function edytujCzasPada() {
+  if (!stan.wybrany || !stan.pady[stan.wybrany]) return;
+  const td = $(`td[data-czas="${stan.wybrany}"]`);
+  if (!td || td.querySelector('input')) return;
+  const d = stan.pady[stan.wybrany];
+  const pole = document.createElement('input');
+  pole.value = mmss(d.position_ms ?? d);
+  pole.style.width = '62px';
+  td.textContent = '';
+  td.appendChild(pole);
+  pole.focus(); pole.select();
+  const zostaw = () => rysujListe();
+  pole.addEventListener('keydown', async e => {
+    e.stopPropagation();                        // litery nie są skrótami w polu
+    if (e.key === 'Escape') { zostaw(); return; }
+    if (e.key !== 'Enter') return;
+    const odp = await api().ustaw_czas_pada(stan.trackId, stan.wybrany, pole.value);
+    if (odp && odp.blad) { cueNotka(odp.blad, true); zostaw(); return; }
+    stan.pady = odp.pady || {}; przerysuj(); odloz();
+    cueNotka(odp.powod);
+  });
+  pole.addEventListener('blur', zostaw);
+}
+
+async function literaPada(n) {
+  if (!api() || !stan.trackId) return;
+  if (!(n in (stan.pady || {}))) {
+    // brak pada: nowy, ręczny — na głowicy, gdy gra TEN utwór; inaczej w środku
+    const g = stan.gra || {};
+    const naTym = g.gra && g.rodzaj === 'utwor' && g.track_id === stan.trackId;
+    const ms = Math.round((naTym ? g.pozycja_sec : (stan.przebieg.dlugosc_sec / 2)) * 1000);
+    const odp = await api().postaw_pad(stan.trackId, n, ms);
+    if (czyBlad(odp, 'Stawianie pada')) return;
+    stan.pady = odp.pady || {}; stan.wybrany = n; przerysuj(); odloz();
+    return;
+  }
+  if (stan.wybrany !== n) { zaznacz(n); return; }         // pierwsze: wybór
+  // drugie naciśnięcie tej samej litery: PRZENIEŚ do głowicy (Z cofa)
+  const odp = await api().przenies_pad_na_glowice(stan.trackId, n);
+  if (odp && odp.blad) { cueNotka(odp.blad, true); return; }
+  stan.pady = odp.pady || {}; przerysuj(); odloz();
+  cueNotka(`${odp.powod} · ⌘Z cofa`);
+}
+
+async function rysujFrazy() {
+  const el = $('#frazy');
+  const d = stan.wybrany && stan.pady[stan.wybrany];
+  if (!d || !api()) { el.hidden = true; return; }
+  const odp = await api().propozycje(stan.trackId, d.silnik_ms ?? null);
+  const lista = (odp && odp.propozycje) || [];
+  if (!lista.length) { el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = 'frazy: ' + lista.map(p =>
+    `<button class="btn maly" data-fraza="${p.sec}" title="przenieś pad ${stan.wybrany} tutaj">${
+      p.nazwa.replace(/</g, '&lt;')} ${mmss(p.sec * 1000)}</button>`).join(' ');
+  el.querySelectorAll('button[data-fraza]').forEach(b =>
+    b.addEventListener('click', async () => {
+      const odp = await api().ustaw_czas_pada(stan.trackId, stan.wybrany, b.dataset.fraza);
+      if (odp && odp.blad) { cueNotka(odp.blad, true); return; }
+      stan.pady = odp.pady || {}; przerysuj(); odloz();
+      cueNotka(odp.powod);
+    }));
+}
+
+/* ---------- gatunki (Ctrl+G) i szkic z filarów (G) ---------- */
+let odpytywanieGatunkow = null;
+
+async function przelaczGatunki() {
+  const box = $('#gatunki-box');
+  if (!box.hidden) { box.hidden = true; clearInterval(odpytywanieGatunkow); return; }
+  box.hidden = false;
+  $('#tabela-gatunkow').innerHTML = '<div class="pusto">liczę gatunki w puli…</div>';
+  const odp = await api().gatunki($('#p-gatunki').value);
+  if (odp && odp.ruszylo) {
+    clearInterval(odpytywanieGatunkow);
+    odpytywanieGatunkow = setInterval(async () => {
+      const s = await api().postep_gatunkow();
+      if (!s || s.stan === 'trwa' || s.stan === 'bezczynny') return;
+      clearInterval(odpytywanieGatunkow);
+      rysujGatunki(s);
+    }, 400);
+    return;
+  }
+  rysujGatunki(odp);
+}
+
+function rysujGatunki(odp) {
+  const el = $('#tabela-gatunkow');
+  if (!odp || odp.blad) {
+    el.innerHTML = `<div class="pusto">${(odp && odp.blad) || 'gatunków nie policzyłem'}</div>`;
+    return;
+  }
+  $('#gatunki-tytul').textContent =
+    `Gatunki — masz ${odp.mam} z ${odp.wszystkich} Beatportu` +
+    (odp.bez_tagu ? ` · ${odp.bez_tagu} bez tagu` : '');
+  el.innerHTML = odp.sekcje.map(s => `
+    <div class="dj-grupa"><div class="dj-glowa">${s.sekcja.replace(/</g, '&lt;')}</div>
+    ${s.gatunki.map(g => `
+      <div class="dj-karta" data-gatunek="${g.nazwa.replace(/"/g, '&quot;')}">
+        <b>${g.wybrany ? '✓ ' : ''}${g.nazwa.replace(/</g, '&lt;')}</b>
+        <span class="drobne">${g.ile}</span></div>`).join('')}
+    </div>`).join('');
+  el.querySelectorAll('[data-gatunek]').forEach(k =>
+    k.addEventListener('click', async () => {
+      const odp2 = await api().przelacz_gatunek($('#p-gatunki').value, k.dataset.gatunek);
+      if (czyBlad(odp2, 'Gatunki')) return;
+      $('#p-gatunki').value = odp2.wybrane;
+      rysujNotki([`gatunki: ${odp2.wybrane || '(puste — bez filtra)'}`]);
+      rysujGatunki(await api().gatunki(odp2.wybrane));      // ✓ na żywo, lista zostaje
+    }));
+}
+
+async function szkicZFilarow() {
+  if (!api()) return;
+  const odp = await api().szkic_z_filarow({
+    minuty: $('#p-minuty').value, tempo_okno: $('#p-tempo').value,
+    dj: $('#p-dj').value.trim(), luk: $('#p-luk').value, planer: $('#p-planer').value,
+  });
+  if (odp && odp.blad) { rysujNotki([`ODMOWA: ${odp.blad}`, ...(odp.notki || [])]); return; }
+  stan.pozycja = null;
+  stan.ostatniSet = null;                                  // szkic to nie wynik budowy
+  rysujTabeleSetu(odp.utwory, odp.filary);
+  rysujKrzywa(odp.utwory);
+  rysujNotki(odp.notki || []);
+  kontekstSet(null);
+  odswiezZapis();
 }
 
 function rysujKontekst() {
@@ -173,7 +316,7 @@ function przerysuj() {
 }
 
 /* ---------- działania (każde idzie do Pythona) ---------- */
-function zaznacz(nazwa) { stan.wybrany = nazwa; rysujPady(); rysujListe(); }
+function zaznacz(nazwa) { stan.wybrany = nazwa; rysujPady(); rysujListe(); cueNotka(''); }
 
 function wolnyPad() {
   return NAZWY_PADOW.find(n => !(n in (stan.pady || {})));
@@ -1131,6 +1274,8 @@ $('#btn-buduj').addEventListener('click', budujSet);
 $('#btn-policz').addEventListener('click', policzZapis);
 $('#btn-plany').addEventListener('click', otworzPlany);
 $('#btn-zapisz-plan').addEventListener('click', zapiszPlan);
+$('#btn-szkic').addEventListener('click', szkicZFilarow);
+$('#btn-gatunki-zamknij').addEventListener('click', przelaczGatunki);
 document.querySelectorAll('#dj-filtry button').forEach(b =>
   b.addEventListener('click', () => {
     stan.djFiltr = b.dataset.df;
@@ -1345,6 +1490,7 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       zamknijKandydatow();
       clearInterval(odpytywaniePlanu); $('#plany-box').hidden = true;
+      clearInterval(odpytywanieGatunkow); $('#gatunki-box').hidden = true;
       return;
     }
     if (e.key === 'o' || e.key === 'O') { otworzPlany(); return; }
@@ -1354,6 +1500,10 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && stan.kandWybor !== null) {
       potwierdzKandydata(); e.preventDefault(); return;
     }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'g' || e.key === 'G')) {
+      przelaczGatunki(); e.preventDefault(); return;
+    }
+    if (e.key === 'g' || e.key === 'G') { szkicZFilarow(); return; }
     if (e.key === 'b' || e.key === 'B') { budujSet(); return; }
     if (e.key === 'z' || e.key === 'Z') {
       if (!(e.metaKey || e.ctrlKey)) { otworzKandydatow('podmiana'); return; }
@@ -1380,6 +1530,10 @@ document.addEventListener('keydown', e => {
     return;                       // reszta skrótów należy do ekranu szwu
   }
 
+  if (['a', 'b', 'c', 'd', 'A', 'B', 'C', 'D'].includes(e.key) && !e.metaKey && !e.ctrlKey) {
+    literaPada(e.key.toUpperCase()); return;
+  }
+  if (e.key === 't' || e.key === 'T') { edytujCzasPada(); return; }
   if (e.key === 'i' || e.key === 'I') { pokazInfo(); return; }
   if (e.key === 'u' || e.key === 'U') { przelaczUlubiony(); return; }
   if (e.key === 'f' || e.key === 'F') { przypnijFilar(''); return; }

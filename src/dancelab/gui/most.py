@@ -139,6 +139,7 @@ class Most:
         # i odpytywanie — tak samo jak kandydaci i budowa. Dźwięk rusza dopiero
         # w `postep_szwu`, czyli po TWOIM geście, a nie w środku renderu.
         self._szew_stan: dict[str, Any] = {"stan": "bezczynny"}
+        self._gatunki_stan: dict[str, Any] = {"stan": "bezczynny"}
         self._plan_cue_przeliczony = False
         # Po edycji kolejności propozycje padów silnika dotyczą STAREGO setu.
         # Flaga każe je przeliczyć w stopniu pierwszym zapisu — liczby, które
@@ -824,13 +825,89 @@ class Most:
         return {"kolizje": [], "content_id": content_id,
                 "sprawdzono": len(pady)}
 
+    def _takty(self, track_id: str) -> list[float]:
+        """Takty wg Rekordboxa — te same czerwone linie, które widzisz w jego
+        oknie (terminal: `_cue_takty`). Pusta lista = brak w kolekcji albo
+        baza nieodczytana; wtedy schodzimy na naszą siatkę i mówimy o tym."""
+        analiza = self._analizy.get(track_id)
+        if analiza is None:
+            return []
+        try:
+            from dancelab.ingestion.rekordbox_siatka import downbeaty_dla_sciezki
+            return list(downbeaty_dla_sciezki(analiza.track.source_path) or [])
+        except Exception:                          # noqa: BLE001
+            return []
+
     @_bezpiecznie
     def propozycje(self, track_id: str, silnik_ms: int | None = None) -> dict[str, Any]:
-        """Gdzie silnik proponuje pad — podpowiedź, nie nakaz."""
+        """Gotowe czasy fraz (POCZĄTKI sekcji + propozycja silnika) — wszystko
+        zmierzone, żadnych równych „co 32 bity". Frazy startują na początku
+        taktu Rekordboxa, gdy go znamy (Janek 09.08)."""
         analiza = self._analizy.get(track_id)
         if analiza is None:
             return {"blad": f"nie mam analizy dla {track_id!r}"}
-        return {"propozycje": cue.propozycje_czasu(analiza, silnik_ms)}
+        return {"propozycje": [{"nazwa": n, "sec": round(float(s), 3)}
+                               for n, s in cue.propozycje_czasu(
+                                   analiza, silnik_ms, downbeaty=self._takty(track_id))]}
+
+    def _przesun_na_czas(self, track_id: str, pad: str, sekundy: float,
+                         typ_zdarzenia: str, **pola_dziennika: Any) -> dict[str, Any]:
+        """Wspólny ogon „pad ma stanąć o TEJ sekundzie": kwantyzacja do taktu,
+        przeliczenie na uderzenia, przesunięcie, dziennik. Ta sama droga, którą
+        idzie terminal w `_cue_ustaw_czas` i `_cue_litera`."""
+        from dancelab.tui.cue_podglad import _mmss
+        analiza = self._analizy.get(track_id)
+        if analiza is None:
+            return {"blad": f"nie mam analizy dla {track_id!r}"}
+        p = self._pady_bez_sladu(track_id).get("pady", {}).get(pad)
+        if p is None:
+            return {"blad": f"pad {pad} nie jest postawiony — nie ma czego przesuwać"}
+        dlugosc = analiza.track.duration_sec or 0
+        if dlugosc and sekundy > dlugosc:
+            return {"blad": f"{_mmss(int(sekundy * 1000))} jest za końcem utworu "
+                            f"({_mmss(int(dlugosc * 1000))}) — pad zostaje"}
+        siatka = getattr(analiza, "beatgrid", None)
+        cel, powod = edycje.czas_po_kwantyzacji(siatka, float(sekundy),
+                                                self._takty(track_id))
+        bpm = (getattr(siatka, "bpm", None) or 0) or 120.0
+        beat = 60000.0 / bpm
+        uderzenia = int(round((cel * 1000 - p["position_ms"]) / beat))
+        self._zapis_gotowy = None
+        nowa = edycje.przesun(self._edycje, track_id, pad, uderzenia, bpm,
+                              p.get("silnik_ms"), int(p["position_ms"]))
+        blad = dziennik.dopisz(typ_zdarzenia, skora="gui", track_id=track_id,
+                               pad=pad, position_ms=nowa, **pola_dziennika,
+                               **self._kontekst_propozycji(track_id, pad))
+        wynik = self._z_dziennikiem(self.pady(track_id), blad)
+        wynik["powod"] = f"pad {pad} → {_mmss(nowa)} · {powod}"
+        wynik["position_ms"] = nowa
+        return wynik
+
+    @_bezpiecznie
+    def ustaw_czas_pada(self, track_id: str, pad: str, tekst: str) -> dict[str, Any]:
+        """T: wpisany czas („2:31", „2:31.5", „151") → pad na POCZĄTKU taktu.
+        Kwantyzacja jest włączona zawsze — jak w terminalu (Janek 09.08:
+        „68.1, a nie 68.2")."""
+        sekundy = edycje.parsuj_czas(str(tekst))
+        if sekundy is None:
+            return {"blad": f"nie rozumiem czasu „{tekst}” — wpisz np. 2:31 albo 151"}
+        return self._przesun_na_czas(track_id, pad, sekundy, "cue_czas_wpisany",
+                                     wpisane_sec=sekundy)
+
+    @_bezpiecznie
+    def przenies_pad_na_glowice(self, track_id: str, pad: str) -> dict[str, Any]:
+        """Druga litera tego samego pada: PRZENIEŚ go do głowicy odtwarzacza
+        (skarga Janka 09.08: strzałki po jednym uderzeniu są nieintuicyjne
+        przy dużych przeskokach). Odtwarzacz musi stać na TYM utworze."""
+        analiza = self._analizy.get(track_id)
+        if analiza is None:
+            return {"blad": f"nie mam analizy dla {track_id!r}"}
+        with self._zamek_audio:
+            sciezka, pozycja = self._audio.sciezka, self._audio.pozycja()
+        if sciezka != analiza.track.source_path:
+            return {"blad": f"pad {pad}: najpierw P — odtwarzacz musi stać na TYM "
+                            f"utworze, żeby przenieść pad w to miejsce"}
+        return self._przesun_na_czas(track_id, pad, float(pozycja), "cue_przeniesienie")
 
     # --------------------------------------------------------- edycja setu
 
@@ -1066,6 +1143,104 @@ class Most:
             "policzone": self._zapis_gotowy is not None,
             "playlista_policzona": self._playlista_gotowa is not None,
         }
+
+    # ---------------------------------------------------------- gatunki
+
+    @_bezpiecznie
+    def gatunki(self, wybrane: str = "") -> dict[str, Any]:
+        """Ctrl+G: gatunki Beatportu OBECNE w puli, z liczbą utworów i
+        znacznikiem wyboru. Liczone na puli budowy (dokarmionej tagami RB),
+        więc pierwsze wywołanie może potrzebować jej wczytania — wtedy
+        odpowiada „ruszyło" i widok pyta `postep_gatunkow`."""
+        if self._analizy_pula is None:
+            if self._gatunki_stan.get("stan") != "trwa":
+                self._gatunki_stan = {"stan": "trwa"}
+                threading.Thread(target=self._gatunki_w_tle, args=(wybrane,),
+                                 daemon=True).start()
+            return {"ruszylo": True}
+        return self._gatunki_teraz(wybrane)
+
+    @_bezpiecznie
+    def postep_gatunkow(self) -> dict[str, Any]:
+        return dict(self._gatunki_stan)
+
+    def _gatunki_w_tle(self, wybrane: str) -> None:
+        try:
+            self._pula()
+            wynik = self._gatunki_teraz(wybrane)
+        except Exception as exc:                       # noqa: BLE001
+            wynik = {"blad": f"gatunków nie policzyłem: {exc}"}
+        wynik["stan"] = "blad" if "blad" in wynik else "gotowe"
+        self._gatunki_stan = wynik
+
+    def _gatunki_teraz(self, wybrane: str) -> dict[str, Any]:
+        from dancelab.tui import gatunki as G
+        pula = self._analizy_pula or []
+        if not G.policz(pula):
+            return {"blad": "żaden utwór w puli nie ma gatunku — otaguj "
+                            "w Rekordboksie albo wpisz ręcznie"}
+        mam, wszystkich, bez = G.pokrycie(pula)
+        return {"sekcje": [{"sekcja": s, "gatunki": [
+                    {"nazwa": n, "ile": ile, "wybrany": G.jest_wybrany(wybrane, n)}
+                    for n, ile in poz]} for s, poz in G.policz(pula)],
+                "mam": mam, "wszystkich": wszystkich, "bez_tagu": bez}
+
+    @_bezpiecznie
+    def przelacz_gatunek(self, wybrane: str, gatunek: str) -> dict[str, Any]:
+        """Enter na gatunku: dopisz albo zdejmij w polu briefu — reguła
+        rozdzielania po przecinkach mieszka w `tui/gatunki.py`, nie tutaj."""
+        from dancelab.tui import gatunki as G
+        return {"wybrane": G.przelacz(wybrane or "", gatunek)}
+
+    # ------------------------------------------------- szkic z filarów
+
+    @_bezpiecznie
+    def szkic_z_filarow(self, formularz: dict[str, Any]) -> dict[str, Any]:
+        """G: filary aktywnej playlisty → tabela setu jako SZKIC (⚑ złote).
+
+        CELOWO BEZ automatycznej budowy (Janek 05.08: „przez to omijamy całą
+        sekcję briefu") — DJ uzupełnia formularz i dopiero B buduje wokół
+        nich. Ta sama reguła i te same odmowy co `action_build_from_filary`."""
+        from dancelab.core.config import load_config, load_weights
+        from dancelab.storage.repositories import FileAnalysisRepository
+        from dancelab.tui.user_store import MIN_FILARY, filary_wpisy
+
+        wpisy = filary_wpisy(self._stan_uzytkownika())
+        if len(wpisy) < MIN_FILARY:
+            return {"blad": f"do budowy z filarów trzeba minimum {MIN_FILARY} "
+                            f"(masz {len(wpisy)}) — klawisz F na liście utworów zaznacza"}
+        try:
+            par = budowa.Parametry.z_formularza(formularz or {})
+        except budowa.OdmowaBudowy as exc:
+            return {"blad": f"popraw formularz: {exc}", "pole": "parametry"}
+        repo = FileAnalysisRepository(self._katalog)
+        ids, notki = [], []
+        for e in wpisy:
+            tid = e.get("track_id")
+            try:
+                self._analizy.setdefault(tid, repo.get(tid))
+                ids.append(tid)
+            except Exception:                          # noqa: BLE001
+                notki.append(f"FILAR nieobecny w puli (pominięty): "
+                             f"{(e.get('path') or tid or '?')[-48:]}")
+        if len(ids) < MIN_FILARY:
+            return {"blad": f"po dopasowaniu do puli zostało {len(ids)} filarów "
+                            f"(minimum {MIN_FILARY})", "notki": notki}
+        self._kolejnosc = list(ids)
+        self._plan_silnika, self._edycje_setu = [], []
+        self._plan_cue, self._zapis_gotowy, self._playlista_gotowa = None, None, None
+        self._parametry_budowy = {"minuty": par.minuty, "bpm_min": par.bpm_min,
+                                  "bpm_max": par.bpm_max, "dj": par.dj}
+        self._ctx_edycji = {
+            "wagi": load_weights(load_config("configs/default.yaml").weights_file),
+            "luk": par.luk, "planer": par.planer, "bpm_min": par.bpm_min,
+            "bpm_max": par.bpm_max, "kotwica_centroid": None, "filary": list(ids),
+            "odcisk": None}
+        self._odcisk_zapisany = False
+        wynik = self._po_edycji_setu()
+        wynik["notki"] = notki + [f"SZKIC: {len(ids)} filarów (⚑) — wybierz tryb "
+                                  f"filarów, uzupełnij brief i naciśnij B"]
+        return wynik
 
     # ------------------------------------------------------------- DJ-e
 

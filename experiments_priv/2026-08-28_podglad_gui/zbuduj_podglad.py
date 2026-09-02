@@ -101,6 +101,13 @@ window.pywebview = {api: {
                         return echo({gra: false, pozycja_sec: 0}); },
   graj_szew: () => { window.__SZEW__ = Date.now(); return echo({ruszylo: true}); },
   wersja: () => echo({dancelab: 'podgląd'}),
+  ustaw_czas_pada: (tid, pad, tekst) => { const p = window.__PADY__ || (DANE.pady || {pady: {}}).pady; p[pad] = {...p[pad], position_ms: 151000}; window.__PADY__ = p; return echo({pady: p, powod: `pad ${pad} → 2:31 · trafione w takt 12`, position_ms: 151000}); },
+  przenies_pad_na_glowice: (tid, pad) => echo({blad: `pad ${pad}: najpierw P — odtwarzacz musi stać na TYM utworze`}),
+  propozycje: () => echo({propozycje: [{nazwa: 'INTRO', sec: 0}, {nazwa: 'silnik', sec: 45}, {nazwa: 'BREAK', sec: 95.5}]}),
+  gatunki: () => echo({mam: 3, wszystkich: 40, bez_tagu: 12, sekcje: [{sekcja: 'House', gatunki: [{nazwa: 'Tech House', ile: 41, wybrany: true}, {nazwa: 'Deep House', ile: 9, wybrany: false}]}]}),
+  postep_gatunkow: () => echo({stan: 'bezczynny'}),
+  przelacz_gatunek: (w, g) => echo({wybrane: w ? '' : g}),
+  szkic_z_filarow: () => echo({utwory: [], filary: [], notki: ['SZKIC: 0 filarów']}),
   zapisz_plan: (nazwa) => echo({zapisano: '/plany/plan_x.json', nazwa: nazwa || 'z parametrów', utworow: 17, edycji: 2}),
   usun_plan: () => echo({kosz: '/plany/kosz/plan_x.json', plany: []}),
   postep_szwu: () => {
@@ -115,12 +122,11 @@ window.pywebview = {api: {
   },
   przygotuj_zapis_cue: () => echo(DANE.zapis || {blad: 'brak danych'}),
   zapisz_cue: () => echo({blad: 'podgląd w przeglądarce nie pisze do bazy'}),
-  postaw_pad: () => echo(DANE.pady || {pady: {}}),
+  postaw_pad: (tid, pad, ms) => { window.__PADY__ = {...(window.__PADY__ || (DANE.pady || {pady: {}}).pady), [pad]: {position_ms: ms, zrodlo: 'reka', silnik_ms: null}}; return echo({pady: window.__PADY__}); },
   przesun_pad: () => echo(DANE.pady || {pady: {}}),
   zdejmij_pad: () => echo(DANE.pady || {pady: {}}),
   cofnij: () => echo(DANE.pady || {pady: {}}),
   kolizje: () => echo({kolizje: []}),
-  propozycje: () => echo({propozycje: []}),
   biezacy_plan: () => echo({kolejnosc: []}),
 
   /* Biblioteka z filtrami, filary, playlisty (01.09). Filtrowanie w oknie
