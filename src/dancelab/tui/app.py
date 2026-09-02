@@ -71,43 +71,30 @@ HISTORIA_SETOW = pathlib.Path("data/cache/tui_historia_setow.jsonl")
 RAPORT_ART = pathlib.Path("data/exports/artwork_raport.json")
 
 
-def _parse_bpm(text: str) -> tuple[float | None, float | None, str | None]:
-    """'128-140' → (128.0, 140.0). Pusty = brak okna. Błąd = komunikat."""
-    t = text.replace(" ", "")
-    if not t:
-        return None, None, None
-    if "-" not in t:
-        return None, None, f"okno tempa to 'lo-hi', dostałem {text!r}"
-    lo_s, hi_s = t.split("-", 1)
-    try:
-        lo, hi = float(lo_s), float(hi_s)
-    except ValueError:
-        return None, None, f"okno tempa to liczby, dostałem {text!r}"
-    if lo >= hi:
-        return None, None, f"puste okno: {lo:g} >= {hi:g}"
-    return lo, hi, None
-
-
 # Zakładki wg TUI_WIZJA_2 (inspiracja rmpc, układ zatwierdzony 05.08):
 # Biblioteka → Set → Export/Cue; Ctrl+Tab krąży (część terminali połyka
 # Ctrl+Tab — stąd też skróty w nawiasach na etykietach zakładek).
 _TAB_ORDER = ("tab-lib", "tab-dj", "tab-set", "tab-export")
 
 
-def _energy_raw(a) -> float | None:
-    """Średni RMS z ramek — do WYŚWIETLANIA: brak ramek = None, nie 0,5."""
-    vals = [f.rms for f in (getattr(a, "features", None) or [])
-            if getattr(f, "rms", None) is not None]
-    return float(sum(vals) / len(vals)) if vals else None
+from dancelab.stan import budowa as _stan_budowa
+from dancelab.stan import filary as _stan_filary
 
-
-def _energia_do_oceny(by_id: dict) -> tuple[dict[str, float], float]:
-    """Mapa energii pod transition_score (0,5 gdy brak ramek — do OCENY,
-    nie do wyświetlania) + rozpiętość. Wspólne dla sugestii i trybu Podpory."""
-    energy = {tid: (_energy_raw(a) if _energy_raw(a) is not None else 0.5)
-              for tid, a in by_id.items()}
-    e_rng = (max(energy.values()) - min(energy.values())) or 1.0
-    return energy, e_rng
+# JEDEN KOD DLA OBU SKÓR (Janek 02.09: „połącz elementy wspólne zbioru A ze
+# zbiorem B"). Te siedem funkcji miało tu własne kopie — commity „Move … into
+# the shared state layer" (836a9a5, 00666d3, 68563db) KOPIOWAŁY, nie
+# przenosiły. Kopie zdążyły się rozjechać: `stan.filary.wybierz` dostał
+# 28.08 poprawkę odmowy przy jednym filarze (winowajcą nie jest okno tempa,
+# gdy nic nie wypadło), a terminalowa kopia dalej kazała okno poszerzać.
+# Nazwy z podkreśleniem zostają jako aliasy — wołają je testy i ten plik;
+# ciało jest jedno i mieszka w `stan/`.
+_parse_bpm = _stan_budowa.rozbierz_tempo
+_energy_raw = _stan_filary.energia_surowa
+_energia_do_oceny = _stan_filary.energia_do_oceny
+_rozstaw_filary = _stan_filary.rozstaw
+_filary_for_build = _stan_filary.wybierz
+_zastosuj_role_krancowe = _stan_filary.role_krancowe
+_wstaw_podpory = _stan_filary.wstaw_podpory
 
 
 def filter_library(analyses, *, search: str = "", key: str = "",
@@ -138,46 +125,6 @@ def filter_library(analyses, *, search: str = "", key: str = "",
     return out
 
 
-def _rozstaw_filary(filary: list[str], by_id: dict, count: int,
-                    tryb: str = "rozstaw") -> dict[int, str]:
-    """Filary → pozycje w secie, metafora Janka (05.08): filar ma PODPIERAĆ
-    konstrukcję, nie leżeć na końcu (zmierzone: z samym „musi zagrać" 6
-    filarów lądowało na pozycjach 13-18 z 18). Pozycje wyznaczamy Z GÓRY,
-    a silnik projektuje przęsła między nimi.
-
-    Tryby pozycyjne: `rozstaw` — równomiernie po całym secie; `rama` —
-    pierwszy filar ZAWSZE otwiera set, ostatni ZAWSZE zamyka, środek
-    równomiernie. (Tryb `podpory` nie jest pozycyjny — patrz _wstaw_podpory.)
-
-    Kolejność filarów wzdłuż setu: rosnąco po tempie — zgodnie ze schodkami
-    tempa (`staircase`) i łukiem `build`, którymi Janek gra. Ograniczenie v1,
-    nazwane wprost: przy łuku `peak` przydział powinien kiedyś patrzeć
-    w krzywą tempa, nie tylko rosnąć."""
-    posortowane = sorted(filary,
-                         key=lambda t: by_id[t].track.bpm_estimate or 0.0)
-    k = len(posortowane)
-    pozycje: dict[int, str] = {}
-    if tryb == "rama" and k >= 2 and count >= k:
-        pozycje[1] = posortowane[0]
-        pozycje[count] = posortowane[-1]
-        srodek = posortowane[1:-1]
-        m = len(srodek)
-        prev = 1
-        for i, tid in enumerate(srodek):
-            pos = int((i + 0.5) * (count - 2) / m + 0.5) + 1
-            pos = min(max(pos, prev + 1), count - 1 - (m - 1 - i))
-            pozycje[pos] = tid
-            prev = pos
-        return pozycje
-    prev = 0
-    for i, tid in enumerate(posortowane):
-        pos = int((i + 0.5) * count / k + 0.5)
-        pos = min(max(pos, prev + 1), count - (k - 1 - i))
-        pozycje[pos] = tid
-        prev = pos
-    return pozycje
-
-
 def _opcje_kotwic(wpisy: list[tuple], kolekcja: list[str]) -> list[tuple[str, str]]:
     """Kolejność pola „Brzmi jak…": KOLEKCJA DJ-ów użytkownika przed resztą,
     z ✓ obok nazwiska (decyzja Janka 12.08, przeniesiona ze ściany kart:
@@ -189,88 +136,6 @@ def _opcje_kotwic(wpisy: list[tuple], kolekcja: list[str]) -> list[tuple[str, st
     reszta = [w for w in wpisy if w[0] not in w_kol]
     return ([(f"✓ {n}  ({ile} wekt., skok {med})", n) for n, ile, med in kol]
             + [(f"{n}  ({ile} wekt., skok {med})", n) for n, ile, med in reszta])
-
-
-def _filary_for_build(state: dict, by_id: dict, bpm_min: float | None,
-                      bpm_max: float | None, count: int | None
-                      ) -> tuple[list[str], list[str], dict[str, str]]:
-    """Filary AKTYWNEJ PLAYLISTY → `pinned_track_ids` silnika + ROLE, z jawnym losem
-    każdego konfliktu: filar spoza puli i filar poza oknem tempa są POMIJANE
-    z imienną notką (okno ustawił użytkownik — konflikt ma być widoczny, nie
-    rozstrzygany po cichu); więcej filarów niż miejsc = odmowa z liczbami."""
-    from dancelab.tui.user_store import (MIN_FILARY, filary_wpisy,
-                                         resolve_tracks)
-    wpisy = filary_wpisy(state)
-    ids, missing = resolve_tracks(wpisy, by_id)
-    by_path = {a.track.source_path: tid for tid, a in by_id.items()}
-    role: dict[str, str] = {}
-    for e in wpisy:
-        tid = e.get("track_id")
-        if tid not in by_id:
-            tid = by_path.get(e.get("path", ""))
-        if tid and e.get("rola"):
-            role[tid] = e["rola"]
-    notes = [f"FILAR nieobecny w puli (pominięty): {m}" for m in missing]
-    wyciete = [f"{m} (spoza puli)" for m in missing]
-    kept: list[str] = []
-    for tid in ids:
-        bpm = by_id[tid].track.bpm_estimate or 0.0
-        if (bpm_min is not None and bpm < bpm_min) or \
-                (bpm_max is not None and bpm > bpm_max):
-            name = pathlib.Path(by_id[tid].track.source_path).stem[:40]
-            notes.append(f"FILAR poza oknem tempa (pominięty): {name} ({bpm:.1f})")
-            wyciete.append(f"{name} ({bpm:.0f} — poza oknem)")
-            continue
-        kept.append(tid)
-    if kept and len(kept) < MIN_FILARY:
-        # ODMOWA MUSI NIEŚĆ WINOWAJCÓW (skarga Janka 09.08: „mimo że dodałem
-        # 4 filary" — liczby bez nazwisk nie mówią, czy poszerzyć okno,
-        # czy wymienić filary)
-        kogo = "; ".join(wyciete[:3])
-        if len(wyciete) > 3:
-            kogo += f" i {len(wyciete) - 3} dalszych"
-        okno = (f"{bpm_min:g}–{bpm_max:g}" if bpm_min is not None
-                and bpm_max is not None else "ustawione")
-        raise ValueError(
-            f"filary to minimum {MIN_FILARY}, a po sitach zostało {len(kept)} "
-            f"— wypadły: {kogo}. Poszerz okno tempa ({okno}) "
-            f"albo wymień filary (F w Bibliotece)")
-    if count is not None and len(kept) > count:
-        raise ValueError(f"filarów ({len(kept)}) więcej niż miejsc w secie "
-                         f"({count}) — wydłuż set albo zdejmij filary")
-    if kept:
-        notes.append(f"filary w budowie: {len(kept)} (każdy MUSI zagrać)")
-    role = {tid: r for tid, r in role.items() if tid in set(kept)}
-    if role:
-        notes.append("role filarów: " + ", ".join(
-            f"{r}" for r in sorted(set(role.values()))))
-    return kept, notes, role
-
-
-def _zastosuj_role_krancowe(rozstaw: dict[int, str], role: dict[str, str],
-                            count: int) -> tuple[dict[int, str], list[str]]:
-    """Role OTWARCIE i ZAMKNIĘCIE wymuszają krańce setu (Janek 11.08).
-
-    Nadpisują rozstawienie z trybu filarów: deklaracja DJ-a jest mocniejsza
-    niż sortowanie po tempie. Oddech i buildup na razie NIE celują miejscem —
-    silnik gwarantuje obecność i most do filara; celowanie rolą w środku setu
-    to następny krok i mówimy to wprost zamiast udawać (ADR-005)."""
-    nowe = dict(rozstaw)
-    notes: list[str] = []
-    cele = {"otwarcie": 1, "zamkniecie": count}
-    for rola, pozycja in cele.items():
-        tid = next((t for t, r in role.items() if r == rola), None)
-        if tid is None:
-            continue
-        nowe = {p: t for p, t in nowe.items() if t != tid and p != pozycja}
-        nowe[pozycja] = tid
-        notes.append(f"rola {rola}: pozycja #{pozycja} (deklaracja DJ-a "
-                     f"nadpisuje rozstawienie trybu)")
-    if any(r in ("oddech", "buildup") for r in role.values()):
-        notes.append("role oddech/buildup: zapisane — silnik gwarantuje "
-                     "obecność i most; celowanie miejscem wg roli to "
-                     "następny krok")
-    return nowe, notes
 
 
 # Poświata „influence" ŻYŁA JEDEN DZIEŃ: pomysł Janka 04.08, jego własne weto
@@ -339,38 +204,6 @@ TRYBY_FILAROW = [
 _TRYB_LABEL = dict(TRYBY_FILAROW)
 
 
-def _wstaw_podpory(core: list[str], filary: list[str],
-                   score) -> tuple[list[str], list[str]]:
-    """Tryb PODPORY — dosłowna wersja metafory Janka: najpierw konstrukcja
-    BEZ filarów, potem pomiar każdego przęsła (ten sam transition_score,
-    którym stoi budowa), i filar wchodzi tam, gdzie konstrukcja najsłabsza.
-    Przydział filar→przęsło: dla każdego z k najsłabszych przęseł wybieramy
-    filar, który je najlepiej mostkuje (średnia wejścia i wyjścia).
-
-    Wymaga przęseł >= filarów; wołający przy braku spada na równy rozstaw
-    Z NOTKĄ, nigdy po cichu."""
-    if len(core) - 1 < len(filary):
-        raise ValueError("za mało przęseł na tryb Podpory")
-    seams = sorted((score(core[i], core[i + 1]), i)
-                   for i in range(len(core) - 1))
-    wolne = list(filary)
-    inserts: dict[int, str] = {}
-    notes: list[str] = []
-    for slabosc, i in seams[:len(filary)]:
-        best = max(wolne, key=lambda p: (score(core[i], p)
-                                         + score(p, core[i + 1])) / 2)
-        wolne.remove(best)
-        inserts[i] = best
-        notes.append(f"podpora w przęśle #{i+1}→#{i+2} "
-                     f"(było {slabosc:.2f})")
-    final: list[str] = []
-    for i, tid in enumerate(core):
-        final.append(tid)
-        if i in inserts:
-            final.append(inserts[i])
-    return final, notes
-
-
 def _lib_sort_missing(col: int, a, energy: dict, lufs: dict) -> bool:
     """Czy utwór nie ma wartości w sortowanej kolumnie — braki idą NA KONIEC
     niezależnie od kierunku sortowania (brak to brak, nie zero)."""
@@ -422,7 +255,6 @@ def _lib_sort_key(col: int, favs: set, filary: set, energy: dict,
             return (_wykonawca_tytul(t)[0].lower() or "~", name(a))
         return (_wykonawca_tytul(t)[1].lower() or "~", name(a))
     return key
-
 
 
 def _format_track_info(track, rb: dict | None, rb_note: str | None) -> str:

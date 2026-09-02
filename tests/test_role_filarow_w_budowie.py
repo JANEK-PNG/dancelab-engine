@@ -16,14 +16,14 @@ def _a(tid, bpm=128.0):
 def test_otwarcie_i_zamkniecie_nadpisuja_rozstaw():
     rozstaw = {1: "x", 5: "otw", 10: "zam"}     # tryb posadził je w środku
     nowe, notes = _zastosuj_role_krancowe(
-        rozstaw, {"otw": "otwarcie", "zam": "zamkniecie"}, count=10)
+        rozstaw, {"otw": "otwarcie", "zam": "zamkniecie"}, ile_miejsc=10)
     assert nowe[1] == "otw" and nowe[10] == "zam"
     assert "x" not in nowe.values()             # x stał na #1 — ustąpił
     assert any("otwarcie" in n for n in notes)
 
 
 def test_role_srodkowe_nie_celuja_ale_mowia_o_tym():
-    nowe, notes = _zastosuj_role_krancowe({}, {"o": "oddech"}, count=8)
+    nowe, notes = _zastosuj_role_krancowe({}, {"o": "oddech"}, ile_miejsc=8)
     assert nowe == {}
     assert any("oddech/buildup" in n for n in notes)
 
