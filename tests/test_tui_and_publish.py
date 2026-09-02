@@ -216,9 +216,16 @@ def test_p_kontekstowe_pauza_skoki_i_szew(tmp_path, monkeypatch):
     ±8 uderzeń wg tempa TYLKO gdy gra; przy otwartym pasku szwu P gra
     przejście. Dźwięk = atrapy — weryfikacja NIGDY nie gra audio."""
     import subprocess
+    import types
     import dancelab.tui.odtwarzacz as odt
     monkeypatch.setattr(odt, "FFPLAY", "/fake/ffplay")
     monkeypatch.setattr(odt, "AFPLAY", None)   # wymuś ścieżkę z seekiem
+    # Zegar odtwarzacza ZAMROŻONY: pozycja to offset + czas ścienny od startu
+    # procesu, a `pilot.pause()` potrafi trwać 0,6–0,9 s — skok o 8 uderzeń
+    # wychodził wtedy 4,3–4,6 s zamiast 3,7 i test padał losowo (02.09, także
+    # na czystym HEAD). Podmieniamy `time` W MODULE odtwarzacza, nie globalnie,
+    # żeby nie ruszać pętli zdarzeń Textuala.
+    monkeypatch.setattr(odt, "time", types.SimpleNamespace(monotonic=lambda: 1000.0))
 
     class _FakeProc:
         def __init__(self, cmd):
