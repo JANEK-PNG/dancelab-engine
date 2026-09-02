@@ -23,11 +23,15 @@ import pathlib
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
+from dancelab.sciezki import KORZEN
+
 #: Nazwy plików, które są stemami, nie utworami. Kopia z `tui/app.py` — ta sama
 #: lista, bo to ta sama higiena; gdyby kiedyś się rozjechały, to jest błąd.
 STEM_NAMES = {"drums", "bass", "other", "vocals", "no_vocals", "accompaniment"}
 MAX_TRACK_SEC = 15 * 60
-HISTORIA_SETOW = pathlib.Path("data/cache/tui_historia_setow.jsonl")
+# Historia świeżości — JEDNA dla obu skór, na korzeniu repo (była podwójna
+# i względna do `cwd`; nazwa pliku zostaje, bo to dane tylko do przodu).
+HISTORIA_SETOW = KORZEN / "data/cache/tui_historia_setow.jsonl"
 PROCESSED_DOMYSLNY = "experiments_priv/2026-07-30_rebuild/processed"
 
 Postep = Callable[[str], None]
@@ -52,7 +56,8 @@ class Parametry:
     planer: str = "smart"
     nowosc: str = "deterministic"
     ziarno: int | None = None
-    zrodlo_puli: str = "library"        # library | library-dysk | library-apple
+    zrodlo_puli: str = "library"        # library | library-dysk | library-apple | folder
+    folder: str = ""                    # dla zrodlo_puli == "folder"
     tryb_filarow: str = "rozstaw"       # rozstaw | rama | podpory
 
     @classmethod
@@ -99,6 +104,7 @@ class Parametry:
             planer=str(dane.get("planer") or "smart"),
             nowosc=nowosc, ziarno=ziarno,
             zrodlo_puli=str(dane.get("zrodlo_puli") or "library"),
+            folder=str(dane.get("folder") or "").strip(),
             tryb_filarow=str(dane.get("tryb_filarow") or "rozstaw"),
         )
 
@@ -198,17 +204,63 @@ def _zawez_zrodlo(analizy: list, zrodlo_puli: str) -> tuple[list, list[str]]:
     return wybrane, [f"pula {Z.NAZWA[chce].lower()}: {len(wybrane)} z {przed} utworów"]
 
 
-def _kotwica(nazwa: str | None) -> tuple[Any, list[str]]:
+def _kotwica(nazwa: str | None, analizy: list | None = None,
+             stan_uzytkownika: dict | None = None) -> tuple[Any, list[str]]:
     """Rozwiąż „brzmi jak…". Niepowodzenie jest notką, nie wyjątkiem —
-    set bez kotwicy jest prawomocny."""
+    set bez kotwicy jest prawomocny.
+
+    „★ moje ulubione" to kotwica policzona z ♥ DJ-a, nie z księgi. Terminal
+    umiał to od 12.08; okno pokazywało tę kartę na ścianie DJ-ów, a budowa
+    odpowiadała „kotwica niedostępna" — ślepa uliczka zamknięta 02.09.
+    """
     if not nazwa:
         return None, []
-    from dancelab.decision.anchors import AnchorError, resolve_anchor
+    from dancelab.decision.anchors import (MOJE_ULUBIONE, AnchorError,
+                                           kotwica_z_utworow, resolve_anchor)
 
+    if nazwa == MOJE_ULUBIONE:
+        from dancelab.tui.user_store import resolve_tracks
+        by_id = {a.track.track_id: a for a in (analizy or [])}
+        ulubione, _brak = resolve_tracks(
+            (stan_uzytkownika or {}).get("ulubione_utwory", []), by_id)
+        try:
+            kot = kotwica_z_utworow([a for a in (analizy or [])
+                                     if a.track.track_id in ulubione])
+        except AnchorError as exc:
+            return None, [f"kotwica z ulubionych niemożliwa: {exc}"]
+        return kot, [f"kotwica z Twoich ulubionych: {kot.n_tracks} utworów "
+                     f"(kontur skoków niedostępny — to cecha sposobu grania, "
+                     f"nie zbioru)"]
     try:
         return resolve_anchor(nazwa), []
     except AnchorError as exc:
         return None, [f"kotwica {nazwa!r} niedostępna: {exc}"]
+
+
+def _pula_z_folderu(folder: str, processed_dir: str, mow: Postep,
+                    przerwij: Callable[[], bool] | None) -> tuple[list, list[str]]:
+    """Tryb Folder: znajdź pliki, przesiej bramkarzem, przeanalizuj z postępem.
+
+    Do 02.09 tylko w terminalu (`_build_plan`); okno nie miało tego trybu.
+    """
+    from dancelab.core.config import load_config
+    from dancelab.ingestion.bramkarz import przesiej
+    from dancelab.workflows.smart_playlist import analyze_files, discover_audio_files
+
+    if not folder:
+        raise OdmowaBudowy("tryb Folder wymaga ścieżki")
+    notki: list[str] = []
+    pliki, odrzucone = przesiej(discover_audio_files(folder))
+    for sciezka, powod in odrzucone[:5]:
+        notki.append(f"BRAMKARZ odrzucił: {pathlib.Path(sciezka).name[:40]} — {powod}")
+    mow(f"Analiza {len(pliki)} plików…")
+    analizy, porazki = analyze_files(
+        pliki, load_config("configs/default.yaml"), processed_dir=processed_dir,
+        stage_progress=lambda path, etap: mow(f"{etap}: {pathlib.Path(path).name[:40]}"),
+        should_stop=(przerwij or (lambda: False)))
+    for f in porazki[:5]:
+        notki.append(f"nie przeanalizowano {pathlib.Path(f.source_path).name}: {f.error}")
+    return list(analizy), notki
 
 
 def dokarm(analizy: list, *, wektory: bool = True) -> list[str]:
@@ -257,14 +309,16 @@ def dokarmianie_padlo(notki: list[str]) -> str | None:
 def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
            postep: Postep | None = None, analizy: list | None = None,
            stan_uzytkownika: dict | None = None,
-           dokarmione: bool = False) -> dict[str, Any]:
+           dokarmione: bool = False,
+           przerwij: Callable[[], bool] | None = None) -> dict[str, Any]:
     """Zbuduj set. Zwraca plan, pulę po id i notki — wszystko, co widok pokaże.
 
     ``postep`` dostaje krótkie komunikaty o etapie; ``None`` znaczy, że nikt
     nie słucha. ``analizy`` pozwala podać gotową pulę (test albo okno, które
     już ją ma) zamiast czytać z dysku po raz drugi; ``dokarmione`` mówi, że
     ta pula już przeszła `dokarm` — drugie dokarmianie to sekundy czytania
-    master.db bez zysku.
+    master.db bez zysku. ``przerwij`` to pytanie „czy użytkownik anulował?"
+    — odpowiedź „tak" kończy budowę odmową „anulowane".
     """
     from dancelab.core.config import load_config, load_weights
     from dancelab.decision.set_builder import build_set
@@ -273,13 +327,19 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
     mow = postep or (lambda _s: None)
     notki: list[str] = []
 
-    if analizy is None:
-        mow("Wczytuję analizy z biblioteki…")
-        analizy, notki_puli = pula(processed_dir)
-        notki += notki_puli
-
-    analizy, notki_zrodla = _zawez_zrodlo(analizy, par.zrodlo_puli)
-    notki += notki_zrodla
+    if par.zrodlo_puli == "folder":
+        analizy, notki_folderu = _pula_z_folderu(par.folder, processed_dir,
+                                                 mow, przerwij)
+        notki += notki_folderu
+    else:
+        if analizy is None:
+            mow("Wczytuję analizy z biblioteki…")
+            analizy, notki_puli = pula(processed_dir)
+            notki += notki_puli
+        analizy, notki_zrodla = _zawez_zrodlo(analizy, par.zrodlo_puli)
+        notki += notki_zrodla
+    if przerwij is not None and przerwij():
+        raise OdmowaBudowy("anulowane")
     if not analizy:
         raise OdmowaBudowy("pusta pula — nie ma z czego budować")
 
@@ -293,7 +353,7 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
             raise OdmowaBudowy(padlo)
         notki += notki_d
 
-    kotwica, notki_kotwicy = _kotwica(par.dj)
+    kotwica, notki_kotwicy = _kotwica(par.dj, analizy, stan_uzytkownika)
     notki += notki_kotwicy
 
     ile = estimate_track_count_for_duration(analizy, par.minuty)
@@ -350,7 +410,9 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
             rozstawienie, notki_rol = F.role_krancowe(rozstawienie, role, ile)
             notki += notki_rol
             if rozstawienie:
-                notki.append(f"filary rozstawione ({tryb}): pozycje "
+                from dancelab.tui.user_store import TRYBY_FILAROW
+                etykieta = dict(TRYBY_FILAROW).get(tryb, tryb)
+                notki.append(f"filary rozstawione ({etykieta}): pozycje "
                              + ", ".join(f"#{p}" for p in sorted(rozstawienie)))
         mow(f"Buduję set: {ile} utworów z {len(analizy)}…")
         # `locked_positions` to 1-indeksowane miejsca w gotowej playliście —
@@ -363,10 +425,25 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
 
     notki += [_skroc_notke(n) for n in (getattr(plan, "warnings", None) or [])]
     if par.ziarno is not None and par.nowosc != "deterministic":
-        notki.append(f"ziarno {par.ziarno} — zapisz je, żeby powtórzyć ten set")
+        notki.append(f"świeżość: {par.nowosc} · ziarno {par.ziarno} — ten sam "
+                     f"ziarno powtarza ten set; historię świeżości karmi dopiero "
+                     f"UŻYCIE setu (zapis, wysyłka), nie każda budowa")
+
+    # Odcisk czeka w wyniku — do historii trafia dopiero, gdy set zostanie
+    # UŻYTY. Powód (zmierzony 06.08): dopisywanie przy każdej budowie zmieniało
+    # historię między budowami i to samo ziarno dawało inny set. Do 02.09
+    # liczył go tylko terminal; okno nie karmiło historii świeżości wcale.
+    from dancelab.decision.history import context_hash, fingerprint_plan
+    odcisk = fingerprint_plan(
+        list(plan.track_order),
+        ctx_hash=context_hash(bpm_min=par.bpm_min, bpm_max=par.bpm_max,
+                              styles=tuple(par.style), dj=par.dj, arc=par.luk,
+                              tempo=par.tempo, planner=par.planer),
+        seed=par.ziarno, novelty_mode=par.nowosc, pinned_ids=filary_ids)
 
     return {
         "plan": plan,
+        "odcisk": odcisk,
         "kolejnosc": list(plan.track_order),
         "by_id": by_id,
         # Wagi wracają, bo tymi samymi liczy się potem propozycje padów.

@@ -76,7 +76,7 @@ WERDYKTY_DIR = _stan_dziennik.KATALOG
 
 # Historia zbudowanych setów (odciski) — karmi tryby świeżości silnika:
 # „fresh" umie omijać utwory i przejścia grane w poprzednich budowach.
-HISTORIA_SETOW = pathlib.Path("data/cache/tui_historia_setow.jsonl")
+HISTORIA_SETOW = _stan_budowa.HISTORIA_SETOW   # jedna historia dla obu skór
 RAPORT_ART = pathlib.Path("data/exports/artwork_raport.json")
 
 
@@ -2789,214 +2789,43 @@ class DanceLabTUI(App):
         return _stan_budowa.pula(self.processed_dir)
 
     def _build_plan(self):
-        from dancelab.core.config import load_config, load_weights
-        from dancelab.decision.set_builder import build_set
-        from dancelab.ingestion.analysis_enrichment import (
-            attach_rekordbox_genres, attach_rekordbox_keys,
-            attach_rekordbox_meta, attach_sound_embeddings)
-        from dancelab.workflows.smart_playlist import (
-            analyze_files, discover_audio_files, estimate_track_count_for_duration)
-
+        """Budowa setu — od 02.09 to `stan.budowa.zbuduj`, ten sam kod co w
+        oknie. Tu zostaje wyłącznie przekład formularza na `Parametry`
+        i odłożenie kontekstu edycji; wszystko, co było w tych 200 liniach
+        (tryb Folder, kotwica z ♥, przerywanie, filary, odcisk świeżości),
+        mieszka teraz raz, w `stan/budowa.py`."""
         p = self.call_from_thread(self._params)
         ui = self.call_from_thread
         progress = self.query_one("#progress", Static)
-        cfg = load_config("configs/default.yaml")
-
-        if p["pool"] == "folder":
-            if not p["folder"]:
-                raise ValueError("tryb Folder wymaga ścieżki")
-            files = discover_audio_files(p["folder"])
-            from dancelab.ingestion.bramkarz import przesiej
-            files, odrzucone = przesiej(files)
-            for sciezka, powod in odrzucone[:5]:
-                ui(self._note, f"BRAMKARZ odrzucił: "
-                               f"{pathlib.Path(sciezka).name[:40]} — {powod}")
-            ui(progress.update, f"Analiza {len(files)} plików…")
-            analyses, failures = analyze_files(
-                files, cfg, processed_dir=self.processed_dir,
-                stage_progress=lambda path, stage: ui(
-                    progress.update,
-                    f"{stage}: {pathlib.Path(path).name[:40]}"),
-                should_stop=self._stop.is_set,
-            )
-            for f in failures[:5]:
-                ui(self._note, f"nie przeanalizowano {pathlib.Path(f.source_path).name}: {f.error}")
-        else:
+        par = _stan_budowa.Parametry(
+            minuty=p["minutes"], bpm_min=p["bpm_min"], bpm_max=p["bpm_max"],
+            style=list(p["styles"]), dj=p["dj"], kontur=bool(p["contour"]),
+            luk=p["arc"], tempo=p["tempo"], planer=p["planner"],
+            nowosc=p["novelty"], ziarno=p["seed"], zrodlo_puli=p["pool"],
+            folder=p["folder"],
+            tryb_filarow=self._user_state.get("tryb_filarow", "rozstaw"))
+        analizy, notki_puli = None, []
+        if p["pool"] != "folder":
             ui(progress.update, "Wczytuję analizy z biblioteki…")
-            analyses, hygiene = self._library_analyses()
-            for note in hygiene:
-                ui(self._note, note)
-        # ŹRÓDŁO PULI. Utwory z Apple Music Rekordbox pokazuje, ale nie ładuje
-        # na deck — set z nich wygląda dobrze i nie da się go zagrać. Wybór
-        # jest jawny w polu „Pula", a odrzucenie zawsze z liczbą.
-        if p["pool"] in ("library-dysk", "library-apple"):
-            from dancelab.tui import zrodlo as Z
-            chce = Z.DYSK if p["pool"] == "library-dysk" else Z.APPLE
-            przed = len(analyses)
-            analyses = [a for a in analyses
-                        if Z.zrodlo(a.track.source_path) == chce]
-            ui(self._note, f"pula {Z.NAZWA[chce].lower()}: {len(analyses)} "
-                           f"z {przed} utworów")
-        if self._stop.is_set():
-            raise ValueError("anulowane")
-        if not analyses:
-            raise ValueError("pusta pula — nie ma z czego budować")
-
-        ui(progress.update, "Dokarmianie (wektory, gatunki)…")
-        emb = attach_sound_embeddings(analyses)
-        gen = attach_rekordbox_genres(analyses)
-        ton = attach_rekordbox_keys(analyses)
-        attach_rekordbox_meta(analyses)
-
-        anchor = None
-        # UWAGA: `notes` powstaje dopiero pod koniec tej metody — komunikaty
-        # o kotwicy zbieramy osobno i doklejamy tam. (Dwa razy 09.08 sięgnąłem
-        # po zmienną, której w tym miejscu jeszcze nie ma, i ubiłem budowę.)
-        uwagi_kotwicy: list[str] = []
-        if p["dj"]:
-            from dancelab.decision.anchors import (MOJE_ULUBIONE, AnchorError,
-                                                   kotwica_z_utworow,
-                                                   resolve_anchor)
-            if p["dj"] == MOJE_ULUBIONE:
-                from dancelab.tui.user_store import resolve_tracks
-                ulubione, _brak = resolve_tracks(
-                    self._user_state.get("ulubione_utwory", []),
-                    {a.track.track_id: a for a in analyses})
-                try:
-                    anchor = kotwica_z_utworow(
-                        [a for a in analyses if a.track.track_id in ulubione])
-                    uwagi_kotwicy.append(
-                        f"kotwica z Twoich ulubionych: {anchor.n_tracks} "
-                        f"utworów (kontur skoków niedostępny — to cecha "
-                        f"sposobu grania, nie zbioru)")
-                except AnchorError as exc:
-                    uwagi_kotwicy.append(
-                        f"kotwica z ulubionych niemożliwa: {exc}")
-            else:
-                anchor = resolve_anchor(p["dj"])
-
-        count = estimate_track_count_for_duration(analyses, p["minutes"])
-        filary, filar_notes, role_filarow = _filary_for_build(
-            self._user_state, {a.track.track_id: a for a in analyses},
-            p["bpm_min"], p["bpm_max"], count)
-        # filar może wskazywać duplikat bajt-w-bajt, który dedup wytnie —
-        # mapujemy na egzemplarz kanoniczny, żeby budowa nie odmawiała
-        # o utwór, który muzycznie w puli JEST (złapane E2E 05.08)
-        from dancelab.decision.dedup import canonical_ids
-        mapping = canonical_ids(analyses)
-        filary = list(dict.fromkeys(mapping.get(t, t) for t in filary))
-        role_filarow = {mapping.get(t, t): r for t, r in role_filarow.items()}
-        by_id_all = {a.track.track_id: a for a in analyses}
-        tryb = self._user_state.get("tryb_filarow", "rozstaw")
-
-        from dancelab.decision.history import (HistoryStore, context_hash,
-                                               fingerprint_plan)
-        historia = HistoryStore(HISTORIA_SETOW).recent(limit=20)
-        wspolne = dict(
-            novelty_mode=p["novelty"], seed=p["seed"], history=historia,
-            arc=p["arc"], planner_mode=p["planner"], tempo_shape=p["tempo"],
-            preferred_styles=p["styles"] or None,
-            bpm_min=p["bpm_min"], bpm_max=p["bpm_max"],
-            sound_anchor=anchor.centroid if anchor else None,
-            anchor_name=anchor.name if anchor else None,
-            jump_contour=(anchor.contour if (anchor and p["contour"]) else None),
-        )
-        weights = load_weights(cfg.weights_file)
-
-        if filary and tryb == "podpory" and (count - len(filary)) - 1 < len(filary):
-            filar_notes.append("za krótki set na tryb Podpory — spadam na "
-                               "równy rozstaw")
-            tryb = "rozstaw"
-
-        # role krańcowe wyjmujemy z podpór: otwarcie/zamknięcie to deklaracje
-        # miejsc, a podpory szukają najsłabszych przęseł W ŚRODKU
-        otwarcie_id = next((t for t, r in role_filarow.items()
-                            if r == "otwarcie"), None)
-        zamkniecie_id = next((t for t, r in role_filarow.items()
-                              if r == "zamkniecie"), None)
-
-        if filary and tryb == "podpory":
-            # metafora dosłownie: konstrukcja bez filarów → pomiar przęseł →
-            # filar w najsłabsze; plan tempa/łuk kształtują KONSTRUKCJĘ,
-            # podpory wchodzą po pomiarze
-            core_pool = [a for a in analyses
-                         if a.track.track_id not in set(filary)]
-            ui(progress.update, f"Budowa konstrukcji: {count - len(filary)} "
-                                f"utworów, potem {len(filary)} podpór…")
-            plan = build_set(core_pool, weights,
-                             target_track_count=count - len(filary), **wspolne)
-            from dancelab.decision.slot_suggest import _default_score_fn
-            energy, e_rng = _energia_do_oceny(by_id_all)
-            fn = _default_score_fn(weights, p["arc"], p["planner"],
-                                   energy, e_rng)
-            score = lambda x, y: fn(by_id_all[x], by_id_all[y])  # noqa: E731
-            srodkowe = [t for t in filary
-                        if t not in (otwarcie_id, zamkniecie_id)]
-            final, podpory_notes = _wstaw_podpory(
-                list(plan.track_order), srodkowe, score)
-            if otwarcie_id:
-                final = [otwarcie_id, *final]
-                podpory_notes.append("rola otwarcie: pozycja #1 (poza "
-                                     "pomiarem przęseł — deklaracja DJ-a)")
-            if zamkniecie_id:
-                final = [*final, zamkniecie_id]
-                podpory_notes.append(f"rola zamknięcie: pozycja "
-                                     f"#{len(final)} (deklaracja DJ-a)")
-            filar_notes.extend(podpory_notes)
-            filar_notes.append(f"zgodność konstrukcji (bez podpór): "
-                               f"{plan.mean_transition_score}")
-            # zgodność CAŁOŚCI nie jest tą samą liczbą co z budowy — nie udajemy
-            plan = plan.model_copy(update={"track_order": final,
-                                           "mean_transition_score": None})
-        else:
-            rozstaw = _rozstaw_filary(filary, by_id_all, count, tryb) \
-                if filary else {}
-            rozstaw, role_notes = _zastosuj_role_krancowe(
-                rozstaw, role_filarow, count)
-            filar_notes.extend(role_notes)
-            if rozstaw:
-                filar_notes.append(
-                    f"filary rozstawione ({_TRYB_LABEL.get(tryb, tryb)}): "
-                    + ", ".join(f"#{pos}" for pos in sorted(rozstaw)))
-            ui(progress.update,
-               f"Budowa: {count} utworów z {len(analyses)}"
-               + (f" na {len(filary)} filarach…" if filary else "…"))
-            plan = build_set(analyses, weights, target_track_count=count,
-                             locked_positions=rozstaw or None, **wspolne)
-        # Odcisk czeka w kontekście — do historii trafia dopiero przy S/W.
-        # Powód (zmierzony 06.08): dopisywanie przy każdym B zmieniało historię
-        # między budowami i TEN SAM seed dawał inny set — obietnica powtórki
-        # złamana. Świeżość ma omijać sety UŻYTE, nie każdy eksperymentalny B.
-        odcisk = fingerprint_plan(
-            list(plan.track_order),
-            ctx_hash=context_hash(bpm_min=p["bpm_min"], bpm_max=p["bpm_max"],
-                                  styles=tuple(p["styles"]), dj=p["dj"],
-                                  arc=p["arc"], tempo=p["tempo"],
-                                  planner=p["planner"]),
-            seed=p["seed"], novelty_mode=p["novelty"], pinned_ids=filary)
-        if p["novelty"] != "deterministic":
-            filar_notes.append(
-                f"świeżość: {p['novelty']} · seed {p['seed']} — ten sam seed "
-                f"powtarza ten set; historię świeżości karmią dopiero "
-                f"zapis (S) i wysyłka (W)")
-        by_id = {a.track.track_id: a for a in analyses}
+            analizy, notki_puli = self._library_analyses()
+        wynik = _stan_budowa.zbuduj(
+            par, processed_dir=self.processed_dir,
+            postep=lambda tekst: ui(progress.update, tekst),
+            analizy=analizy, stan_uzytkownika=self._user_state,
+            przerwij=self._stop.is_set)
         self._ctx = dict(
-            by_id=by_id, weights=weights,
+            by_id=wynik["by_id"], weights=wynik["wagi"],
             arc=p["arc"], planner=p["planner"],
             bpm_min=p["bpm_min"], bpm_max=p["bpm_max"],
-            anchor=(anchor.centroid if anchor else None),
+            anchor=wynik.get("kotwica_centroid"),
             params=p,
-            filary=filary,   # już po mapowaniu na egzemplarze kanoniczne —
-            odcisk=odcisk,   # flagi ⚑ muszą trafiać w to, co GRA; odcisk
-        )                    # do historii dopiero przy S/W
-        notes = [*uwagi_kotwicy, *emb.notes, *gen.notes, *ton.notes,
-                 *filar_notes,
-                 f"dokarmione: wektory {emb.attached}, gatunki {gen.attached}, "
-                 f"tonacje RB {ton.attached}"]
+            filary=list(wynik["filary"]),   # po mapowaniu na egzemplarze kanoniczne
+            odcisk=wynik["odcisk"],         # do historii dopiero przy S/W
+        )
         self._plan_name = (f"TUI {p['dj'] or 'set'} "
                            f"{p['bpm_min']:g}-{p['bpm_max']:g}" if p["bpm_min"]
                            else f"TUI {p['dj'] or 'set'}")
-        return plan, by_id, notes
+        return wynik["plan"], wynik["by_id"], [*notki_puli, *wynik["notki"]]
 
     def _show_plan(self, plan, by_id, extra_notes) -> None:
         self._odcisk_zapisany = False
@@ -3024,7 +2853,9 @@ class DanceLabTUI(App):
             if w.startswith(("GATUNEK Z BRIEFU", "SŁABE SZWY")):
                 # `_show_plan` biegnie już na wątku UI — bez pośrednika
                 self.notify(w[:180], severity="warning", timeout=10)
-        for note in [*plan.warnings, *extra_notes]:
+        # ostrzeżenia silnika przychodzą już w `extra_notes` (skrócone przez
+        # `zbuduj`) — dodawane tu drugi raz były dwiema linijkami o tym samym
+        for note in extra_notes:
             self._note(note)
 
     def _render_order(self, by_id) -> None:

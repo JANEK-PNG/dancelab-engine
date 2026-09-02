@@ -104,6 +104,7 @@ class Most:
         # planer, okno tempa, kotwica) — panel podmian liczy kandydatów
         # dokładnie tym samym, inaczej sugestie miałyby inny gust niż set.
         self._ctx_edycji: dict[str, Any] | None = None
+        self._odcisk_zapisany = False
         self._kandydaci_meta: dict[str, dict[str, Any]] = {}
         # Liczenie kandydatów trwa ~4 s na pełnej puli (pomiar 01.09), więc
         # chodzi w wątku i ma własny stan odpytywany przez widok — jak budowa.
@@ -593,7 +594,9 @@ class Most:
                 "planer": par.planer, "bpm_min": par.bpm_min,
                 "bpm_max": par.bpm_max,
                 "kotwica_centroid": wynik.get("kotwica_centroid"),
-                "filary": list(wynik.get("filary") or [])}
+                "filary": list(wynik.get("filary") or []),
+                "odcisk": wynik.get("odcisk")}
+            self._odcisk_zapisany = False
             self._kandydaci_meta = {}
             self._plan_cue_nieaktualny = False
             self._plan_cue_przeliczony = False
@@ -623,6 +626,23 @@ class Most:
             self._budowa = {"stan": "blad",
                             "blad": f"{type(exc).__name__}: {exc}",
                             "slad": traceback.format_exc(limit=4)}
+
+
+    def _utrwal_odcisk(self, powod: str) -> str | None:
+        """Dopisz odcisk zbudowanego setu do historii świeżości — raz na
+        budowę, przy pierwszym UŻYCIU (zapis cue albo wysyłka playlisty).
+        Ta sama reguła co S/W w terminalu; do 02.09 okno nie karmiło historii
+        wcale, więc „świeżość" omijała tylko sety z terminala."""
+        odcisk = (self._ctx_edycji or {}).get("odcisk")
+        if odcisk is None or self._odcisk_zapisany:
+            return None
+        from dancelab.decision.history import HistoryStore
+        try:
+            HistoryStore(budowa.HISTORIA_SETOW).append(odcisk)
+        except Exception as exc:                       # noqa: BLE001
+            return f"historii setu nie zapisałem: {exc}"
+        self._odcisk_zapisany = True
+        return f"historia świeżości: odcisk dopisany ({powod})"
 
     def _wiersz(self, tid: str, by_id: dict) -> dict[str, Any]:
         a = by_id[tid]
@@ -1588,6 +1608,9 @@ class Most:
             return wynik
         wynik["uwaga"] = ("otwórz Rekordboksa — playlistę widać dopiero po "
                           "jego starcie, bo bazę czyta przy uruchomieniu")
+        historia = self._utrwal_odcisk("wysłana playlista")
+        if historia:
+            wynik.setdefault("notki", []).append(historia)
         # Wysłanie setu na sprzęt to koniec drogi decyzyjnej: co poszło do
         # Rekordboxa, to DJ naprawdę wybrał. Werdykt zapisuje tę chwilę.
         rec = self._werdykt_zapisu(mianowana, dict(wynik))
@@ -1653,6 +1676,9 @@ class Most:
         self._zapis_gotowy = None
         wynik["uwaga"] = ("otwórz Rekordboksa — pady widać dopiero po jego "
                           "starcie, bo bazę czyta przy uruchomieniu")
+        historia = self._utrwal_odcisk("zapisane cue")
+        if historia:
+            wynik["historia"] = historia
 
         # Dziennik decyzji (Q14): zapis do bazy to moment, w którym propozycje
         # silnika przestają być podpowiedzią, a stają się przyjęte albo
