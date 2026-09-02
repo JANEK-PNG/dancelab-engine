@@ -228,9 +228,17 @@ def test_szew_daje_sie_zatrzymac(most, procesy, tmp_path):
     most.postep_szwu()
     assert most.stan_odtwarzania()["gra"] is True
 
-    assert most.stop_dzwieku()["akcja"] == "pauza"
+    # STOP, nie „pauza". Odtwarzacz pamięta ścieżkę PLIKU szwu, a P dotyczy
+    # utworu — więc szwu nie da się wznowić i pasek nie ma prawa tego
+    # obiecywać. Zapamiętana pozycja mówiłaby „P wznawia od tego miejsca",
+    # a P puszczało utwór A od zera.
+    odp = most.stop_dzwieku()
+    assert odp["akcja"] == "stop"
     assert procesy[-1].zakonczony is True
-    assert most.stan_odtwarzania()["gra"] is False
+    stan = most.stan_odtwarzania()
+    assert stan["gra"] is False
+    assert stan["pozycja_sec"] == 0.0        # nic do wznowienia
+    assert stan["rodzaj"] is None            # pasek milczy, nie kłamie
 
 
 def test_pasek_pokazuje_dlugosc_SZWU_a_nie_utworu(most, procesy, tmp_path):
@@ -276,3 +284,85 @@ def test_odpytywanie_stanu_nie_zabija_swiezo_puszczonego_utworu(most, procesy):
     # ostatni start musi być tym, który naprawdę gra
     zywe = [p for p in procesy if not p.zakonczony]
     assert len(zywe) <= 1
+
+
+def test_szew_z_padow_dziala_bez_planu_silnika(most, monkeypatch):
+    """Plan wczytany z pliku (albo nieudane propozycje) zeruje `_plan_cue`.
+
+    Do 02.09 pady szły wtedy inną, ręczną drogą, która nie nadawała im pola
+    `typ` — a `_szew_w_tle` po nim sięgało. Efekt: `szew nie wyszedł: 'typ'`
+    dokładnie w scenariuszu, dla którego szew „z Twoich padów" istnieje.
+    Ten test woła PRAWDZIWY render, nie podstawia `_szew_stan`.
+    """
+    from dancelab.stan import szew as SZ
+
+    most._plan_cue = None
+    most.postaw_pad("t1", "A", 200_000)
+    most.postaw_pad("t2", "A", 12_000)
+
+    widziane = {}
+
+    def atrapa_szwu(a, b, *, cue_a_sec, cue_b_sec):
+        widziane.update(a=cue_a_sec, b=cue_b_sec)
+        return {"output": "/nieistotne.wav", "bpm": 128.0, "beats": 64}
+
+    monkeypatch.setattr(SZ, "zbuduj_szew_z_padow", atrapa_szwu)
+    most._szew_w_tle("t1", "t2", z_padow=True)
+
+    assert most._szew_stan["stan"] == "gotowe", most._szew_stan
+    assert widziane == {"a": 200.0, "b": 12.0}
+
+
+def test_pad_z_kreska_w_identyfikatorze_nie_gubi_litery(most):
+    """Klucz edycji to „track_id|pad". Ręczne rozbieranie szło od LEWEJ, więc
+    identyfikator z pionową kreską dawał pad „b|A" zamiast „A". Werdykt czytał
+    ten sam klucz od PRAWEJ — dwie części kodu widziały różne pady."""
+    most._analizy["a|b"] = most._analizy["t1"]
+    most.postaw_pad("a|b", "A", 9_000)
+    assert list(most._pady_bez_sladu("a|b")["pady"]) == ["A"]
+
+
+def test_plan_z_pliku_nie_dziedziczy_wag_poprzedniej_budowy(most):
+    """„Zbuduj set A → wczytaj plan B" to obsługiwana droga, nie dziwactwo.
+
+    `_wagi_szwu` obiecuje w docstringu wagi domyślne, gdy plan przyszedł
+    z pliku. Bez zerowania `_wagi_budowy` oddawało wagi setu A — i te same
+    wagi lądowały w `gui_werdykt_*.json` jako wagi, którymi rzekomo powstał
+    plan B. Werdykt ma mówić „nie znam", a nie cudzą liczbę.
+    """
+    most._wagi_budowy = {"udawane": 1.0}
+    most._kolejnosc = []
+
+    # sama droga wczytania planu, bez puli na dysku
+    from dancelab.stan import plan as PL
+    import types
+    most._pula = types.MethodType(lambda self: [], most)
+    PL_wczytaj = PL.wczytaj
+    try:
+        PL.wczytaj = lambda analizy, sciezka=None: {
+            "kolejnosc": ["t1", "t2"], "notki": [], "nazwa": "B",
+            "zapisanych": 2, "parametry": {}}
+        most._wczytaj_plan_teraz("/plany/B.json")
+    finally:
+        PL.wczytaj = PL_wczytaj
+
+    assert most._wagi_budowy is None
+    assert most._ctx_edycji is None
+
+
+def test_utwor_bez_sciezki_odmawia_zamiast_udawac_ze_zagra(most):
+    """Trzeci przypadek, nie brak przypadku: analiza bez `source_path`.
+
+    Wcześniej `bez_pliku` puszczało pustą ścieżkę dalej jako „można grać",
+    więc tabela setu rysowała ♪, biblioteka STR, a odtwarzacz dostawał napis
+    „None". Kryterium jest teraz jedno (`budowa.ma_plik`) dla obu skór.
+    """
+    from dancelab.stan import budowa
+
+    most._analizy["pusty"] = _Analiza("pusty", "")
+    odp = most.graj("pusty")
+    assert odp["bez_pliku"] is True
+    assert "nie zna ścieżki pliku" in odp["blad"]
+    assert budowa.ma_plik("") is False
+    assert budowa.ma_plik(None) is False
+    assert budowa.ma_plik("/muzyka/x.aiff") is True

@@ -147,12 +147,38 @@ def test_edycje_sprzed_planu_nie_licza_sie_jako_reakcja(most):
     # nie ma prawa policzyć go jako odpowiedzi na propozycję tego planu.
     most.pady("t1")
     most.przesun_pad("t1", "A", 4, 120.0)
-    most._edycje_sprzed_planu = {"t1|A"}
+    # migawka WARTOŚCI, nie samych kluczy — patrz `Most._migawka_edycji`
+    most._edycje_sprzed_planu = most._migawka_edycji()
     utwory, miara = most._klasyfikuj_pady()
     t1 = next(u for u in utwory if u["track_id"] == "t1")
     assert t1["pady"]["A"]["los"] == "nadpisany"
     assert t1["pady"]["A"]["sprzed_planu"] is True
     assert miara["edycje_sprzed_planu"] == 1
+
+
+def test_poprawka_PO_zobaczeniu_planu_liczy_sie_jako_reakcja(most):
+    """Zgrubny pad → budowa → poprawka po obejrzeniu propozycji.
+
+    To jest normalny tryb pracy, a nie przypadek dziwny. Do 02.09 znacznik
+    „sprzed planu" wisiał na samym KLUCZU, a `cue_edycje.przesun` nadpisuje
+    wpis pod tym samym kluczem — więc reakcja na propozycję wchodziła do
+    dziennika opisana jako „to nie była reakcja". Dokładne odwrócenie tego,
+    co ten znacznik ma znaczyć, w danych zbieranych tylko do przodu.
+    """
+    most.pady("t1")
+    most.postaw_pad("t1", "A", 5_000)          # przed budową
+    most._edycje_sprzed_planu = most._migawka_edycji()
+
+    most.przesun_pad("t1", "A", 4, 120.0)      # PO obejrzeniu propozycji
+    utwory, miara = most._klasyfikuj_pady()
+    t1 = next(u for u in utwory if u["track_id"] == "t1")
+    assert "sprzed_planu" not in t1["pady"]["A"]
+    assert miara["edycje_sprzed_planu"] == 0
+
+    # cofnięcie do stanu sprzed planu przywraca znacznik — wartość znowu ta sama
+    most.cofnij("t1")
+    _, miara_po = most._klasyfikuj_pady()
+    assert miara_po["edycje_sprzed_planu"] == 1
 
 
 def test_awaria_dziennika_nie_blokuje_edycji(most, tmp_path, monkeypatch):

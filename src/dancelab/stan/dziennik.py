@@ -27,13 +27,12 @@ uruchomienie skądinąd rozwidliłoby historię po cichu.
 from __future__ import annotations
 
 import json
-import pathlib
 import time
 from typing import Any
 
-# src/dancelab/stan/dziennik.py → korzeń repo trzy poziomy wyżej
-_KORZEN = pathlib.Path(__file__).resolve().parents[3]
-KATALOG = _KORZEN / "experiments_priv" / "2026-08-04_werdykty"
+from dancelab.stan.sciezki import KORZEN
+
+KATALOG = KORZEN / "experiments_priv" / "2026-08-04_werdykty"
 
 #: Strumień zdarzeń okna (odpowiednik `tui_edycje.jsonl` terminala).
 PLIK_ZDARZEN = "gui_dziennik.jsonl"

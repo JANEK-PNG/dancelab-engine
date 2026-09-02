@@ -19,7 +19,12 @@ import traceback
 from typing import Any
 
 from dancelab.stan import (budowa, cue, dziennik, edycje, odtwarzacz, plan,
-                           playlista, przebieg, szew, zapis_cue)
+                           playlista, przebieg, sciezki, szew, zapis_cue)
+
+
+#: Wartość w migawce edycji dla pada ZDJĘTEGO — odróżnia „zdjęty" od
+#: „przesunięty na 0 ms", bo to dwie różne decyzje DJ-a.
+ZDJETY = "zdjety"
 
 
 def _bezpiecznie(fn):
@@ -52,6 +57,12 @@ class Most:
         self._analizy: dict[str, Any] = {}
         self._katalog = katalog or self.KATALOG_ANALIZ
         self._spis: list[dict[str, Any]] = []
+        # Indeks spisu po identyfikatorze — budowany LENIWIE, patrz
+        # `_wpis_spisu`. Bez niego cztery miejsca szukały utworu przez
+        # `next(u for u in self._spis ...)`, liniowo po 8261 wpisach, a
+        # `filary()` robiło to raz na filar przy każdym klawiszu w szukajce.
+        self._po_id: dict[str, dict[str, Any]] = {}
+        self._po_id_dla: tuple[int, int] | None = None
         # Budowa setu trwa dziesiątki sekund. W pywebview wywołanie z JS jest
         # synchroniczne, więc budowanie wprost zamroziłoby okno — stąd wątek
         # i stan odpytywany przez `postep_budowy`.
@@ -79,8 +90,16 @@ class Most:
         # Nakładka edycji przeżywa przebudowę setu (celowo — ręczne pady DJ-a
         # nie znikają, bo silnik policzył nowy plan). Werdykt musi jednak
         # odróżniać nadpisanie TEJ propozycji od nadpisania sprzed niej —
-        # stąd migawka kluczy edycji zastanych w chwili budowy planu.
-        self._edycje_sprzed_planu: set[str] = set()
+        # stąd migawka edycji zastanych w chwili budowy planu.
+        #
+        # WARTOŚCI, nie same klucze. Zbiór kluczy nie umiał odróżnić „pad
+        # postawiony przed budową" od „ten sam pad poprawiony PO obejrzeniu
+        # propozycji" — `cue_edycje.przesun` nadpisuje wpis pod tym samym
+        # kluczem, więc reakcja na plan wchodziła do dziennika ze znacznikiem
+        # „to nie była reakcja". Porównanie wartości rozstrzyga to samo bez
+        # dopisywania czegokolwiek w trzech miejscach edycji, a cofnięcie do
+        # stanu sprzed planu samo przywraca znacznik.
+        self._edycje_sprzed_planu: dict[str, Any] = {}
         # Edycja setu: to, czym set był oceniany przy budowie (wagi, łuk,
         # planer, okno tempa, kotwica) — panel podmian liczy kandydatów
         # dokładnie tym samym, inaczej sugestie miałyby inny gust niż set.
@@ -188,7 +207,7 @@ class Most:
                 "dlugosc_sec": t.get("duration_sec"),
                 # Grywalny = ma plik na dysku. 7935 z 8261 to strumienie
                 # Apple Music — biblioteka ma to pokazywać, nie ukrywać.
-                "grywalny": str(t.get("source_path") or "").startswith("/"),
+                "grywalny": budowa.ma_plik(t.get("source_path")),
             })
 
         self._spis = spis
@@ -205,7 +224,15 @@ class Most:
         aktywnym oknie odpada, bo okno ma znaczyć to, co mówi. Tonacja jest
         dokładna, fraza szuka w tytule, wykonawcy i gatunku.
         """
-        spis = self.biblioteka(limit=10 ** 9).get("utwory") or []
+        # limit=0: wołamy PO TO, żeby spis się wczytał (i żeby odmowa
+        # wróciła), a nie po kopię ośmiu tysięcy wpisów na każdy klawisz.
+        wynik_spisu = self.biblioteka(limit=0)
+        # Odmowa biblioteki (brak katalogu analiz) jest ODPOWIEDZIĄ, nie zerem.
+        # Przepuszczona przez `.get(...) or []` wyglądała jak „nic nie pasuje" —
+        # a to ADR-005: każde „nie wiem" ma swój piksel.
+        if "blad" in wynik_spisu:
+            return wynik_spisu
+        spis = self._spis
         f = (fraza or "").strip().lower()
         ton = (tonacja or "").strip().upper()
         lo = hi = None
@@ -216,8 +243,12 @@ class Most:
             if blad:
                 return {"blad": blad, "pole": "bpm"}
 
-        ulubione = set(self.ulubione().get("ulubione") or [])
-        filary = {w["track_id"] for w in (self.filary().get("filary") or [])}
+        odp_ulub, odp_filary = self.ulubione(), self.filary()
+        for odp in (odp_ulub, odp_filary):
+            if "blad" in odp:
+                return odp
+        ulubione = set(odp_ulub.get("ulubione") or [])
+        filary = {w["track_id"] for w in (odp_filary.get("filary") or [])}
 
         wynik = []
         for u in spis:
@@ -259,7 +290,7 @@ class Most:
             repo = FileAnalysisRepository(self._katalog)
             self._analizy[track_id] = repo.get(track_id)
         wynik = przebieg.zbuduj(self._analizy[track_id]).do_slownika()
-        wpis = next((u for u in self._spis if u["track_id"] == track_id), None)
+        wpis = self._wpis_spisu(track_id)
         wynik["tytul"] = (wpis or {}).get("tytul", track_id)
         wynik["wykonawca"] = (wpis or {}).get("wykonawca")
         return wynik
@@ -318,18 +349,31 @@ class Most:
         `pady`, dziennik zapisałby, że DJ widział i przyjął coś, czego nie
         miał na oczach.
         """
-        if self._plan_cue is not None:
-            return {"pady": edycje.efektywne_pady(self._plan_cue, self._edycje,
-                                                  track_id),
-                    "zrodlo": "silnik + ręczne"}
-        # Klucz w cue_edycje ma postać "track_id|pad"; zdjęte trzymane osobno.
-        zdjete = set(self._edycje.get("zdjete") or [])
-        wlasne = {
-            klucz.split("|", 1)[1]: wart
-            for klucz, wart in (self._edycje.get("nadpisania") or {}).items()
-            if klucz.startswith(f"{track_id}|") and klucz not in zdjete
-        }
-        return {"pady": wlasne, "zrodlo": "tylko ręczne (brak planu setu)"}
+        # JEDNA droga, także bez planu: `efektywne_pady` z pustym planem robi
+        # dokładnie to samo co ręczna pętla, ale nadaje padom pole `typ`
+        # („reczny") i rozbiera klucz przez `rsplit`. Ręczna wersja gubiła
+        # jedno i drugie — szew z Twoich padów padał na `KeyError: 'typ'`,
+        # a identyfikator z pionową kreską dawał zły pad.
+        jest_plan = self._plan_cue is not None
+        pady = edycje.efektywne_pady(self._plan_cue or _pusty_plan_cue(),
+                                     self._edycje, track_id)
+        return {"pady": pady,
+                "zrodlo": ("silnik + ręczne" if jest_plan
+                           else "tylko ręczne (brak planu setu)")}
+
+    def _migawka_edycji(self) -> dict[str, Any]:
+        """Wartość każdej edycji TERAZ: klucz → position_ms albo `ZDJETY`.
+
+        Porównanie takiej migawki z bieżącym stanem mówi, czy edycja jest tą
+        samą decyzją, którą DJ podjął przed budową planu, czy już inną.
+        """
+        migawka: dict[str, Any] = {
+            klucz: wpis.get("position_ms")
+            for klucz, wpis in (self._edycje.get("nadpisania") or {}).items()}
+        # zdjęcie po nadpisaniu: ostatnia decyzja wygrywa
+        for klucz in (self._edycje.get("zdjete") or []):
+            migawka[klucz] = ZDJETY
+        return migawka
 
     def _kontekst_propozycji(self, track_id: str, pad: str) -> dict[str, Any]:
         """Co silnik proponował dla tego pada — o ile DJ to w ogóle oglądał.
@@ -416,7 +460,9 @@ class Most:
 
     #: Gdzie okno odkłada swoje zmiany. Ten sam katalog, w którym TUI trzyma
     #: plany, żeby obie skóry miały jedno miejsce — nie dwa równoległe światy.
-    PLIK_EDYCJI = "data/exports/tui_plany/gui_edycje.json"
+    #: Zakotwiczone w korzeniu repo, nie w `cwd`: okno odpalone z ikony dostaje
+    #: `cwd` od launchd i pisało wtedy do `/data/exports/…`, czyli nigdzie.
+    PLIK_EDYCJI = str(sciezki.KORZEN / "data/exports/tui_plany/gui_edycje.json")
 
     @_bezpiecznie
     def zapisz_edycje(self) -> dict[str, Any]:
@@ -454,8 +500,7 @@ class Most:
         self._edycje["historia"] = []
         # Edycje z dysku pochodzą sprzed bieżącego planu z definicji —
         # werdykt nie ma prawa policzyć ich jako reakcji na jego propozycje.
-        self._edycje_sprzed_planu |= (set(self._edycje["nadpisania"])
-                                      | set(self._edycje["zdjete"]))
+        self._edycje_sprzed_planu.update(self._migawka_edycji())
         return {"wczytano": len(self._edycje["nadpisania"])}
 
     # ------------------------------------------------------------- budowa
@@ -540,9 +585,7 @@ class Most:
                 "minuty": par.minuty, "bpm_min": par.bpm_min,
                 "bpm_max": par.bpm_max, "dj": par.dj}
             self._wagi_budowy = wynik.get("wagi")
-            self._edycje_sprzed_planu = (
-                set(self._edycje.get("nadpisania") or {})
-                | set(self._edycje.get("zdjete") or []))
+            self._edycje_sprzed_planu = self._migawka_edycji()
             self._ctx_edycji = {
                 "wagi": wynik.get("wagi"), "luk": par.luk,
                 "planer": par.planer, "bpm_min": par.bpm_min,
@@ -656,8 +699,12 @@ class Most:
         self._playlista_gotowa = None
         self._plan_cue = None
         # Plan z pliku nie niesie wag budowy, więc panel kandydatów musi
-        # odmówić zamiast liczyć czymkolwiek — mówi to wprost.
+        # odmówić zamiast liczyć czymkolwiek — mówi to wprost. Wagi budowy
+        # zerujemy TU RAZEM z kontekstem: zostawione, wchodziły do szwu planu
+        # B z setu A i lądowały w werdykcie jako wagi, którymi B rzekomo
+        # powstał. Werdykt ma mówić „nie znam", a nie cudzą liczbę.
         self._ctx_edycji = None
+        self._wagi_budowy = None
         self._parametry_budowy = dict(wynik.get("parametry") or {})
         plan.WSKAZNIK.parent.mkdir(parents=True, exist_ok=True)
         plan.WSKAZNIK.write_text(
@@ -1067,14 +1114,28 @@ class Most:
         from dancelab.tui.user_store import save_state
         save_state(self._stan_uzytkownika(), self._katalog)
 
+    def _wpis_spisu(self, track_id: str) -> dict[str, Any] | None:
+        """Wpis biblioteki po identyfikatorze. Indeks budowany na żądanie.
+
+        Indeks NIE jest polem ustawianym przy wczytaniu spisu: `_spis` bywa
+        podstawiany wprost (testy, a jutro inne źródło puli), a dwa pola,
+        które mogą się rozjechać, rozjadą się — tytuł filara wychodził wtedy
+        jako „?". Kluczem przebudowy jest tożsamość listy plus jej długość,
+        więc i podmiana, i dopisanie w miejscu trafiają w przebudowę.
+        """
+        znacznik = (id(self._spis), len(self._spis))
+        if self._po_id_dla != znacznik:
+            self._po_id = {u["track_id"]: u for u in self._spis}
+            self._po_id_dla = znacznik
+        return self._po_id.get(track_id)
+
     def _sciezka_utworu(self, track_id: str) -> str:
         """Ścieżka pliku utworu — filary trzymają ID ORAZ ścieżkę, żeby
         przeżyć przebudowę katalogu analiz."""
         s = self._sciezka(track_id)
         if s:
             return s
-        wpis = next((u for u in self._spis if u["track_id"] == track_id), None)
-        return (wpis or {}).get("sciezka") or ""
+        return (self._wpis_spisu(track_id) or {}).get("sciezka") or ""
 
     @_bezpiecznie
     def playlisty(self) -> dict[str, Any]:
@@ -1122,7 +1183,7 @@ class Most:
         wpisy = []
         for e in filary_wpisy(stan):
             tid = e.get("track_id")
-            spis = next((u for u in self._spis if u["track_id"] == tid), None)
+            spis = self._wpis_spisu(tid)
             wpisy.append({
                 "track_id": tid,
                 "rola": e.get("rola", ""),
@@ -1211,7 +1272,6 @@ class Most:
         siatka = getattr(analiza, "beatgrid", None)
         return getattr(siatka, "bpm", None) or analiza.track.bpm_estimate
 
-    @_bezpiecznie
     def _graj(self, track_id: str, pad: str = "") -> dict[str, Any]:
         """P na utworze: gra→pauza, ten sam→wznowienie, inny→od zera.
 
@@ -1251,13 +1311,23 @@ class Most:
                         "opis": self._tytul(track_id), "skad": skad}
         return dict(self._stan_odtwarzania(), akcja=akcja)
 
-    @_bezpiecznie
     def _stop_dzwieku(self) -> dict[str, Any]:
-        """Zatrzymanie z zapamiętaniem miejsca — kolejne P wznawia stąd."""
+        """Zatrzymanie z zapamiętaniem miejsca — kolejne P wznawia stąd.
+
+        Szew jest wyjątkiem i musi nim być: odtwarzacz pamięta ścieżkę PLIKU
+        szwu z cache, a P dotyczy utworu — więc po pauzie szwu żadne P go nie
+        wznowi. Zapamiętana pozycja obiecywałaby wtedy coś, czego nie ma
+        („pauza — wznawia od tego miejsca"), a P puszczałoby utwór A od zera.
+        Zatrzymanie szwu jest ZATRZYMANIEM.
+        """
         gralo = self._audio.stop()
+        if (self._gra_co or {}).get("rodzaj") == "szew":
+            self._audio.zapomnij_pozycje()
+            self._gra_co = None
+            self._szew_stan = {"stan": "bezczynny"}
+            return dict(self._stan_odtwarzania(), akcja="stop")
         return dict(self._stan_odtwarzania(), akcja="pauza" if gralo else "cisza")
 
-    @_bezpiecznie
     def _skocz(self, uderzenia: int) -> dict[str, Any]:
         """±N uderzeń wg tempa utworu, nie wg sekund. Restart procesu daje
         0,1–0,2 s ciszy — to podgląd, nie miks na żywo."""
@@ -1266,7 +1336,6 @@ class Most:
             return {"blad": blad}
         return dict(self._stan_odtwarzania(), akcja="skok")
 
-    @_bezpiecznie
     def _stan_odtwarzania(self) -> dict[str, Any]:
         """Odpytywane co ćwierć sekundy, gdy coś gra — stąd głowica na fali.
 
@@ -1385,7 +1454,6 @@ class Most:
         from dancelab.core.config import load_config, load_weights
         return load_weights(load_config().weights_file)
 
-    @_bezpiecznie
     def _postep_szwu(self) -> dict[str, Any]:
         """Stan renderu; gdy gotowy — DOPIERO TU rusza dźwięk, pod zamkiem,
         tak jak każde inne dotknięcie odtwarzacza."""
@@ -1419,6 +1487,11 @@ class Most:
     # pywebview daje każdemu wywołaniu z JS własny wątek, a odpytywanie stanu
     # (4×/s) samo zabija martwy proces — dwa wątki naraz w jednym `Popen`
     # kończyły się ciszą po naciśnięciu P.
+    #
+    # `@_bezpiecznie` siedzi TYLKO tutaj. Na rdzeniach powyżej był drugi raz
+    # i cicho zmieniał kształt odpowiedzi: `dict(self._stan_odtwarzania(),
+    # akcja="pauza")` na błędzie sklejało `{"blad", "slad", "akcja"}` — widok
+    # takiego kształtu nie zna.
 
     @_bezpiecznie
     def graj(self, track_id: str, pad: str = "") -> dict[str, Any]:
@@ -1446,7 +1519,7 @@ class Most:
             return self._postep_szwu()
 
     def _tytul(self, track_id: str) -> str:
-        wpis = next((u for u in self._spis if u["track_id"] == track_id), None)
+        wpis = self._wpis_spisu(track_id)
         if wpis:
             return wpis.get("tytul") or track_id
         analiza = self._analizy.get(track_id)
@@ -1618,10 +1691,16 @@ class Most:
                  "przeszlo_domyslnie": 0, "utwory_z_widzianymi": 0,
                  "edycje_sprzed_planu": 0}
 
+        teraz = self._migawka_edycji()
+
         def sprzed(klucz: str, wpis: dict[str, Any]) -> dict[str, Any]:
             # Edycja zastana w chwili budowy planu nie jest reakcją na jego
             # propozycje — bez tego znacznika „nadpisany" kłamałby o zgodzie.
-            if klucz in self._edycje_sprzed_planu:
+            # Liczy się WARTOŚĆ, nie sam klucz: pad poprawiony po obejrzeniu
+            # propozycji stoi pod tym samym kluczem, ale jest już inną
+            # decyzją i ma się liczyć jako reakcja.
+            znany = klucz in self._edycje_sprzed_planu
+            if znany and self._edycje_sprzed_planu[klucz] == teraz.get(klucz):
                 wpis["sprzed_planu"] = True
                 miara["edycje_sprzed_planu"] += 1
             return wpis

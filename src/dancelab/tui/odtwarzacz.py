@@ -138,6 +138,11 @@ class Odtwarzacz:
             return self._path
         return None
 
+    def zapomnij_pozycje(self) -> None:
+        """Zeruj zapamiętane miejsce. Dla rzeczy, których się NIE wznawia —
+        szew jest renderem pary, nie utworem, i „wznów szew" nie znaczy nic."""
+        self._offset = 0.0
+
     def stop(self) -> bool:
         """Pauza z zapamiętaniem pozycji. True, jeśli coś grało."""
         gralo = self.gra()

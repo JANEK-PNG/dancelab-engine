@@ -404,8 +404,25 @@ def bez_pliku(track) -> str | None:
     tam odtwarzacz ma prawo powiedzieć swoje.
     """
     sciezka = str(getattr(track, "source_path", "") or "")
-    if sciezka and not sciezka.startswith("/"):
-        return (f"{(track.title or sciezka)[:38]}: nie ma pliku na dysku "
-                f"(utwór ze strumienia) — zagrasz go w Rekordboksie, "
-                f"tutaj policzymy tylko dobór")
-    return None
+    if ma_plik(sciezka):
+        return None
+    nazwa = (getattr(track, "title", None) or sciezka or "ten utwór")[:38]
+    if not sciezka:
+        # Analiza bez ścieżki to trzeci przypadek, nie brak przypadku. Przed
+        # 02.09 wypadał tu `None`, czyli „graj" — i okno rysowało ♪ przy
+        # utworze, którego odtwarzacz dostawał jako napis "None".
+        return f"{nazwa}: analiza nie zna ścieżki pliku — nie mam czego zagrać"
+    return (f"{nazwa}: nie ma pliku na dysku "
+            f"(utwór ze strumienia) — zagrasz go w Rekordboksie, "
+            f"tutaj policzymy tylko dobór")
+
+
+def ma_plik(sciezka: object) -> bool:
+    """Czy ta ścieżka wskazuje plik na dysku. Jedno kryterium dla obu skór.
+
+    Biblioteka okna czyta same NAGŁÓWKI analiz i ma słownik, nie obiekt
+    `track`, więc potrzebuje predykatu bez `track` — ale kryterium musi być
+    to samo, co w `bez_pliku`. Dwa oddzielne testy tej samej rzeczy rozjechały
+    się dokładnie na pustej ścieżce: lista mówiła STR, tabela setu ♪.
+    """
+    return str(sciezka or "").startswith("/")
