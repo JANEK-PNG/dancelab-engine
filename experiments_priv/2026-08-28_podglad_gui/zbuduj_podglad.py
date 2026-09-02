@@ -100,6 +100,9 @@ window.pywebview = {api: {
   stop_dzwieku: () => { window.__GRA__ = null;
                         return echo({gra: false, pozycja_sec: 0}); },
   graj_szew: () => { window.__SZEW__ = Date.now(); return echo({ruszylo: true}); },
+  wersja: () => echo({dancelab: 'podgląd'}),
+  zapisz_plan: (nazwa) => echo({zapisano: '/plany/plan_x.json', nazwa: nazwa || 'z parametrów', utworow: 17, edycji: 2}),
+  usun_plan: () => echo({kosz: '/plany/kosz/plan_x.json', plany: []}),
   postep_szwu: () => {
     if (!window.__SZEW__) return echo({stan: 'bezczynny'});
     if (Date.now() - window.__SZEW__ < 1200) return echo({stan: 'trwa'});

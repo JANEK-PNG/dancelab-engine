@@ -54,6 +54,12 @@ class Most:
         # ma `.tracks`), a `_kolejnosc` to lista identyfikatorów setu.
         self._plan_cue: Any = None
         self._kolejnosc: list[str] = []
+        # Plan silnika i historia edycji setu — to, co plik planu niesie obok
+        # kolejności. Terminal trzymał je od 04.08 (`_engine_order`, `_edits`);
+        # okno do 02.09 zapisywało plan tylko automatem po budowie, więc plan
+        # zapisany pod nazwą po edycjach był w oknie niemożliwy.
+        self._plan_silnika: list[str] = []
+        self._edycje_setu: list[dict[str, Any]] = []
         self._analizy: dict[str, Any] = {}
         self._katalog = katalog or self.KATALOG_ANALIZ
         self._spis: list[dict[str, Any]] = []
@@ -565,6 +571,8 @@ class Most:
                                   postep=etap, analizy=pula,
                                   stan_uzytkownika=stan_u, dokarmione=True)
             self._kolejnosc = list(wynik["kolejnosc"])
+            self._plan_silnika = list(wynik["kolejnosc"])
+            self._edycje_setu = []
             self._zapis_gotowy = None
             for a in wynik["by_id"].values():
                 self._analizy[a.track.track_id] = a
@@ -692,6 +700,36 @@ class Most:
         return {"plany": plan.lista()}
 
     @_bezpiecznie
+    def zapisz_plan(self, nazwa: str = "") -> dict[str, Any]:
+        """Ctrl+S: zapisz bieżący set pod nazwą — z planem silnika i historią
+        edycji, tak jak terminal. Zapis liczy się jako UŻYCIE setu (odcisk do
+        historii świeżości), bo tak liczy go terminal przy S."""
+        if not self._kolejnosc:
+            return {"blad": "najpierw zbuduj set albo wczytaj plan — "
+                            "nie ma czego zapisać"}
+        mianowana = (nazwa or "").strip() or self._nazwa_playlisty("").replace(
+            "DanceLab ", "", 1)
+        sciezka = plan.zapisz(self._kolejnosc, self._analizy, nazwa=mianowana,
+                              parametry=dict(self._parametry_budowy or {}),
+                              plan_silnika=self._plan_silnika,
+                              edycje=self._edycje_setu)
+        historia = self._utrwal_odcisk("zapisany plan")
+        blad = dziennik.dopisz("zapis_planu", skora="gui", nazwa=mianowana,
+                               plan=str(sciezka), utworow=len(self._kolejnosc),
+                               edycji=len(self._edycje_setu))
+        wynik = {"zapisano": str(sciezka), "nazwa": mianowana,
+                 "utworow": len(self._kolejnosc), "edycji": len(self._edycje_setu)}
+        if historia:
+            wynik["historia"] = historia
+        return self._z_dziennikiem(wynik, blad)
+
+    @_bezpiecznie
+    def usun_plan(self, sciezka: str) -> dict[str, Any]:
+        """X na liście planów: do kosza obok planów, nic nie znika bez śladu."""
+        cel = plan.usun(str(sciezka))
+        return {"kosz": str(cel), "plany": plan.lista()}
+
+    @_bezpiecznie
     def wczytaj_plan(self, sciezka: str) -> dict[str, Any]:
         """Rusz wczytywanie planu W TLE. Wynik odbiera `postep_planu`.
 
@@ -726,6 +764,8 @@ class Most:
             wynik.setdefault("powod", "żaden utwór planu nie jest w puli")
             return wynik
         self._kolejnosc = list(wynik["kolejnosc"])
+        self._plan_silnika = list(wynik.get("plan_silnika") or [])
+        self._edycje_setu = list(wynik.get("edycje") or [])
         self._zapis_gotowy = None
         self._playlista_gotowa = None
         self._plan_cue = None
@@ -823,6 +863,15 @@ class Most:
         """
         self._kandydaci_meta = {}
         return {"zamkniete": True}
+
+    def _zanotuj_edycje(self, typ: str, **pola: Any) -> str | None:
+        """Każda edycja kolejności idzie w DWA miejsca, jak w terminalu:
+        do historii setu (ląduje w pliku planu przy zapisie pod nazwą) i do
+        dziennika decyzji. Zwraca ostrzeżenie dziennika albo None."""
+        import time
+        self._edycje_setu.append(
+            {"ts": time.strftime("%Y-%m-%d %H:%M:%S"), "typ": typ, **pola})
+        return dziennik.dopisz(typ, skora="gui", **pola)
 
     def _zrodlo_kandydata(self, tid: str) -> dict[str, Any]:
         """Skąd wziął się wstawiony utwór — z listy silnika czy z ręki DJ-a.
@@ -946,7 +995,7 @@ class Most:
             return {"blad": "ten utwór już jest w secie"}
         stary = self._kolejnosc[idx]
         self._kolejnosc[idx] = track_id
-        blad = dziennik.dopisz("podmiana", skora="gui", pozycja=idx + 1,
+        blad = self._zanotuj_edycje("podmiana", pozycja=idx + 1,
             **{"out": self._sciezka(stary), "in": self._sciezka(track_id)},
             **self._zrodlo_kandydata(track_id))
         self._kandydaci_meta = {}
@@ -963,7 +1012,7 @@ class Most:
         if track_id in self._kolejnosc:
             return {"blad": "ten utwór już jest w secie"}
         self._kolejnosc.insert(idx + 1, track_id)
-        blad = dziennik.dopisz("dopisanie", skora="gui", pozycja=idx + 2,
+        blad = self._zanotuj_edycje("dopisanie", pozycja=idx + 2,
             **{"in": self._sciezka(track_id)},
             **self._zrodlo_kandydata(track_id))
         self._kandydaci_meta = {}
@@ -977,7 +1026,7 @@ class Most:
             return {"blad": f"pozycja {idx + 1} poza setem"}
         tid = self._kolejnosc.pop(idx)
         filar = tid in ((self._ctx_edycji or {}).get("filary") or [])
-        blad = dziennik.dopisz("ciecie", skora="gui", pozycja=idx + 1,
+        blad = self._zanotuj_edycje("ciecie", pozycja=idx + 1,
                                out=self._sciezka(tid), filar=filar)
         wynik = self._po_edycji_setu()
         if filar:
@@ -998,7 +1047,7 @@ class Most:
             return wynik
         self._kolejnosc[idx], self._kolejnosc[j] = \
             self._kolejnosc[j], self._kolejnosc[idx]
-        blad = dziennik.dopisz("przesuniecie", skora="gui", z=idx + 1, na=j + 1,
+        blad = self._zanotuj_edycje("przesuniecie", z=idx + 1, na=j + 1,
                                utwor=self._sciezka(self._kolejnosc[j]))
         wynik = self._po_edycji_setu()
         wynik["na"] = j

@@ -913,10 +913,34 @@ async function otworzPlany() {
         <td class="num">${p.bpm || '—'}</td>
         <td>${(p.nazwa || '').replace(/</g, '&lt;')}${
           p.biezacy ? ' <span class="drobne">— bieżący</span>' : ''}${
-          p.dj ? ` <span class="drobne">jak ${p.dj}</span>` : ''}</td>
+          p.dj ? ` <span class="drobne">jak ${p.dj}</span>` : ''}
+          <button class="zdejmij" data-usun="${i}" title="do kosza (obok planów, nic nie znika)">✕</button></td>
       </tr>`).join('')}</tbody></table>`;
   $('#tabela-planow').querySelectorAll('tr[data-plan]').forEach(tr =>
     tr.addEventListener('click', () => wczytajPlan(plany[Number(tr.dataset.plan)])));
+  $('#tabela-planow').querySelectorAll('button[data-usun]').forEach(b =>
+    b.addEventListener('click', e => {
+      e.stopPropagation();                 // klik w ✕ nie wczytuje planu
+      usunPlan(plany[Number(b.dataset.usun)]);
+    }));
+}
+
+async function usunPlan(p) {
+  // Usunięcie MIĘKKIE — plik idzie do kosza obok planów; bez potwierdzenia,
+  // bo nic nie znika bez śladu (ta sama reguła co X w terminalu).
+  const odp = await api().usun_plan(p.path);
+  if (czyBlad(odp, 'Usuwanie planu')) return;
+  rysujNotki([`plan przeniesiony do kosza: ${(p.nazwa || p.path).slice(0, 48)}`]);
+  otworzPlany();                           // świeża lista
+}
+
+async function zapiszPlan() {
+  if (!api()) return;
+  const odp = await api().zapisz_plan($('#p-nazwa-planu').value);
+  if (czyBlad(odp, 'Zapis planu')) return;
+  $('#p-nazwa-planu').value = odp.nazwa || '';
+  rysujNotki([`PLAN ZAPISANY: ${odp.nazwa} (${odp.utworow} utworów, ${odp.edycji} edycji)`,
+              odp.historia, odp.dziennik].filter(Boolean));
 }
 
 async function wczytajPlan(p) {
@@ -1032,6 +1056,8 @@ async function start() {
 
   if (!api()) { $('#tytul').textContent = 'brak mostu do Pythona'; return; }
 
+  const wersja = await api().wersja();
+  if (wersja && wersja.dancelab) $('#wersja').textContent = `v${wersja.dancelab}`;
   const b = await api().biblioteka(100000);   // spis to same nagłówki
   if (b.blad) {
     $('#spis').innerHTML = `<div class="pusto">${b.blad}</div>`;
@@ -1104,6 +1130,7 @@ document.querySelectorAll('#nawigacja button').forEach(b =>
 $('#btn-buduj').addEventListener('click', budujSet);
 $('#btn-policz').addEventListener('click', policzZapis);
 $('#btn-plany').addEventListener('click', otworzPlany);
+$('#btn-zapisz-plan').addEventListener('click', zapiszPlan);
 document.querySelectorAll('#dj-filtry button').forEach(b =>
   b.addEventListener('click', () => {
     stan.djFiltr = b.dataset.df;
@@ -1247,6 +1274,19 @@ async function graj(pad) {
   pilnujGry(!!odp.gra);
 }
 
+/* Skoki z klawiatury — te same co w terminalu: ←→ 8 uderzeń, z Shiftem 32,
+   PageUp/PageDown (albo ⌘⇧←→) 128. Tylko gdy coś gra; poza tym strzałki
+   należą do padów albo do listy. */
+function skokZKlawisza(e) {
+  if (!stan.gra.gra) return false;
+  const strona = e.key === 'PageUp' || e.key === 'PageDown';
+  const strzalka = e.key === 'ArrowLeft' || e.key === 'ArrowRight';
+  if (!strona && !strzalka) return false;
+  const krok = strona ? 128 : (e.metaKey && e.shiftKey) ? 128 : e.shiftKey ? 32 : 8;
+  const znak = (e.key === 'PageUp' || e.key === 'ArrowLeft') ? -1 : 1;
+  skok(znak * krok); e.preventDefault(); return true;
+}
+
 async function skok(uderzenia) {
   const odp = await api().skocz(uderzenia);
   if (czyBlad(odp, 'skok')) return;
@@ -1308,6 +1348,9 @@ document.addEventListener('keydown', e => {
       return;
     }
     if (e.key === 'o' || e.key === 'O') { otworzPlany(); return; }
+    if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) {
+      zapiszPlan(); e.preventDefault(); return;
+    }
     if (e.key === 'Enter' && stan.kandWybor !== null) {
       potwierdzKandydata(); e.preventDefault(); return;
     }
@@ -1324,8 +1367,7 @@ document.addEventListener('keydown', e => {
     if (e.key === 's' || e.key === 'S') { graj_szew(false); return; }
     // strzałki poziome należą do odtwarzacza TYLKO wtedy, gdy coś gra —
     // ta sama reguła co w terminalu, żeby nie zabrać ich edycji
-    if (stan.gra.gra && e.key === 'ArrowLeft') { skok(-8); e.preventDefault(); return; }
-    if (stan.gra.gra && e.key === 'ArrowRight') { skok(8); e.preventDefault(); return; }
+    if (skokZKlawisza(e)) return;
     if (e.shiftKey && e.key === 'ArrowUp') { przesunPozycje(-1); e.preventDefault(); return; }
     if (e.shiftKey && e.key === 'ArrowDown') { przesunPozycje(1); e.preventDefault(); return; }
     if (e.key === 'ArrowUp' && stan.pozycja !== null) {
@@ -1352,8 +1394,7 @@ document.addEventListener('keydown', e => {
   }
   if (e.key === 's' || e.key === 'S') { graj_szew(true); return; }
   // ←→ to przesuwanie pada; odtwarzacz zabiera je WYŁĄCZNIE podczas grania
-  if (stan.gra.gra && e.key === 'ArrowLeft') { skok(-8); e.preventDefault(); return; }
-  if (stan.gra.gra && e.key === 'ArrowRight') { skok(8); e.preventDefault(); return; }
+  if (skokZKlawisza(e)) return;
   if (e.key === 'ArrowLeft') { przesun(-1); e.preventDefault(); }
   if (e.key === 'ArrowRight') { przesun(1); e.preventDefault(); }
   if (e.key === 'Backspace' || e.key === 'Delete') { zdejmij(); e.preventDefault(); }

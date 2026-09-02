@@ -3192,13 +3192,13 @@ class DanceLabTUI(App):
     def _usun_plan(self) -> None:
         """X na liście planów: usunięcie MIĘKKIE (do kosza obok planów),
         lista odświeża się od razu."""
-        from dancelab.tui.plan_store import delete_plan
+        from dancelab.stan import plan as _stan_plan
         choice = self._panel_choice("plans")
         if choice is None:
             self._note("zaznacz plan do usunięcia")
             return
         try:
-            cel = delete_plan(choice)
+            cel = _stan_plan.usun(choice)
         except Exception as exc:  # noqa: BLE001
             self._note(f"nie usunąłem planu: {exc}")
             return

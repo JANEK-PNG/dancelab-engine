@@ -40,6 +40,19 @@ def zapisz(order: list[str], by_id: dict, *, nazwa: str, parametry: dict,
     return sciezka
 
 
+def usun(sciezka: str | pathlib.Path) -> pathlib.Path:
+    """Usuń plan MIĘKKO (do kosza obok planów) — jedna droga dla obu skór.
+
+    Gdy to był plan BIEŻĄCY, wskaźnik znika razem z nim: „bieżący plan"
+    wskazujący na kosz udawałby, że set jest, a go nie ma.
+    """
+    cel = plan_store.delete_plan(sciezka)
+    biezacy = sciezka_biezacego(musi_istniec=False)
+    if biezacy is not None and biezacy.resolve() == pathlib.Path(sciezka).resolve():
+        WSKAZNIK.unlink(missing_ok=True)
+    return cel
+
+
 def sciezka_biezacego(*, musi_istniec: bool = True) -> pathlib.Path | None:
     """Plan, nad którym pracujemy, albo None.
 

@@ -9,6 +9,7 @@
 
 <div class="stan">
   <span class="marka">DanceLab</span>
+  <span class="drobne" id="wersja"></span>
   <span id="stan-rb"><span class="kropka czekam"></span> sprawdzam Rekordboxa…</span>
   <div class="prawa">
     <span>gęstość</span>
@@ -126,6 +127,9 @@
         <label class="param"><span>ziarno</span>
           <input id="p-ziarno" placeholder="losowe"></label>
         <button class="btn" id="btn-plany" title="wczytaj zapisany plan (O)">Plany <kbd>O</kbd></button>
+        <label class="param"><span>nazwa planu</span>
+          <input id="p-nazwa-planu" placeholder="puste = z parametrów" spellcheck="false"></label>
+        <button class="btn" id="btn-zapisz-plan" title="zapisz set pod nazwą (⌘S)">Zapisz plan <kbd>⌘S</kbd></button>
         <button class="btn glowny" id="btn-buduj">Buduj set <kbd>B</kbd></button>
       </div>
       <div class="narzedzia druga-linia">
@@ -310,7 +314,7 @@
   <div class="skroty" id="skroty-szew">
     <span><b>klik</b> postaw pad</span>
     <span><b>⌫</b> zdejmij</span>
-    <span><b>←→</b> o uderzenie</span>
+    <span><b>←→</b> o uderzenie · gdy gra: skok 8, <b>⇧</b> 32, <b>PgUp/Dn</b> 128</span>
     <span><b>⌘Z</b> cofnij</span>
     <span><b>I</b> info</span>
     <span><b>U</b> ♥ ulubiony</span>
@@ -327,7 +331,9 @@
     <span><b>⇧↑↓</b> przesuń</span>
     <span><b>C</b> szew</span>
     <span><b>O</b> plany</span>
+    <span><b>⌘S</b> zapisz plan</span>
     <span><b>B</b> buduj</span>
+    <span><b>←→</b> skok 8 · <b>⇧</b> 32 · <b>PgUp/Dn</b> 128</span>
     <span><b>P</b> graj / pauza</span>
     <span><b>S</b> szew</span>
   </div>
