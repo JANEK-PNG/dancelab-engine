@@ -1068,17 +1068,9 @@ class DanceLabTUI(App):
                        f"(litera A–H), wtedy zszyję parę z Twoich padów")
             return
 
-        def wybierz(pady: dict, typ: str, ostatni: bool) -> tuple[str, dict]:
-            kand = [(k, v) for k, v in pady.items() if v["typ"] == typ] \
-                or list(pady.items())
-            kand.sort(key=lambda kv: kv[1]["position_ms"])
-            return kand[-1] if ostatni else kand[0]
-
-        if self._cue_wybor and self._cue_wybor in pady_a:
-            pad_a, p_a = self._cue_wybor, pady_a[self._cue_wybor]
-        else:
-            pad_a, p_a = wybierz(pady_a, "mix_out", ostatni=True)
-        pad_b, p_b = wybierz(pady_b, "mix_in", ostatni=False)
+        from dancelab.tui.seam_preview import wybierz_pady_szwu
+        pad_a, p_a, pad_b, p_b = wybierz_pady_szwu(pady_a, pady_b,
+                                                    self._cue_wybor)
         self._note(f"szew z padów: wyjście {pad_a} → wejście {pad_b} "
                    f"({self._cue_nazwa(nastepny)[:30]})")
         self._szew_z_padow_worker(self._cue_track, nastepny,
@@ -3469,10 +3461,8 @@ class DanceLabTUI(App):
         z Biblioteki dało się policzyć, ile podmian kończy się wyborem
         z NASZYCH kandydatów, a ile własnym. Nieznane zostaje nieznane.
         """
-        meta = self._suggest_meta.get(tid)
-        if meta is None:
-            return {"zrodlo": "reka_dj"}
-        return dict(meta)
+        from dancelab.stan.dziennik import zrodlo_kandydata
+        return zrodlo_kandydata(self._suggest_meta, tid)
 
     def _log_verdict(self, typ: str, **fields) -> None:
         """Każda ręczna edycja to werdykt DJ-a — dopisujemy, nie gubimy."""

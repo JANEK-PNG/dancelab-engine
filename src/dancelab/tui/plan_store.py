@@ -19,7 +19,10 @@ import json
 import pathlib
 import time
 
-PLANS_DIR = pathlib.Path("data/exports/tui_plany")
+from dancelab.sciezki import KORZEN
+
+# Na korzeniu repo, nie w `cwd` — patrz `stan/sciezki.py`.
+PLANS_DIR = KORZEN / "data/exports/tui_plany"
 
 
 def save_plan(order, by_id, *, name: str, params: dict,

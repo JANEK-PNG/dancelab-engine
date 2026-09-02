@@ -38,6 +38,18 @@ KATALOG = KORZEN / "experiments_priv" / "2026-08-04_werdykty"
 PLIK_ZDARZEN = "gui_dziennik.jsonl"
 
 
+def zrodlo_kandydata(meta: dict[str, dict[str, Any]], tid: str) -> dict[str, Any]:
+    """Skąd wziął się utwór wstawiony do setu — z listy silnika czy z ręki DJ-a.
+
+    `meta` to rangi z OTWARTEGO panelu kandydatów (tid → ranga/score/tryb).
+    Wybór bez wpisu jest uczciwie opisany jako własny, nie zgadywany — dzień
+    po dodaniu wstawiania z Biblioteki da się policzyć, ile podmian kończy
+    się wyborem z NASZYCH kandydatów. Jedna definicja dla obu skór.
+    """
+    wpis = meta.get(tid)
+    return dict(wpis) if wpis else {"zrodlo": "reka_dj"}
+
+
 def dopisz(typ: str, **pola: Any) -> str | None:
     """Dopisz jedno zdarzenie do strumienia; błąd ZWRÓĆ zamiast rzucać.
 

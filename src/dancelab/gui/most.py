@@ -796,8 +796,7 @@ class Most:
         Ta sama zasada co w terminalu (`app.py::_zrodlo_kandydata`): wybór bez
         metadanych panelu jest uczciwie opisany jako własny, nie zgadywany.
         """
-        meta = self._kandydaci_meta.get(tid)
-        return dict(meta) if meta else {"zrodlo": "reka_dj"}
+        return dziennik.zrodlo_kandydata(self._kandydaci_meta, tid)
 
     @_bezpiecznie
     def kandydaci(self, pozycja: int, tryb: str = "smart",
@@ -1377,7 +1376,7 @@ class Most:
 
     @_bezpiecznie
     def graj_szew(self, track_id: str, nastepny_id: str = "",
-                  z_padow: bool = False) -> dict[str, Any]:
+                  z_padow: bool = False, pad: str = "") -> dict[str, Any]:
         """Zszyj parę i posłuchaj przejścia. Render leci w wątku.
 
         Dwa różne szwy tej samej pary, oba prawdziwe i nazwane:
@@ -1403,7 +1402,7 @@ class Most:
                                 f"wtedy zszyję parę z Twoich padów"}
         self._szew_stan = {"stan": "trwa"}
         threading.Thread(target=self._szew_w_tle,
-                         args=(track_id, drugi, bool(z_padow)),
+                         args=(track_id, drugi, bool(z_padow), pad or None),
                          daemon=True).start()
         return {"ruszylo": True}
 
@@ -1416,7 +1415,8 @@ class Most:
                 return self._kolejnosc[i + 1]
         return None
 
-    def _szew_w_tle(self, tid_a: str, tid_b: str, z_padow: bool) -> None:
+    def _szew_w_tle(self, tid_a: str, tid_b: str, z_padow: bool,
+                    wybrany: str | None = None) -> None:
         """Render jest CICHY — do pliku w cache. Dźwięku tu nie ma i nie może
         być: granie ma być skutkiem gestu DJ-a, nie skutkiem końca renderu."""
         try:
@@ -1424,18 +1424,15 @@ class Most:
             if z_padow:
                 pady_a = self._pady_bez_sladu(tid_a)["pady"]
                 pady_b = self._pady_bez_sladu(tid_b)["pady"]
-
-                def wybierz(pady: dict, typ: str, ostatni: bool) -> dict:
-                    kand = [v for v in pady.values() if v["typ"] == typ] \
-                        or list(pady.values())
-                    kand.sort(key=lambda v: v["position_ms"])
-                    return kand[-1] if ostatni else kand[0]
-
+                # ta sama reguła co w terminalu, z tego samego miejsca —
+                # łącznie z tym, że ZAZNACZONY pad jest wyjściem
+                pad_a, p_a, pad_b, p_b = szew.wybierz_pady_szwu(
+                    pady_a, pady_b, wybrany)
                 info = szew.zbuduj_szew_z_padow(
                     a, b,
-                    cue_a_sec=wybierz(pady_a, "mix_out", True)["position_ms"] / 1000.0,
-                    cue_b_sec=wybierz(pady_b, "mix_in", False)["position_ms"] / 1000.0)
-                etykieta = "szew z Twoich padów"
+                    cue_a_sec=p_a["position_ms"] / 1000.0,
+                    cue_b_sec=p_b["position_ms"] / 1000.0)
+                etykieta = f"szew z Twoich padów ({pad_a} → {pad_b})"
             else:
                 info = szew.zbuduj_szew(a, b, self._wagi_szwu())
                 etykieta = "szew silnika"

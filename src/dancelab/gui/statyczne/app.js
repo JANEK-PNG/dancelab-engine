@@ -1254,7 +1254,9 @@ async function skok(uderzenia) {
 async function graj_szew(zPadow) {
   const cel = utworDoGrania();
   if (!cel) return;
-  const odp = await api().graj_szew(cel.trackId, '', !!zPadow);
+  // Na ekranie 1 ZAZNACZONY pad jest wyjściem z A — jak w terminalu.
+  const odp = await api().graj_szew(cel.trackId, '', !!zPadow,
+                                    zPadow ? (stan.wybrany || '') : '');
   if (odp && odp.blad) {
     $('#opis-gry').classList.add('zle');
     $('#opis-gry').textContent = odp.blad;
