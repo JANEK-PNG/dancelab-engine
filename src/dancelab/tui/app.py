@@ -2572,44 +2572,20 @@ class DanceLabTUI(App):
 
     @work(thread=True, exclusive=True, group="lib")
     def _lib_analyze_worker(self) -> None:
-        """Onboarding: folder → analiza z postępem → Biblioteka od nowa."""
-        from dancelab.core.config import load_config
-        from dancelab.workflows.smart_playlist import (
-            analyze_files, discover_audio_files)
+        """Onboarding: folder → analiza z postępem → Biblioteka od nowa.
+        Sama analiza to `stan.budowa.przeanalizuj_folder` — ta sama, którą
+        woła tryb Folder w budowie i skan folderu w oknie."""
         ui = self.call_from_thread
         folder = self.query_one("#lib-folder", Input).value.strip()
         count = self.query_one("#lib-count", Static)
-        if not folder:
-            ui(self._note, "podaj ścieżkę folderu do analizy")
-            return
         try:
-            files = discover_audio_files(folder)
-            if not files:
-                ui(self._note, f"brak plików audio w: {folder}")
-                return
-            from dancelab.ingestion.bramkarz import przesiej
-            files, odrzucone = przesiej(files)
-            for sciezka, powod in odrzucone[:5]:
-                ui(self._note, f"BRAMKARZ odrzucił: "
-                               f"{pathlib.Path(sciezka).name[:40]} — {powod}")
-            if len(odrzucone) > 5:
-                ui(self._note, f"…i {len(odrzucone) - 5} kolejnych odrzutów")
-            if not files:
-                ui(self._note, "bramkarz odrzucił wszystko — nie ma co analizować")
-                return
-            ui(count.update, f"Analiza {len(files)} plików…")
             self._stop.clear()
-            _, failures = analyze_files(
-                files, load_config("configs/default.yaml"),
-                processed_dir=self.processed_dir,
-                stage_progress=lambda path, stage: ui(
-                    count.update,
-                    f"{stage}: {pathlib.Path(path).name[:48]}"),
-                should_stop=self._stop.is_set,
-            )
-            for f in failures[:5]:
-                ui(self._note, f"nie przeanalizowano "
-                               f"{pathlib.Path(f.source_path).name}: {f.error}")
+            _, notki = _stan_budowa.przeanalizuj_folder(
+                folder, self.processed_dir,
+                mow=lambda tekst: ui(count.update, tekst),
+                przerwij=self._stop.is_set)
+            for n in notki:
+                ui(self._note, n)
             analyses, notes = self._library_analyses()
             for note in notes:
                 ui(self._note, note)

@@ -101,6 +101,8 @@ window.pywebview = {api: {
                         return echo({gra: false, pozycja_sec: 0}); },
   graj_szew: () => { window.__SZEW__ = Date.now(); return echo({ruszylo: true}); },
   wersja: () => echo({dancelab: 'podgląd'}),
+  skanuj_folder: (f) => { window.__SKAN__ = Date.now(); return echo(f ? {ruszylo: true} : {blad: 'podaj ścieżkę folderu do analizy'}); },
+  postep_skanu: () => echo(Date.now() - (window.__SKAN__ || 0) < 1200 ? {stan: 'trwa', etap: 'quick: 03 - Steppers.aiff'} : {stan: 'gotowe', przeanalizowane: 7, notki: ['przeanalizowane: 7 z 7 plików']}),
   ustaw_czas_pada: (tid, pad, tekst) => { const p = window.__PADY__ || (DANE.pady || {pady: {}}).pady; p[pad] = {...p[pad], position_ms: 151000}; window.__PADY__ = p; return echo({pady: p, powod: `pad ${pad} → 2:31 · trafione w takt 12`, position_ms: 151000}); },
   przenies_pad_na_glowice: (tid, pad) => echo({blad: `pad ${pad}: najpierw P — odtwarzacz musi stać na TYM utworze`}),
   propozycje: () => echo({propozycje: [{nazwa: 'INTRO', sec: 0}, {nazwa: 'silnik', sec: 45}, {nazwa: 'BREAK', sec: 95.5}]}),

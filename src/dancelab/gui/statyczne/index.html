@@ -57,6 +57,13 @@
     </div>
     <div class="spis" id="spis"><div class="pusto">wczytuję…</div></div>
     <div class="licznik" id="licznik"></div>
+    <!-- Onboarding: folder z muzyką → analiza (minuty, w tle, z postępem).
+         Nowe analizy lądują w tym samym katalogu, z którego czyta terminal. -->
+    <div class="filtry-lib" id="skan-box">
+      <input id="skan-folder" placeholder="folder z muzyką do przeskanowania" spellcheck="false">
+      <button class="btn maly" id="btn-skan" title="przeanalizuj pliki z folderu (pierwszy raz albo dogranie)">Analizuj</button>
+    </div>
+    <div class="drobne" id="skan-postep" style="padding:0 var(--luz) 6px"></div>
     <div class="skroty lib-skroty">
       <span><b>U</b> ♥ ulubiony</span><span><b>F</b> filar</span>
     </div>
@@ -121,7 +128,10 @@
             <option value="library">MIX — wszystko</option>
             <option value="library-dysk">▣ tylko z dysku (grywalne)</option>
             <option value="library-apple">☁ tylko Apple Music</option>
+            <option value="folder">📁 folder — analiza plików</option>
           </select></label>
+        <label class="param rozciag" id="p-folder-pole" hidden><span>folder</span>
+          <input id="p-folder" placeholder="/ścieżka/do/muzyki" spellcheck="false"></label>
         <label class="param"><span>długość</span>
           <input id="p-minuty" value="90"></label>
         <label class="param"><span>tempo</span>

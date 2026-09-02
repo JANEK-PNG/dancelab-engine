@@ -237,22 +237,34 @@ def _kotwica(nazwa: str | None, analizy: list | None = None,
         return None, [f"kotwica {nazwa!r} niedostępna: {exc}"]
 
 
-def _pula_z_folderu(folder: str, processed_dir: str, mow: Postep,
-                    przerwij: Callable[[], bool] | None) -> tuple[list, list[str]]:
-    """Tryb Folder: znajdź pliki, przesiej bramkarzem, przeanalizuj z postępem.
-
-    Do 02.09 tylko w terminalu (`_build_plan`); okno nie miało tego trybu.
+def przeanalizuj_folder(folder: str, processed_dir: str, *,
+                        mow: Postep | None = None,
+                        przerwij: Callable[[], bool] | None = None
+                        ) -> tuple[list, list[str]]:
+    """Folder → pliki → bramkarz → analiza z postępem. Jedna droga dla:
+    trybu Folder w budowie (obie skóry) i skanowania folderu (onboarding,
+    do 02.09 tylko w terminalu i przepisane tam osobno). Odmawia Z POWODEM,
+    gdy nie ma czego analizować — pusty wynik to nie jest wynik.
     """
     from dancelab.core.config import load_config
     from dancelab.ingestion.bramkarz import przesiej
     from dancelab.workflows.smart_playlist import analyze_files, discover_audio_files
 
+    mow = mow or (lambda _s: None)
+    folder = (folder or "").strip()
     if not folder:
-        raise OdmowaBudowy("tryb Folder wymaga ścieżki")
+        raise OdmowaBudowy("podaj ścieżkę folderu do analizy")
+    znalezione = discover_audio_files(folder)
+    if not znalezione:
+        raise OdmowaBudowy(f"brak plików audio w: {folder}")
     notki: list[str] = []
-    pliki, odrzucone = przesiej(discover_audio_files(folder))
+    pliki, odrzucone = przesiej(znalezione)
     for sciezka, powod in odrzucone[:5]:
         notki.append(f"BRAMKARZ odrzucił: {pathlib.Path(sciezka).name[:40]} — {powod}")
+    if len(odrzucone) > 5:
+        notki.append(f"…i {len(odrzucone) - 5} kolejnych odrzutów")
+    if not pliki:
+        raise OdmowaBudowy("bramkarz odrzucił wszystko — nie ma co analizować")
     mow(f"Analiza {len(pliki)} plików…")
     analizy, porazki = analyze_files(
         pliki, load_config("configs/default.yaml"), processed_dir=processed_dir,
@@ -260,6 +272,7 @@ def _pula_z_folderu(folder: str, processed_dir: str, mow: Postep,
         should_stop=(przerwij or (lambda: False)))
     for f in porazki[:5]:
         notki.append(f"nie przeanalizowano {pathlib.Path(f.source_path).name}: {f.error}")
+    notki.append(f"przeanalizowane: {len(analizy)} z {len(pliki)} plików")
     return list(analizy), notki
 
 
@@ -328,8 +341,8 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
     notki: list[str] = []
 
     if par.zrodlo_puli == "folder":
-        analizy, notki_folderu = _pula_z_folderu(par.folder, processed_dir,
-                                                 mow, przerwij)
+        analizy, notki_folderu = przeanalizuj_folder(
+            par.folder, processed_dir, mow=mow, przerwij=przerwij)
         notki += notki_folderu
     else:
         if analizy is None:

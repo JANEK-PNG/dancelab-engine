@@ -140,6 +140,7 @@ class Most:
         # w `postep_szwu`, czyli po TWOIM geście, a nie w środku renderu.
         self._szew_stan: dict[str, Any] = {"stan": "bezczynny"}
         self._gatunki_stan: dict[str, Any] = {"stan": "bezczynny"}
+        self._skan_stan: dict[str, Any] = {"stan": "bezczynny"}
         self._plan_cue_przeliczony = False
         # Po edycji kolejności propozycje padów silnika dotyczą STAREGO setu.
         # Flaga każe je przeliczyć w stopniu pierwszym zapisu — liczby, które
@@ -1143,6 +1144,45 @@ class Most:
             "policzone": self._zapis_gotowy is not None,
             "playlista_policzona": self._playlista_gotowa is not None,
         }
+
+    # ------------------------------------------------- skan folderu
+
+    @_bezpiecznie
+    def skanuj_folder(self, folder: str) -> dict[str, Any]:
+        """Onboarding z okna: folder → analiza plików W TLE → biblioteka od
+        nowa. Minuty pracy silnika z postępem, więc wątek i `postep_skanu`.
+        Do 02.09 tylko w terminalu (przycisk „Analizuj" w Bibliotece)."""
+        if self._skan_stan.get("stan") == "trwa":
+            return {"blad": "analiza folderu już trwa — chwila"}
+        if not (folder or "").strip():
+            return {"blad": "podaj ścieżkę folderu do analizy"}
+        self._skan_stan = {"stan": "trwa", "etap": "Szukam plików audio…"}
+        threading.Thread(target=self._skanuj_w_tle, args=(folder.strip(),),
+                         daemon=True).start()
+        return {"ruszylo": True}
+
+    @_bezpiecznie
+    def postep_skanu(self) -> dict[str, Any]:
+        return dict(self._skan_stan)
+
+    def _skanuj_w_tle(self, folder: str) -> None:
+        def etap(tekst: str) -> None:
+            self._skan_stan["etap"] = tekst
+        try:
+            analizy, notki = budowa.przeanalizuj_folder(
+                folder, self._katalog, mow=etap)
+        except budowa.OdmowaBudowy as exc:
+            self._skan_stan = {"stan": "odmowa", "blad": str(exc)}
+            return
+        except Exception as exc:                       # noqa: BLE001
+            self._skan_stan = {"stan": "blad",
+                               "blad": f"analiza nie wyszła: {exc}"}
+            return
+        # nowe analizy na dysku → spis, pula i jej notki są nieaktualne;
+        # następne wejście czyta od nowa (i dokarmia)
+        self._spis, self._analizy_pula, self._notki_puli = [], None, []
+        self._skan_stan = {"stan": "gotowe", "przeanalizowane": len(analizy),
+                           "notki": notki}
 
     # ---------------------------------------------------------- gatunki
 

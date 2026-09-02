@@ -518,8 +518,9 @@ async function odswiezPlaylisty() {
   rysujFilary();
 }
 
-async function wybierzUtwor(trackId) {
+async function wybierzUtwor(trackId, opcje) {
   if (!api()) return;
+  if (!(opcje && opcje.bezPodazania)) podazajZaKursorem(trackId);
   stan.trackId = trackId;
   $('#tytul').textContent = 'wczytuję…';
   const p = await api().wczytaj_utwor(trackId);
@@ -715,12 +716,13 @@ function rysujTabeleSetu(utwory, filary) {
    otwiera panel kandydatów, dopiero potwierdzenie zmienia set. Wszystko
    liczy Python — tu tylko klikanie. */
 
-function zaznaczPozycje(i) {
+function zaznaczPozycje(i, opcje) {
   stan.pozycja = i;
   rysujTabeleSetu(stan.set);
   const u = stan.set[i];
   if (u) $('#czas-kursora').textContent = `#${i + 1} ${u.tytul || ''}`.slice(0, 60);
   rysujGrajka();
+  if (u && !(opcje && opcje.bezPodazania)) podazajZaKursorem(u.track_id);
 }
 
 function zamknijKandydatow() {
@@ -886,6 +888,7 @@ async function budujSet() {
     dj: $('#p-dj').value.trim(),
     ziarno: $('#p-ziarno').value.trim(),
     zrodlo_puli: $('#p-pula').value,
+    folder: $('#p-folder').value.trim(),
     style: $('#p-gatunki').value,
     luk: $('#p-luk').value,
     tempo: $('#p-tempo-plan').value,
@@ -1274,6 +1277,36 @@ $('#btn-buduj').addEventListener('click', budujSet);
 $('#btn-policz').addEventListener('click', policzZapis);
 $('#btn-plany').addEventListener('click', otworzPlany);
 $('#btn-zapisz-plan').addEventListener('click', zapiszPlan);
+$('#p-pula').addEventListener('change', () =>
+  { $('#p-folder-pole').hidden = $('#p-pula').value !== 'folder'; });
+
+let odpytywanieSkanu = null;
+async function skanujFolder() {
+  if (!api()) return;
+  const el = $('#skan-postep');
+  const odp = await api().skanuj_folder($('#skan-folder').value);
+  if (odp && odp.blad) { el.textContent = odp.blad; el.classList.add('zle'); return; }
+  el.classList.remove('zle');
+  $('#btn-skan').disabled = true;
+  clearInterval(odpytywanieSkanu);
+  odpytywanieSkanu = setInterval(async () => {
+    const s = await api().postep_skanu();
+    if (s.stan === 'trwa') { el.textContent = s.etap || 'analizuję…'; return; }
+    clearInterval(odpytywanieSkanu);
+    $('#btn-skan').disabled = false;
+    if (s.stan !== 'gotowe') {
+      el.textContent = `${s.stan === 'odmowa' ? 'ODMOWA' : 'BŁĄD'}: ${s.blad}`;
+      el.classList.add('zle'); return;
+    }
+    el.textContent = `✅ przeanalizowane: ${s.przeanalizowane} — biblioteka od nowa`;
+    // nowe analizy → spis od nowa, jak `_set_library` w terminalu
+    const b = await api().biblioteka(100000);
+    if (!b.blad) { stan.spis = b.utwory || []; odswiezSpis(); }
+    if (s.notki && s.notki.length && !$('#ekran-set').hidden) rysujNotki(s.notki);
+  }, 500);
+}
+$('#btn-skan').addEventListener('click', skanujFolder);
+$('#skan-folder').addEventListener('keydown', e => { if (e.key === 'Enter') skanujFolder(); });
 $('#btn-szkic').addEventListener('click', szkicZFilarow);
 $('#btn-gatunki-zamknij').addEventListener('click', przelaczGatunki);
 document.querySelectorAll('#dj-filtry button').forEach(b =>
@@ -1378,8 +1411,45 @@ function pilnujGry(wlacz) {
     if (czyBlad(s, 'odsłuch')) { pilnujGry(false); return; }
     stan.gra = s;
     rysujGrajka();
-    if (!s.gra) pilnujGry(false);      // koniec albo pauza — przestań pytać
+    if (!s.gra) {
+      pilnujGry(false);      // koniec albo pauza — przestań pytać
+      if (s.skonczyl_sie && s.rodzaj === 'utwor') autoNastepny(s.track_id);
+    }
   }, 250);
+}
+
+/* Standard odtwarzaczy (Janek 06.08): koniec utworu = następny z LISTY.
+   Bezpieczniki z terminala: tylko gdy skończył się utwór SPOD KURSORA
+   (szew/odsłuch spoza listy nie skacze po liście), koniec listy = cisza. */
+async function autoNastepny(tid) {
+  if (!$('#ekran-set').hidden) {
+    const u = stan.set[stan.pozycja];
+    if (!u || u.track_id !== tid) return;
+    if (stan.pozycja + 1 >= stan.set.length) { rysujNotki(['koniec listy — odsłuch zakończony']); return; }
+    zaznaczPozycje(stan.pozycja + 1, {bezPodazania: true});
+    await graj();
+    return;
+  }
+  if (!$('#ekran-dj').hidden || stan.trackId !== tid) return;
+  const i = (stan.widoczne || []).findIndex(u => u.track_id === tid);
+  if (i < 0 || i + 1 >= stan.widoczne.length) { cueNotka('koniec listy — odsłuch zakończony'); return; }
+  await wybierzUtwor(stan.widoczne[i + 1].track_id, {bezPodazania: true});
+  await graj('');
+}
+
+/* Wzorzec Finder Quick Look (Janek 06.08): GDY COŚ GRA, ruch po liście
+   działa jak next/previous — przełącza odsłuch na nowo zaznaczony utwór.
+   Przy pauzie/ciszy tylko chodzi po liście. 0,12 s, żeby przytrzymana
+   strzałka nie restartowała co wiersz. Przebudowa tabeli NIE jest nawigacją. */
+let zegarPodazania = null;
+function podazajZaKursorem(trackId) {
+  clearTimeout(zegarPodazania);
+  const g = stan.gra || {};
+  if (!g.gra || g.rodzaj !== 'utwor' || !trackId || g.track_id === trackId) return;
+  zegarPodazania = setTimeout(() => {
+    const t = stan.gra || {};
+    if (t.gra && t.rodzaj === 'utwor' && t.track_id !== trackId) graj('');
+  }, 120);
 }
 
 async function graj(pad) {
