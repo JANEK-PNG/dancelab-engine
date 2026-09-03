@@ -110,6 +110,10 @@ window.pywebview = {api: {
   postep_skanu: () => echo(Date.now() - (window.__SKAN__ || 0) < 1200 ? {stan: 'trwa', etap: 'quick: 03 - Steppers.aiff'} : {stan: 'gotowe', przeanalizowane: 7, notki: ['przeanalizowane: 7 z 7 plików']}),
   ustaw_czas_pada: (tid, pad, tekst) => { const p = window.__PADY__ || (DANE.pady || {pady: {}}).pady; p[pad] = {...p[pad], position_ms: 151000}; window.__PADY__ = p; return echo({pady: p, powod: `pad ${pad} → 2:31 · trafione w takt 12`, position_ms: 151000}); },
   przenies_pad_na_glowice: (tid, pad) => echo({blad: `pad ${pad}: najpierw P — odtwarzacz musi stać na TYM utworze`}),
+  /* Przewijanie (03.09): w podglądzie głowica staje w ciszy — jak w oknie,
+     gdy nic nie gra. Przeciągnięcie pada: kwantyzację udajemy do pełnej sekundy. */
+  przewin: (tid, sek) => { window.__POZ__ = sek; return echo({gra: false, pozycja_sec: sek, dlugosc_sec: (DANE.przebieg || {}).dlugosc_sec, rodzaj: 'utwor', track_id: tid, opis: '', skad: `cisza — spacja rusza od ${Math.floor(sek / 60)}:${String(Math.floor(sek % 60)).padStart(2, '0')}`, skonczyl_sie: false, akcja: 'przewiniecie'}); },
+  przeciagnij_pad: (tid, pad, sek) => { const p = window.__PADY__ || (DANE.pady || {pady: {}}).pady; const ms = Math.round(sek) * 1000; p[pad] = {...p[pad], position_ms: ms}; window.__PADY__ = p; return echo({pady: p, powod: `pad ${pad} → ${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000 % 60)).padStart(2, '0')} · trafione w takt [PODGLĄD]`, position_ms: ms}); },
   propozycje: () => echo({propozycje: [{nazwa: 'INTRO', sec: 0}, {nazwa: 'silnik', sec: 45}, {nazwa: 'BREAK', sec: 95.5}]}),
   gatunki: () => echo({mam: 3, wszystkich: 40, bez_tagu: 12, sekcje: [{sekcja: 'House', gatunki: [{nazwa: 'Tech House', ile: 41, wybrany: true}, {nazwa: 'Deep House', ile: 9, wybrany: false}]}]}),
   postep_gatunkow: () => echo({stan: 'bezczynny'}),
