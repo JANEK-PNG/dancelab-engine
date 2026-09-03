@@ -11,8 +11,8 @@
 <div class="stan">
   <span class="marka">DanceLab</span>
   <nav id="nawigacja">
-    <button data-ekran="szew" aria-pressed="true" title="Szew i cue (⇥)">Szew</button>
-    <button data-ekran="set" title="Budowa setu (⇥)">Set</button>
+    <button data-ekran="szew" aria-pressed="true" title="utwór, pady, przejście (⇥)">Utwór</button>
+    <button data-ekran="set" title="Twoje utwory, budowa setu, wysyłka (⇥)">Set <span id="set-licznik" class="licznik-koszyka"></span></button>
     <button data-ekran="dj" title="Brzmi jak… — kotwice brzmienia (⇥)">DJ</button>
   </nav>
   <span class="drobne" id="wersja"></span>
@@ -36,6 +36,10 @@
           <span class="drobne"><span id="podtytul"></span><span id="podtytul-rb"></span></span>
         </div>
         <div style="display:flex;gap:8px">
+          <!-- Koszyk, którego brakowało (scenariusz „ziomek przy laptopie",
+               03.09): jeden guzik dodaje utwór do setu jako filar; F robi
+               to samo. Gdy nie ma playlisty, powstaje sama. -->
+          <button class="btn glowny" id="btn-do-setu" title="dodaj ten utwór do setu — musi w nim zagrać (F)">+ do setu</button>
           <button class="btn" id="btn-cofnij">Cofnij <kbd>⌘Z</kbd></button>
           <!-- Podglądu zapisu i wysyłki do Rekordboxa tu NIE MA celowo: edycje
                z okna nie trafiają jeszcze do wspólnego magazynu, więc terminal
@@ -80,6 +84,39 @@
       </div>
     </section>
     <section id="ekran-set" hidden>
+      <!-- Filary: utwory, które MUSZĄ zagrać, z rolą mówiącą GDZIE.
+           Żyją w playlistach (decyzja 11.08), więc bez wybranej playlisty
+           nie ma gdzie ich wpisać — panel mówi to wprost zamiast milczeć. -->
+      <div class="filary-box" id="filary-box">
+        <div class="krzywa-glowa">
+          <h2>1 · Utwory, które muszą zagrać <span class="drobne" id="filary-licznik"></span></h2>
+          <div class="chip-gest" id="tryb-filarow">
+            <button data-tf="rozstaw" aria-pressed="true"
+                    title="filary rozstawione równo w secie">rozstaw</button>
+            <button data-tf="rama" title="filary jako rama: otwarcie i zamknięcie">rama</button>
+            <button data-tf="podpory" title="filary jako podpory, reszta między nimi">podpory</button>
+          </div>
+        </div>
+        <div class="filary-playlisty">
+          <span class="drobne">playlista</span>
+          <select id="wybor-playlisty"></select>
+          <input id="nowa-playlista" placeholder="nowa playlista…" spellcheck="false">
+          <button class="btn maly" id="btn-nowa-playlista">Dodaj</button>
+          <button class="btn maly" id="btn-szkic" title="filary → tabela setu jako szkic, bez budowy (G)">→ Zbuduj z filarów <kbd>G</kbd></button>
+        </div>
+        <div id="filary-lista"></div>
+      </div>
+
+      <!-- Krok 2: ustawienia budowy. Domyślne są dobre — nowy człowiek ma
+           zobaczyć jedno zdanie i guzik, nie dziewięć pól w żargonie. -->
+      <div class="krok" id="krok-ustawienia">
+        <div class="krok-glowa">
+          <h2>2 · Zbuduj</h2>
+          <span class="drobne" id="ustawienia-skrot"></span>
+          <button class="btn maly" id="btn-ust-wiecej" aria-pressed="false" title="pula, długość, tempo, brzmienie, łuk…">zmień ustawienia ▾</button>
+          <button class="btn glowny" id="btn-buduj">Buduj set <kbd>B</kbd></button>
+        </div>
+        <div id="ustawienia-pola" hidden>
       <div class="narzedzia">
         <!-- Źródło puli rozstrzyga, czy set DA SIĘ ZAGRAĆ: utwory z Apple
              Music Rekordbox pokazuje, ale nie ładuje na deck (Janek 13.08). -->
@@ -104,7 +141,6 @@
         <label class="param"><span>nazwa planu</span>
           <input id="p-nazwa-planu" placeholder="puste = z parametrów" spellcheck="false"></label>
         <button class="btn" id="btn-zapisz-plan" title="zapisz set pod nazwą (⌘S)">Zapisz plan <kbd>⌘S</kbd></button>
-        <button class="btn glowny" id="btn-buduj">Buduj set <kbd>B</kbd></button>
       </div>
       <div class="narzedzia druga-linia">
         <label class="param rozciag"><span>gatunki</span>
@@ -140,6 +176,8 @@
         <label class="param przelacznik" title="kontur skoków tego DJ-a">
           <input type="checkbox" id="p-kontur"><span>kontur</span></label>
       </div>
+        </div>
+      </div>
 
       <!-- Gatunki Beatportu OBECNE w puli, z liczbą utworów; Enter/klik
            dopisuje albo zdejmuje w polu briefu, lista zostaje otwarta
@@ -160,29 +198,6 @@
           <button class="btn" id="btn-plany-zamknij">Zostaw <kbd>Esc</kbd></button>
         </div>
         <div class="tabela" id="tabela-planow"></div>
-      </div>
-
-      <!-- Filary: utwory, które MUSZĄ zagrać, z rolą mówiącą GDZIE.
-           Żyją w playlistach (decyzja 11.08), więc bez wybranej playlisty
-           nie ma gdzie ich wpisać — panel mówi to wprost zamiast milczeć. -->
-      <div class="filary-box" id="filary-box">
-        <div class="krzywa-glowa">
-          <h2>Filary <span class="drobne" id="filary-licznik"></span></h2>
-          <div class="chip-gest" id="tryb-filarow">
-            <button data-tf="rozstaw" aria-pressed="true"
-                    title="filary rozstawione równo w secie">rozstaw</button>
-            <button data-tf="rama" title="filary jako rama: otwarcie i zamknięcie">rama</button>
-            <button data-tf="podpory" title="filary jako podpory, reszta między nimi">podpory</button>
-          </div>
-        </div>
-        <div class="filary-playlisty">
-          <span class="drobne">playlista</span>
-          <select id="wybor-playlisty"></select>
-          <input id="nowa-playlista" placeholder="nowa playlista…" spellcheck="false">
-          <button class="btn maly" id="btn-nowa-playlista">Dodaj</button>
-          <button class="btn maly" id="btn-szkic" title="filary → tabela setu jako szkic, bez budowy (G)">→ Zbuduj z filarów <kbd>G</kbd></button>
-        </div>
-        <div id="filary-lista"></div>
       </div>
 
       <div class="krzywa" id="krzywa-box" hidden>
@@ -210,8 +225,12 @@
         <div class="drobne" id="szew-info"></div>
       </div>
 
+      <div class="krok-glowa">
+        <h2>3 · Set</h2>
+        <span class="drobne">klik zaznacza wiersz · podmień, dopisz i wytnij stoją przy wierszu</span>
+      </div>
       <div class="tabela" id="tabela-set">
-        <div class="pusto">Ustaw parametry i naciśnij <b>Buduj set</b>.</div>
+        <div class="pusto">Naciśnij <b>Buduj set</b> — domyślne ustawienia są dobre na start. Utwory z kroku 1 zagrają na pewno, resztę dobierze silnik.</div>
       </div>
 
       <!-- Panel kandydatów: ten sam wzór dwóch kroków co w terminalu —
@@ -230,8 +249,18 @@
         <div class="tabela" id="tabela-kandydatow"></div>
       </div>
 
-      <!-- Zapis jest DWUSTOPNIOWY i tak zostaje: najpierw liczby, potem baza.
-           Jednym kliknięciem nie wysyłamy nic do biblioteki DJ-a. -->
+      <!-- Krok 4: jedno miejsce wysyłki. Playlista domyślnie — po nią
+           przychodzi człowiek ze zleceniem; cue to druga droga, pod
+           przełącznikiem. Zapis dalej DWUSTOPNIOWY: najpierw liczby, potem
+           baza. Jednym kliknięciem nie wysyłamy nic do biblioteki DJ-a. -->
+      <div class="krok" id="krok-wyslij" hidden>
+      <div class="krok-glowa">
+        <h2>4 · Wyślij na sprzęt</h2>
+        <div class="chip-gest" id="tryb-wysylki">
+          <button data-w="playlista" aria-pressed="true" title="kolejność utworów jako playlista w Rekordboksie">playlista</button>
+          <button data-w="cue" title="pady (hot cue) do bazy Rekordboxa">cue</button>
+        </div>
+      </div>
       <div class="zapis" id="zapis-box" hidden>
         <div class="zapis-glowa">
           <h2>Zapis do Rekordboxa</h2>
@@ -261,6 +290,7 @@
           <button class="btn" id="btn-pl-policz">Policz, ile wejdzie</button>
           <button class="btn glowny" id="btn-pl-wyslij" hidden>Wyślij playlistę</button>
         </div>
+      </div>
       </div>
     </section>
 
@@ -333,15 +363,16 @@
         <button class="btn maly" id="btn-okladki" aria-pressed="false" title="okładki w liście (K) — z tagów plików, brak = pustka">okładki <kbd>K</kbd></button>
         <button class="btn maly" id="btn-dociagnij" hidden title="brakujące okładki z iTunes → tagi plików, z weryfikacją">dociągnij z iTunes</button>
       </div>
-      <!-- Onboarding: folder z muzyką → analiza (minuty, w tle, z postępem).
-           Nowe analizy lądują w tym samym katalogu, z którego czyta terminal. -->
-      <div class="filtry-lib" id="skan-box">
-        <input id="skan-folder" placeholder="folder z muzyką do przeskanowania" spellcheck="false">
-        <button class="btn maly" id="btn-skan" title="przeanalizuj pliki z folderu (pierwszy raz albo dogranie)">Analizuj</button>
-      </div>
-      <div class="drobne" id="skan-postep" style="padding:0 0 6px"></div>
     </div>
     <div class="spis" id="spis"><div class="pusto">wczytuję…</div></div>
+    <!-- Onboarding: folder z muzyką → analiza (minuty, w tle, z postępem).
+         Widoczny ZAWSZE, gdy biblioteka jest pusta — schowany pod „więcej"
+         zostawiał nowego człowieka bez wejścia. -->
+    <div class="filtry-lib" id="skan-box" hidden>
+      <input id="skan-folder" placeholder="folder z muzyką do przeskanowania" spellcheck="false">
+      <button class="btn maly" id="btn-skan" title="przeanalizuj pliki z folderu (pierwszy raz albo dogranie)">Analizuj</button>
+    </div>
+    <div class="drobne" id="skan-postep" style="padding:0 0 6px"></div>
     <div class="skroty lib-skroty">
       <span><b>U</b> ♥ ulubiony</span><span><b>F</b> filar</span>
     </div>
@@ -359,7 +390,7 @@
     <img class="okl okl-gry" id="okladka-gry" alt="" hidden>
     <button class="graj" id="btn-graj" title="graj / pauza (spacja; P gra od pada)">
       <svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg></button>
-    <button class="btn maly" id="btn-szew-graj" title="posłuchaj przejścia do następnego (S)">Szew <kbd>S</kbd></button>
+    <button class="btn maly" id="btn-szew-graj" title="posłuchaj przejścia (szwu) do następnego utworu (S)">Przejście <kbd>S</kbd></button>
     <button class="btn maly" id="btn-tyl" title="cofnij o 8 uderzeń (←)" disabled>−8</button>
     <button class="btn maly" id="btn-przod" title="do przodu o 8 uderzeń (→)" disabled>+8</button>
     <span class="czas" id="czas-gry">0:00</span>
@@ -389,7 +420,7 @@
     <span><b>K</b> okładki</span>
     <span><b>␣</b> graj / pauza</span>
     <span><b>P</b> od pada</span>
-    <span><b>S</b> szew</span>
+    <span><b>S</b> przejście</span>
     <span><b>⇥</b> ekran</span>
   </div>
   <div class="skroty" id="skroty-set" hidden>
@@ -398,7 +429,7 @@
     <span><b>A</b> dopisz za</span>
     <span><b>X</b> wytnij</span>
     <span><b>⇧↑↓</b> przesuń</span>
-    <span><b>C</b> szew</span>
+    <span><b>C</b> przejście</span>
     <span><b>⇥</b> ekran</span>
     <span><b>O</b> plany</span>
     <span><b>⌘S</b> zapisz plan</span>
@@ -407,7 +438,7 @@
     <span><b>B</b> buduj</span>
     <span><b>←→</b> skok 8 · <b>⇧</b> 32 · <b>PgUp/Dn</b> 128</span>
     <span><b>P</b> graj / pauza</span>
-    <span><b>S</b> szew</span>
+    <span><b>S</b> przejście</span>
   </div>
   </div>
 </div>

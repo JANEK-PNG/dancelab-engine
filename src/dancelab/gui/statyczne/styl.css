@@ -364,3 +364,29 @@ td.wynik{font-family:var(--mono);font-variant-numeric:tabular-nums;
   cursor:pointer;padding:0 2px;opacity:0;transition:opacity .12s}
 .kafel:hover .zdejmij-pad,.kafel.on .zdejmij-pad{opacity:1}
 .zdejmij-pad:hover{color:var(--alarm)}
+
+/* ---------- jedna ścieżka: utwory → zbuduj → set → wyślij (03.09) ----------
+   Scenariusz „ziomek przy cudzym laptopie": każdy krok ma numer, słowo
+   i guzik, którego nie trzeba znać z klawiatury. */
+.licznik-koszyka{display:inline-block;min-width:16px;padding:0 5px;margin-left:4px;
+  border-radius:999px;background:var(--bursztyn);color:#1a1917;
+  font:600 10.5px var(--mono);line-height:16px;text-align:center;vertical-align:1px}
+.licznik-koszyka:empty{display:none}
+#btn-do-setu.w-secie{background:none;border:1px solid var(--bursztyn);color:var(--bursztyn)}
+.krok{margin-bottom:var(--luz)}
+.krok-glowa{display:flex;align-items:center;gap:14px;margin-bottom:8px;flex-wrap:wrap}
+.krok-glowa h2{margin:0;color:var(--tekst);font:600 14px var(--font);
+  text-transform:none;letter-spacing:0}
+.krok-glowa .btn.glowny{margin-left:auto}
+#ustawienia-pola{padding-top:6px}
+.filary-box h2{color:var(--tekst);font:600 14px var(--font);text-transform:none;letter-spacing:0}
+/* guziki przy wierszu setu: widać po najechaniu i na zaznaczonym */
+td.akcje-wiersza{text-align:right;white-space:nowrap}
+.akcje-wiersza button{background:none;border:0;color:var(--cichy);font:inherit;
+  font-size:11.5px;padding:0 6px;cursor:pointer;opacity:0;transition:opacity .12s}
+tr:hover .akcje-wiersza button,tr[aria-selected="true"] .akcje-wiersza button{opacity:1}
+.akcje-wiersza button:hover{color:var(--bursztyn)}
+
+/* liczby utworu należą do ekranu Utwór — na Set i DJ mówiłyby o czymś, czego nie widać */
+:root[data-ekran="set"] .liczby,
+:root[data-ekran="dj"] .liczby{display:none}

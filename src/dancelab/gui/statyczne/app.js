@@ -37,6 +37,7 @@ let stan = {
   kandydaci: null, kandCel: null, kandTryb: 'smart', kandWybor: null,
   // co gra: {gra, pozycja_sec, dlugosc_sec, rodzaj, track_id, opis, skad}
   gra: {gra: false, pozycja_sec: 0},
+  trybWysylki: 'playlista', pustaBiblioteka: false,
   // widok fali (ułamki długości), zaznaczony fragment i pętla (sekundy),
   // suwak w ręce (nie nadpisuj go pozycją, gdy ktoś go ciągnie)
   widok: {od: 0, do: 1}, zaznaczenie: null, petla: null, suwakWReku: false,
@@ -576,8 +577,12 @@ function rysujSpis() {
   $('#licznik').textContent = filtrowane
     ? `${stan.znalezione} z ${stan.wszystkich}` : `${stan.wszystkich}`;
 
+  stan.pustaBiblioteka = !stan.wszystkich;
+  pokazSkan();
   if (!widoczne.length) {
-    el.innerHTML = '<div class="pusto">nic nie pasuje</div>';
+    el.innerHTML = stan.pustaBiblioteka
+      ? '<div class="pusto">Biblioteka jest pusta. Wskaż niżej folder z muzyką i naciśnij <b>Analizuj</b> — analiza trwa minuty i idzie w tle.</div>'
+      : '<div class="pusto">nic nie pasuje</div>';
     return;
   }
   el.innerHTML = widoczne.map(u => {
@@ -687,12 +692,38 @@ async function przelaczUlubiony() {
   odswiezSpis();
 }
 
+function jestWSecie(trackId) {
+  return (stan.filaryPlaylisty || []).some(f => f.track_id === trackId);
+}
+
+function rysujPrzyciskSetu() {
+  const b = $('#btn-do-setu');
+  if (!b) return;
+  const w = stan.trackId && jestWSecie(stan.trackId);
+  b.textContent = w ? '✓ w secie' : '+ do setu';
+  b.classList.toggle('glowny', !w);
+  b.classList.toggle('w-secie', !!w);
+  b.title = w ? 'ten utwór zagra na pewno — klik zdejmuje (F)'
+              : 'dodaj ten utwór do setu — musi w nim zagrać (F)';
+  b.disabled = !stan.trackId;
+}
+
 async function przypnijFilar(rola) {
   if (!api() || !stan.trackId) return;
-  const juz = (stan.widoczne || []).find(u => u.track_id === stan.trackId);
-  const odp = juz && juz.filar
+  let odp = jestWSecie(stan.trackId)
     ? await api().zdejmij_filar(stan.trackId)
     : await api().ustaw_filar(stan.trackId, rola || '');
+  // Brak playlisty nie może zatrzymać człowieka przy pierwszym utworze:
+  // playlista powstaje sama, z datą w nazwie, i próba idzie drugi raz.
+  if (odp && odp.blad && /playlist/i.test(odp.blad) && api().nowa_playlista) {
+    const d = new Date(), nazwa = `Set ${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const nowa = await api().nowa_playlista(nazwa);
+    if (!czyBlad(nowa, 'Playlista')) {
+      await odswiezPlaylisty();
+      odp = await api().ustaw_filar(stan.trackId, rola || '');
+      if (!odp.blad) cueNotka(`założona playlista „${nazwa}” — utwór w secie`);
+    }
+  }
   if (czyBlad(odp, 'Filary')) return;
   stan.filaryPlaylisty = odp.filary || [];
   rysujFilary();
@@ -704,10 +735,14 @@ function rysujFilary() {
   $('#filary-licznik').textContent = lista.length
     ? `${lista.length} z 10`
     : '— brak, silnik ułoży set sam';
+  // koszyk widać z każdego ekranu: liczba przy zakładce Set
+  $('#set-licznik').textContent = lista.length ? String(lista.length) : '';
+  rysujPrzyciskSetu();
   const el = $('#filary-lista');
   if (!lista.length) {
-    el.innerHTML = '<div class="pusto">Filar to utwór, który MUSI zagrać. '
-      + 'Wybierz go na ekranie <b>1</b> (lista utworów) i naciśnij <b>F</b>.</div>';
+    el.innerHTML = '<div class="pusto">Tu lądują utwory, które MUSZĄ zagrać. '
+      + 'Dodaj je na ekranie <b>Utwór</b> guzikiem <b>+ do setu</b> (albo klawiszem <b>F</b>). '
+      + 'Bez nich silnik ułoży set sam z całej biblioteki.</div>';
     return;
   }
   const role = stan.role || {'': 'bez roli'};
@@ -770,6 +805,7 @@ async function wybierzUtwor(trackId, opcje) {
   $('#l-dl').textContent = mmss(p.dlugosc_sec * 1000);
   $('#podtytul').textContent = p.wykonawca || '';
   rysujPodtytulRb();
+  rysujPrzyciskSetu();
   const pd = await api().pady(trackId);
   stan.pady = (pd && pd.pady) || {};
   rysujSpis();
@@ -925,7 +961,7 @@ function rysujTabeleSetu(utwory, filary) {
   el.innerHTML = `<table><thead><tr>
       <th style="width:34px">#</th><th style="width:54px">BPM</th>
       <th style="width:60px">ton</th><th style="width:56px">Σ min</th>
-      <th>wykonawca</th><th>tytuł</th><th style="width:44px" title="czy da się posłuchać w oknie">gra</th><th style="width:70px">filar</th>
+      <th>wykonawca</th><th>tytuł</th><th style="width:44px" title="czy da się posłuchać w oknie">gra</th><th style="width:70px">filar</th><th style="width:190px"></th>
     </tr></thead><tbody>${utwory.map((u, i) => {
       suma += (u.dlugosc_sec || 0) / 60;
       // źródło tonacji jest częścią prawdy o niej — „RB" to niezależny sędzia
@@ -944,10 +980,20 @@ function rysujTabeleSetu(utwory, filary) {
           ? 'strumień — nie ma pliku na dysku' : 'ma plik — P zagra'}">${
           u.grywalny === false ? 'STR' : '♪'}</td>
         <td style="color:var(--bursztyn)">${zbior.has(u.track_id) ? 'FILAR' : ''}</td>
+        <td class="akcje-wiersza"><button data-akcja="podmiana" title="podmień ten utwór (Z)">podmień</button><button data-akcja="dopisanie" title="dopisz utwór za tym (A)">dopisz</button><button data-akcja="wytnij" title="wytnij z setu (X)">wytnij</button></td>
       </tr>`;
     }).join('')}</tbody></table>`;
   el.querySelectorAll('tr[data-poz]').forEach(tr =>
     tr.addEventListener('click', () => zaznaczPozycje(Number(tr.dataset.poz))));
+  // Guziki przy wierszu robią to, co klawisze Z / A / X — klawisze trzeba znać,
+  // guzik widać (scenariusz „ziomek przy laptopie", 03.09).
+  el.querySelectorAll('[data-akcja]').forEach(b =>
+    b.addEventListener('click', e => {
+      e.stopPropagation();
+      const i = Number(b.closest('tr').dataset.poz);
+      zaznaczPozycje(i, {bezPodazania: true});
+      if (b.dataset.akcja === 'wytnij') wytnijPozycje(); else otworzKandydatow(b.dataset.akcja);
+    }));
 }
 
 /* ---------- edycja setu ----------
@@ -1174,10 +1220,12 @@ function liczba(etykieta, ile, klasa) {
 async function odswiezZapis() {
   const s = await api().zapis_stan();
   const box = $('#zapis-box'), boxPl = $('#playlista-box');
-  if (!s || s.blad || !s.set) { box.hidden = true; boxPl.hidden = true; return; }
-  box.hidden = false;
+  if (!s || s.blad || !s.set) { box.hidden = true; boxPl.hidden = true; $('#krok-wyslij').hidden = true; return; }
+  $('#krok-wyslij').hidden = false;
   // Playlista jest drugą, niezależną drogą na sprzęt — ma własne dwa stopnie.
-  boxPl.hidden = false;
+  // Widać JEDNĄ z dwóch: tę z przełącznika.
+  box.hidden = stan.trybWysylki !== 'cue';
+  boxPl.hidden = stan.trybWysylki === 'cue';
   $('#btn-pl-wyslij').hidden = !s.playlista_policzona;
   $('#btn-pl-policz').disabled = s.rekordbox_otwarty;
   $('#playlista-warunek').textContent = s.rekordbox_otwarty
@@ -1447,7 +1495,8 @@ async function start() {
   if (wersja && wersja.dancelab) $('#wersja').textContent = `v${wersja.dancelab}`;
   const b = await api().biblioteka(100000);   // spis to same nagłówki
   if (b.blad) {
-    $('#spis').innerHTML = `<div class="pusto">${b.blad}</div>`;
+    stan.pustaBiblioteka = true; pokazSkan();
+    $('#spis').innerHTML = `<div class="pusto">${b.blad}<br><br>Wskaż niżej folder z muzyką i naciśnij <b>Analizuj</b>.</div>`;
     $('#tytul').textContent = 'Brak analiz';
     $('#kontekst').innerHTML = `<h2>Nic do pokazania</h2>
       <div class="powod zle"><b>${b.blad}</b><br>${b.podpowiedz || ''}</div>`;
@@ -1524,7 +1573,39 @@ $('#btn-lib-wiecej').addEventListener('click', () => {
   w.hidden = !w.hidden;
   b.setAttribute('aria-pressed', String(!w.hidden));
   b.textContent = w.hidden ? 'więcej ▾' : 'mniej ▴';
+  pokazSkan();
 });
+/* Skan folderu: zawsze przy pustej bibliotece, poza tym pod „więcej". */
+function pokazSkan() {
+  $('#skan-box').hidden = !(stan.pustaBiblioteka || !$('#lib-wiecej').hidden);
+}
+$('#btn-do-setu').addEventListener('click', () => przypnijFilar(''));
+// ekran Set: ustawienia pod „zmień", jedno zdanie streszcza, co zbuduje
+function rysujSkrotUstawien() {
+  const pula = $('#p-pula'), opis = pula.options[pula.selectedIndex]?.textContent || '';
+  const dj = $('#p-dj').value.trim(), tempo = $('#p-tempo').value.trim();
+  const gat = $('#p-gatunki').value.trim();
+  $('#ustawienia-skrot').textContent = [
+    `${$('#p-minuty').value || '90'} min`, opis.replace(/^[^\wA-Za-z]+/, '').split(' — ')[0],
+    tempo ? `tempo ${tempo}` : 'tempo z biblioteki', dj ? `brzmi jak ${dj}` : null,
+    gat ? gat : null].filter(Boolean).join(' · ');
+}
+$('#btn-ust-wiecej').addEventListener('click', () => {
+  const w = $('#ustawienia-pola'), b = $('#btn-ust-wiecej');
+  w.hidden = !w.hidden;
+  b.setAttribute('aria-pressed', String(!w.hidden));
+  b.textContent = w.hidden ? 'zmień ustawienia ▾' : 'schowaj ustawienia ▴';
+});
+$('#ustawienia-pola').addEventListener('input', rysujSkrotUstawien);
+$('#ustawienia-pola').addEventListener('change', rysujSkrotUstawien);
+rysujSkrotUstawien();
+document.querySelectorAll('#tryb-wysylki button').forEach(b =>
+  b.addEventListener('click', () => {
+    stan.trybWysylki = b.dataset.w;
+    document.querySelectorAll('#tryb-wysylki button').forEach(x =>
+      x.setAttribute('aria-pressed', String(x === b)));
+    odswiezZapis();
+  }));
 $('#filtr-ton').addEventListener('input', odswiezSpis);
 $('#filtr-bpm').addEventListener('input', odswiezSpis);
 document.querySelectorAll('#sekcje button').forEach(b =>
