@@ -17,6 +17,10 @@
   </nav>
   <span class="drobne" id="wersja"></span>
   <span id="stan-rb"><span class="kropka czekam"></span> sprawdzam Rekordboxa…</span>
+  <!-- Ostrzeżenie o dźwięku: sprawdzane RAZ przy starcie i pokazywane
+       tylko wtedy, gdy czegoś brakuje. Gdy wszystko jest — nie ma tu nic,
+       bo pasek stanu ma mówić o kłopotach, nie potwierdzać normalność. -->
+  <span id="stan-audio" hidden></span>
   <div class="prawa">
     <span>gęstość</span>
     <div class="chip-gest" id="gestosc">
@@ -49,6 +53,18 @@
         </div>
       </div>
 
+      <!-- Pusty start: lista po prawej mówiła to od 75c4d69, ale oko idzie
+           na środek ekranu, gdzie stała pusta fala bez słowa wyjaśnienia. -->
+      <div class="pusty-start" id="pusty-start" hidden>
+        <h3>Nie ma jeszcze żadnej przeanalizowanej muzyki</h3>
+        <p>DanceLab buduje sety z <b>własnych pomiarów</b> — tempa, siatki taktów
+        i sekcji. Zanim cokolwiek zbudujesz, musi raz przesłuchać pliki.</p>
+        <ol>
+          <li>Wpisz ścieżkę folderu z muzyką w polu po prawej, pod listą.</li>
+          <li>Naciśnij <b>Analizuj</b>.</li>
+          <li>Analiza trwa minuty i idzie w tle — postęp widać pod polem.</li>
+        </ol>
+      </div>
       <div class="plotno" id="plotno">
         <div class="fala-obszar" id="fala-obszar">
           <canvas id="fala"></canvas>
@@ -429,6 +445,7 @@
     <span><b>A</b> dopisz za</span>
     <span><b>X</b> wytnij</span>
     <span><b>⇧↑↓</b> przesuń</span>
+    <span><b>⌘Z</b> cofnij</span>
     <span><b>C</b> przejście</span>
     <span><b>⇥</b> ekran</span>
     <span><b>O</b> plany</span>

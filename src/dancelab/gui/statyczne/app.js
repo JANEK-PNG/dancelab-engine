@@ -37,7 +37,7 @@ let stan = {
   kandydaci: null, kandCel: null, kandTryb: 'smart', kandWybor: null,
   // co gra: {gra, pozycja_sec, dlugosc_sec, rodzaj, track_id, opis, skad}
   gra: {gra: false, pozycja_sec: 0},
-  trybWysylki: 'playlista', pustaBiblioteka: false,
+  trybWysylki: 'playlista', pustaBiblioteka: false, dzwiekPelny: true,
   // widok fali (ułamki długości), zaznaczony fragment i pętla (sekundy),
   // suwak w ręce (nie nadpisuj go pozycją, gdy ktoś go ciągnie)
   widok: {od: 0, do: 1}, zaznaczenie: null, petla: null, suwakWReku: false,
@@ -510,11 +510,40 @@ function skadPada(d) {
   return {reka: 'ręcznie', silnik: 'silnik'}[z] || z;
 }
 
+/* ⌘Z na całe okno (03.09): jeden stos po stronie Pythona, tu tylko
+   przerysowanie tego, co naprawdę wróciło. Odpowiedź mówi RODZAJ kroku,
+   bo cofnięcie zrobione na ekranie Set może dotyczyć pada z ekranu Utwór —
+   stos jest wspólny, więc kolejność bije w ekran, na którym stoisz. */
 async function cofnij() {
   if (!api()) return;
-  const odp = await api().cofnij(stan.trackId);
+  const odp = await api().cofnij(stan.trackId || '');
   if (czyBlad(odp, 'Cofanie')) return;
+  const naSecie = !$('#ekran-set').hidden;
+  if (!odp.cofnieto) {
+    const powod = odp.powod || 'nie ma czego cofać';
+    if (naSecie) rysujNotki([powod]); else cueNotka(powod);
+    return;
+  }
+  const slowo = `cofnięte: ${odp.co || 'ostatnia zmiana'}`;
+  if (odp.rodzaj === 'set') {
+    stan.set = odp.utwory || [];
+    // Zaznaczenie mogło wskazywać pozycję, której po cofnięciu już nie ma
+    // (albo która wróciła) — trzymamy je w granicach zamiast rysować pustkę.
+    if (stan.pozycja !== null && stan.pozycja >= stan.set.length) {
+      stan.pozycja = stan.set.length ? stan.set.length - 1 : null;
+    }
+    poEdycjiSetu(odp, slowo);
+    return;
+  }
+  if (odp.rodzaj === 'filar') {
+    stan.filaryPlaylisty = odp.filary || [];
+    rysujFilary();
+    rysujPrzyciskSetu();
+    if (naSecie) rysujNotki([slowo]); else cueNotka(slowo);
+    return;
+  }
   stan.pady = odp.pady || {}; przerysuj(); odloz();
+  cueNotka(slowo);
 }
 
 /* Stan Rekordboxa pod tytułem, jak w makiecie: „Rekordbox zamknięty,
@@ -525,6 +554,20 @@ function rysujPodtytulRb() {
   const [a, b] = String(rb.powod).split(' — ');
   const przed = $('#podtytul').textContent ? ' · ' : '';
   el.innerHTML = `${przed}${a}${b ? `, <span class="${rb.dozwolony ? 'rb-ok' : 'rb-zle'}">${b}</span>` : ''}`;
+}
+
+/* Czym okno zagra — pytamy RAZ, przy starcie. Do 03.09 brak ffplay wychodził
+   dopiero przy pierwszym kliknięciu na falę: klik nie przewijał, wznowienie
+   nie wznawiało i nic tego nie tłumaczyło. Gdy wszystko jest — pasek milczy. */
+async function sprawdzDzwiek() {
+  if (!api() || !api().stan_dzwieku) return;
+  const s = await api().stan_dzwieku();
+  const el = $('#stan-audio');
+  if (!el || !s || s.blad || !s.powod) { if (el) el.hidden = true; return; }
+  stan.dzwiekPelny = !!s.pelny;
+  el.hidden = false;
+  el.innerHTML = `<span class="kropka zle"></span> ${s.powod}`;
+  el.title = s.powod;
 }
 
 async function odswiezStanRb() {
@@ -579,6 +622,7 @@ function rysujSpis() {
 
   stan.pustaBiblioteka = !stan.wszystkich;
   pokazSkan();
+  pokazPustyStart();
   if (!widoczne.length) {
     el.innerHTML = stan.pustaBiblioteka
       ? '<div class="pusto">Biblioteka jest pusta. Wskaż niżej folder z muzyką i naciśnij <b>Analizuj</b> — analiza trwa minuty i idzie w tle.</div>'
@@ -799,6 +843,7 @@ async function wybierzUtwor(trackId, opcje) {
   stan.bpm = p.bpm;
   stan.wybrany = null;
   stan.widok = {od: 0, do: 1}; stan.zaznaczenie = null; stan.petla = null;
+  pokazPustyStart();
   $('#tytul').textContent = p.tytul || trackId;
   $('#l-tempo').textContent = p.bpm ? p.bpm.toFixed(1) : '—';
   $('#l-ton').textContent = p.tonacja || '—';
@@ -1493,6 +1538,7 @@ async function start() {
   if (okl && !okl.blad) ustawOkladki(!!okl.wlaczone);
   const wersja = await api().wersja();
   if (wersja && wersja.dancelab) $('#wersja').textContent = `v${wersja.dancelab}`;
+  await sprawdzDzwiek();
   const b = await api().biblioteka(100000);   // spis to same nagłówki
   if (b.blad) {
     stan.pustaBiblioteka = true; pokazSkan();
@@ -1576,6 +1622,27 @@ $('#btn-lib-wiecej').addEventListener('click', () => {
   pokazSkan();
 });
 /* Skan folderu: zawsze przy pustej bibliotece, poza tym pod „więcej". */
+/* Środek ekranu też musi powiedzieć, co robić — lista po prawej jest wąska
+   i wzrok idzie na falę. Płótno chowamy, bo pusta fala udaje utwór. */
+function pokazPustyStart() {
+  const el = $('#pusty-start');
+  if (!el) return;
+  const pusto = !!stan.pustaBiblioteka && !stan.trackId;
+  el.hidden = !pusto;
+  $('#plotno').hidden = pusto;
+  $('#lista-padow').hidden = pusto;
+  // Jaskrawy „+ do setu" nad instrukcją obiecuje akcję, której nie ma czym
+  // wykonać — na pustym starcie znika razem z „Cofnij".
+  $('#btn-do-setu').hidden = pusto;
+  $('#btn-cofnij').hidden = pusto;
+  if (pusto) {
+    $('#tytul').textContent = 'Zacznij od folderu z muzyką';
+    $('#podtytul').textContent = '';
+    $('#podtytul-rb').innerHTML = '';
+    ['#l-tempo', '#l-ton', '#l-dl'].forEach(k => { $(k).textContent = '—'; });
+  }
+}
+
 function pokazSkan() {
   $('#skan-box').hidden = !(stan.pustaBiblioteka || !$('#lib-wiecej').hidden);
 }
@@ -1982,6 +2049,9 @@ document.addEventListener('keydown', e => {
       return;
     }
     if (e.key === 'o' || e.key === 'O') { otworzPlany(); return; }
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'z' || e.key === 'Z')) {
+      cofnij(); e.preventDefault(); return;
+    }
     if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) {
       zapiszPlan(); e.preventDefault(); return;
     }

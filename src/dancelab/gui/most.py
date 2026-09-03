@@ -73,6 +73,13 @@ class Most:
         # ma `.tracks`), a `_kolejnosc` to lista identyfikatorów setu.
         self._plan_cue: Any = None
         self._kolejnosc: list[str] = []
+        #: JEDEN stos cofania na całe okno (03.09). Do dziś ⌘Z znało tylko
+        #: pady, więc wycięta pozycja setu i zdjęty filar przepadały bez
+        #: odwrotu — a to są jedyne edycje, które kosztują pracę. Krok „pad”
+        #: to sam znacznik: pady mają własną historię we WSPÓLNYM rdzeniu
+        #: (terminal cofa je tak samo), więc dublowanie jej tutaj rozjechałoby
+        #: obie skóry. Kroki „set” i „filar” niosą pełną migawkę sprzed zmiany.
+        self._historia: list[dict[str, Any]] = []
         # Plan silnika i historia edycji setu — to, co plik planu niesie obok
         # kolejności. Terminal trzymał je od 04.08 (`_engine_order`, `_edits`);
         # okno do 02.09 zapisywało plan tylko automatem po budowie, więc plan
@@ -356,6 +363,29 @@ class Most:
         }
 
     @_bezpiecznie
+    def stan_dzwieku(self) -> dict[str, Any]:
+        """Czym okno zagra — sprawdzane RAZ przy starcie, nie przy pierwszym
+        kliknięciu.
+
+        Odtwarzacz jest hybrydą: ``afplay`` startuje natychmiast, ale nie umie
+        wejść w środek utworu, więc klik na fali, wznowienie z pauzy i skoki
+        należą do ``ffplay``. Bez niego połowa sterowania falą milczy — i do
+        03.09 milczała bez słowa, aż do pierwszego kliknięcia.
+        """
+        from dancelab.stan import odtwarzacz as odt
+
+        ff, af = bool(odt.FFPLAY), bool(odt.AFPLAY)
+        if ff:
+            powod = ""
+        elif af:
+            powod = ("bez ffplay zagra tylko od początku — klik na fali, "
+                     "wznowienie i skoki nie zadziałają (brew install ffmpeg)")
+        else:
+            powod = ("nie znalazłem ani ffplay, ani afplay — dźwięku nie będzie "
+                     "(brew install ffmpeg)")
+        return {"ffplay": ff, "afplay": af, "pelny": ff, "powod": powod}
+
+    @_bezpiecznie
     def wersja(self) -> dict[str, str]:
         from dancelab import __version__ as v
 
@@ -438,6 +468,32 @@ class Most:
                 return {"silnik_ms": None}
         return {}
 
+    #: Ile kroków wstecz pamięta okno. Pięćdziesiąt to cała sesja budowania
+    #: setu; więcej znaczyłoby trzymać migawki, po które nikt nie sięgnie,
+    #: a mniej — urwać cofanie w środku serii podmian.
+    KROKI_COFANIA = 50
+
+    def _filary_teraz(self) -> list[dict[str, Any]]:
+        """Kopia wpisów filarów aktywnej playlisty — migawka do cofania."""
+        from dancelab.tui.user_store import aktywna_playlista
+        pl = aktywna_playlista(self._stan_uzytkownika())
+        return [dict(e) for e in (pl or {}).get("filary", [])]
+
+    def _zapamietaj(self, rodzaj: str, co: str) -> None:
+        """Odłóż stan SPRZED zmiany na wspólny stos cofania.
+
+        Wołane przed samą zmianą, nie po niej — po zmianie nie ma już czego
+        zapamiętać. Krok „pad” nie niesie migawki, bo cofa go rdzeń.
+        """
+        krok: dict[str, Any] = {"rodzaj": rodzaj, "co": co}
+        if rodzaj == "set":
+            krok["kolejnosc"] = list(self._kolejnosc)
+        elif rodzaj == "filar":
+            krok["filary"] = self._filary_teraz()
+        self._historia.append(krok)
+        if len(self._historia) > self.KROKI_COFANIA:
+            del self._historia[:-self.KROKI_COFANIA]
+
     @staticmethod
     def _z_dziennikiem(wynik: dict[str, Any], blad: str | None) -> dict[str, Any]:
         """Ostrzeżenie dziennika dokleja się do odpowiedzi, nie ginie."""
@@ -449,6 +505,7 @@ class Most:
     def postaw_pad(self, track_id: str, pad: str, position_ms: int) -> dict[str, Any]:
         self._zapis_gotowy = None
         kontekst = self._kontekst_propozycji(track_id, pad)
+        self._zapamietaj("pad", f"postawienie pada {pad}")
         edycje.postaw(self._edycje, track_id, pad, int(position_ms))
         blad = dziennik.dopisz("cue_postaw", skora="gui", track_id=track_id, pad=pad,
                                position_ms=int(position_ms), **kontekst)
@@ -462,6 +519,7 @@ class Most:
         biezacy = self.pady(track_id).get("pady", {}).get(pad)
         if biezacy is None:
             return {"blad": f"pad {pad} nie jest postawiony — nie ma czego przesuwać"}
+        self._zapamietaj("pad", f"przesunięcie pada {pad}")
         nowa = edycje.przesun(self._edycje, track_id, pad, int(uderzenia),
                               float(bpm), biezacy.get("silnik_ms"),
                               int(biezacy["position_ms"]))
@@ -474,14 +532,35 @@ class Most:
     def zdejmij_pad(self, track_id: str, pad: str) -> dict[str, Any]:
         self._zapis_gotowy = None
         kontekst = self._kontekst_propozycji(track_id, pad)
+        self._zapamietaj("pad", f"zdjęcie pada {pad}")
         edycje.zdejmij(self._edycje, track_id, pad)
         blad = dziennik.dopisz("cue_zdjecie", skora="gui", track_id=track_id, pad=pad,
                                **kontekst)
         return self._z_dziennikiem(self.pady(track_id), blad)
 
     @_bezpiecznie
-    def cofnij(self, track_id: str) -> dict[str, Any]:
-        """Cofnięcie jest w rdzeniu, nie w widoku — terminal ma je tak samo."""
+    def cofnij(self, track_id: str = "") -> dict[str, Any]:
+        """⌘Z na całe okno: pad, pozycja setu albo utwór z koszyka.
+
+        Jeden stos, kolejność odwrotna do robienia — wraca TO, co było
+        ostatnie, niezależnie od ekranu, na którym stoisz. Do 03.09 cofały
+        się wyłącznie pady, więc wycięta pozycja setu przepadała bez odwrotu.
+        """
+        if not self._historia:
+            return {"cofnieto": False, "powod": "nie ma czego cofać"}
+        krok = self._historia.pop()
+        rodzaj = krok.get("rodzaj")
+        if rodzaj == "pad":
+            return self._cofnij_pad(track_id, krok)
+        if rodzaj == "set":
+            return self._cofnij_set(krok)
+        if rodzaj == "filar":
+            return self._cofnij_filar(krok)
+        return {"cofnieto": False, "powod": f"nieznany krok cofania: {rodzaj!r}"}
+
+    def _cofnij_pad(self, track_id: str, krok: dict[str, Any]) -> dict[str, Any]:
+        """Pady cofa RDZEŃ, nie okno — terminal ma tę samą historię i ten sam
+        plik edycji. Okno trzyma tu wyłącznie znacznik kolejności."""
         self._zapis_gotowy = None
         przed_n = dict(self._edycje.get("nadpisania") or {})
         przed_z = set(self._edycje.get("zdjete") or [])
@@ -499,6 +578,42 @@ class Most:
             blad = dziennik.dopisz("cue_cofniecie", skora="gui", zmienione=zmienione)
         wynik = self._z_dziennikiem(self.pady(track_id), blad)
         wynik["cofnieto"] = bool(udalo)
+        wynik["rodzaj"] = "pad"
+        wynik["co"] = krok.get("co", "")
+        if not udalo:
+            wynik["powod"] = "rdzeń nie miał czego cofnąć"
+        return wynik
+
+    def _cofnij_set(self, krok: dict[str, Any]) -> dict[str, Any]:
+        """Kolejność wraca z migawki w całości — nie odwracamy pojedynczego
+        ruchu, bo podmiana i wycięcie mają różne odwrotności, a jedna z nich
+        (wycięcie filaru) zmienia też to, na czym set był rozpięty."""
+        self._kolejnosc = list(krok.get("kolejnosc") or [])
+        self._kandydaci_meta = {}
+        blad = dziennik.dopisz("set_cofniecie", skora="gui",
+                               co=krok.get("co", ""), pozycji=len(self._kolejnosc))
+        wynik = self._z_dziennikiem(self._po_edycji_setu(), blad)
+        wynik["cofnieto"] = True
+        wynik["rodzaj"] = "set"
+        wynik["co"] = krok.get("co", "")
+        return wynik
+
+    def _cofnij_filar(self, krok: dict[str, Any]) -> dict[str, Any]:
+        """Koszyk wraca z migawki. Gdy playlisty już nie ma (przełączona po
+        zmianie), cofać nie ma gdzie — mówimy to zamiast pisać w próżnię."""
+        from dancelab.tui.user_store import aktywna_playlista
+        pl = aktywna_playlista(self._stan_uzytkownika())
+        if pl is None:
+            return {"cofnieto": False,
+                    "powod": "playlista zmieniła się po tej edycji — nie cofam"}
+        pl["filary"] = [dict(e) for e in (krok.get("filary") or [])]
+        self._zapisz_stan_uzytkownika()
+        blad = dziennik.dopisz("filar_cofniecie", skora="gui",
+                               co=krok.get("co", ""), filarow=len(pl["filary"]))
+        wynik = self._z_dziennikiem(self.filary(), blad)
+        wynik["cofnieto"] = True
+        wynik["rodzaj"] = "filar"
+        wynik["co"] = krok.get("co", "")
         return wynik
 
     # ------------------------------------------------------- trwałość edycji
@@ -920,6 +1035,7 @@ class Most:
         beat = 60000.0 / bpm
         uderzenia = int(round((cel * 1000 - p["position_ms"]) / beat))
         self._zapis_gotowy = None
+        self._zapamietaj("pad", f"przestawienie pada {pad}")
         nowa = edycje.przesun(self._edycje, track_id, pad, uderzenia, bpm,
                               p.get("silnik_ms"), int(p["position_ms"]))
         blad = dziennik.dopisz(typ_zdarzenia, skora="gui", track_id=track_id,
@@ -1126,6 +1242,7 @@ class Most:
         if track_id in self._kolejnosc:
             return {"blad": "ten utwór już jest w secie"}
         stary = self._kolejnosc[idx]
+        self._zapamietaj("set", f"podmiana pozycji {idx + 1}")
         self._kolejnosc[idx] = track_id
         blad = self._zanotuj_edycje("podmiana", pozycja=idx + 1,
             **{"out": self._sciezka(stary), "in": self._sciezka(track_id)},
@@ -1143,6 +1260,7 @@ class Most:
             return {"blad": f"nie mam analizy dla {track_id!r}"}
         if track_id in self._kolejnosc:
             return {"blad": "ten utwór już jest w secie"}
+        self._zapamietaj("set", f"dopisanie za pozycją {idx + 1}")
         self._kolejnosc.insert(idx + 1, track_id)
         blad = self._zanotuj_edycje("dopisanie", pozycja=idx + 2,
             **{"in": self._sciezka(track_id)},
@@ -1156,6 +1274,7 @@ class Most:
         idx = int(pozycja)
         if not (0 <= idx < len(self._kolejnosc)):
             return {"blad": f"pozycja {idx + 1} poza setem"}
+        self._zapamietaj("set", f"wycięcie pozycji {idx + 1}")
         tid = self._kolejnosc.pop(idx)
         filar = tid in ((self._ctx_edycji or {}).get("filary") or [])
         blad = self._zanotuj_edycje("ciecie", pozycja=idx + 1,
@@ -1177,6 +1296,7 @@ class Most:
             wynik = self._po_edycji_setu()
             wynik["uwaga"] = "brzeg setu — nie ma dokąd przesunąć"
             return wynik
+        self._zapamietaj("set", f"przesunięcie pozycji {idx + 1}")
         self._kolejnosc[idx], self._kolejnosc[j] = \
             self._kolejnosc[j], self._kolejnosc[idx]
         blad = self._zanotuj_edycje("przesuniecie", z=idx + 1, na=j + 1,
@@ -1621,10 +1741,16 @@ class Most:
         """Przypnij utwór jako filar z rolą. Odmowa mówi dlaczego — limit
         dziesięciu i brak playlisty to dwie różne przeszkody."""
         from dancelab.tui.user_store import ustaw_filar
+        migawka = self._filary_teraz()
         udalo, powod = ustaw_filar(self._stan_uzytkownika(), track_id,
                                    self._sciezka_utworu(track_id), rola)
         if not udalo:
             return {"blad": powod or "filara nie wpisałem"}
+        # Migawka zdjęta PRZED zmianą, ale odłożona dopiero po niej: nieudane
+        # przypięcie (limit, brak playlisty) nie ma czego cofać, a krok na
+        # stosie kazałby ⌘Z „cofnąć” coś, co się nie stało.
+        self._historia.append({"rodzaj": "filar", "co": "dodanie do setu",
+                               "filary": migawka})
         self._zapisz_stan_uzytkownika()
         wynik = self.filary()
         wynik["ustawiony"] = track_id
@@ -1633,10 +1759,13 @@ class Most:
     @_bezpiecznie
     def zdejmij_filar(self, track_id: str) -> dict[str, Any]:
         from dancelab.tui.user_store import zdejmij_filar
+        migawka = self._filary_teraz()
         udalo = zdejmij_filar(self._stan_uzytkownika(), track_id,
                               self._sciezka_utworu(track_id))
         if not udalo:
             return {"blad": "ten utwór nie jest filarem aktywnej playlisty"}
+        self._historia.append({"rodzaj": "filar", "co": "zdjęcie z setu",
+                               "filary": migawka})
         self._zapisz_stan_uzytkownika()
         return self.filary()
 

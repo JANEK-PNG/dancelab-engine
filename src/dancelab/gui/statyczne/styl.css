@@ -151,6 +151,16 @@ aside:empty{display:none}
 .pas-sekcji .sek.bez-nazwy{color:transparent}
 .nota{color:var(--cichy);font-size:12.5px;margin:9px 0 var(--luz)}
 
+/* Pusty start — jedyna treść na ekranie, gdy nie ma czego pokazać. */
+.pusty-start{max-width:56ch;padding:6px 0 0}
+.pusty-start h3{margin:0 0 8px;font:700 26px/1.15 var(--tytul);letter-spacing:-.015em}
+.pusty-start p{margin:0 0 14px;color:var(--cichy);font-size:14.5px}
+.pusty-start p b{color:var(--tekst);font-weight:500}
+.pusty-start ol{margin:0;padding-left:20px;color:var(--cichy);font-size:14px;
+  display:flex;flex-direction:column;gap:7px}
+.pusty-start ol b{color:var(--tekst);font-weight:500}
+#stan-audio{color:var(--bursztyn)}
+
 /* ---------- tabele: kreski, nie pudełka ---------- */
 .tabela{flex:1;min-height:0;overflow:auto;margin-top:var(--luz)}
 table{width:100%;border-collapse:collapse;font-size:var(--font-tab)}

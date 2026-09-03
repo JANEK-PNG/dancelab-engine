@@ -136,7 +136,25 @@ window.pywebview = {api: {
   postaw_pad: (tid, pad, ms) => { window.__PADY__ = {...(window.__PADY__ || (DANE.pady || {pady: {}}).pady), [pad]: {position_ms: ms, zrodlo: 'reka', silnik_ms: null}}; return echo({pady: window.__PADY__}); },
   przesun_pad: () => echo(DANE.pady || {pady: {}}),
   zdejmij_pad: () => echo(DANE.pady || {pady: {}}),
-  cofnij: () => echo(DANE.pady || {pady: {}}),
+  /* Cofanie: podgląd trzyma własny mini-stos, żeby dało się OBEJRZEĆ, że
+     ⌘Z na ekranie Set cofa pozycję, a nie pada. Prawdziwy stos siedzi
+     w Pythonie i jest wspólny dla obu ekranów. */
+  cofnij: () => {
+    const k = (window.__STOS__ || []).pop();
+    if (!k) return echo({cofnieto: false, powod: 'nie ma czego cofać'});
+    if (k.rodzaj === 'set') {
+      window.__SET__ = k.kolejnosc;
+      return echo({cofnieto: true, rodzaj: 'set', co: k.co,
+                   utwory: k.kolejnosc, filary: []});
+    }
+    return echo({...(DANE.pady || {pady: {}}), cofnieto: true,
+                 rodzaj: 'pad', co: k.co});
+  },
+  stan_dzwieku: () => echo(window.__BEZ_FFPLAY__
+    ? {ffplay: false, afplay: true, pelny: false,
+       powod: 'bez ffplay zagra tylko od początku — klik na fali, '
+              + 'wznowienie i skoki nie zadziałają (brew install ffmpeg)'}
+    : {ffplay: true, afplay: true, pelny: true, powod: ''}),
   kolizje: () => echo({kolizje: []}),
   biezacy_plan: () => echo({kolejnosc: []}),
 
