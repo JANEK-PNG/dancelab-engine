@@ -269,12 +269,14 @@ function rysujListe() {
     const d = (stan.pady || {})[n];
     const ms = d && (d.position_ms ?? d);
     const jest = typeof ms === 'number';
-    const skad = jest ? ((d && d.zrodlo) || (d && d.reczne ? 'ręcznie' : 'silnik')) : '';
+    const skad = jest ? skadPada(d) : '';
     const ud = jest && stan.bpm ? Math.round(ms / 1000 / (60 / stan.bpm)) : null;
     const tyt = jest ? `pad ${n} · uderzenie ${ud ?? '—'} · ${skad}`
                      : `wolny — cyfra ${i + 1} albo klik stawia pad na głowicy`;
+    // ✕ na każdym postawionym padzie (Janek 03.09: „każdy hot cue powinien
+    // mieć opcję usunięcia") — ⌫ dalej działa, ale ⌫ trzeba znać
     return `<div class="kafel${jest ? '' : ' pusty'}${stan.wybrany === n ? ' on' : ''}" data-pad="${n}" title="${tyt}">
-      <span>${n} · ${i + 1}</span>
+      <span>${n} · ${i + 1}${jest ? `<button class="zdejmij-pad" data-zdejmij-pad="${n}" title="zdejmij pad ${n} (⌫)">✕</button>` : ''}</span>
       <b ${jest ? `data-czas="${n}" title="klik albo T: wpisz czas"` : ''}>${jest ? mmss(ms) : '—'}</b>
       <small>${jest ? skad : ''}</small></div>`;
   }).join('') + '</div>';
@@ -283,6 +285,8 @@ function rysujListe() {
       const n = k.dataset.pad;
       if (n in (stan.pady || {})) zaznacz(n); else literaPada(n);
     }));
+  el.querySelectorAll('[data-zdejmij-pad]').forEach(b =>
+    b.addEventListener('click', e => { e.stopPropagation(); zdejmijPad(b.dataset.zdejmijPad); }));
   el.querySelectorAll('[data-czas]').forEach(b =>
     b.addEventListener('click', e => {
       if (stan.wybrany === b.dataset.czas) { e.stopPropagation(); edytujCzasPada(); }
@@ -441,7 +445,7 @@ function rysujKontekst() {
   if (d) {
     const ms = d.position_ms ?? d;
     const ud = stan.bpm ? Math.round(ms / 1000 / (60 / stan.bpm)) : '—';
-    const skad = d.zrodlo || (d.reczne ? 'ręcznie' : 'z silnika');
+    const skad = skadPada(d);
     const r = typeof d.silnik_ms === 'number' ? Math.round((ms - d.silnik_ms) / 100) / 10 : null;
     const gdzie = r === null ? 'na takcie' : r === 0 ? 'na takcie, bez przesunięcia'
                 : `przesunięty o ${r > 0 ? '+' : ''}${r} s od silnika`;
@@ -487,11 +491,22 @@ async function przesun(uderzenia) {
   stan.pady = odp.pady || {}; przerysuj(); odloz();
 }
 
-async function zdejmij() {
-  if (!stan.wybrany || !api()) return;
-  const odp = await api().zdejmij_pad(stan.trackId, stan.wybrany);
+async function zdejmij() { if (stan.wybrany) await zdejmijPad(stan.wybrany); }
+
+async function zdejmijPad(nazwa) {
+  if (!nazwa || !api()) return;
+  const odp = await api().zdejmij_pad(stan.trackId, nazwa);
   if (czyBlad(odp, 'Zdejmowanie pada')) return;
-  stan.pady = odp.pady || {}; stan.wybrany = null; przerysuj(); odloz();
+  stan.pady = odp.pady || {};
+  if (stan.wybrany === nazwa) stan.wybrany = null;
+  przerysuj(); odloz();
+  cueNotka(`pad ${nazwa} zdjęty · ⌘Z cofa`);
+}
+
+/* Skąd pad: silnik pisze „reka" w danych — człowiek ma zobaczyć słowo. */
+function skadPada(d) {
+  const z = (d && d.zrodlo) || (d && d.reczne ? 'reka' : 'silnik');
+  return {reka: 'ręcznie', silnik: 'silnik'}[z] || z;
 }
 
 async function cofnij() {

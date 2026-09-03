@@ -356,3 +356,11 @@ td.wynik{font-family:var(--mono);font-variant-numeric:tabular-nums;
 .spis .utwor .tresc{flex:1;min-width:0;display:flex;gap:12px;align-items:baseline}
 .spis .utwor .tresc .t{flex:1;min-width:0}
 .okl-gry{width:36px;height:36px;border-radius:6px}
+
+/* ✕ na kaflu pada: widoczny przy najechaniu i na zaznaczonym — bez
+   znajomości ⌫ da się zdjąć pad (Janek 03.09). */
+.kafel span{display:flex;justify-content:space-between;align-items:center}
+.zdejmij-pad{background:none;border:0;color:var(--cichszy);font:inherit;font-size:12px;
+  cursor:pointer;padding:0 2px;opacity:0;transition:opacity .12s}
+.kafel:hover .zdejmij-pad,.kafel.on .zdejmij-pad{opacity:1}
+.zdejmij-pad:hover{color:var(--alarm)}
