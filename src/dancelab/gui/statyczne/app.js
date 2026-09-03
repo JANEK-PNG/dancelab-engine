@@ -37,6 +37,10 @@ let stan = {
   kandydaci: null, kandCel: null, kandTryb: 'smart', kandWybor: null,
   // co gra: {gra, pozycja_sec, dlugosc_sec, rodzaj, track_id, opis, skad}
   gra: {gra: false, pozycja_sec: 0},
+  // widok fali (ułamki długości), zaznaczony fragment i pętla (sekundy),
+  // suwak w ręce (nie nadpisuj go pozycją, gdy ktoś go ciągnie)
+  widok: {od: 0, do: 1}, zaznaczenie: null, petla: null, suwakWReku: false,
+  petlaWToku: false,
 };
 
 /* ---------- pomocnicze ---------- */
@@ -69,7 +73,8 @@ function rysujFale() {
   // siatka taktów — pod falą, żeby jej nie zasłaniać
   g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 1;
   (p.takty_sec || []).forEach((t, i) => {
-    const x = Math.round(t / p.dlugosc_sec * w) + .5;
+    const x = Math.round(xOd(t) * w) + .5;
+    if (x < 0 || x > w) return;
     g.globalAlpha = i % 4 === 0 ? 1 : .45;
     g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
   });
@@ -78,9 +83,13 @@ function rysujFale() {
   // fala: lustrzana względem środka, w KOLORZE SEKCJI — ta sama informacja,
   // co pasek pod osią, ale tam, gdzie patrzy oko. Sekcje idą po czasie.
   const n = p.obwiednia.length, srodek = h / 2, sek = p.sekcje || [];
+  // zoom: rysujemy tylko widoczny wycinek, słupki rosną wraz z przybliżeniem
+  const i0 = Math.max(0, Math.floor(stan.widok.od * n));
+  const i1 = Math.min(n, Math.ceil(stan.widok.do * n));
+  const sz = Math.max(1, w / Math.max(1, i1 - i0));
   let k = 0;
-  for (let i = 0; i < n; i++) {
-    const x = i / n * w, sz = Math.max(1, w / n), t = i / n * p.dlugosc_sec;
+  for (let i = i0; i < i1; i++) {
+    const t = i / n * p.dlugosc_sec, x = xOd(t) * w;
     while (k < sek.length - 1 && t >= sek[k].do) k++;
     const s = sek[k] && t >= sek[k].od && t < sek[k].do ? sek[k] : null;
     const kolor = (s && KOLORY_SEKCJI[s.typ]) || '#7f9fc7';
@@ -92,14 +101,115 @@ function rysujFale() {
   }
 }
 
+/* ---------- widok fali: zoom, zaznaczenie, pętla, przewijanie ----------
+   Janek 03.09: „nie mam sterowania playerem na waveform, zoomu, zaznaczania".
+   Konwencja jak na CDJ (z formularza): klik = głowica, cyfra = pad na
+   głowicy, ⇧klik = nowy pad w miejscu kliknięcia, przeciągnięcie = fragment
+   (L pętla, Z zoom), ⌘/⌃ + kółko = zoom, kółko w bok = przesuw, 0 = całość.
+   Przewinięcie NIGDY nie startuje dźwięku — gdy cicho, miejsce czeka na spację. */
+function widokSek() {
+  const p = stan.przebieg;
+  return {od: stan.widok.od * p.dlugosc_sec, do: stan.widok.do * p.dlugosc_sec};
+}
+function xOd(sec) { const w = widokSek(); return (sec - w.od) / (w.do - w.od); }
+function sekOdX(clientX) {
+  const r = $('#fala-obszar').getBoundingClientRect();
+  const u = Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+  const w = widokSek();
+  return w.od + u * (w.do - w.od);
+}
+function ustawWidok(od, do_) {
+  const p = stan.przebieg; if (!p) return;
+  const min = Math.min(1, 8 / p.dlugosc_sec);          // nie bliżej niż 8 s
+  let a = Math.max(0, od), b = Math.min(1, do_);
+  if (b - a < min) { const c = (a + b) / 2; a = Math.max(0, c - min / 2); b = Math.min(1, a + min); a = b - min; }
+  stan.widok = {od: a, do: b};
+  rysujFale(); rysujSekcje(); rysujPady(); rysujOs(); rysujGlowice(); rysujZaznaczenie();
+}
+function zoomWokol(sek, mnoznik) {
+  const p = stan.przebieg; if (!p) return;
+  const u = sek / p.dlugosc_sec, od = stan.widok.od, do_ = stan.widok.do;
+  const dl = (do_ - od) * mnoznik, wLewo = (u - od) / (do_ - od);
+  ustawWidok(u - dl * wLewo, u - dl * wLewo + dl);
+}
+function przesunWidok(ulamekSzerokosci) {
+  const od = stan.widok.od, dl = stan.widok.do - od;
+  const a = Math.max(0, Math.min(1 - dl, od + dl * ulamekSzerokosci));
+  ustawWidok(a, a + dl);
+}
+function rysujZaznaczenie() {
+  const pokaz = (el, fr) => {
+    if (!fr || !stan.przebieg) { el.hidden = true; return; }
+    const a = Math.max(0, xOd(fr.od)), b = Math.min(1, xOd(fr.do));
+    if (b <= a) { el.hidden = true; return; }
+    el.hidden = false; el.style.left = (a * 100) + '%'; el.style.width = ((b - a) * 100) + '%';
+  };
+  pokaz($('#zaznaczenie'), stan.zaznaczenie); pokaz($('#petla'), stan.petla);
+}
+function zdejmijZaznaczenie() {
+  if (!stan.zaznaczenie && !stan.petla) return;
+  stan.zaznaczenie = null; stan.petla = null; rysujZaznaczenie(); cueNotka('');
+}
+function przelaczPetle() {
+  if (stan.petla) { stan.petla = null; rysujZaznaczenie(); cueNotka('pętla zdjęta'); return; }
+  if (!stan.zaznaczenie) { cueNotka('najpierw przeciągnij fragment na fali, potem L', true); return; }
+  stan.petla = {od: stan.zaznaczenie.od, do: stan.zaznaczenie.do}; rysujZaznaczenie();
+  cueNotka(`pętla ${mmss(stan.petla.od * 1000)}–${mmss(stan.petla.do * 1000)} · gra w kółko, gdy dźwięk włączysz · L zdejmuje`);
+}
+function zoomDoZaznaczenia() {
+  const p = stan.przebieg; if (!p) return;
+  if (!stan.zaznaczenie) { ustawWidok(0, 1); return; }
+  ustawWidok(stan.zaznaczenie.od / p.dlugosc_sec, stan.zaznaczenie.do / p.dlugosc_sec);
+}
+async function przewin(sek, trackId) {
+  if (!api()) return;
+  const tid = trackId || stan.trackId; if (!tid) return;
+  const odp = await api().przewin(tid, sek);
+  if (odp && odp.blad) {
+    if (odp.bez_pliku) { $('#opis-gry').classList.add('zle'); $('#opis-gry').textContent = odp.blad; return; }
+    pokazBlad('przewijanie', odp.blad); return;
+  }
+  stan.gra = odp; rysujGrajka(); pilnujGry(!!odp.gra);
+}
+async function postawPadWMiejscu(sek) {
+  if (!api() || !stan.trackId) return;
+  const pad = wolnyPad();
+  if (!pad) { pokazBlad('Pady', 'Wszystkie osiem padów zajęte — zdejmij któryś (⌫).'); return; }
+  const odp = await api().postaw_pad(stan.trackId, pad, Math.round(sek * 1000));
+  if (czyBlad(odp, 'Stawianie pada')) return;
+  stan.pady = odp.pady || {}; stan.wybrany = pad; przerysuj(); odloz();
+}
+/* Przeciąganie znacznika pada: ruch idzie po ekranie, puszczenie idzie do
+   Pythona — kwantyzacja do taktu tam, jak przy T i frazach. */
+function zacznijPrzeciaganie(e, pad, el) {
+  const start = e.clientX; let ruszyl = false;
+  const ruch = ev => {
+    if (!ruszyl && Math.abs(ev.clientX - start) < 3) return;
+    ruszyl = true;
+    el.style.left = (Math.min(1, Math.max(0, xOd(sekOdX(ev.clientX)))) * 100) + '%';
+    $('#czas-kursora').textContent = mmss(sekOdX(ev.clientX) * 1000);
+  };
+  const koniec = async ev => {
+    document.removeEventListener('mousemove', ruch); document.removeEventListener('mouseup', koniec);
+    if (!ruszyl) return;
+    const odp = await api().przeciagnij_pad(stan.trackId, pad, sekOdX(ev.clientX));
+    if (odp && odp.blad) { cueNotka(odp.blad, true); rysujPady(); return; }
+    stan.pady = odp.pady || {}; przerysuj(); odloz(); cueNotka(`${odp.powod} · ⌘Z cofa`);
+  };
+  document.addEventListener('mousemove', ruch); document.addEventListener('mouseup', koniec);
+}
+
 function rysujSekcje() {
   const el = $('#pas-sekcji'), p = stan.przebieg;
   el.innerHTML = '';
   if (!p || !p.sekcje.length) return;
+  const wid = widokSek();
   p.sekcje.forEach(s => {
+    const od = Math.max(s.od, wid.od), do_ = Math.min(s.do, wid.do);
+    if (do_ <= od) return;                       // poza przybliżonym widokiem
     const d = document.createElement('div');
     d.className = 'sek';
-    d.style.flex = String(Math.max(.001, (s.do - s.od) / p.dlugosc_sec));
+    d.style.flex = String(Math.max(.001, (do_ - od) / (wid.do - wid.od)));
     d.style.setProperty('--kolor', KOLORY_SEKCJI[s.typ] || '#3a434e');
     d.textContent = s.nazwa;
     d.title = `${s.nazwa} · ${mmss(s.od * 1000)}–${mmss(s.do * 1000)}`;
@@ -120,10 +230,14 @@ function rysujPady() {
     if (typeof ms !== 'number') return;
     const d = document.createElement('div');
     d.className = 'pad' + (stan.wybrany === nazwa ? ' wybrany' : '');
-    d.style.left = (ms / 1000 / p.dlugosc_sec * 100) + '%';
+    const u = xOd(ms / 1000);
+    if (u < 0 || u > 1) return;                  // poza przybliżonym widokiem
+    d.style.left = (u * 100) + '%';
     d.dataset.pad = nazwa;
-    d.title = `pad ${nazwa} · ${mmss(ms)}`;
-    d.addEventListener('mousedown', e => { e.stopPropagation(); zaznacz(nazwa); });
+    d.title = `pad ${nazwa} · ${mmss(ms)} — przeciągnij, żeby przesunąć`;
+    d.addEventListener('mousedown', e => {
+      e.stopPropagation(); zaznacz(nazwa); zacznijPrzeciaganie(e, nazwa, d);
+    });
     w.appendChild(d);
   });
 }
@@ -132,37 +246,39 @@ function rysujOs() {
   const p = stan.przebieg, el = $('#os-czasu');
   el.innerHTML = '';
   if (!p) return;
+  const wid = widokSek();
   for (let i = 0; i <= 6; i++) {
     const s = document.createElement('span');
-    s.textContent = mmss(p.dlugosc_sec * 1000 * i / 6);
+    s.textContent = mmss((wid.od + (wid.do - wid.od) * i / 6) * 1000);
     el.appendChild(s);
   }
 }
 
 function rysujListe() {
+  // Osiem kafli jak na kontrolerze (makieta „Redakcja", 03.09): pusty kafel
+  // to zaproszenie — klik albo cyfra stawia pad na głowicy.
   const el = $('#lista-padow');
-  const wpisy = Object.entries(stan.pady || {});
-  if (!wpisy.length) {
-    el.innerHTML = '<div class="pusto">Brak padów — kliknij falę, żeby postawić pierwszy.</div>';
-    return;
-  }
-  el.innerHTML = `<table><thead><tr>
-      <th style="width:44px">pad</th><th style="width:70px">czas</th>
-      <th style="width:80px">uderzenie</th><th>skąd</th>
-    </tr></thead><tbody>${
-    wpisy.map(([n, d]) => {
-      const ms = d && (d.position_ms ?? d);
-      const ud = stan.bpm ? Math.round(ms / 1000 / (60 / stan.bpm)) : '—';
-      const skad = (d && d.zrodlo) || (d && d.reczne ? 'ręcznie' : 'silnik');
-      return `<tr data-pad="${n}" ${stan.wybrany === n ? 'aria-selected="true"' : ''}>
-        <td>${n}</td><td class="num czas-pada" data-czas="${n}" title="klik albo T: wpisz czas">${mmss(ms)}</td>
-        <td class="num">${ud}</td><td style="color:var(--cichszy)">${skad}</td></tr>`;
-    }).join('')}</tbody></table>`;
-  el.querySelectorAll('tr[data-pad]').forEach(tr =>
-    tr.addEventListener('click', () => zaznacz(tr.dataset.pad)));
-  el.querySelectorAll('td[data-czas]').forEach(td =>
-    td.addEventListener('click', e => {
-      if (stan.wybrany === td.dataset.czas) { e.stopPropagation(); edytujCzasPada(); }
+  el.innerHTML = '<div class="kafle">' + NAZWY_PADOW.map((n, i) => {
+    const d = (stan.pady || {})[n];
+    const ms = d && (d.position_ms ?? d);
+    const jest = typeof ms === 'number';
+    const skad = jest ? ((d && d.zrodlo) || (d && d.reczne ? 'ręcznie' : 'silnik')) : '';
+    const ud = jest && stan.bpm ? Math.round(ms / 1000 / (60 / stan.bpm)) : null;
+    const tyt = jest ? `pad ${n} · uderzenie ${ud ?? '—'} · ${skad}`
+                     : `wolny — cyfra ${i + 1} albo klik stawia pad na głowicy`;
+    return `<div class="kafel${jest ? '' : ' pusty'}${stan.wybrany === n ? ' on' : ''}" data-pad="${n}" title="${tyt}">
+      <span>${n} · ${i + 1}</span>
+      <b ${jest ? `data-czas="${n}" title="klik albo T: wpisz czas"` : ''}>${jest ? mmss(ms) : '—'}</b>
+      <small>${jest ? skad : ''}</small></div>`;
+  }).join('') + '</div>';
+  el.querySelectorAll('.kafel').forEach(k =>
+    k.addEventListener('click', () => {
+      const n = k.dataset.pad;
+      if (n in (stan.pady || {})) zaznacz(n); else literaPada(n);
+    }));
+  el.querySelectorAll('[data-czas]').forEach(b =>
+    b.addEventListener('click', e => {
+      if (stan.wybrany === b.dataset.czas) { e.stopPropagation(); edytujCzasPada(); }
     }));
   rysujFrazy();
 }
@@ -179,7 +295,7 @@ function cueNotka(tekst, zle) {
 
 function edytujCzasPada() {
   if (!stan.wybrany || !stan.pady[stan.wybrany]) return;
-  const td = $(`td[data-czas="${stan.wybrany}"]`);
+  const td = $(`[data-czas="${stan.wybrany}"]`);
   if (!td || td.querySelector('input')) return;
   const d = stan.pady[stan.wybrany];
   const pole = document.createElement('input');
@@ -206,7 +322,9 @@ async function literaPada(n) {
   if (!(n in (stan.pady || {}))) {
     // brak pada: nowy, ręczny — na głowicy, gdy gra TEN utwór; inaczej w środku
     const g = stan.gra || {};
-    const naTym = g.gra && g.rodzaj === 'utwor' && g.track_id === stan.trackId;
+    // głowica liczy się także W PAUZIE: klik na fali ustawia miejsce w ciszy,
+    // cyfra ma postawić pad właśnie tam (wcześniej lądował w środku utworu)
+    const naTym = g.rodzaj === 'utwor' && g.track_id === stan.trackId && (g.gra || g.pozycja_sec > 0);
     const ms = Math.round((naTym ? g.pozycja_sec : (stan.przebieg.dlugosc_sec / 2)) * 1000);
     const odp = await api().postaw_pad(stan.trackId, n, ms);
     if (czyBlad(odp, 'Stawianie pada')) return;
@@ -306,33 +424,40 @@ async function szkicZFilarow() {
 }
 
 function rysujKontekst() {
+  // Tempo, tonacja i długość stoją w nagłówku (makieta 03.09); tu zostaje to,
+  // co dotyczy ZAZNACZONEGO pada i tego, czego na fali nie zmierzono.
   const a = $('#kontekst'), p = stan.przebieg;
-  if (!p) { a.innerHTML = '<div class="pusto">wczytuję…</div>'; return; }
-  const ile = Object.keys(stan.pady || {}).length;
+  if (!p) { a.innerHTML = ''; return; }
   const bezDanych = p.ma_dane.filter(x => !x).length;
-  a.innerHTML = `<h2>Utwór</h2>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="pole"><div class="et">długość</div>
-        <div class="wa duza">${mmss(p.dlugosc_sec * 1000)}</div></div>
-      <div class="pole"><div class="et">tempo</div>
-        <div class="wa duza">${p.bpm ? p.bpm.toFixed(1) : '—'}</div></div>
-    </div>
-    <div class="rozdziel"></div>
-    <div class="pole"><div class="et">pady</div><div class="wa">${ile} z ${NAZWY_PADOW.length}</div></div>
-    <div class="pole"><div class="et">sekcje</div>
-      <div class="wa">${p.sekcje.map(s => s.nazwa).join(' · ') || '—'}</div></div>
-    ${bezDanych ? `<div class="powod"><b>Miejsca bez pomiaru:</b>
+  const d = stan.wybrany && stan.pady[stan.wybrany];
+  let pad = '';
+  if (d) {
+    const ms = d.position_ms ?? d;
+    const ud = stan.bpm ? Math.round(ms / 1000 / (60 / stan.bpm)) : '—';
+    const skad = d.zrodlo || (d.reczne ? 'ręcznie' : 'z silnika');
+    const r = typeof d.silnik_ms === 'number' ? Math.round((ms - d.silnik_ms) / 100) / 10 : null;
+    const gdzie = r === null ? 'na takcie' : r === 0 ? 'na takcie, bez przesunięcia'
+                : `przesunięty o ${r > 0 ? '+' : ''}${r} s od silnika`;
+    pad = `<h2>Pad ${stan.wybrany}</h2>
+      <div class="pole"><div class="wa">${mmss(ms)} · uderzenie ${ud} · ${skad}</div>
+      <div class="drobne">${gdzie}</div></div>`;
+  }
+  // Pady i sekcje już są na ekranie (kafle, kreska pod osią) — nie powtarzamy.
+  // Pusty kontekst znika w CSS, żeby biblioteka dostała całą wysokość.
+  a.innerHTML = (pad + (bezDanych ? `<div class="powod"><b>Miejsca bez pomiaru:</b>
       ${bezDanych} z ${p.ma_dane.length} punktów fali. Rysuję je szarą kreską,
-      nie ciszą — to dwie różne rzeczy.</div>` : ''}`;
+      nie ciszą — to dwie różne rzeczy.</div>` : '')).trim();
 }
 
 function przerysuj() {
   rysujSekcje(); rysujFale(); rysujPady(); rysujOs(); rysujListe(); rysujKontekst();
-  rysujGrajka();
+  rysujZaznaczenie(); rysujGrajka();
 }
 
 /* ---------- działania (każde idzie do Pythona) ---------- */
-function zaznacz(nazwa) { stan.wybrany = nazwa; rysujPady(); rysujListe(); cueNotka(''); }
+function zaznacz(nazwa) {
+  stan.wybrany = nazwa; rysujPady(); rysujListe(); rysujKontekst(); cueNotka('');
+}
 
 function wolnyPad() {
   return NAZWY_PADOW.find(n => !(n in (stan.pady || {})));
@@ -345,18 +470,6 @@ async function odloz() {
   // znikały razem z oknem.
   if (!api()) return;
   czyBlad(await api().zapisz_edycje(), 'Zapis edycji na dysk');
-}
-
-async function postawZKlikniecia(ev) {
-  if (!stan.przebieg || !api()) return;
-  const r = $('#fala-obszar').getBoundingClientRect();
-  const ulamek = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width));
-  const ms = Math.round(ulamek * stan.przebieg.dlugosc_sec * 1000);
-  const pad = stan.wybrany || wolnyPad();
-  if (!pad) { pokazBlad('Pady', 'Wszystkie osiem padów zajęte — zdejmij któryś (⌫).'); return; }
-  const odp = await api().postaw_pad(stan.trackId, pad, ms);
-  if (czyBlad(odp, 'Stawianie pada')) return;
-  stan.pady = odp.pady || {}; stan.wybrany = pad; przerysuj(); odloz();
 }
 
 async function przesun(uderzenia) {
@@ -618,7 +731,11 @@ async function wybierzUtwor(trackId, opcje) {
   stan.przebieg = p;
   stan.bpm = p.bpm;
   stan.wybrany = null;
+  stan.widok = {od: 0, do: 1}; stan.zaznaczenie = null; stan.petla = null;
   $('#tytul').textContent = p.tytul || trackId;
+  $('#l-tempo').textContent = p.bpm ? p.bpm.toFixed(1) : '—';
+  $('#l-ton').textContent = p.tonacja || '—';
+  $('#l-dl').textContent = mmss(p.dlugosc_sec * 1000);
   $('#podtytul').textContent =
     [p.wykonawca, p.bpm ? p.bpm.toFixed(1) + ' BPM' : null].filter(Boolean).join(' · ');
   const pd = await api().pady(trackId);
@@ -1313,12 +1430,60 @@ async function start() {
   if (stan.spis.length) await wybierzUtwor(stan.spis[0].track_id);
 }
 
-$('#fala-obszar').addEventListener('click', postawZKlikniecia);
-$('#fala-obszar').addEventListener('mousemove', e => {
-  if (!stan.przebieg) return;
-  const r = e.currentTarget.getBoundingClientRect();
-  const u = (e.clientX - r.left) / r.width;
-  $('#czas-kursora').textContent = mmss(u * stan.przebieg.dlugosc_sec * 1000);
+(() => {
+  const obszar = $('#fala-obszar');
+  let start = null;
+  // mysz na fali: klik = głowica, ⇧klik = nowy pad, przeciągnięcie = fragment
+  obszar.addEventListener('mousedown', e => {
+    if (!stan.przebieg || e.button !== 0) return;
+    start = {x: e.clientX, sek: sekOdX(e.clientX), shift: e.shiftKey, ruszyl: false};
+    const ruch = ev => {
+      if (!start) return;
+      if (!start.ruszyl && Math.abs(ev.clientX - start.x) < 4) return;
+      start.ruszyl = true;
+      const s = sekOdX(ev.clientX);
+      stan.zaznaczenie = {od: Math.min(start.sek, s), do: Math.max(start.sek, s)};
+      rysujZaznaczenie();
+    };
+    const koniec = () => {
+      document.removeEventListener('mousemove', ruch); document.removeEventListener('mouseup', koniec);
+      const st = start; start = null; if (!st) return;
+      if (st.ruszyl) {
+        const z = stan.zaznaczenie;
+        cueNotka(`fragment ${mmss(z.od * 1000)}–${mmss(z.do * 1000)} · L pętla · Z zoom · Esc zdejmuje`);
+        return;
+      }
+      if (st.shift) { postawPadWMiejscu(st.sek); return; }
+      przewin(st.sek);
+    };
+    document.addEventListener('mousemove', ruch); document.addEventListener('mouseup', koniec);
+    e.preventDefault();
+  });
+  obszar.addEventListener('mousemove', e => {
+    if (!stan.przebieg) return;
+    $('#czas-kursora').textContent = mmss(sekOdX(e.clientX) * 1000);
+  });
+  // ⌘/⌃ + kółko (i szczypanie na gładziku) = zoom wokół kursora; kółko w bok = przesuw
+  obszar.addEventListener('wheel', e => {
+    if (!stan.przebieg) return;
+    e.preventDefault();
+    if (e.ctrlKey || e.metaKey) { zoomWokol(sekOdX(e.clientX), e.deltaY > 0 ? 1.25 : 0.8); return; }
+    const dx = e.deltaX || (e.shiftKey ? e.deltaY : 0);
+    if (dx) przesunWidok(dx / obszar.clientWidth);
+  }, {passive: false});
+})();
+// Suwak: ciągnięcie pokazuje czas, puszczenie przewija — dźwięk gra dalej
+// tylko wtedy, gdy grał. Dotyczy tego, co GRA (na Secie to zaznaczona pozycja).
+$('#suwak').addEventListener('input', e => {
+  stan.suwakWReku = true;
+  const g = stan.gra || {}, dl = g.dlugosc_sec || (stan.przebieg && stan.przebieg.dlugosc_sec) || 0;
+  $('#czas-gry').textContent = mmss(e.target.value / 1000 * dl * 1000) + (dl ? ` / ${mmss(dl * 1000)}` : '');
+});
+$('#suwak').addEventListener('change', e => {
+  stan.suwakWReku = false;
+  const g = stan.gra || {}, dl = g.dlugosc_sec || (stan.przebieg && stan.przebieg.dlugosc_sec) || 0;
+  const tid = (g.rodzaj === 'utwor' && g.track_id) || stan.trackId;
+  if (dl && tid) przewin(e.target.value / 1000 * dl, tid);
 });
 $('#btn-cofnij').addEventListener('click', cofnij);
 $('#filtr').addEventListener('input', e => { stan.filtr = e.target.value; odswiezSpis(); });
@@ -1476,6 +1641,10 @@ function rysujGrajka() {
   rysujOkladkeGry();
   $('#czas-gry').textContent = gra || g.pozycja_sec
     ? mmss((g.pozycja_sec || 0) * 1000) + dl : '0:00';
+  const suwak = $('#suwak');
+  const dlSek = g.dlugosc_sec || (stan.przebieg && stan.przebieg.dlugosc_sec) || 0;
+  suwak.disabled = g.rodzaj === 'szew' || !dlSek || (!gra && !g.track_id && (!cel || blokada));
+  if (!stan.suwakWReku) suwak.value = dlSek ? Math.round((g.pozycja_sec || 0) / dlSek * 1000) : 0;
   const opis = $('#opis-gry');
   opis.classList.toggle('zle', !!blokada);
   if (blokada) {
@@ -1499,13 +1668,20 @@ function rysujGrajka() {
 function rysujGlowice() {
   const el = $('#glowica'), g = stan.gra || {}, p = stan.przebieg;
   // Głowica należy do TEGO utworu. Gdy gra co innego (albo szew), znika —
-  // linia na cudzej fali kłamałaby o tym, gdzie jest dźwięk.
-  if (!p || !g.gra || g.rodzaj !== 'utwor' || g.track_id !== stan.trackId) {
-    el.hidden = true;
-    return;
+  // linia na cudzej fali kłamałaby o tym, gdzie jest dźwięk. W pauzie stoi
+  // przygaszona: to miejsce, z którego spacja ruszy.
+  const tu = p && g.rodzaj === 'utwor' && g.track_id === stan.trackId && (g.gra || g.pozycja_sec > 0);
+  if (!tu) { el.hidden = true; return; }
+  const sek = g.pozycja_sec || 0, u = xOd(sek);
+  // gdy gra i uciekła poza przybliżony widok — widok jedzie za nią
+  if (g.gra && (u > 1 || u < 0) && stan.widok.do - stan.widok.od < 1) {
+    const dl = stan.widok.do - stan.widok.od;
+    const a = Math.max(0, Math.min(1 - dl, sek / p.dlugosc_sec - dl * 0.1));
+    ustawWidok(a, a + dl); return;             // ustawWidok rysuje głowicę
   }
-  el.hidden = false;
-  el.style.left = `${Math.min(100, (g.pozycja_sec / p.dlugosc_sec) * 100)}%`;
+  el.hidden = u < 0 || u > 1;
+  el.classList.toggle('stoi', !g.gra);
+  el.style.left = `${u * 100}%`;
 }
 
 function pilnujGry(wlacz) {
@@ -1517,6 +1693,14 @@ function pilnujGry(wlacz) {
     if (czyBlad(s, 'odsłuch')) { pilnujGry(false); return; }
     stan.gra = s;
     rysujGrajka();
+    // pętla: koniec fragmentu = przewinięcie na jego początek; przewinięcie
+    // restartuje proces (0,1–0,2 s ciszy), więc to podgląd, nie loop na żywo
+    if (stan.petla && s.gra && s.rodzaj === 'utwor' && s.track_id === stan.trackId
+        && s.pozycja_sec >= stan.petla.do && !stan.petlaWToku) {
+      stan.petlaWToku = true;
+      try { await przewin(stan.petla.od); } finally { stan.petlaWToku = false; }
+      return;
+    }
     if (!s.gra) {
       pilnujGry(false);      // koniec albo pauza — przestań pytać
       if (s.skonczyl_sie && s.rodzaj === 'utwor') autoNastepny(s.track_id);
@@ -1718,6 +1902,10 @@ document.addEventListener('keydown', e => {
   if (/^[1-8]$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) {
     literaPada(NAZWY_PADOW[Number(e.key) - 1]); return;
   }
+  if (e.key === 'Escape') { zdejmijZaznaczenie(); return; }
+  if ((e.key === 'l' || e.key === 'L') && !e.metaKey && !e.ctrlKey) { przelaczPetle(); return; }
+  if ((e.key === 'z' || e.key === 'Z') && !e.metaKey && !e.ctrlKey) { zoomDoZaznaczenia(); return; }
+  if (e.key === '0') { ustawWidok(0, 1); return; }
   if (e.key === 't' || e.key === 'T') { edytujCzasPada(); return; }
   if (e.key === 'k' || e.key === 'K') { przelaczOkladki(); return; }
   if (e.key === 'i' || e.key === 'I') { pokazInfo(); return; }

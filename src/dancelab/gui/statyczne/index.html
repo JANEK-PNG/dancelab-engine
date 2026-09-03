@@ -27,64 +27,20 @@
 </div>
 
 <div class="korpus">
-  <div class="lista-utworow">
-    <div class="szukajka">
-      <input id="filtr" placeholder="szukaj utworu…" spellcheck="false">
-    </div>
-    <!-- Filtry biblioteki: te same reguły co w terminalu. Okno tempa znaczy
-         to, co mówi — utwór bez tempa przy aktywnym oknie odpada. -->
-    <div class="filtry-lib">
-      <input id="filtr-ton" placeholder="tonacja 8A" spellcheck="false">
-      <input id="filtr-bpm" placeholder="BPM 124-134" spellcheck="false">
-    </div>
-    <!-- Sekcje jak w pasku bocznym terminala (11.08): skąd bierze się utwór
-         to TRZY kategorie, nie dwie — „niedostępne" to plik lokalny na
-         odpiętym dysku, a nie strumień. -->
-    <div class="filtry-lib">
-      <div class="chip-gest" id="sekcje">
-        <button data-sekcja="" aria-pressed="true" title="cała biblioteka">wszystko</button>
-        <button data-sekcja="ulubione" title="ulubione utwory">♥</button>
-        <button data-sekcja="filary" title="filary aktywnej playlisty">⚑</button>
-        <button data-sekcja="dysk" title="na dysku — da się zagrać">▣</button>
-        <button data-sekcja="apple" title="Apple Music — strumień">☁</button>
-        <button data-sekcja="brak" title="niedostępne — plik lokalny, którego nie ma">⚠</button>
-      </div>
-    </div>
-    <div class="filtry-lib" id="okladki-pasek">
-      <button class="btn maly" id="btn-okladki" aria-pressed="false" title="okładki w liście (K) — z tagów plików, brak = pustka">okładki <kbd>K</kbd></button>
-      <button class="btn maly" id="btn-dociagnij" hidden title="brakujące okładki z iTunes → tagi plików, z weryfikacją">dociągnij z iTunes</button>
-    </div>
-    <div class="filtry-lib">
-      <span class="drobne">sortuj</span>
-      <div class="chip-gest" id="sortowanie" title="klik: rosnąco, drugi: malejąco, trzeci: bez">
-        <button data-s="tytul">tytuł</button>
-        <button data-s="wykonawca">wykonawca</button>
-        <button data-s="bpm">BPM</button>
-        <button data-s="tonacja">ton</button>
-        <button data-s="dlugosc">czas</button>
-        <button data-s="gatunek">gatunek</button>
-      </div>
-    </div>
-    <div class="spis" id="spis"><div class="pusto">wczytuję…</div></div>
-    <div class="licznik" id="licznik"></div>
-    <!-- Onboarding: folder z muzyką → analiza (minuty, w tle, z postępem).
-         Nowe analizy lądują w tym samym katalogu, z którego czyta terminal. -->
-    <div class="filtry-lib" id="skan-box">
-      <input id="skan-folder" placeholder="folder z muzyką do przeskanowania" spellcheck="false">
-      <button class="btn maly" id="btn-skan" title="przeanalizuj pliki z folderu (pierwszy raz albo dogranie)">Analizuj</button>
-    </div>
-    <div class="drobne" id="skan-postep" style="padding:0 var(--luz) 6px"></div>
-    <div class="skroty lib-skroty">
-      <span><b>U</b> ♥ ulubiony</span><span><b>F</b> filar</span>
-    </div>
-  </div>
-
   <main>
     <section id="szew">
-      <div class="narzedzia">
-        <span class="tytul-utworu" id="tytul">—</span>
-        <span class="drobne" id="podtytul"></span>
-        <div style="margin-left:auto;display:flex;gap:8px">
+      <div class="narzedzia naglowek">
+        <div class="tytul-blok">
+          <span class="tytul-utworu" id="tytul">—</span>
+          <span class="drobne" id="podtytul"></span>
+        </div>
+        <!-- Trzy liczby utworu przy tytule (makieta „Redakcja", 03.09) -->
+        <div class="liczby" id="liczby">
+          <div><small>tempo</small><b id="l-tempo">—</b></div>
+          <div><small>tonacja</small><b id="l-ton">—</b></div>
+          <div><small>długość</small><b id="l-dl">—</b></div>
+        </div>
+        <div style="display:flex;gap:8px">
           <button class="btn" id="btn-cofnij">Cofnij <kbd>⌘Z</kbd></button>
           <!-- Podglądu zapisu i wysyłki do Rekordboxa tu NIE MA celowo: edycje
                z okna nie trafiają jeszcze do wspólnego magazynu, więc terminal
@@ -101,6 +57,10 @@
           <!-- Głowica: gdzie JEST dźwięk. Rysowana nad falą jako element,
                nie na płótnie — płótno przerysowuje się przy zmianie utworu,
                a głowica rusza się dziesięć razy na sekundę. -->
+          <!-- Zaznaczony fragment (przeciągnięcie) i pętla (L) — nad falą,
+               jak głowica: przerysowują się bez rysowania płótna od nowa. -->
+          <div class="zaznaczenie" id="zaznaczenie" hidden></div>
+          <div class="petla" id="petla" hidden></div>
           <div class="glowica" id="glowica" hidden></div>
         </div>
         <div class="os-czasu" id="os-czasu"></div>
@@ -108,7 +68,7 @@
       </div>
 
 
-      <div class="tabela" id="lista-padow"></div>
+      <div class="pady-box" id="lista-padow"></div>
       <!-- Gotowe czasy fraz (POCZĄTKI sekcji + propozycja silnika) dla
            zaznaczonego pada — zmierzone, nie „co 32 bity". Klik przenosi. -->
       <div class="drobne" id="frazy" hidden></div>
@@ -324,7 +284,64 @@
     </section>
   </main>
 
+  <!-- Prawa kolumna (makieta „Redakcja", 03.09): biblioteka u góry, pod nią
+       kontekst zaznaczonego pada. Na ekranach Set i DJ lista znika, a kontekst
+       dostaje całą wysokość. -->
+  <div class="prawa-kolumna">
+  <div class="lista-utworow">
+    <div class="szukajka">
+      <input id="filtr" placeholder="szukaj utworu…" spellcheck="false">
+    </div>
+    <!-- Filtry biblioteki: te same reguły co w terminalu. Okno tempa znaczy
+         to, co mówi — utwór bez tempa przy aktywnym oknie odpada. -->
+    <div class="filtry-lib">
+      <input id="filtr-ton" placeholder="tonacja 8A" spellcheck="false">
+      <input id="filtr-bpm" placeholder="BPM 124-134" spellcheck="false">
+    </div>
+    <!-- Sekcje jak w pasku bocznym terminala (11.08): skąd bierze się utwór
+         to TRZY kategorie, nie dwie — „niedostępne" to plik lokalny na
+         odpiętym dysku, a nie strumień. -->
+    <div class="filtry-lib">
+      <div class="chip-gest" id="sekcje">
+        <button data-sekcja="" aria-pressed="true" title="cała biblioteka">wszystko</button>
+        <button data-sekcja="ulubione" title="ulubione utwory">♥</button>
+        <button data-sekcja="filary" title="filary aktywnej playlisty">⚑</button>
+        <button data-sekcja="dysk" title="na dysku — da się zagrać">▣</button>
+        <button data-sekcja="apple" title="Apple Music — strumień">☁</button>
+        <button data-sekcja="brak" title="niedostępne — plik lokalny, którego nie ma">⚠</button>
+      </div>
+    </div>
+    <div class="filtry-lib" id="okladki-pasek">
+      <button class="btn maly" id="btn-okladki" aria-pressed="false" title="okładki w liście (K) — z tagów plików, brak = pustka">okładki <kbd>K</kbd></button>
+      <button class="btn maly" id="btn-dociagnij" hidden title="brakujące okładki z iTunes → tagi plików, z weryfikacją">dociągnij z iTunes</button>
+    </div>
+    <div class="filtry-lib">
+      <span class="drobne">sortuj</span>
+      <div class="chip-gest" id="sortowanie" title="klik: rosnąco, drugi: malejąco, trzeci: bez">
+        <button data-s="tytul">tytuł</button>
+        <button data-s="wykonawca">wykonawca</button>
+        <button data-s="bpm">BPM</button>
+        <button data-s="tonacja">ton</button>
+        <button data-s="dlugosc">czas</button>
+        <button data-s="gatunek">gatunek</button>
+      </div>
+    </div>
+    <div class="spis" id="spis"><div class="pusto">wczytuję…</div></div>
+    <div class="licznik" id="licznik"></div>
+    <!-- Onboarding: folder z muzyką → analiza (minuty, w tle, z postępem).
+         Nowe analizy lądują w tym samym katalogu, z którego czyta terminal. -->
+    <div class="filtry-lib" id="skan-box">
+      <input id="skan-folder" placeholder="folder z muzyką do przeskanowania" spellcheck="false">
+      <button class="btn maly" id="btn-skan" title="przeanalizuj pliki z folderu (pierwszy raz albo dogranie)">Analizuj</button>
+    </div>
+    <div class="drobne" id="skan-postep" style="padding:0 var(--luz) 6px"></div>
+    <div class="skroty lib-skroty">
+      <span><b>U</b> ♥ ulubiony</span><span><b>F</b> filar</span>
+    </div>
+  </div>
+
   <aside id="kontekst"></aside>
+  </div>
 </div>
 
 <div class="dol">
@@ -340,6 +357,8 @@
     <button class="btn maly" id="btn-tyl" title="cofnij o 8 uderzeń (←)" disabled>−8</button>
     <button class="btn maly" id="btn-przod" title="do przodu o 8 uderzeń (→)" disabled>+8</button>
     <span class="czas" id="czas-gry">0:00</span>
+    <input type="range" id="suwak" min="0" max="1000" value="0" disabled
+           title="przewiń — dźwięk gra dalej tylko wtedy, gdy grał">
     <span class="drobne" id="opis-gry">dźwięk gra tylko wtedy, gdy sam go włączysz</span>
     <span class="czas" id="czas-kursora" style="margin-left:auto">—</span>
     <span class="legenda-hint" title="pokaż lub schowaj legendę klawiszy"><b>?</b> klawisze</span>
@@ -348,12 +367,15 @@
        w rzędzie na stałe to była stopka z terminala, nie część okna. -->
   <div id="legenda" hidden>
   <div class="skroty" id="skroty-szew">
-    <span><b>klik</b> postaw pad</span>
+    <span><b>klik</b> głowica</span>
+    <span><b>⇧klik</b> nowy pad tutaj</span>
+    <span><b>przeciągnij</b> fragment · <b>L</b> pętla · <b>Z</b> zoom · <b>Esc</b> zdejmij</span>
+    <span><b>⌘kółko</b> zoom · <b>kółko w bok</b> przesuw · <b>0</b> całość</span>
+    <span><b>1–8</b> pad na głowicy · drugi raz przenosi</span>
+    <span><b>znacznik</b> przeciągnij, żeby przesunąć</span>
+    <span><b>←→</b> pad o uderzenie · gdy gra: skok 8, <b>⇧</b> 32, <b>PgUp/Dn</b> 128</span>
     <span><b>⌫</b> zdejmij</span>
-    <span><b>←→</b> o uderzenie · gdy gra: skok 8, <b>⇧</b> 32, <b>PgUp/Dn</b> 128</span>
     <span><b>⌘Z</b> cofnij</span>
-    <span><b>1–8</b> pad A–H: raz wybiera, drugi raz przenosi do głowicy</span>
-    <span><b>⇥</b> ekran</span>
     <span><b>T</b> wpisz czas</span>
     <span><b>I</b> info</span>
     <span><b>U</b> ♥ ulubiony</span>
@@ -362,6 +384,7 @@
     <span><b>␣</b> graj / pauza</span>
     <span><b>P</b> od pada</span>
     <span><b>S</b> szew</span>
+    <span><b>⇥</b> ekran</span>
   </div>
   <div class="skroty" id="skroty-set" hidden>
     <span><b>klik</b> zaznacz pozycję</span>

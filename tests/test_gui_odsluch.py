@@ -366,3 +366,54 @@ def test_utwor_bez_sciezki_odmawia_zamiast_udawac_ze_zagra(most):
     assert budowa.ma_plik("") is False
     assert budowa.ma_plik(None) is False
     assert budowa.ma_plik("/muzyka/x.aiff") is True
+
+
+# ---------------------------------------------------------------- przewijanie
+# Skarga Janka 03.09: „jak player może nie mieć paska do przewijania". Klik na
+# fali i suwak wołają `przewin`. Zasada bez wyjątku: przewinięcie nigdy nie
+# STARTUJE dźwięku — gdy cicho, miejsce czeka na spację.
+
+
+def test_przewiniecie_grajacego_utworu_gra_dalej_od_nowego_miejsca(most, procesy):
+    most.graj("t1")
+    odp = most.przewin("t1", 90.0)
+    assert odp["akcja"] == "przewiniecie"
+    assert odp["gra"] is True
+    assert procesy[0].zakonczony is True          # stary proces zabity
+    assert procesy[-1].cmd[0] == "/fake/ffplay"
+    assert procesy[-1].cmd[procesy[-1].cmd.index("-ss") + 1] == "90.000"
+
+
+def test_przewiniecie_w_ciszy_nie_rusza_dzwieku_a_spacja_startuje_stamtad(most, procesy):
+    odp = most.przewin("t1", 75.5)
+    assert odp["gra"] is False
+    assert odp["pozycja_sec"] == 75.5
+    assert odp["track_id"] == "t1"
+    assert "spacja" in odp["skad"]
+    assert procesy == []                          # cisza została ciszą
+
+    start = most.graj("t1")
+    assert start["akcja"] == "wznowienie"
+    assert procesy[-1].cmd[procesy[-1].cmd.index("-ss") + 1] == "75.500"
+
+
+def test_przewiniecie_strumienia_odmawia_bez_pliku(most, procesy):
+    odp = most.przewin("s1", 10.0)
+    assert odp["bez_pliku"] is True
+    assert procesy == []
+
+
+def test_przewiniecie_za_koniec_utworu_zatrzymuje_sie_na_koncu(most, procesy):
+    odp = most.przewin("t1", 9999.0)
+    assert odp["pozycja_sec"] == 300.0             # długość z analizy
+
+
+def test_przewiniecie_innego_utworu_ucisza_ten_ktory_gral(most, procesy):
+    """Głowica należy do jednego utworu naraz — cudzy dźwięk milknie, nowy
+    NIE startuje sam."""
+    most.graj("t1")
+    odp = most.przewin("t2", 30.0)
+    assert procesy[0].zakonczony is True
+    assert odp["gra"] is False
+    assert odp["track_id"] == "t2"
+    assert len(procesy) == 1

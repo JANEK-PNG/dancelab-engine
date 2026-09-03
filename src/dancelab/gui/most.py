@@ -337,6 +337,7 @@ class Most:
         wpis = self._wpis_spisu(track_id)
         wynik["tytul"] = (wpis or {}).get("tytul", track_id)
         wynik["wykonawca"] = (wpis or {}).get("wykonawca")
+        wynik["tonacja"] = (wpis or {}).get("tonacja")
         return wynik
 
     # ---------------------------------------------------------------- stan
@@ -928,6 +929,14 @@ class Most:
         wynik["powod"] = f"pad {pad} → {_mmss(nowa)} · {powod}"
         wynik["position_ms"] = nowa
         return wynik
+
+    @_bezpiecznie
+    def przeciagnij_pad(self, track_id: str, pad: str, sekundy: float) -> dict[str, Any]:
+        """Znacznik pada przeciągnięty myszą po fali → pad na POCZĄTKU taktu
+        najbliżej miejsca puszczenia. Ta sama droga co T i frazy: kwantyzacja
+        zawsze, powód słowami, wpis w dzienniku."""
+        return self._przesun_na_czas(track_id, pad, float(sekundy), "cue_przeciagniecie",
+                                     puszczone_sec=float(sekundy))
 
     @_bezpiecznie
     def ustaw_czas_pada(self, track_id: str, pad: str, tekst: str) -> dict[str, Any]:
@@ -1741,6 +1750,35 @@ class Most:
             return dict(self._stan_odtwarzania(), akcja="stop")
         return dict(self._stan_odtwarzania(), akcja="pauza" if gralo else "cisza")
 
+    def _przewin(self, track_id: str, sekundy: float) -> dict[str, Any]:
+        """Klik na fali albo suwak: głowica na TĘ sekundę.
+
+        Gdy ten utwór gra — gra dalej od nowego miejsca (restart procesu,
+        0,1–0,2 s ciszy, jak przy skoku). Gdy nie gra — miejsce jest
+        zapamiętane W CISZY i spacja rusza stąd; dźwięk nigdy nie startuje
+        z przewinięcia, bo przewinięcie to nie „graj". Cudzy utwór, który
+        akurat grał, milknie: głowica należy do jednego utworu naraz.
+        """
+        analiza, powod = self._do_grania(track_id)
+        if powod:
+            return {"blad": powod, "bez_pliku": True}
+        sciezka = analiza.track.source_path
+        bpm = self._bpm(analiza)
+        dlugosc = float(analiza.track.duration_sec or 0)
+        sek = max(0.0, min(sekundy, dlugosc) if dlugosc else sekundy)
+        m, s = divmod(int(sek), 60)
+        if self._audio.gra() and self._audio.sciezka == sciezka:
+            blad = self._audio.graj_od(sciezka, bpm, sek)
+            if blad:
+                return {"blad": f"przewinięcie nie wyszło: {blad}"}
+            skad = f"od {m}:{s:02d}"
+        else:
+            self._audio.ustaw_pozycje(sciezka, bpm, sek)
+            skad = f"cisza — spacja rusza od {m}:{s:02d}"
+        self._gra_co = {"rodzaj": "utwor", "track_id": track_id,
+                        "opis": self._tytul(track_id), "skad": skad}
+        return dict(self._stan_odtwarzania(), akcja="przewiniecie")
+
     def _skocz(self, uderzenia: int) -> dict[str, Any]:
         """±N uderzeń wg tempa utworu, nie wg sekund. Restart procesu daje
         0,1–0,2 s ciszy — to podgląd, nie miks na żywo."""
@@ -1918,6 +1956,11 @@ class Most:
     def skocz(self, uderzenia: int) -> dict[str, Any]:
         with self._zamek_audio:
             return self._skocz(int(uderzenia))
+
+    @_bezpiecznie
+    def przewin(self, track_id: str, sekundy: float) -> dict[str, Any]:
+        with self._zamek_audio:
+            return self._przewin(track_id, float(sekundy))
 
     @_bezpiecznie
     def stan_odtwarzania(self) -> dict[str, Any]:

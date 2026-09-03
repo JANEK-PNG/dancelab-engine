@@ -54,14 +54,13 @@ nav .skrot{display:none}
    na zrzutach (ekrany jeden na drugim, pasek postępu po zbudowaniu setu). */
 [hidden]{display:none !important}
 
-/* ---------- korpus: lista | główny | kontekst ---------- */
-.korpus{display:grid;grid-template-columns:280px 1fr 300px;min-height:0}
-:root[data-ekran="set"] .korpus,
-:root[data-ekran="dj"] .korpus{grid-template-columns:1fr 300px}
+/* ---------- korpus: główny | prawa kolumna (biblioteka nad kontekstem) ---------- */
+.korpus{display:grid;grid-template-columns:1fr 340px;min-height:0}
+.prawa-kolumna{display:flex;flex-direction:column;min-height:0;
+  padding:var(--luz) 24px var(--luz) 8px}
 :root[data-ekran="set"] .lista-utworow,
 :root[data-ekran="dj"] .lista-utworow{display:none}
-.lista-utworow{display:flex;flex-direction:column;min-height:0;
-  padding:var(--luz) 0 0 24px;margin-right:6px}
+.lista-utworow{display:flex;flex-direction:column;min-height:0;flex:1}
 .szukajka{padding:0 var(--luz) 8px 0}
 .szukajka input{width:100%;background:none;border:0;border-bottom:1px solid var(--kreska2);
   color:var(--tekst);font:inherit;font-size:14px;padding:6px 0;outline:none;border-radius:0}
@@ -79,9 +78,20 @@ nav .skrot{display:none}
 main{min-width:0;min-height:0;overflow:hidden;padding:var(--luz) 28px;
      display:flex;flex-direction:column}
 main > section{display:flex;flex-direction:column;min-height:0;flex:1}
-aside{overflow:auto;padding:var(--luz) 24px var(--luz) 6px}
+aside{overflow:auto;flex:0 0 auto;max-height:30%;padding-top:12px;margin-top:8px;
+  border-top:1px solid var(--kreska)}
+aside:empty{display:none}
+:root[data-ekran="set"] aside,
+:root[data-ekran="dj"] aside{flex:1;max-height:none;margin-top:0;padding-top:0;border-top:0}
 
-/* Nagłówek ekranu: tytuł utworu jest największą rzeczą w oknie. */
+/* Nagłówek ekranu: tytuł utworu jest największą rzeczą w oknie, trzy
+   liczby utworu stoją obok niego (makieta „Redakcja", 03.09). */
+.naglowek{align-items:flex-start}
+.tytul-blok{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.liczby{display:flex;gap:26px;text-align:right;padding-top:2px}
+.liczby small{display:block;font:500 10.5px var(--mono);letter-spacing:.14em;
+  text-transform:uppercase;color:var(--cichszy)}
+.liczby b{font:500 26px/1.15 var(--mono);font-variant-numeric:tabular-nums}
 .narzedzia{display:flex;gap:12px;align-items:baseline;margin-bottom:var(--luz);
   flex-wrap:wrap}
 .tytul-utworu{font-weight:700;font-size:30px;letter-spacing:-.02em;line-height:1.1;
@@ -102,7 +112,8 @@ aside{overflow:auto;padding:var(--luz) 24px var(--luz) 6px}
 .fala-obszar canvas{display:block;width:100%;height:190px}
 .warstwa-padow{position:absolute;inset:0;pointer-events:none}
 .pad{position:absolute;top:0;bottom:0;width:2px;background:var(--blekit);
-  pointer-events:auto;cursor:ew-resize}
+  pointer-events:auto;cursor:grab;z-index:3}
+.pad:active{cursor:grabbing}
 .pad::before{content:attr(data-pad);position:absolute;top:0;left:-8px;width:18px;
   height:15px;background:var(--blekit);color:#1a1917;border-radius:3px;
   font:600 10px var(--mono);display:grid;place-items:center}
@@ -134,7 +145,34 @@ tbody tr:hover td{color:var(--tekst)}
 tbody tr[aria-selected="true"] td{color:var(--bursztyn)}
 tbody tr[aria-selected="true"] td[style]{color:var(--bursztyn) !important}
 td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
-#lista-padow td.czas-pada{font-size:15px}
+/* Osiem kafli padów: siatka z kreską między, pusty kafel to zaproszenie. */
+.kafle{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:1px;
+  background:var(--kreska);margin-top:var(--luz)}
+.kafel{background:var(--tlo);padding:10px 12px 8px;cursor:pointer;min-height:66px;
+  display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--cichy)}
+.kafel b{font:500 18px var(--mono);color:var(--tekst);font-variant-numeric:tabular-nums}
+.kafel.pusty b{color:var(--cichszy)}
+.kafel small{font-size:10.5px;color:var(--cichszy);min-height:12px}
+.kafel:hover{background:#221f1b}
+.kafel.on{background:#26231d}
+.kafel.on span{color:var(--bursztyn)}
+/* Fragment (przeciągnięcie) i pętla (L) nad falą */
+.zaznaczenie{position:absolute;top:0;bottom:0;background:rgba(241,239,233,.12);
+  border-left:1px solid rgba(241,239,233,.35);border-right:1px solid rgba(241,239,233,.35);
+  pointer-events:none;z-index:2}
+.petla{position:absolute;top:0;bottom:0;background:rgba(227,160,74,.12);
+  border-left:1px solid var(--bursztyn);border-right:1px solid var(--bursztyn);
+  pointer-events:none;z-index:2}
+.petla::before{content:"L";position:absolute;top:3px;left:5px;
+  font:600 10px var(--mono);color:var(--bursztyn)}
+.glowica.stoi{opacity:.55;box-shadow:none}
+/* Suwak przewijania: kreska i kropka, bez pudełka */
+#suwak{flex:1;min-width:120px;max-width:520px;-webkit-appearance:none;appearance:none;
+  height:2px;background:var(--kreska2);border-radius:2px;outline:none;margin:0 4px}
+#suwak::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;
+  border-radius:50%;background:var(--tekst);cursor:pointer}
+#suwak:disabled{opacity:.3}
+#suwak:disabled::-webkit-slider-thumb{cursor:not-allowed}
 #tabela-set{min-height:132px}
 
 /* ---------- kontekst (prawa kolumna): podpis mały, liczba duża ---------- */
