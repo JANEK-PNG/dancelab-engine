@@ -6,9 +6,12 @@
 const $ = s => document.querySelector(s);
 const api = () => window.pywebview && window.pywebview.api;
 
+// Silnik zwraca też `groove` i `unknown` — bez nich oba rysowały się szarym
+// zapasem, więc GROOVE (najczęstsza sekcja) nie miał koloru. Złoto dla groove
+// z makiety „Redakcja" (03.09); „?" ciemny, bo to brak wiedzy, nie sekcja.
 const KOLORY_SEKCJI = {
-  intro: '#5aa9e6', build: '#e0a458', drop: '#9ede73',
-  breakdown: '#8a94a2', outro: '#5e6773',
+  intro: '#5aa9e6', build: '#e0a458', drop: '#9ede73', groove: '#d6c27a',
+  breakdown: '#8a94a2', outro: '#5e6773', unknown: '#4a4843',
 };
 // Osiem padów jak w Rekordboksie i na CDJ-3000 (decyzja 09.08: „tabelka
 // ośmiu padów"); okno miało cztery od 28.08 — ostatnia różnica z terminalem,
@@ -64,7 +67,7 @@ function rysujFale() {
   g.clearRect(0, 0, w, h);
 
   // siatka taktów — pod falą, żeby jej nie zasłaniać
-  g.strokeStyle = 'rgba(36,42,50,.9)'; g.lineWidth = 1;
+  g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 1;
   (p.takty_sec || []).forEach((t, i) => {
     const x = Math.round(t / p.dlugosc_sec * w) + .5;
     g.globalAlpha = i % 4 === 0 ? 1 : .45;
@@ -72,13 +75,18 @@ function rysujFale() {
   });
   g.globalAlpha = 1;
 
-  // fala: lustrzana względem środka
-  const n = p.obwiednia.length, srodek = h / 2;
+  // fala: lustrzana względem środka, w KOLORZE SEKCJI — ta sama informacja,
+  // co pasek pod osią, ale tam, gdzie patrzy oko. Sekcje idą po czasie.
+  const n = p.obwiednia.length, srodek = h / 2, sek = p.sekcje || [];
+  let k = 0;
   for (let i = 0; i < n; i++) {
-    const x = i / n * w, sz = Math.max(1, w / n);
+    const x = i / n * w, sz = Math.max(1, w / n), t = i / n * p.dlugosc_sec;
+    while (k < sek.length - 1 && t >= sek[k].do) k++;
+    const s = sek[k] && t >= sek[k].od && t < sek[k].do ? sek[k] : null;
+    const kolor = (s && KOLORY_SEKCJI[s.typ]) || '#7f9fc7';
     const a = p.obwiednia[i] * (h / 2 - 3);
     // brak pomiaru rysowany INACZEJ niż cisza — ADR-005
-    g.fillStyle = p.ma_dane[i] ? 'rgba(90,169,230,.62)' : 'rgba(94,103,115,.30)';
+    g.fillStyle = p.ma_dane[i] ? kolor + 'b3' : 'rgba(94,103,115,.30)';
     if (!p.ma_dane[i]) { g.fillRect(x, srodek - 1, sz, 2); continue; }
     g.fillRect(x, srodek - a, sz, a * 2);
   }
@@ -92,11 +100,15 @@ function rysujSekcje() {
     const d = document.createElement('div');
     d.className = 'sek';
     d.style.flex = String(Math.max(.001, (s.do - s.od) / p.dlugosc_sec));
-    d.style.background = KOLORY_SEKCJI[s.typ] || '#3a434e';
+    d.style.setProperty('--kolor', KOLORY_SEKCJI[s.typ] || '#3a434e');
     d.textContent = s.nazwa;
     d.title = `${s.nazwa} · ${mmss(s.od * 1000)}–${mmss(s.do * 1000)}`;
     el.appendChild(d);
   });
+  // Nazwa, która się nie mieści, znika (kolor i tytuł zostają) — ucięte
+  // „BREA GROO" czytało się jak błąd, nie jak sekcja.
+  el.querySelectorAll('.sek').forEach(d =>
+    d.classList.toggle('bez-nazwy', d.scrollWidth > d.clientWidth + 1));
 }
 
 function rysujPady() {
@@ -1640,6 +1652,10 @@ document.addEventListener('keydown', e => {
   // spację na jego kliknięcie — nasze P/Spacja przełączałoby odsłuch dwa
   // razy (albo, na guziku „Buduj set", grało I przebudowywało set naraz).
   if (e.key === ' ' && e.target.tagName === 'BUTTON') return;
+  // „?" pokazuje albo chowa legendę klawiszy — na każdym ekranie tak samo.
+  if (e.key === '?') {
+    const l = $('#legenda'); l.hidden = !l.hidden; e.preventDefault(); return;
+  }
   // Ekrany: Tab w przód, ⇧Tab w tył (jak Ctrl+Tab w terminalu). Cyfry
   // 1–8 należą do padów. F1–F3 odpadły: macOS przechwytuje je na jasność.
   if (e.key === 'Tab') {

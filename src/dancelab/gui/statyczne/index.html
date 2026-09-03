@@ -9,6 +9,11 @@
 
 <div class="stan">
   <span class="marka">DanceLab</span>
+  <nav id="nawigacja">
+    <button data-ekran="szew" aria-pressed="true" title="Szew i cue (⇥)">Szew</button>
+    <button data-ekran="set" title="Budowa setu (⇥)">Set</button>
+    <button data-ekran="dj" title="Brzmi jak… — kotwice brzmienia (⇥)">DJ</button>
+  </nav>
   <span class="drobne" id="wersja"></span>
   <span id="stan-rb"><span class="kropka czekam"></span> sprawdzam Rekordboxa…</span>
   <div class="prawa">
@@ -22,18 +27,6 @@
 </div>
 
 <div class="korpus">
-  <nav id="nawigacja">
-    <button data-ekran="szew" aria-pressed="true" title="Szew i cue (⇥)">
-      <svg viewBox="0 0 24 24"><path d="M4 12h16"/><circle cx="8" cy="12" r="2.5"/><circle cx="16" cy="12" r="2.5"/></svg>
-      <span class="skrot">⇥</span></button>
-    <button data-ekran="set" title="Budowa setu (⇥)">
-      <svg viewBox="0 0 24 24"><path d="M4 17V9M9 17V5M14 17v-6M19 17v-9"/></svg>
-      <span class="skrot">⇥</span></button>
-    <button data-ekran="dj" title="Brzmi jak… — kotwice brzmienia (⇥)">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>
-      <span class="skrot">⇥</span></button>
-  </nav>
-
   <div class="lista-utworow">
     <div class="szukajka">
       <input id="filtr" placeholder="szukaj utworu…" spellcheck="false">
@@ -102,7 +95,6 @@
       </div>
 
       <div class="plotno" id="plotno">
-        <div class="pas-sekcji" id="pas-sekcji"></div>
         <div class="fala-obszar" id="fala-obszar">
           <canvas id="fala"></canvas>
           <div class="warstwa-padow" id="pady"></div>
@@ -112,13 +104,9 @@
           <div class="glowica" id="glowica" hidden></div>
         </div>
         <div class="os-czasu" id="os-czasu"></div>
+        <div class="pas-sekcji" id="pas-sekcji"></div>
       </div>
 
-      <p class="nota" id="nota">
-        Kliknij falę, żeby postawić pad. Strzałkami ← → przesuwasz go o całe
-        uderzenia, więc nie da się trafić między takty. <b>Zapis do Rekordboxa
-        jest na ekranie Set</b> — najpierw liczby, potem wysyłka.
-      </p>
 
       <div class="tabela" id="lista-padow"></div>
       <!-- Gotowe czasy fraz (POCZĄTKI sekcji + propozycja silnika) dla
@@ -354,7 +342,11 @@
     <span class="czas" id="czas-gry">0:00</span>
     <span class="drobne" id="opis-gry">dźwięk gra tylko wtedy, gdy sam go włączysz</span>
     <span class="czas" id="czas-kursora" style="margin-left:auto">—</span>
+    <span class="legenda-hint" title="pokaż lub schowaj legendę klawiszy"><b>?</b> klawisze</span>
   </div>
+  <!-- Legenda klawiszy: schowana, „?" ją pokazuje. Czternaście skrótów
+       w rzędzie na stałe to była stopka z terminala, nie część okna. -->
+  <div id="legenda" hidden>
   <div class="skroty" id="skroty-szew">
     <span><b>klik</b> postaw pad</span>
     <span><b>⌫</b> zdejmij</span>
@@ -387,6 +379,7 @@
     <span><b>←→</b> skok 8 · <b>⇧</b> 32 · <b>PgUp/Dn</b> 128</span>
     <span><b>P</b> graj / pauza</span>
     <span><b>S</b> szew</span>
+  </div>
   </div>
 </div>
 
