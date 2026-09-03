@@ -86,17 +86,24 @@ function rysujFale() {
   // zoom: rysujemy tylko widoczny wycinek, słupki rosną wraz z przybliżeniem
   const i0 = Math.max(0, Math.floor(stan.widok.od * n));
   const i1 = Math.min(n, Math.ceil(stan.widok.do * n));
-  const sz = Math.max(1, w / Math.max(1, i1 - i0));
+  // rzadkie słupki z przerwą (makieta): jeden słupek na ~6 px, wysokość
+  // z NAJWYŻSZEGO punktu w grupie, żeby uderzenia nie ginęły w uśrednieniu
+  const krok = Math.max(1, Math.round((i1 - i0) / (w / 6)));
+  const sz = Math.max(2, Math.floor(w / Math.max(1, (i1 - i0) / krok)) - 3);
   let k = 0;
-  for (let i = i0; i < i1; i++) {
+  for (let i = i0; i < i1; i += krok) {
     const t = i / n * p.dlugosc_sec, x = xOd(t) * w;
+    let szczyt = 0, jest = false;
+    for (let j = i; j < Math.min(i1, i + krok); j++) {
+      if (p.ma_dane[j]) { jest = true; szczyt = Math.max(szczyt, p.obwiednia[j]); }
+    }
     while (k < sek.length - 1 && t >= sek[k].do) k++;
     const s = sek[k] && t >= sek[k].od && t < sek[k].do ? sek[k] : null;
     const kolor = (s && KOLORY_SEKCJI[s.typ]) || '#7f9fc7';
-    const a = p.obwiednia[i] * (h / 2 - 3);
+    const a = szczyt * (h / 2 - 3);
     // brak pomiaru rysowany INACZEJ niż cisza — ADR-005
-    g.fillStyle = p.ma_dane[i] ? kolor + 'b3' : 'rgba(94,103,115,.30)';
-    if (!p.ma_dane[i]) { g.fillRect(x, srodek - 1, sz, 2); continue; }
+    g.fillStyle = jest ? kolor + 'cc' : 'rgba(94,103,115,.30)';
+    if (!jest) { g.fillRect(x, srodek - 1, sz, 2); continue; }
     g.fillRect(x, srodek - a, sz, a * 2);
   }
 }
@@ -494,12 +501,24 @@ async function cofnij() {
   stan.pady = odp.pady || {}; przerysuj(); odloz();
 }
 
+/* Stan Rekordboxa pod tytułem, jak w makiecie: „Rekordbox zamknięty,
+   zapis dostępny" — druga część w kolorze, bo to ona jest decyzją. */
+function rysujPodtytulRb() {
+  const el = $('#podtytul-rb'), rb = stan.rbPowod;
+  if (!el || !rb) return;
+  const [a, b] = String(rb.powod).split(' — ');
+  const przed = $('#podtytul').textContent ? ' · ' : '';
+  el.innerHTML = `${przed}${a}${b ? `, <span class="${rb.dozwolony ? 'rb-ok' : 'rb-zle'}">${b}</span>` : ''}`;
+}
+
 async function odswiezStanRb() {
   if (!api()) return;
   const s = await api().stan_rekordboxa();
   const el = $('#stan-rb');
   if (s.blad) { el.innerHTML = `<span class="kropka zle"></span> ${s.blad}`; return; }
   el.innerHTML = `<span class="kropka ${s.zapis_dozwolony ? 'ok' : 'zle'}"></span> ${s.powod}`;
+  stan.rbPowod = {dozwolony: s.zapis_dozwolony, powod: s.powod};
+  rysujPodtytulRb();
 
   // Zamknięcie Rekordboxa musi ODBLOKOWAĆ przyciski zapisu, a nie tylko
   // zmienić kropkę u góry. Bez tego DJ zamykał Rekordboxa, widział „zapis
@@ -540,8 +559,7 @@ function rysujSpis() {
   const widoczne = stan.widoczne || [];
   const filtrowane = stan.znalezione !== stan.wszystkich || !!stan.sekcja;
   $('#licznik').textContent = filtrowane
-    ? `${stan.znalezione} z ${stan.wszystkich}`
-    : `${stan.wszystkich} utworów`;
+    ? `${stan.znalezione} z ${stan.wszystkich}` : `${stan.wszystkich}`;
 
   if (!widoczne.length) {
     el.innerHTML = '<div class="pusto">nic nie pasuje</div>';
@@ -560,9 +578,8 @@ function rysujSpis() {
          ${stan.trackId === u.track_id ? 'aria-selected="true"' : ''}>
       ${stan.okladki ? `<img class="okl" data-okl="${u.track_id}" alt="">` : ''}
       <div class="tresc">
-      <div class="t">${(u.tytul || u.track_id).replace(/</g, '&lt;')}
-        <span class="znaki">${znaki}</span></div>
-      <div class="d">${u.bpm ? u.bpm.toFixed(1) : '—'} · ${u.tonacja || '—'}${
+      <div class="t">${(u.tytul || u.track_id).replace(/</g, '&lt;')}<span class="znaki">${znaki}</span></div>
+      <div class="d">${u.bpm ? Math.round(u.bpm) : '—'} · ${u.tonacja || '—'}${
         u.tonacja_zrodlo === 'rekordbox' ? ' RB' : ''}</div>
       </div>
     </div>`;
@@ -736,8 +753,8 @@ async function wybierzUtwor(trackId, opcje) {
   $('#l-tempo').textContent = p.bpm ? p.bpm.toFixed(1) : '—';
   $('#l-ton').textContent = p.tonacja || '—';
   $('#l-dl').textContent = mmss(p.dlugosc_sec * 1000);
-  $('#podtytul').textContent =
-    [p.wykonawca, p.bpm ? p.bpm.toFixed(1) + ' BPM' : null].filter(Boolean).join(' · ');
+  $('#podtytul').textContent = p.wykonawca || '';
+  rysujPodtytulRb();
   const pd = await api().pady(trackId);
   stan.pady = (pd && pd.pady) || {};
   rysujSpis();
@@ -1487,6 +1504,12 @@ $('#suwak').addEventListener('change', e => {
 });
 $('#btn-cofnij').addEventListener('click', cofnij);
 $('#filtr').addEventListener('input', e => { stan.filtr = e.target.value; odswiezSpis(); });
+$('#btn-lib-wiecej').addEventListener('click', () => {
+  const w = $('#lib-wiecej'), b = $('#btn-lib-wiecej');
+  w.hidden = !w.hidden;
+  b.setAttribute('aria-pressed', String(!w.hidden));
+  b.textContent = w.hidden ? 'więcej ▾' : 'mniej ▴';
+});
 $('#filtr-ton').addEventListener('input', odswiezSpis);
 $('#filtr-bpm').addEventListener('input', odswiezSpis);
 document.querySelectorAll('#sekcje button').forEach(b =>

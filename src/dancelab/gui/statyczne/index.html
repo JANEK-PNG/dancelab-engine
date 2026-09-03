@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>DanceLab</title>
+<link rel="stylesheet" href="fonty.css">
 <link rel="stylesheet" href="styl.css">
 </head>
 <body>
@@ -32,13 +33,7 @@
       <div class="narzedzia naglowek">
         <div class="tytul-blok">
           <span class="tytul-utworu" id="tytul">—</span>
-          <span class="drobne" id="podtytul"></span>
-        </div>
-        <!-- Trzy liczby utworu przy tytule (makieta „Redakcja", 03.09) -->
-        <div class="liczby" id="liczby">
-          <div><small>tempo</small><b id="l-tempo">—</b></div>
-          <div><small>tonacja</small><b id="l-ton">—</b></div>
-          <div><small>długość</small><b id="l-dl">—</b></div>
+          <span class="drobne"><span id="podtytul"></span><span id="podtytul-rb"></span></span>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn" id="btn-cofnij">Cofnij <kbd>⌘Z</kbd></button>
@@ -288,58 +283,69 @@
        kontekst zaznaczonego pada. Na ekranach Set i DJ lista znika, a kontekst
        dostaje całą wysokość. -->
   <div class="prawa-kolumna">
+  <!-- Trzy liczby utworu na górze prawej kolumny, nad biblioteką (makieta). -->
+  <div class="liczby" id="liczby">
+    <div><small>tempo</small><b id="l-tempo">—</b></div>
+    <div><small>tonacja</small><b id="l-ton">—</b></div>
+    <div><small>długość</small><b id="l-dl">—</b></div>
+  </div>
   <div class="lista-utworow">
+    <div class="biblioteka-glowa">
+      <span>Biblioteka · <span id="licznik"></span></span>
+      <button id="btn-lib-wiecej" aria-pressed="false" title="tonacja, tempo, sortowanie, okładki, folder">więcej ▾</button>
+    </div>
     <div class="szukajka">
       <input id="filtr" placeholder="szukaj utworu…" spellcheck="false">
     </div>
-    <!-- Filtry biblioteki: te same reguły co w terminalu. Okno tempa znaczy
-         to, co mówi — utwór bez tempa przy aktywnym oknie odpada. -->
-    <div class="filtry-lib">
-      <input id="filtr-ton" placeholder="tonacja 8A" spellcheck="false">
-      <input id="filtr-bpm" placeholder="BPM 124-134" spellcheck="false">
-    </div>
     <!-- Sekcje jak w pasku bocznym terminala (11.08): skąd bierze się utwór
          to TRZY kategorie, nie dwie — „niedostępne" to plik lokalny na
-         odpiętym dysku, a nie strumień. -->
+         odpiętym dysku, a nie strumień. Słowami, nie ikonkami (makieta 03.09). -->
     <div class="filtry-lib">
       <div class="chip-gest" id="sekcje">
         <button data-sekcja="" aria-pressed="true" title="cała biblioteka">wszystko</button>
-        <button data-sekcja="ulubione" title="ulubione utwory">♥</button>
-        <button data-sekcja="filary" title="filary aktywnej playlisty">⚑</button>
-        <button data-sekcja="dysk" title="na dysku — da się zagrać">▣</button>
-        <button data-sekcja="apple" title="Apple Music — strumień">☁</button>
-        <button data-sekcja="brak" title="niedostępne — plik lokalny, którego nie ma">⚠</button>
+        <button data-sekcja="ulubione" title="ulubione utwory">ulubione</button>
+        <button data-sekcja="filary" title="filary aktywnej playlisty">filary</button>
+        <button data-sekcja="dysk" title="na dysku — da się zagrać">dysk</button>
+        <button data-sekcja="apple" title="Apple Music — strumień">Apple</button>
+        <button data-sekcja="brak" title="niedostępne — plik lokalny, którego nie ma">brak</button>
       </div>
     </div>
-    <div class="filtry-lib" id="okladki-pasek">
-      <button class="btn maly" id="btn-okladki" aria-pressed="false" title="okładki w liście (K) — z tagów plików, brak = pustka">okładki <kbd>K</kbd></button>
-      <button class="btn maly" id="btn-dociagnij" hidden title="brakujące okładki z iTunes → tagi plików, z weryfikacją">dociągnij z iTunes</button>
-    </div>
-    <div class="filtry-lib">
-      <span class="drobne">sortuj</span>
-      <div class="chip-gest" id="sortowanie" title="klik: rosnąco, drugi: malejąco, trzeci: bez">
-        <button data-s="tytul">tytuł</button>
-        <button data-s="wykonawca">wykonawca</button>
-        <button data-s="bpm">BPM</button>
-        <button data-s="tonacja">ton</button>
-        <button data-s="dlugosc">czas</button>
-        <button data-s="gatunek">gatunek</button>
+    <!-- Rzadziej używane filtry i narzędzia listy — pod „więcej", żeby lista
+         dostała wysokość. Te same reguły co w terminalu: okno tempa znaczy
+         to, co mówi — utwór bez tempa przy aktywnym oknie odpada. -->
+    <div id="lib-wiecej" hidden>
+      <div class="filtry-lib">
+        <input id="filtr-ton" placeholder="tonacja 8A" spellcheck="false">
+        <input id="filtr-bpm" placeholder="BPM 124-134" spellcheck="false">
       </div>
+      <div class="filtry-lib">
+        <span class="drobne">sortuj</span>
+        <div class="chip-gest" id="sortowanie" title="klik: rosnąco, drugi: malejąco, trzeci: bez">
+          <button data-s="tytul">tytuł</button>
+          <button data-s="wykonawca">wykonawca</button>
+          <button data-s="bpm">BPM</button>
+          <button data-s="tonacja">ton</button>
+          <button data-s="dlugosc">czas</button>
+          <button data-s="gatunek">gatunek</button>
+        </div>
+      </div>
+      <div class="filtry-lib" id="okladki-pasek">
+        <button class="btn maly" id="btn-okladki" aria-pressed="false" title="okładki w liście (K) — z tagów plików, brak = pustka">okładki <kbd>K</kbd></button>
+        <button class="btn maly" id="btn-dociagnij" hidden title="brakujące okładki z iTunes → tagi plików, z weryfikacją">dociągnij z iTunes</button>
+      </div>
+      <!-- Onboarding: folder z muzyką → analiza (minuty, w tle, z postępem).
+           Nowe analizy lądują w tym samym katalogu, z którego czyta terminal. -->
+      <div class="filtry-lib" id="skan-box">
+        <input id="skan-folder" placeholder="folder z muzyką do przeskanowania" spellcheck="false">
+        <button class="btn maly" id="btn-skan" title="przeanalizuj pliki z folderu (pierwszy raz albo dogranie)">Analizuj</button>
+      </div>
+      <div class="drobne" id="skan-postep" style="padding:0 0 6px"></div>
     </div>
     <div class="spis" id="spis"><div class="pusto">wczytuję…</div></div>
-    <div class="licznik" id="licznik"></div>
-    <!-- Onboarding: folder z muzyką → analiza (minuty, w tle, z postępem).
-         Nowe analizy lądują w tym samym katalogu, z którego czyta terminal. -->
-    <div class="filtry-lib" id="skan-box">
-      <input id="skan-folder" placeholder="folder z muzyką do przeskanowania" spellcheck="false">
-      <button class="btn maly" id="btn-skan" title="przeanalizuj pliki z folderu (pierwszy raz albo dogranie)">Analizuj</button>
-    </div>
-    <div class="drobne" id="skan-postep" style="padding:0 var(--luz) 6px"></div>
     <div class="skroty lib-skroty">
       <span><b>U</b> ♥ ulubiony</span><span><b>F</b> filar</span>
     </div>
   </div>
-
   <aside id="kontekst"></aside>
   </div>
 </div>
@@ -361,7 +367,7 @@
            title="przewiń — dźwięk gra dalej tylko wtedy, gdy grał">
     <span class="drobne" id="opis-gry">dźwięk gra tylko wtedy, gdy sam go włączysz</span>
     <span class="czas" id="czas-kursora" style="margin-left:auto">—</span>
-    <span class="legenda-hint" title="pokaż lub schowaj legendę klawiszy"><b>?</b> klawisze</span>
+    <span class="legenda-hint" title="pokaż lub schowaj legendę klawiszy"><b>?</b> klawisze · <b>Tab</b> ekran</span>
   </div>
   <!-- Legenda klawiszy: schowana, „?" ją pokazuje. Czternaście skrótów
        w rzędzie na stałe to była stopka z terminala, nie część okna. -->

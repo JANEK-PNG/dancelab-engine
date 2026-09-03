@@ -278,8 +278,10 @@ window.pywebview = {api: {
 def main() -> int:
     dane = json.loads((TU / "dane.json").read_text(encoding="utf-8"))
     CEL.mkdir(parents=True, exist_ok=True)
-    for nazwa in ("styl.css", "app.js"):
+    for nazwa in ("styl.css", "fonty.css", "app.js"):
         shutil.copy2(ZRODLO / nazwa, CEL / nazwa)
+    # kroje z plików (03.09) — bez nich podgląd pokazywałby pismo systemowe
+    shutil.copytree(ZRODLO / "fonty", CEL / "fonty", dirs_exist_ok=True)
 
     html = (ZRODLO / "index.html").read_text(encoding="utf-8")
     wstawka = (f'<script>window.__DANE__ = {json.dumps(dane, ensure_ascii=False)};'

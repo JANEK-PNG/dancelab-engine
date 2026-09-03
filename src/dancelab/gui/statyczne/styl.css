@@ -10,8 +10,10 @@
   --kreska2:rgba(255,255,255,.14);
   --tekst:#f1efe9; --cichy:#8c8a83; --cichszy:#5f5d57;
   --bursztyn:#e3a04a; --blekit:#7f9fc7; --volt:#c9d68a; --alarm:#e06c75;
-  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
-  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  /* kroje z makiety, z plików w fonty/ (bez sieci); systemowe jako zapas */
+  --font:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  --tytul:"Bricolage Grotesque","IBM Plex Sans",-apple-system,sans-serif;
   --r:6px; --wys-wiersza:28px; --font-tab:13px; --luz:12px;
 }
 :root[data-gestosc="luzno"]{ --wys-wiersza:36px; --font-tab:14px; --luz:18px; }
@@ -67,13 +69,13 @@ nav .skrot{display:none}
 .szukajka input::placeholder{color:var(--cichszy)}
 .szukajka input:focus{border-bottom-color:var(--bursztyn)}
 .spis{flex:1;overflow:auto;min-height:0;margin-top:4px}
-.utwor{padding:7px 8px 7px 0;cursor:pointer;border-bottom:1px solid var(--kreska)}
+.utwor{padding:8px 0;cursor:pointer;border-bottom:1px solid var(--kreska)}
 .utwor:hover .t{color:var(--tekst)}
 .utwor[aria-selected="true"] .t,.utwor[aria-selected="true"] .d{color:var(--bursztyn)}
-.utwor .t{font-size:13px;color:#d8d6cf;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.utwor .d{font-size:11px;color:var(--cichszy);font-family:var(--mono);margin-top:2px}
-.licznik{padding:8px 0;font:11px var(--mono);color:var(--cichszy);letter-spacing:.06em;
-  text-transform:uppercase}
+.utwor .t{font-size:14px;color:#d8d6cf;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.utwor .d{font-size:12px;color:var(--cichszy);font-family:var(--mono);flex:none;
+  font-variant-numeric:tabular-nums}
+.licznik{font:inherit}
 
 main{min-width:0;min-height:0;overflow:hidden;padding:var(--luz) 28px;
      display:flex;flex-direction:column}
@@ -88,14 +90,30 @@ aside:empty{display:none}
    liczby utworu stoją obok niego (makieta „Redakcja", 03.09). */
 .naglowek{align-items:flex-start}
 .tytul-blok{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
-.liczby{display:flex;gap:26px;text-align:right;padding-top:2px}
-.liczby small{display:block;font:500 10.5px var(--mono);letter-spacing:.14em;
-  text-transform:uppercase;color:var(--cichszy)}
-.liczby b{font:500 26px/1.15 var(--mono);font-variant-numeric:tabular-nums}
+/* Trzy liczby utworu: na górze prawej kolumny, nad biblioteką (makieta). */
+.liczby{display:flex;justify-content:flex-end;gap:34px;text-align:right;
+  padding:4px 0 18px}
+.liczby small{display:block;font:500 11px var(--mono);letter-spacing:.16em;
+  text-transform:uppercase;color:var(--cichszy);margin-bottom:2px}
+.liczby b{font:500 30px/1.1 var(--mono);font-variant-numeric:tabular-nums}
+/* Biblioteka: nagłówek słowem, filtry słowami, reszta pod „więcej". */
+.biblioteka-glowa{display:flex;justify-content:space-between;align-items:baseline;
+  font:500 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--cichszy);margin-bottom:6px}
+.biblioteka-glowa button{background:none;border:0;color:var(--cichszy);font:inherit;
+  cursor:pointer;padding:0;letter-spacing:inherit;text-transform:inherit}
+.biblioteka-glowa button:hover{color:var(--tekst)}
+#lib-wiecej{border-bottom:1px solid var(--kreska);margin-bottom:6px;padding-bottom:2px}
+#sekcje{gap:0}
+#sekcje button{padding:3px 6px;font-size:11.5px}
 .narzedzia{display:flex;gap:12px;align-items:baseline;margin-bottom:var(--luz);
   flex-wrap:wrap}
-.tytul-utworu{font-weight:700;font-size:30px;letter-spacing:-.02em;line-height:1.1;
+.tytul-utworu{font:700 40px/1.05 var(--tytul);letter-spacing:-.02em;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.tytul-blok .drobne{font-size:15px;margin-top:6px}
+.tytul-blok .drobne b{color:var(--tekst);font-weight:500}
+.tytul-blok .drobne .rb-ok{color:var(--bursztyn)}
+.tytul-blok .drobne .rb-zle{color:var(--alarm)}
 .drobne{color:var(--cichy);font-size:12.5px}
 .btn{background:none;border:1px solid var(--kreska2);border-radius:var(--r);
   color:var(--tekst);font:inherit;font-size:12.5px;height:30px;padding:0 12px;
@@ -193,7 +211,7 @@ h2{font:500 10.5px var(--mono);color:var(--cichszy);text-transform:uppercase;
 /* ---------- odtwarzacz i legenda ---------- */
 .dol{border-top:1px solid var(--kreska)}
 .grajek{display:flex;align-items:center;gap:14px;padding:12px 24px}
-.grajek .graj{width:36px;height:36px;border-radius:50%;background:none;
+.grajek .graj{width:44px;height:44px;border-radius:50%;background:none;
   border:1.5px solid var(--tekst);color:var(--tekst);cursor:pointer;
   display:grid;place-items:center}
 .grajek .graj svg{width:13px;height:13px;fill:currentColor;margin-left:2px}
@@ -202,7 +220,10 @@ h2{font:500 10.5px var(--mono);color:var(--cichszy);text-transform:uppercase;
 .grajek .graj:disabled,.grajek .btn:disabled{opacity:.34;cursor:not-allowed}
 .czas{font-family:var(--mono);font-size:13px;color:var(--cichy);
   font-variant-numeric:tabular-nums}
-#czas-gry{min-width:74px;color:var(--tekst);font-size:20px}
+#czas-gry{min-width:74px;color:var(--tekst);font-size:24px}
+.grajek .btn.maly{border:0;color:var(--cichy);padding:0 6px}
+.grajek .btn.maly:hover:not(:disabled){color:var(--tekst)}
+.grajek .btn.maly kbd{opacity:.5}
 #opis-gry.zle{color:var(--alarm)}
 .glowica{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;
   background:var(--bursztyn);box-shadow:0 0 7px rgba(227,160,74,.7);
@@ -281,7 +302,7 @@ td.wynik{font-family:var(--mono);font-variant-numeric:tabular-nums;
 .btn.maly{padding:0 9px;height:26px;font-size:12px}
 .btn.maly[aria-pressed="true"]{border-color:var(--bursztyn);color:var(--bursztyn)}
 .lib-skroty{font-size:11.5px;padding:8px 0;color:var(--cichszy)}
-.spis .znaki{float:right;font-size:11px;letter-spacing:2px}
+.spis .znaki{font-size:11px;letter-spacing:2px;margin-left:6px}
 .spis .znak-ulub{color:var(--alarm)}
 .spis .znak-filar{color:var(--bursztyn)}
 
@@ -329,8 +350,9 @@ td.wynik{font-family:var(--mono);font-variant-numeric:tabular-nums;
 .dj-karta button.kolekcja:hover{border-color:var(--bursztyn);color:var(--bursztyn)}
 
 /* Okładki: z tagów plików, brak = pusta kratka (nie zmyślony obrazek). */
-.okl{width:30px;height:30px;border-radius:4px;object-fit:cover;background:var(--karta2);
+.okl{width:24px;height:24px;border-radius:3px;object-fit:cover;background:var(--karta2);
   flex:none;vertical-align:middle}
 .spis .utwor{display:flex;gap:10px;align-items:center}
-.spis .utwor .tresc{flex:1;min-width:0}
+.spis .utwor .tresc{flex:1;min-width:0;display:flex;gap:12px;align-items:baseline}
+.spis .utwor .tresc .t{flex:1;min-width:0}
 .okl-gry{width:36px;height:36px;border-radius:6px}
