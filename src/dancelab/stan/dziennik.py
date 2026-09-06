@@ -32,8 +32,10 @@ from __future__ import annotations
 import json
 import time
 from typing import Any
+from uuid import uuid4
 
 from dancelab.stan.sciezki import KORZEN
+from dancelab.storage.atomic import write_text_atomic
 
 KATALOG = KORZEN / "experiments_priv" / "2026-08-04_werdykty"
 
@@ -92,11 +94,11 @@ def zapisz_werdykt(rec: dict[str, Any], *, skora: str
     rec = {"skora": skora, "ts": time.strftime("%Y-%m-%d %H:%M:%S"), **rec}
     try:
         KATALOG.mkdir(parents=True, exist_ok=True)
-        plik = KATALOG / f"{skora}_werdykt_{time.strftime('%Y%m%d_%H%M%S')}.json"
+        plik = KATALOG / f"{skora}_werdykt_{time.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex}.json"
         # default=str: jeden niezapisywalny typ (np. w wagach) nie ma prawa
         # zgubić całego werdyktu — wartość zostaje czytelnym napisem.
-        plik.write_text(json.dumps(rec, ensure_ascii=False, indent=1,
-                                   default=str), encoding="utf-8")
+        write_text_atomic(plik, json.dumps(rec, ensure_ascii=False, indent=1,
+                                          default=str), overwrite=False)
         return str(plik), None
     except OSError as exc:
         return None, f"werdyktu nie zapisałem: {exc}"

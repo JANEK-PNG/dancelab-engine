@@ -35,7 +35,6 @@ def main() -> None:
                              "region must not drift with analysis nondeterminism)")
     args = parser.parse_args()
 
-    import soundfile as sf
 
     from dancelab.core.config import load_config
     from dancelab.core.pipeline import analyze_track

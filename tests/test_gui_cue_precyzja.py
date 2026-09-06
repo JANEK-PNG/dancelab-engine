@@ -8,7 +8,6 @@ Ctrl+G (gatunki z pokryciem) i G (szkic z filarów bez automatycznej budowy).
 import pytest
 
 from dancelab.gui.most import Most
-from dancelab.stan import odtwarzacz as odt
 
 
 class _Siatka:

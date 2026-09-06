@@ -21,6 +21,7 @@ import pathlib
 from typing import Any
 
 from dancelab.tui import plan_store
+from dancelab.storage.atomic import write_text_atomic
 
 #: Który plan jest „ten, nad którym pracuję". Leży obok planów, bo to ich
 #: dotyczy, i jest jednym plikiem, żeby obie skóry czytały to samo.
@@ -35,8 +36,7 @@ def zapisz(order: list[str], by_id: dict, *, nazwa: str, parametry: dict,
         order, by_id, name=nazwa, params=parametry,
         engine_order=plan_silnika or [], edits=edycje or [])
     WSKAZNIK.parent.mkdir(parents=True, exist_ok=True)
-    WSKAZNIK.write_text(json.dumps({"plan": str(sciezka)}, ensure_ascii=False),
-                        encoding="utf-8")
+    write_text_atomic(WSKAZNIK, json.dumps({"plan": str(sciezka)}, ensure_ascii=False))
     return sciezka
 
 

@@ -36,8 +36,6 @@ from textual.screen import ModalScreen
 from textual.widgets import OptionList
 from textual.widgets.option_list import Option
 
-from dancelab.tui import zrodlo as Z
-from dancelab.tui.pasek import PasekOdtwarzacza
 from textual.widgets import (
     Button,
     DataTable,
@@ -53,6 +51,14 @@ from textual.widgets import (
     TabPane,
 )
 
+from dancelab.tui import zrodlo as Z
+from dancelab.tui.pasek import PasekOdtwarzacza
+from dancelab.stan import biblioteka as _stan_biblioteka
+from dancelab.stan import budowa as _stan_budowa
+from dancelab.stan import dziennik as _stan_dziennik
+from dancelab.stan import filary as _stan_filary
+from dancelab.ingestion.artwork_sync import RAPORT as RAPORT_ART   # jedno miejsce
+
 PROCESSED_DEFAULT = "experiments_priv/2026-07-30_rebuild/processed"
 
 # Higiena puli — oba znaleziska z realnych przebiegów: stemy Demucsa
@@ -63,10 +69,6 @@ MAX_TRACK_SEC = 15 * 60
 
 # Dziennik werdyktów DJ-a: każda ręczna edycja setu (podmiana, cięcie,
 # przesunięcie, dopisanie) to darmowa prawda o guście — dopisujemy, nie gubimy.
-from dancelab.stan import biblioteka as _stan_biblioteka
-from dancelab.stan import budowa as _stan_budowa
-from dancelab.stan import dziennik as _stan_dziennik
-from dancelab.stan import filary as _stan_filary
 
 # Od 02.09 terminal NIE pisze tu sam — pisze `stan.dziennik` (jeden pisarz
 # dla obu skór, katalog zakotwiczony w korzeniu, nie w `cwd`). Nazwa zostaje
@@ -77,7 +79,6 @@ WERDYKTY_DIR = _stan_dziennik.KATALOG
 # Historia zbudowanych setów (odciski) — karmi tryby świeżości silnika:
 # „fresh" umie omijać utwory i przejścia grane w poprzednich budowach.
 HISTORIA_SETOW = _stan_budowa.HISTORIA_SETOW   # jedna historia dla obu skór
-from dancelab.ingestion.artwork_sync import RAPORT as RAPORT_ART   # jedno miejsce
 
 
 # Zakładki wg TUI_WIZJA_2 (inspiracja rmpc, układ zatwierdzony 05.08):
@@ -3156,7 +3157,6 @@ class DanceLabTUI(App):
 
     def _log_verdict(self, typ: str, **fields) -> None:
         """Każda ręczna edycja to werdykt DJ-a — dopisujemy, nie gubimy."""
-        import json
         import time
         rec = {"ts": time.strftime("%Y-%m-%d %H:%M:%S"), "typ": typ, **fields}
         self._edits.append(rec)          # do zapisu planu i werdyktu końcowego
@@ -3347,7 +3347,6 @@ class DanceLabTUI(App):
         po drodze + prosta miara rozjazdu."""
         if not self._order or not self._ctx:
             return
-        import json
         import time
         by_id = self._ctx["by_id"]
 

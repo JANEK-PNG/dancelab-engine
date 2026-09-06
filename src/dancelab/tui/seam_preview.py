@@ -14,7 +14,6 @@ z ingerencją w trakcie to osobny szczebel (3).
 
 from __future__ import annotations
 
-import pathlib
 
 from dancelab.sciezki import KORZEN
 

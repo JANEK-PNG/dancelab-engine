@@ -119,7 +119,6 @@ def main() -> int:
     pairs = []
     for m in mixes:
         ids = [t.get("id") for t in (m.get("tracklist") or []) if t.get("id")]
-        keep = [i for i in ids if i in feats]
         for i in range(len(ids) - 1):
             a, b = ids[i], ids[i + 1]
             if a in feats and b in feats:

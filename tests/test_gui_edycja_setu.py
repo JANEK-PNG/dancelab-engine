@@ -59,7 +59,7 @@ def _zdarzenia(tmp_path):
     plik = tmp_path / "werdykty" / dziennik.PLIK_ZDARZEN
     if not plik.exists():
         return []
-    return [json.loads(l) for l in plik.read_text().splitlines()]
+    return [json.loads(line) for line in plik.read_text().splitlines()]
 
 
 def test_kandydaci_ocenia_ta_sama_miara_co_budowa(most, monkeypatch):

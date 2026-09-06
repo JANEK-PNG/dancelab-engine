@@ -180,7 +180,7 @@ def z_opisu(opis: str) -> list[dict]:
     """Tracklista wklejona pod setem. Czas bywa, ale nie musi."""
     if not opis:
         return []
-    linie = [l for l in re.split(r"[\r\n]+", opis) if l.strip()]
+    linie = [line for line in re.split(r"[\r\n]+", opis) if line.strip()]
 
     # Tracklista jest BLOKIEM kolejnych linii, nie rozsypanymi trafieniami.
     # Bez tego warunku podziękowania z tym samym myślnikiem („Once again -
@@ -188,10 +188,10 @@ def z_opisu(opis: str) -> list[dict]:
     # jako utwory. Bierzemy najdłuższy nieprzerwany ciąg.
     biezacy: list[dict] = []
     najlepszy: list[dict] = []
-    for l in linie:
-        m = LINIA_OPISU.match(l)
+    for line in linie:
+        m = LINIA_OPISU.match(line)
         rozb = rozbierz(m.group("reszta")) if m else None
-        if not rozb or PROZA.search(l):
+        if not rozb or PROZA.search(line):
             if len(biezacy) > len(najlepszy):
                 najlepszy = biezacy
             biezacy = []

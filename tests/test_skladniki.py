@@ -7,6 +7,9 @@ trzy tygodnie uchodziło za porównanie wag.
 
 from __future__ import annotations
 
+import pytest
+from dancelab.validation.wejscie import BrakDanychWejsciowych, wymagaj_plikow
+
 from dancelab.validation.skladniki import Skladniki
 
 
@@ -73,9 +76,7 @@ def test_pusty_licznik_mowi_ze_nic_nie_liczono():
 
 # --- bramka danych wejściowych -------------------------------------------------
 
-import pytest
 
-from dancelab.validation.wejscie import BrakDanychWejsciowych, wymagaj_plikow
 
 
 def test_nieistniejacy_katalog_odmawia_zamiast_zwrocic_pustke(tmp_path):

@@ -16,10 +16,13 @@ Katalog: `data/exports/tui_plany/` — dane osobiste, poza gitem (repo=kod+docs)
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import time
+from uuid import uuid4
 
 from dancelab.sciezki import KORZEN
+from dancelab.storage.atomic import write_text_atomic
 
 # Na korzeniu repo, nie w `cwd` — patrz `stan/sciezki.py`.
 PLANS_DIR = KORZEN / "data/exports/tui_plany"
@@ -39,8 +42,8 @@ def save_plan(order, by_id, *, name: str, params: dict,
         "plan_silnika": list(engine_order or []),
         "edycje": list(edits or []),
     }
-    path = PLANS_DIR / f"plan_{time.strftime('%Y%m%d_%H%M%S')}.json"
-    path.write_text(json.dumps(rec, ensure_ascii=False, indent=1))
+    path = PLANS_DIR / f"plan_{time.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex}.json"
+    write_text_atomic(path, json.dumps(rec, ensure_ascii=False, indent=1), overwrite=False)
     return path
 
 
@@ -53,7 +56,7 @@ def list_plans() -> list[dict]:
     out = []
     for p in sorted(PLANS_DIR.glob("plan_*.json"), reverse=True):
         try:
-            rec = json.loads(p.read_text())
+            rec = read_plan(p)
             par = rec.get("parametry", {}) or {}
             bpm = (f"{par['bpm_min']:g}-{par['bpm_max']:g}"
                    if par.get("bpm_min") is not None
@@ -73,16 +76,34 @@ def list_plans() -> list[dict]:
 def delete_plan(path: str | pathlib.Path) -> pathlib.Path:
     """Usuwa plan MIĘKKO — przenosi do kosza obok planów; nic nie znika
     bez śladu. Zwraca nowe położenie."""
-    src = pathlib.Path(path)
+    src = _plan_path(path)
     kosz = PLANS_DIR / "kosz"
+    if kosz.is_symlink():
+        raise ValueError("The plan trash directory must not be a symbolic link")
     kosz.mkdir(parents=True, exist_ok=True)
-    cel = kosz / src.name
-    src.rename(cel)
+    cel = kosz / f"{src.stem}_{uuid4().hex}.json"
+    # Publish without overwriting an older trash entry, then remove the source.
+    os.link(src, cel, follow_symlinks=False)
+    src.unlink()
     return cel
 
 
 def read_plan(path: str | pathlib.Path) -> dict:
-    return json.loads(pathlib.Path(path).read_text())
+    """Read a regular plan file directly inside the configured plans directory."""
+    return json.loads(_plan_path(path).read_text(encoding="utf-8"))
+
+
+def _plan_path(path: str | pathlib.Path) -> pathlib.Path:
+    candidate = pathlib.Path(path)
+    root = PLANS_DIR.resolve()
+    if candidate.is_symlink():
+        raise ValueError("A plan must not be a symbolic link")
+    resolved = candidate.resolve()
+    if resolved.parent != root or not resolved.match("plan_*.json"):
+        raise ValueError("Only plan_*.json files in the plans directory are allowed")
+    if not resolved.is_file():
+        raise FileNotFoundError("The requested plan file does not exist")
+    return resolved
 
 
 def match_order(rec: dict, by_id: dict) -> tuple[list[str], list[str]]:

@@ -45,6 +45,10 @@ let stan = {
 };
 
 /* ---------- pomocnicze ---------- */
+// Encode text before placing it inside HTML templates, including attributes.
+const htmlText = value => String(value ?? '').replace(/[&<>"']/g, c => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[c]));
 const mmss = ms => {
   const s = Math.max(0, Math.round(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -52,8 +56,16 @@ const mmss = ms => {
 function pokazBlad(gdzie, tekst) {
   stan.ostatniBlad = tekst;
   const a = $('#kontekst');
-  a.innerHTML = `<h2>Coś nie zadziałało</h2>
-    <div class="powod zle"><b>${gdzie}</b><br>${tekst}</div>`;
+  const heading = document.createElement('h2');
+  heading.textContent = 'Coś nie zadziałało';
+  const reason = document.createElement('div');
+  reason.className = 'powod zle';
+  const location = document.createElement('b');
+  location.textContent = String(gdzie ?? '');
+  const detail = document.createElement('span');
+  detail.textContent = String(tekst ?? '');
+  reason.append(location, document.createElement('br'), detail);
+  a.replaceChildren(heading, reason);
 }
 function czyBlad(odp, gdzie) {
   if (odp && odp.blad) { pokazBlad(gdzie, odp.blad); return true; }
@@ -396,7 +408,7 @@ async function przelaczGatunki() {
 function rysujGatunki(odp) {
   const el = $('#tabela-gatunkow');
   if (!odp || odp.blad) {
-    el.innerHTML = `<div class="pusto">${(odp && odp.blad) || 'gatunków nie policzyłem'}</div>`;
+    el.innerHTML = `<div class="pusto">${htmlText((odp && odp.blad) || 'gatunków nie policzyłem')}</div>`;
     return;
   }
   $('#gatunki-tytul').textContent =
@@ -553,7 +565,7 @@ function rysujPodtytulRb() {
   if (!el || !rb) return;
   const [a, b] = String(rb.powod).split(' — ');
   const przed = $('#podtytul').textContent ? ' · ' : '';
-  el.innerHTML = `${przed}${a}${b ? `, <span class="${rb.dozwolony ? 'rb-ok' : 'rb-zle'}">${b}</span>` : ''}`;
+  el.innerHTML = `${przed}${htmlText(a)}${b ? `, <span class="${rb.dozwolony ? 'rb-ok' : 'rb-zle'}">${htmlText(b)}</span>` : ''}`;
 }
 
 /* Czym okno zagra — pytamy RAZ, przy starcie. Do 03.09 brak ffplay wychodził
@@ -566,7 +578,7 @@ async function sprawdzDzwiek() {
   if (!el || !s || s.blad || !s.powod) { if (el) el.hidden = true; return; }
   stan.dzwiekPelny = !!s.pelny;
   el.hidden = false;
-  el.innerHTML = `<span class="kropka zle"></span> ${s.powod}`;
+  el.innerHTML = `<span class="kropka zle"></span> ${htmlText(s.powod)}`;
   el.title = s.powod;
 }
 
@@ -574,8 +586,8 @@ async function odswiezStanRb() {
   if (!api()) return;
   const s = await api().stan_rekordboxa();
   const el = $('#stan-rb');
-  if (s.blad) { el.innerHTML = `<span class="kropka zle"></span> ${s.blad}`; return; }
-  el.innerHTML = `<span class="kropka ${s.zapis_dozwolony ? 'ok' : 'zle'}"></span> ${s.powod}`;
+  if (s.blad) { el.innerHTML = `<span class="kropka zle"></span> ${htmlText(s.blad)}`; return; }
+  el.innerHTML = `<span class="kropka ${s.zapis_dozwolony ? 'ok' : 'zle'}"></span> ${htmlText(s.powod)}`;
   stan.rbPowod = {dozwolony: s.zapis_dozwolony, powod: s.powod};
   rysujPodtytulRb();
 
@@ -603,7 +615,7 @@ function odswiezSpis() {
       stan.filtr, $('#filtr-ton').value, $('#filtr-bpm').value,
       false, stan.sortowanie, 400, stan.sekcja);
     if (odp.blad) {
-      $('#licznik').innerHTML = `<span class="ostroznie">${odp.blad}</span>`;
+      $('#licznik').innerHTML = `<span class="ostroznie">${htmlText(odp.blad)}</span>`;
       return;
     }
     stan.widoczne = odp.utwory || [];
@@ -895,7 +907,7 @@ async function rysujDjow() {
     el.innerHTML = '<div class="pusto">liczę grupy brzmieniowe…</div>';
     const odp = await api().djs();
     if (odp.blad) {
-      el.innerHTML = `<div class="pusto">${odp.blad}</div>`;
+      el.innerHTML = `<div class="pusto">${htmlText(odp.blad)}</div>`;
       $('#dj-licznik').textContent = '';
       return;
     }
@@ -915,8 +927,8 @@ async function rysujDjow() {
   // „moje ulubione" to kotwica policzona z Twoich ♥ — stoi osobno, bo nie
   // pochodzi z księgi, tylko z Twojej biblioteki
   let html = `<div class="dj-grupa"><div class="dj-glowa">— twoje brzmienie —</div>
-    <div class="dj-karta" data-dj="${stan.mojeUlubione}">
-      <b>${stan.mojeUlubione}</b>
+    <div class="dj-karta" data-dj="${htmlText(stan.mojeUlubione)}">
+      <b>${htmlText(stan.mojeUlubione)}</b>
       <span class="drobne">kotwica z Twoich ♥ (${stan.ulubionychUtworow} utworów)</span>
     </div></div>`;
   html += grupy.map(g => `
@@ -964,7 +976,7 @@ function rysujNotki(notki, stanFilarow, zgloszone) {
   box.hidden = false;
   box.innerHTML = '<div class="glowa">co silnik zgłosił</div>' +
     wpisy.map(n => `<div class="${/UWAGA|ODMOWA|poza oknem/i.test(n) ? 'zle' : ''}">${
-      String(n).replace(/</g, '&lt;')}</div>`).join('');
+      htmlText(n)}</div>`).join('');
 }
 
 function rysujKrzywa(utwory) {
@@ -1103,7 +1115,7 @@ function rysujKandydatow(uwaga) {
     ? `Podmiana ${poz} — wybierz i potwierdź`
     : `Dopisanie za ${poz} — wybierz i potwierdź`;
   if (!stan.kandydaci || !stan.kandydaci.length) {
-    el.innerHTML = `<div class="pusto">${uwaga || 'brak kandydatów'}</div>`;
+    el.innerHTML = `<div class="pusto">${htmlText(uwaga || 'brak kandydatów')}</div>`;
     return;
   }
   el.innerHTML = `<table><thead><tr>
@@ -1114,7 +1126,7 @@ function rysujKandydatow(uwaga) {
       <tr data-kand="${i}" ${stan.kandWybor === i ? 'aria-selected="true"' : ''}>
         <td class="ranga">${k.ranga}</td>
         <td class="num">${k.bpm ? k.bpm.toFixed(1) : '—'}</td>
-        <td>${k.tonacja || '—'}</td>
+        <td>${htmlText(k.tonacja || '—')}</td>
         <td class="wynik">${k.score.toFixed(2)}</td>
         <td>${(k.wykonawca ? k.wykonawca + ' — ' : '').replace(/</g, '&lt;')}${
           (k.tytul || '').replace(/</g, '&lt;')}
@@ -1201,10 +1213,10 @@ function kontekstSet(s) {
     </div>
     <div class="rozdziel"></div>
     <div class="pole"><div class="et">kotwica</div>
-      <div class="wa">${s.kotwica || '— bez kotwicy —'}</div></div>
+      <div class="wa">${htmlText(s.kotwica || '— bez kotwicy —')}</div></div>
     <div class="pole"><div class="et">filary</div>
       <div class="wa">${s.filary_stan === 'uzyte'
-        ? `${s.filary.length} (tryb: ${s.tryb_filarow})`
+        ? `${s.filary.length} (tryb: ${htmlText(s.tryb_filarow)})`
         : s.filary_stan === 'wypadly' ? `${s.filary_zgloszone} wypadło` : 'brak'}</div></div>
     <div class="powod"><b>Plan zapisany.</b> Otwórz go w terminalu
       (<span class="mono">dancelab tui</span>, klawisz <b>o</b>) — to ten sam plik.</div>`;
@@ -1303,7 +1315,7 @@ async function policzZapis() {
   const w = await api().przygotuj_zapis_cue();
   $('#btn-policz').disabled = false;
   if (w.blad) {
-    $('#zapis-liczby').innerHTML = `<span class="ostroznie">${w.blad}</span>`;
+    $('#zapis-liczby').innerHTML = `<span class="ostroznie">${htmlText(w.blad)}</span>`;
     $('#btn-wyslij').hidden = true;
     return;
   }
@@ -1388,10 +1400,10 @@ async function otworzPlany() {
       <tr data-plan="${i}">
         <td class="num">${(p.zapisano || '?').replace(/</g, '&lt;')}</td>
         <td class="num">${p.n}</td>
-        <td class="num">${p.bpm || '—'}</td>
+        <td class="num">${htmlText(p.bpm || '—')}</td>
         <td>${(p.nazwa || '').replace(/</g, '&lt;')}${
           p.biezacy ? ' <span class="drobne">— bieżący</span>' : ''}${
-          p.dj ? ` <span class="drobne">jak ${p.dj}</span>` : ''}
+          p.dj ? ` <span class="drobne">jak ${htmlText(p.dj)}</span>` : ''}
           <button class="zdejmij" data-usun="${i}" title="do kosza (obok planów, nic nie znika)">✕</button></td>
       </tr>`).join('')}</tbody></table>`;
   $('#tabela-planow').querySelectorAll('tr[data-plan]').forEach(tr =>
@@ -1467,7 +1479,7 @@ function pokazLiczbyPlaylisty(w, poZapisie) {
     czesci.push(liczba('bez pliku na dysku', w.bez_sciezki.length, 'ostroznie'));
   }
   if (w.kopia) czesci.push('<span class="ostroznie">kopia bazy zrobiona</span>');
-  if (w.uwaga) czesci.push(`<span class="ostroznie">${w.uwaga}</span>`);
+  if (w.uwaga) czesci.push(`<span class="ostroznie">${htmlText(w.uwaga)}</span>`);
   let html = czesci.join('');
   // Powody pominięć własnymi słowami warstwy publikującej — te same, które
   // widzi terminal; przepisanie ich tutaj rozjechałoby obie skóry.
@@ -1485,7 +1497,7 @@ async function policzPlayliste() {
   const w = await api().podglad_playlisty($('#p-nazwa-playlisty').value);
   $('#btn-pl-policz').disabled = false;
   if (w.blad) {
-    $('#playlista-liczby').innerHTML = `<span class="ostroznie">${w.blad}</span>`;
+    $('#playlista-liczby').innerHTML = `<span class="ostroznie">${htmlText(w.blad)}</span>`;
     $('#btn-pl-wyslij').hidden = true;
     return;
   }
@@ -1502,7 +1514,7 @@ async function wyslijPlayliste() {
   $('#btn-pl-wyslij').hidden = true;
   if (w.blad) {
     $('#playlista-liczby').innerHTML =
-      `<span class="ostroznie">ZAPIS NIEUDANY: ${w.blad}</span>`;
+      `<span class="ostroznie">ZAPIS NIEUDANY: ${htmlText(w.blad)}</span>`;
     return;
   }
   pokazLiczbyPlaylisty(w, true);
@@ -1515,16 +1527,16 @@ async function wyslijZapis() {
   $('#btn-wyslij').disabled = false;
   $('#btn-wyslij').hidden = true;
   if (w.blad) {
-    $('#zapis-liczby').innerHTML = `<span class="ostroznie">ZAPIS NIEUDANY: ${w.blad}</span>`;
+    $('#zapis-liczby').innerHTML = `<span class="ostroznie">ZAPIS NIEUDANY: ${htmlText(w.blad)}</span>`;
     return;
   }
   $('#zapis-liczby').innerHTML =
     liczba('zapisane pady', w.zapisane)
     + (w.usuniete ? liczba('usunięte', w.usuniete) : '')
-    + `<span class="ostroznie">${w.uwaga}</span>`
+    + `<span class="ostroznie">${htmlText(w.uwaga)}</span>`
     // historia świeżości karmiona przy UŻYCIU setu — jak S/W w terminalu,
     // i tak samo widoczna, nie po cichu
-    + (w.historia ? `<span class="drobne">${w.historia}</span>` : '');
+    + (w.historia ? `<span class="drobne">${htmlText(w.historia)}</span>` : '');
 }
 
 /* ---------- start ---------- */
@@ -1542,10 +1554,10 @@ async function start() {
   const b = await api().biblioteka(100000);   // spis to same nagłówki
   if (b.blad) {
     stan.pustaBiblioteka = true; pokazSkan();
-    $('#spis').innerHTML = `<div class="pusto">${b.blad}<br><br>Wskaż niżej folder z muzyką i naciśnij <b>Analizuj</b>.</div>`;
+    $('#spis').innerHTML = `<div class="pusto">${htmlText(b.blad)}<br><br>Wskaż niżej folder z muzyką i naciśnij <b>Analizuj</b>.</div>`;
     $('#tytul').textContent = 'Brak analiz';
     $('#kontekst').innerHTML = `<h2>Nic do pokazania</h2>
-      <div class="powod zle"><b>${b.blad}</b><br>${b.podpowiedz || ''}</div>`;
+      <div class="powod zle"><b>${htmlText(b.blad)}</b><br>${htmlText(b.podpowiedz || '')}</div>`;
     return;
   }
   pokazEkran('szew');            // jawnie, zamiast polegać na kolejności w HTML

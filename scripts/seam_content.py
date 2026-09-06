@@ -100,7 +100,7 @@ def main() -> int:
     print(f"  sygnał ponad przypadek                      : {real - np.mean(ctrl):+.3f}")
     print("\n  ujemna korelacja = wchodzący wypełnia to, co wychodzący zwolnił")
 
-    print(f"\n  per stem (prawdziwe pary):")
+    print("\n  per stem (prawdziwe pary):")
     for i, name in enumerate(STEMS):
         r = float(np.corrcoef(E[:, i], N[:, i])[0, 1])
         c = np.mean([float(np.corrcoef(E[:, i], np.roll(N[:, i], k))[0, 1])

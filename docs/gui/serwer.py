@@ -1,39 +1,59 @@
-"""Makieta GUI DanceLab — statyczny podgląd czterech ekranów.
+"""Serve the GUI preview and its explicitly shared UI auditor on loopback only."""
 
-Uruchomienie:
-    uv run python docs/gui/serwer.py [port]      (domyślnie 8658)
-"""
 from __future__ import annotations
+
+import mimetypes
 import pathlib
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import unquote
 
 KATALOG = pathlib.Path(__file__).parent
-PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8658
 
 
 class Serwer(BaseHTTPRequestHandler):
-    def log_message(self, *a): pass
+    """Read-only preview handler with a resolved filesystem boundary."""
+
+    def log_message(self, *_args):
+        """Keep the local preview quiet."""
 
     def do_GET(self):
-        sciezka = self.path.split("?")[0]
-        plik = "index.html" if sciezka in ("/", "/index.html") else sciezka.lstrip("/")
-        # Audytor UI jest wspólny dla wszystkich paneli — leży piętro wyżej.
-        cel = (KATALOG.parent / "audyt-ui.js") if plik == "audyt-ui.js" \
-              else KATALOG / plik
-        if not cel.exists() or not cel.is_file():
+        """Serve regular files in the preview root or the named shared auditor."""
+        try:
+            route = unquote(self.path.split("?", 1)[0])
+            name = "index.html" if route == "/" else route.lstrip("/")
+            root = KATALOG.resolve()
+            if name == "audyt-ui.js":
+                target = root.parent / "audyt-ui.js"
+                allowed = not target.is_symlink()
+            else:
+                target = (root / name).resolve()
+                allowed = target.is_relative_to(root)
+            if not allowed or not target.is_file():
+                self.send_response(404)
+                self.end_headers()
+                return
+            content = target.read_bytes()
+        except (OSError, ValueError, RuntimeError):
             self.send_response(404)
             self.end_headers()
             return
-        typ = "text/html; charset=utf-8" if cel.suffix == ".html" else "text/plain; charset=utf-8"
-        tresc = cel.read_bytes()
+        content_type = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
         self.send_response(200)
-        self.send_header("Content-Type", typ)
-        self.send_header("Content-Length", str(len(tresc)))
+        self.send_header("Content-Type", content_type)
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Content-Length", str(len(content)))
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
-        self.wfile.write(tresc)
+        self.wfile.write(content)
 
 
-print(f"Makieta GUI: http://localhost:{PORT}/")
-ThreadingHTTPServer(("127.0.0.1", PORT), Serwer).serve_forever()
+def main() -> None:
+    """Start the local preview; importing this module never opens a socket."""
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8658
+    print(f"GUI preview: http://localhost:{port}/")
+    ThreadingHTTPServer(("127.0.0.1", port), Serwer).serve_forever()
+
+
+if __name__ == "__main__":
+    main()

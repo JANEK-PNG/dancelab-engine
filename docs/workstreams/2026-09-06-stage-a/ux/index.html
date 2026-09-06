@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>DanceLab — przygotuj swój set</title>
+  <link rel="stylesheet" href="fonty.css">
+  <link rel="stylesheet" href="prototype.css">
+  <script src="prototype.js" defer></script>
+</head>
+<body>
+  <div class="demo-bar"><span>PROTOTYP UX / 01</span><span>Dane przykładowe · bez połączenia z Rekordboxem</span><button id="restart">Sprawdź powrót do pracy ↗</button></div>
+  <header class="top"><a href="#" id="home" class="brand">DanceLab<span class="brand-dot">●</span></a><span class="descriptor">Miejsce na Twój następny set.</span><span class="local">Twoja biblioteka. Twoje decyzje.</span></header>
+  <main id="app"></main>
+  <div id="status" class="status" role="status" aria-live="polite">Gotowe do rozpoczęcia.</div>
+  <dialog id="export-dialog" aria-labelledby="export-title"></dialog>
+</body>
+</html>

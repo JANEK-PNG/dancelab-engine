@@ -29,10 +29,10 @@ H_DIR = ROOT / "data/reports/corpus_ordering/h_analysis"
 INDEX = ROOT / "data/reports/corpus_ordering/analysis_index.json"
 OUT = ROOT / "data/reports/corpus_priors/priors_clap_v1.json"
 
-from dancelab.decision._common import nearest_bpm_variant
-from dancelab.decision.harmonic import harmonic_relation
-from dancelab.validation.skladniki import Skladniki
-from dancelab.validation.wejscie import BrakDanychWejsciowych, wymagaj_plikow
+from dancelab.decision._common import nearest_bpm_variant  # noqa: E402 — source-tree bootstrap above
+from dancelab.decision.harmonic import harmonic_relation  # noqa: E402 — source-tree bootstrap above
+from dancelab.validation.skladniki import Skladniki  # noqa: E402 — source-tree bootstrap above
+from dancelab.validation.wejscie import BrakDanychWejsciowych, wymagaj_plikow  # noqa: E402 — source-tree bootstrap above
 
 SKLADNIKI = Skladniki()
 

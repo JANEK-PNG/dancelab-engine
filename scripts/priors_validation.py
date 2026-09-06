@@ -32,11 +32,11 @@ INDEX = ROOT / "data/reports/corpus_ordering/analysis_index.json"
 PRIORS = ROOT / "data/reports/corpus_priors/priors_v1.json"
 OUT = ROOT / "data/reports/corpus_priors/validation_v1.json"
 
-from dancelab.decision._common import nearest_bpm_variant
-from dancelab.decision.harmonic import harmonic_compatibility, harmonic_relation
-from dancelab.decision.set_builder import bpm_score
-from dancelab.validation.skladniki import Skladniki
-from dancelab.validation.wejscie import BrakDanychWejsciowych, wymagaj_plikow
+from dancelab.decision._common import nearest_bpm_variant  # noqa: E402 — source-tree bootstrap above
+from dancelab.decision.harmonic import harmonic_compatibility, harmonic_relation  # noqa: E402 — source-tree bootstrap above
+from dancelab.decision.set_builder import bpm_score  # noqa: E402 — source-tree bootstrap above
+from dancelab.validation.skladniki import Skladniki  # noqa: E402 — source-tree bootstrap above
+from dancelab.validation.wejscie import BrakDanychWejsciowych, wymagaj_plikow  # noqa: E402 — source-tree bootstrap above
 
 
 def load_h_features() -> dict[str, dict]:

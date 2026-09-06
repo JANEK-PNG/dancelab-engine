@@ -935,9 +935,9 @@ class Most:
         self._wagi_budowy = None
         self._parametry_budowy = dict(wynik.get("parametry") or {})
         plan.WSKAZNIK.parent.mkdir(parents=True, exist_ok=True)
-        plan.WSKAZNIK.write_text(
-            json.dumps({"plan": str(sciezka)}, ensure_ascii=False),
-            encoding="utf-8")
+        from dancelab.storage.atomic import write_text_atomic
+
+        write_text_atomic(plan.WSKAZNIK, json.dumps({"plan": str(sciezka)}, ensure_ascii=False))
         dziennik.dopisz("wczytanie_planu", skora="gui", plan=str(sciezka),
                         utworow=len(self._kolejnosc),
                         pominietych=len([n for n in wynik.get("notki") or []

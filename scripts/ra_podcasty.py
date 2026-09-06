@@ -69,17 +69,17 @@ def rozbierz_tracklise(html: str) -> list[dict]:
     tekst = (tekst.replace("&amp;", "&").replace("&#39;", "'")
              .replace("&quot;", '"').replace("&nbsp;", " "))
     out = []
-    for l in tekst.split("\n"):
-        l = l.strip().strip("*")
+    for line in tekst.split("\n"):
+        line = line.strip().strip("*")
         # Numeracja z przodu bywa i nie jest częścią nazwy.
-        l = re.sub(r"^\s*\d{1,3}[.)]\s*", "", l)
-        if len(l) < 4 or len(l) > 200:
+        line = re.sub(r"^\s*\d{1,3}[.)]\s*", "", line)
+        if len(line) < 4 or len(line) > 200:
             continue
-        czesci = re.split(r"\s+[-–—]\s+", l, maxsplit=1)
+        czesci = re.split(r"\s+[-–—]\s+", line, maxsplit=1)
         out.append({
             "ms": None, "czas": "",
             "wykonawca": czesci[0].strip() if len(czesci) == 2 else "",
-            "tytul": (czesci[1] if len(czesci) == 2 else l).strip(),
+            "tytul": (czesci[1] if len(czesci) == 2 else line).strip(),
             "zrodlo": "ra podcast", "autor": "",
         })
     return out

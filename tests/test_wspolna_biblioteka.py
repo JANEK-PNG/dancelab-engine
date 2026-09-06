@@ -119,7 +119,8 @@ def test_sekcje_okna_filtruja_po_zrodle_i_znakach(monkeypatch, tmp_path):
     monkeypatch.setattr(m, "biblioteka", lambda limit=400: {"utwory": [], "wszystkich": 2})
     monkeypatch.setattr(m, "ulubione", lambda: {"ulubione": ["s"]})
     monkeypatch.setattr(m, "filary", lambda: {"filary": [{"track_id": "a"}]})
-    ids = lambda odp: [u["track_id"] for u in odp["utwory"]]
+    def ids(odp):
+        return [u["track_id"] for u in odp["utwory"]]
     assert ids(m.szukaj(sekcja="dysk")) == ["a"]
     assert ids(m.szukaj(sekcja="apple")) == ["s"]
     assert ids(m.szukaj(sekcja="ulubione")) == ["s"]

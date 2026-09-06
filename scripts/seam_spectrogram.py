@@ -14,7 +14,6 @@ two of them can be compared by eye at all.
 from __future__ import annotations
 
 import argparse
-import glob
 import json
 from pathlib import Path
 

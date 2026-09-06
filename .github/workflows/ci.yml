@@ -39,9 +39,11 @@ jobs:
           uv sync --locked --extra dev ${{ matrix.extras }}
           --python ${{ matrix.python-version }}
       - run: >-
-          uv run --locked ruff check src tests
-          scripts/verify_clean_install.py scripts/docstring_coverage.py
+          uv run --locked ruff check src tests scripts docs/gui/serwer.py
       - run: uv run --locked pytest
+      - run: node --test tests/gui_security.test.cjs
+      - run: uv run --locked python -m compileall -q src tests
+      - run: uv pip check
       # Documentation is code: docstring coverage is ratcheted, not aspirational.
       # Floors live in scripts/docstring_coverage.py; see docs/DOCUMENTATION_STANDARD.md.
       - run: uv run --locked python scripts/docstring_coverage.py --check
@@ -65,6 +67,7 @@ jobs:
         run: >-
           uv run --locked pytest
           tests/test_security_regressions.py
+          tests/test_audit_p1.py
           tests/test_api.py
           tests/test_cache_manager.py
           tests/test_rb_backup.py

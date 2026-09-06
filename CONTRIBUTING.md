@@ -40,7 +40,8 @@ if you skip them.
 
 ```bash
 ./.venv/bin/python -m pytest                                    # tests
-./.venv/bin/ruff check src tests scripts                        # lint
+./.venv/bin/ruff check src tests scripts docs/gui/serwer.py      # lint
+node --test tests/gui_security.test.cjs                         # GUI error rendering
 ./.venv/bin/python scripts/docstring_coverage.py --check        # documentation
 ./.venv/bin/python -m compileall -q src tests                   # syntax
 ./.venv/bin/python -m pip check                                 # dependency sanity
@@ -48,6 +49,9 @@ if you skip them.
 
 CI additionally runs the suite across Python 3.11 and 3.12, a security regression
 job (`bandit`, `pip-audit`), and a wheel build with a clean-install check.
+The GUI regression runner uses Node.js's built-in test module and needs no npm
+dependencies. The dependency audit uses an export of `uv.lock`, rather than an
+unrelated developer environment.
 
 ---
 

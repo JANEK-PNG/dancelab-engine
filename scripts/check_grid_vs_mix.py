@@ -88,7 +88,8 @@ def main() -> int:
                     continue
                 on = energy_at(env, beats)
                 off = energy_at(env, beats + period / 2)    # deliberately wrong phase
-                on_all.append(on); off_all.append(off)
+                on_all.append(on)
+                off_all.append(off)
                 print(f"{Path(dk['path']).stem[:40]:40s} {on:9.2f} {off:7.2f} "
                       f"{on / max(off, 1e-9):8.2f}×")
     if on_all:

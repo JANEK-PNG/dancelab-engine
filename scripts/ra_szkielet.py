@@ -148,7 +148,7 @@ def main() -> int:
                     "obserwujacych": pr.get("followerCount") or 0,
                     "kraj": (pr.get("country") or {}).get("name") or "",
                     "kraj_zamieszkania": (pr.get("residentCountry") or {}).get("name") or "",
-                    "wytwornie": ", ".join(l["name"] for l in (pr.get("labels") or [])),
+                    "wytwornie": ", ".join(line["name"] for line in (pr.get("labels") or [])),
                     "soundcloud_ra": pr.get("soundcloud") or "",
                     "www": pr.get("website") or "",
                     "wystepow_przeszlych": len(pr.get("przeszle") or []),

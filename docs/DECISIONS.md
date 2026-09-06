@@ -18,7 +18,8 @@ its replacement.
 
 ## ADR-001 — The engine has one surface: the API and the CLI
 
-**Status:** accepted · **Enforced in:** `docs/risks.md` (R7), repository layout
+**Status:** superseded for product surfaces by ADR-007; framework separation remains.
+**Historical enforcement:** `docs/risks.md` (R7), repository layout at the time.
 
 **Decision.** The engine exposes its behaviour through the command line and the
 HTTP API. There is no supported graphical application; visualization is limited
@@ -134,6 +135,29 @@ definitions of every concept and they diverge under deadline.
 
 **Forbids.** Defining request or response models that duplicate core models with
 different fields; implementing decision logic in a route handler.
+
+---
+
+## ADR-007 — Desktop and terminal share application operations
+
+**Status:** accepted, 2026-09-06. **Enforced in:** `gui/most.py`, `stan/`,
+`tui/plan_store.py`, `gui/okno.py` and their regression tests.
+
+**Decision.** The current product includes a pywebview desktop GUI and a Textual
+terminal interface in addition to CLI and optional local HTTP integration.
+Both interactive interfaces use the shared application operations in `stan/`.
+The GUI uses an in-process Python bridge, not the FastAPI service. The optional
+PostgreSQL/pgvector identity catalog is implemented under `catalog/`.
+
+**Why.** ADR-001 described a retired product boundary and misled new developers.
+This record describes the current implementation and the owner's confirmed
+focus on preparing sets from a personal library. Some shared persistence still
+lives under `tui/`; moving it is a separate, compatibility-preserving change.
+
+**Forbids.** Duplicating scoring in JavaScript or route handlers; treating a
+design prototype as an integrated application; claiming optional ML research
+or Digital Twin integrations are prerequisites for starting the planner.
+ADR-003, ADR-004 and ADR-005 remain binding.
 
 ---
 

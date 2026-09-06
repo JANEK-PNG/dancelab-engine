@@ -131,7 +131,7 @@ def main() -> int:
     print(f"  brzmienie  {s:5.2f} s   (CLAP, 5 okien po 10 s)")
     print(f"  RAZEM      {d + a + s:5.2f} s")
 
-    print(f"\nco to znaczy dla UX (jeden wątek → 6 wątków):")
+    print("\nco to znaczy dla UX (jeden wątek → 6 wątków):")
     for n in (500, 1000, 1837, 5000):
         one = n * (d + a + s) / 60
         six = one / 6
