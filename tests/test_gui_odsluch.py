@@ -322,7 +322,7 @@ def test_pad_z_kreska_w_identyfikatorze_nie_gubi_litery(most):
     assert list(most._pady_bez_sladu("a|b")["pady"]) == ["A"]
 
 
-def test_plan_z_pliku_nie_dziedziczy_wag_poprzedniej_budowy(most):
+def test_plan_z_pliku_nie_dziedziczy_wag_poprzedniej_budowy(most, tmp_path, monkeypatch):
     """„Zbuduj set A → wczytaj plan B" to obsługiwana droga, nie dziwactwo.
 
     `_wagi_szwu` obiecuje w docstringu wagi domyślne, gdy plan przyszedł
@@ -335,6 +335,9 @@ def test_plan_z_pliku_nie_dziedziczy_wag_poprzedniej_budowy(most):
 
     # sama droga wczytania planu, bez puli na dysku
     from dancelab.stan import plan as PL
+    # Loading a plan also publishes its current-plan pointer. Keep that write
+    # inside the fixture, just like the decision journal in the shared fixture.
+    monkeypatch.setattr(PL, "WSKAZNIK", tmp_path / "biezacy.json")
     import types
     most._pula = types.MethodType(lambda self: [], most)
     PL_wczytaj = PL.wczytaj
@@ -348,6 +351,7 @@ def test_plan_z_pliku_nie_dziedziczy_wag_poprzedniej_budowy(most):
 
     assert most._wagi_budowy is None
     assert most._ctx_edycji is None
+    assert PL.WSKAZNIK.is_file()
 
 
 def test_utwor_bez_sciezki_odmawia_zamiast_udawac_ze_zagra(most):

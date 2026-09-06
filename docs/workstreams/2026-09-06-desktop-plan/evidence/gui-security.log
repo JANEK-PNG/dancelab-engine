@@ -1,0 +1,40 @@
+TAP version 13
+# Subtest: error context renders both caller and failure as literal text
+ok 1 - error context renders both caller and failure as literal text
+  ---
+  duration_ms: 7.454125
+  type: 'test'
+  ...
+# Subtest: genre failure cannot introduce markup
+ok 2 - genre failure cannot introduce markup
+  ---
+  duration_ms: 1.533583
+  type: 'test'
+  ...
+# Subtest: audio status renders backend reason as text
+ok 3 - audio status renders backend reason as text
+  ---
+  duration_ms: 2.902041
+  type: 'test'
+  ...
+# Subtest: Rekordbox failure cannot introduce markup
+ok 4 - Rekordbox failure cannot introduce markup
+  ---
+  duration_ms: 1.068042
+  type: 'test'
+  ...
+# Subtest: engine notes preserve literal entities and block markup at the renderer
+ok 5 - engine notes preserve literal entities and block markup at the renderer
+  ---
+  duration_ms: 1.741708
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 110.123167

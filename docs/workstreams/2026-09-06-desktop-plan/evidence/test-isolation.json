@@ -1,0 +1,8 @@
+{
+  "test_command": ".venv/bin/python -m pytest tests/test_gui_odsluch.py",
+  "exit_code": 0,
+  "pointer_sha256_before": "5cf212f1cc824886645eeaf75c81a86e09ca4553b1f57c655f953b2fa8852e72",
+  "pointer_sha256_after": "5cf212f1cc824886645eeaf75c81a86e09ca4553b1f57c655f953b2fa8852e72",
+  "pointer_unchanged": true,
+  "scope": "The demonstrated pointer target only; not a complete audit of all persistent writes."
+}

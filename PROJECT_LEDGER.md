@@ -144,6 +144,27 @@ tekstowa dla Korda; obie formy trzymamy w synchronizacji.
 
 ## 6 · RAPORTY DNIA (pracownik → Janek)
 
+**Codex → Janek · 2026-09-06 — PLAN WDROŻENIA DESKTOPOWEGO GUI, DANE RZECZYWISTE.**
+**POMIAR:** 8260 wpisów biblioteki; 7910 Apple Music, 272 istniejące pliki,
+78 brakujących ścieżek. Dodatkowy JSON to manifest, nie zgubiony utwór.
+9 zapisanych planów, 8 playlist, 7 ulubionych, 6 aktywnych filarów.
+Okno „Set 6” pokazało sześć filarów i pusty właściwy set. Most ma 72 publiczne
+operacje; dodanie do pustego setu odmawia („pozycja 1 poza setem”).
+Źródło liczb: `docs/workstreams/2026-09-06-desktop-plan/evidence/inventory.json`.
+**POMIAR / KOD:** flaga grywalności i klasyfikacja źródła rozjeżdżają się:
+78 brakujących plików ma flagę „grywalny”, 25 istniejących względnych ścieżek jej
+nie ma. Wskaźnik ostatniego planu prowadzi do `/plany/B.json`, pliku testowego;
+jeden test nie izolował tego zapisu. Dodano izolację w `test_gui_odsluch.py`.
+Poprzedniego właściwego planu nie zgadywano i nie zmieniono danych użytkownika
+na wybrany arbitralnie plan; dziewięć zapisów pozostaje do wyboru.
+**DECYZJA JANKA:** aplikacja ma własne okno na Macu. Podgląd w przeglądarce
+nie jest odbiorem GUI. Zachowujemy działający desktop i TUI jako bazę.
+**OPINIA / ESTYMACJA:** P0–P5 (biblioteka → ręczny set → zapis → restart)
+10,5–17 dni skupionej pracy; pełny zakres z audio, eksportem, dystrybucją i próbami
+19,5–33 dni po 6 h, bez oczekiwania na osoby/sprzęt. To nie daty dostawy.
+Pełna mapa funkcji, scenariusze awarii, pliki, zależności, odbiór i rollback:
+`docs/workstreams/2026-09-06-desktop-plan/PLAN_WDROZENIA.md`.
+
 **Codex → Janek · 2026-09-06 — ETAP A PO AUDYCIE.**
 **POMIAR:** pełna suita 1087 passed / 1 skipped; 5 testów JS, Ruff i bramka
 pokrycia docstringów przechodzą. Wyniki i ograniczenia:
@@ -371,6 +392,8 @@ te osie paczki B są nadal DO ZROBIENIA.
 ---
 
 ## 7 · DZIENNIK WPISÓW
+- **2026-09-06 (Janek: „w tę strukturę wprowadź realne dane”): plan desktopowego GUI wypełniony pomiarami, kodem i obserwacją okna.** Dziesięć pakietów P0–P9, pierwszy odbiór to zapis i odtworzenie ręcznie ułożonego setu w osobnym oknie. Wykryte problemy: brak dodania pierwszego utworu, mylenie filarów z setem, błędna dostępność audio, nieistniejący cel wskaźnika planu i test zapisujący ten wskaźnik poza fixture. Izolacja testu poprawiona; wdrożenie GUI i migracja danych nie rozpoczęte w tej sesji.
+
 - **2026-09-06 (Janek: „działaj”, „to jedziemy z tematem”): uruchomiony etap ENG + UX na `codex/audit-stage-a`, baza `67cd961`.** Lokalny punkt odzyskiwania przed zmianami, poprawki P1 z testami regresji i działający prototyp przygotowania setów z własnej biblioteki. Szczegóły, dowody i dalsza kolejność: `docs/workstreams/2026-09-06-stage-a/README.md`. Nie uruchomiono nowych zadań ani prac ML/TWIN; limit dwóch obszarów zachowany.
 
 - **2026-09-05 (Janek: `/competitor-experience-audit`, formularz: apki do prepu · ekran utworu · rekordbox wolno odpalić): AUDYT POLA KONKURENCJI — `docs/AUDYT_KONKURENCJI_UX_2026-09-05.md`, stan `partial`.** Dwa przebiegi: przy zablokowanym ekranie tylko puste decki (zgoda na pełną kontrolę nie przyszła), po odblokowaniu rekordbox 7 w **EXPORT z utworem** i djay Pro z utworem — **djay wystartował odtwarzanie sam po załadowaniu, zatrzymane po ~15 s** (jedyne zdarzenie dźwiękowe, odnotowane). Serato/Traktor/Lexicon/MIK ze zrzutów producenta; reguła 3 z N przy N = 6. **Konwencje pola (obserwowane, nie z pamięci):** deck nad biblioteką (5 z 6), fala kolorowana pasmem (5 z 6 — jedyny wyjątek MIK, apka najbliższa naszej), dwa paski fali przeglądowy + zbliżony (4 z 6), 8 miejsc na cue zawsze widocznych, wiersz listy = okładka + BPM + **tonacja jako kolorowy chip** (4 z 6), drzewo playlist po lewej i ciemny gęsty rejestr (6 z 6). **Okno DanceLab wobec pola:** w polu — 8 kafli, zadanie główne pierwsze, krzyżyk na kaflu; **poza polem** — fala jednobarwna, brak paska przeglądowego po zoomie, tonacja tekstem, brak okładki, rzadki rejestr „Redakcja” (świadome odstępstwo z nazwaną ceną: opinia kumpla „player z lat 2000” to koszt oddechu w polu kokpitów). Poprzeczka bez porzucania kierunku: chip Camelot, fala w dwóch pasmach w istniejących tokenach (rekordbox robi to dwoma kolorami), pasek przeglądowy po zoomie, okładka w wierszu. **Luki poparte obserwacją:** pusty start milczy (2 z 2 na żywo — potwierdza 85ffea3); pochodzenie liczb 0 z 6 (repo ma dane); koszyk na set nazwany tylko u Serato/Traktora. Zrzutów nie ma w repo (kolekcja i playlisty Janka). Obie apki zamknięte po audycie (pgrep pusty), master.db nietknięte. Pierwsza wersja (a5e58e2) miała trzy twierdzenia z pamięci zamiast z obrazków — poprawione przed drugim przebiegiem.

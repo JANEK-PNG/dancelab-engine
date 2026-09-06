@@ -1,0 +1,5 @@
+Docstring coverage
+----------------------------------------------------
+modules             203/215    94.4%  floor 90%  ok
+classes             115/242    47.5%  floor 45%  ok
+public_callables    497/848    58.6%  floor 49%  ok
