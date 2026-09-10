@@ -20,6 +20,7 @@ from dancelab.core.models import (
     ScoredOutput,
 )
 from dancelab.core.provenance import guardrail_warnings, provenance_for
+from dancelab.core.style_labels import effective_style_label, is_umbrella_style_label
 
 STATUS = "candidate"
 MODEL_VERSION = "context_evaluation_v0.1"
@@ -157,8 +158,15 @@ def _target_profile(context: ContextProfile, length: int) -> dict[str, np.ndarra
 
 
 def _style_fit(style_label: str | None, style_focus: list[str]) -> float:
+    """Style agreement in [0, 1]; 0.5 when either side is unknown.
+
+    An umbrella label ("Electronic", "Dance") counts as unknown: before
+    2026-09-10 it fell through to the mismatch branch and scored 0.35, below
+    a track with no genre at all — see core/style_labels.py.
+    """
     if not style_focus:
         return 0.5
+    style_label = effective_style_label(style_label)
     if not style_label:
         return 0.5
     style = style_label.strip().lower()
@@ -216,6 +224,9 @@ def track_context_score(analysis: AnalysisResult, context: ContextProfile) -> Co
     descriptors = analysis_descriptors(analysis)
     length = _descriptor_length(descriptors)
     warnings: list[str] = []
+    if context.style_focus and is_umbrella_style_label(analysis.track.style_label):
+        warnings.append(f"style label '{analysis.track.style_label}' is an umbrella — "
+                        "treated as unknown, style-context fit is neutral")
 
     if length == 0:
         style_fit = _style_fit(analysis.track.style_label, context.style_focus)
@@ -260,7 +271,8 @@ def track_context_score(analysis: AnalysisResult, context: ContextProfile) -> Co
         role_fits[role] = round(float(probe_curve.mean()) if probe_curve.size else 0.5, 4)
 
     coverage = available / 3.0
-    style_known = 1.0 if (not context.style_focus or analysis.track.style_label) else 0.6
+    known_label = effective_style_label(analysis.track.style_label)
+    style_known = 1.0 if (not context.style_focus or known_label) else 0.6
     confidence = float(np.clip(0.30 + 0.45 * coverage + 0.15 * style_known, 0.0, 1.0))
     reasoning = [
         f"context role {_infer_role(context)}",

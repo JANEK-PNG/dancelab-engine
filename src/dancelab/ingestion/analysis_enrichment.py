@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 from typing import Iterable
 
 from dancelab.core.models import AnalysisResult
+from dancelab.core.style_labels import UMBRELLA_STYLE_LABELS
 
 LIBRARY_EMBEDDINGS = pathlib.Path("data/reports/library_embeddings.json")
 # Wektory z 30-sekundowych PRÓBEK iTunes — jedyne źródło brzmienia dla
@@ -39,11 +40,9 @@ APPLE_PREVIEW_EMBEDDINGS = pathlib.Path(
 # Biblioteka Apple Music Janka (scripts/apple_music_biblioteka.py) — jedyne
 # źródło gatunku dla strumieni, których Rekordbox nie otagował.
 APPLE_LIBRARY = pathlib.Path("data/reports/apple_library.json")
-# Etykiety-parasole Apple. Pomiar 10.09: „Electronic" + „Dance" to 56 %
-# biblioteki. Wpisane jako gatunek ROBIĄ SZKODĘ: `_style_fit` ocenia
-# niepasującą etykietę na 0,35, a brak na 0,5 — utwór z parasolem wypadałby
-# gorzej niż utwór bez gatunku, z wyższą pewnością. Zostają brakiem.
-APPLE_UMBRELLA_GENRES = frozenset({"electronic", "dance", "music"})
+# Etykiety-parasole (Electronic/Dance) — jedna lista dla ingestu i oceny,
+# patrz core/style_labels.py. Tu: nie wpisujemy ich jako gatunku.
+APPLE_UMBRELLA_GENRES = UMBRELLA_STYLE_LABELS
 
 
 def _nfc(s: str) -> str:
