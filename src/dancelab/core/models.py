@@ -282,6 +282,7 @@ class Track(BaseModel):
     channels: int | None = Field(default=None, ge=1, le=2)
     source_path: str | None = None
     style_label: str | None = None
+    style_label_source: str | None = None   # file_tag | rekordbox | apple
     bpm_estimate: float | None = Field(default=None, gt=0)
     # Camelot / harmonic fields (Sprint 5.1 R&D handoff)
     key_estimate: str | None = None            # camelot_key, e.g. "8A" (Rekordbox Tonality)

@@ -36,6 +36,14 @@ LIBRARY_EMBEDDINGS = pathlib.Path("data/reports/library_embeddings.json")
 # utworów bez pliku (strumienie Apple Music to 82% kolekcji Janka).
 APPLE_PREVIEW_EMBEDDINGS = pathlib.Path(
     "data/reports/apple_preview_embeddings.json")
+# Biblioteka Apple Music Janka (scripts/apple_music_biblioteka.py) — jedyne
+# źródło gatunku dla strumieni, których Rekordbox nie otagował.
+APPLE_LIBRARY = pathlib.Path("data/reports/apple_library.json")
+# Etykiety-parasole Apple. Pomiar 10.09: „Electronic" + „Dance" to 56 %
+# biblioteki. Wpisane jako gatunek ROBIĄ SZKODĘ: `_style_fit` ocenia
+# niepasującą etykietę na 0,35, a brak na 0,5 — utwór z parasolem wypadałby
+# gorzej niż utwór bez gatunku, z wyższą pewnością. Zostają brakiem.
+APPLE_UMBRELLA_GENRES = frozenset({"electronic", "dance", "music"})
 
 
 def _nfc(s: str) -> str:
@@ -158,6 +166,70 @@ def attach_rekordbox_genres(
         if track.style_label != genre:
             track.style_label = genre
             attached += 1
+        track.style_label_source = "rekordbox"
+    return EnrichmentReport(attached=attached, missing=missing, notes=notes)
+
+
+def load_apple_genre_map(
+    path: str | pathlib.Path = APPLE_LIBRARY,
+) -> tuple[dict[str, str], str]:
+    """(``apple-music:tracks:<catalogId>`` → first Apple genre, note). Empty + reason when absent."""
+    p = pathlib.Path(path)
+    if not p.exists():
+        return {}, (f"brak biblioteki Apple: {p} "
+                    "(uruchom scripts/apple_music_biblioteka.py biblioteka)")
+    try:
+        data = json.loads(p.read_text())
+    except (OSError, ValueError) as exc:
+        return {}, f"biblioteka Apple nieczytelna ({type(exc).__name__}) — gatunki Apple pominięte"
+    out: dict[str, str] = {}
+    for song in data.get("songs", []):
+        attrs = song.get("attributes") or {}
+        cid = (attrs.get("playParams") or {}).get("catalogId")
+        names = attrs.get("genreNames") or []
+        if cid and names:
+            out[f"apple-music:tracks:{cid}"] = str(names[0])
+    return out, f"gatunki z biblioteki Apple: {len(out)} utworów"
+
+
+def attach_apple_genres(
+    analyses: Iterable[AnalysisResult],
+    genre_map: dict[str, str] | None = None,
+) -> EnrichmentReport:
+    """Apple genre → ``track.style_label`` ONLY where nothing else set one.
+
+    Order of trust is Rekordbox (owner's taxonomy) > file tag > Apple, so this
+    runs last and never overwrites. Umbrella labels (``APPLE_UMBRELLA_GENRES``)
+    are left as a gap on purpose — see the constant for the measurement. A
+    label already present without a source is stamped ``file_tag``: the only
+    other writer of ``style_label`` is the file-tag ingestion.
+    """
+    notes: list[str] = []
+    if genre_map is None:
+        genre_map, note = load_apple_genre_map()
+        notes.append(note)
+    attached = missing = umbrella = 0
+    for analysis in analyses:
+        track = analysis.track
+        if track.style_label:
+            if not getattr(track, "style_label_source", None):
+                track.style_label_source = "file_tag"
+            continue
+        genre = genre_map.get(str(track.source_path or ""))
+        if genre is None:
+            missing += 1
+            continue
+        if genre.strip().lower() in APPLE_UMBRELLA_GENRES:
+            umbrella += 1
+            missing += 1
+            continue
+        track.style_label = genre
+        track.style_label_source = "apple"
+        attached += 1
+    if umbrella:
+        notes.append(f"{umbrella} utworów ma w Apple tylko parasol "
+                     "(Electronic/Dance) — zostają bez gatunku, bo parasol "
+                     "ocenia się gorzej niż brak")
     return EnrichmentReport(attached=attached, missing=missing, notes=notes)
 
 
