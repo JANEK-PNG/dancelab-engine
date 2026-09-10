@@ -151,3 +151,37 @@ def test_summary_counts_catalog_join():
     assert s == {"songs": 3, "with_catalog_id": 2, "with_genre": 2, "playlists": 1,
                  "collection_streams": 2, "matching_collection": 1}
     assert am.summarize(lib, None)["matching_collection"] is None
+
+
+def test_401_mid_run_refreshes_the_developer_token_once():
+    seen = []
+
+    def fetch(url, params, headers):
+        seen.append(headers["Authorization"])
+        return (401, {}, b"") if len(seen) == 1 else (200, {}, b'{"data": [1]}')
+
+    c = am.AppleMusicClient("old-token", fetch=fetch, sleep=lambda _: None,
+                            refresh=lambda: "new-token")
+    assert c.get("/v1/me/library/songs") == {"data": [1]}
+    assert seen == ["Bearer old-token", "Bearer new-token"]
+
+
+def test_persistent_401_raises_after_the_retry_budget():
+    calls = []
+    c = am.AppleMusicClient("t", fetch=lambda u, p, h: (calls.append(u), (401, {}, b""))[1],
+                            sleep=lambda _: None, max_retries=3)
+    with pytest.raises(RuntimeError, match="401"):
+        c.get("/v1/me/storefront")
+    assert len(calls) == 4
+
+
+def test_transient_401_is_retried_like_429():
+    n = {"i": 0}
+
+    def fetch(url, params, headers):
+        n["i"] += 1
+        return (401, {}, b"") if n["i"] < 3 else (200, {}, b'{"data": []}')
+
+    c = am.AppleMusicClient("t", fetch=fetch, sleep=lambda _: None)
+    assert c.get("/v1/me/library/songs") == {"data": []}
+    assert n["i"] == 3

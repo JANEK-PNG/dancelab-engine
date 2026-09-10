@@ -52,7 +52,8 @@ PAGE = """<!doctype html><meta charset="utf-8"><title>DanceLab · Apple Music</t
 <script>
 document.addEventListener('musickitloaded', async () => {
   try {
-    await MusicKit.configure({developerToken: '%TOKEN%', app: {name: 'DanceLab', build: '1'}});
+    await MusicKit.configure({developerToken: '%TOKEN%', app: {name: 'DanceLab', build: '1'},
+      storefrontId: 'pl'});
   } catch (e) { document.getElementById('s').textContent = 'MusicKit: ' + e; return; }
   const b = document.getElementById('b'); b.disabled = false;
   document.getElementById('s').textContent = 'gotowe do autoryzacji';
@@ -125,7 +126,7 @@ def authorize(cfg: dict[str, str]) -> None:
     srv = HTTPServer(("127.0.0.1", PORT), Handler)
     thread = threading.Thread(target=srv.serve_forever, daemon=True)
     thread.start()
-    url = f"http://127.0.0.1:{PORT}/"
+    url = f"http://localhost:{PORT}/"  # MusicKit JS is happier with a hostname
     print(f"otwieram {url} — kliknij „Autoryzuj”, zaloguj się u Apple, wróć.")
     webbrowser.open(url)
     done.wait(timeout=600)
@@ -160,7 +161,8 @@ def library(cfg: dict[str, str]) -> None:
     """Download the library and print the numbers that matter."""
     if not USER_TOKEN.exists():
         sys.exit(f"brak {USER_TOKEN} — najpierw: apple_music_biblioteka.py autoryzuj")
-    client = AppleMusicClient(mint(cfg, 3600), USER_TOKEN.read_text().strip())
+    client = AppleMusicClient(mint(cfg, 3600), USER_TOKEN.read_text().strip(),
+                              refresh=lambda: mint(cfg, 3600))
     lib = fetch_library(client)
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(lib, ensure_ascii=False))

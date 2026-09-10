@@ -128,12 +128,13 @@ class AppleMusicClient:
 
     def __init__(self, dev_token: str, user_token: str | None = None,
                  fetch: Fetch | None = None, sleep: Callable[[float], None] = time.sleep,
-                 max_retries: int = 5) -> None:
+                 max_retries: int = 5, refresh: Callable[[], str] | None = None) -> None:
         self._dev = dev_token
         self._user = user_token
         self._fetch = fetch or _fetch_requests
         self._sleep = sleep
         self._max_retries = max_retries
+        self._refresh = refresh  # re-mints the developer token on a mid-run 401
 
     def __repr__(self) -> str:  # never leak tokens
         return f"AppleMusicClient(user_token={'set' if self._user else 'none'})"
@@ -145,14 +146,24 @@ class AppleMusicClient:
         return h
 
     def get(self, path: str, params: dict[str, str] | None = None) -> dict[str, Any]:
-        """GET one page; retries on 429/5xx honouring ``Retry-After``."""
+        """GET one page; retries on 429/5xx honouring ``Retry-After``.
+
+        A 401 in the middle of a long read is transient on Apple's side
+        (measured 2026-09-10: the same page answers 401 once and 200 the next
+        second), so it is retried with backoff like a 429; when ``refresh`` was
+        given the developer token is re-minted once along the way.
+        """
         url = path if path.startswith("http") else f"{API}{path}"
         attempt = 0
+        refreshed = False
         while True:
             status, headers, body = self._fetch(url, params or {}, self._headers())
             if status == 200:
                 return json.loads(body.decode("utf-8"))
-            if status in (429, 500, 502, 503, 504) and attempt < self._max_retries:
+            if status == 401 and self._refresh is not None and not refreshed:
+                refreshed = True
+                self._dev = self._refresh()
+            if status in (401, 429, 500, 502, 503, 504) and attempt < self._max_retries:
                 attempt += 1
                 self._sleep(float(headers.get("retry-after", 2 ** attempt)))
                 continue
