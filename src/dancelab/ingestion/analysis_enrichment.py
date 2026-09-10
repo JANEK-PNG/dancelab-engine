@@ -243,7 +243,9 @@ def load_bridge_genre_map(
 
     bridge, note = load_bridge(path if path is not None else BRIDGE_FILE)
     out = {p: str(e["genre_names"][0]) for p, e in bridge.items() if e.get("genre_names")}
-    return out, note
+    if not bridge:
+        return out, note  # the reason the bridge is missing or unreadable
+    return out, f"gatunki z mostu ISRC: {len(out)} plików"
 
 
 def attach_apple_identity(
