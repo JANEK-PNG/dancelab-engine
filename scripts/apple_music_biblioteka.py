@@ -34,12 +34,14 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
 from dancelab.ingestion.apple_music_api import (  # noqa: E402
-    AppleMusicClient, developer_token, fetch_library, summarize,
+    CONFIG_DIR, CONFIG_FILE, USER_TOKEN_FILE, AppleMusicClient, ConfigError,
+    developer_token, fetch_library, summarize,
 )
+from dancelab.ingestion.apple_music_api import load_config as _load_config  # noqa: E402
 
-DIR = pathlib.Path.home() / ".dancelab" / "musickit"
-CONFIG = DIR / "konfig.json"
-USER_TOKEN = DIR / "user_token"
+DIR = CONFIG_DIR
+CONFIG = CONFIG_FILE
+USER_TOKEN = USER_TOKEN_FILE
 OUTPUT = ROOT / "data/reports/apple_library.json"
 PORT = 8688
 
@@ -71,13 +73,10 @@ document.addEventListener('musickitloaded', async () => {
 
 def load_config() -> dict[str, str]:
     """Read the MusicKit configuration or explain what is missing."""
-    if not CONFIG.exists():
-        sys.exit(f"brak {CONFIG} — potrzebne pola: klucz (ścieżka .p8), key_id, team_id")
-    cfg = json.loads(CONFIG.read_text())
-    missing = [k for k in ("klucz", "key_id", "team_id") if not cfg.get(k)]
-    if missing:
-        sys.exit(f"w {CONFIG} brakuje: {', '.join(missing)}")
-    return cfg
+    try:
+        return _load_config()
+    except ConfigError as exc:
+        sys.exit(str(exc))
 
 
 def mint(cfg: dict[str, str], ttl_s: int) -> str:

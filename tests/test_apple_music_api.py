@@ -185,3 +185,55 @@ def test_transient_401_is_retried_like_429():
     c = am.AppleMusicClient("t", fetch=fetch, sleep=lambda _: None)
     assert c.get("/v1/me/library/songs") == {"data": []}
     assert n["i"] == 3
+
+
+# ------------------------------------------------------- config + POST
+
+def test_load_config_names_the_missing_fields(tmp_path):
+    with pytest.raises(am.ConfigError, match="brak"):
+        am.load_config(tmp_path / "nope.json")
+    p = tmp_path / "konfig.json"
+    p.write_text(json.dumps({"klucz": "/x.p8", "key_id": "", "team_id": "T"}))
+    with pytest.raises(am.ConfigError, match="key_id"):
+        am.load_config(p)
+    p.write_text(json.dumps({"klucz": "/x.p8", "key_id": "K", "team_id": "T"}))
+    assert am.load_config(p)["team_id"] == "T"
+
+
+def test_read_user_token_is_none_until_authorized(tmp_path):
+    p = tmp_path / "user_token"
+    assert am.read_user_token(p) is None
+    p.write_text("\n")
+    assert am.read_user_token(p) is None
+    p.write_text("abc\n")
+    assert am.read_user_token(p) == "abc"
+
+
+def test_from_config_without_user_token_says_authorize(key, tmp_path):
+    p8, _pub = key
+    cfg = tmp_path / "konfig.json"
+    cfg.write_text(json.dumps({"klucz": str(p8), "key_id": "K", "team_id": "T"}))
+    with pytest.raises(am.ConfigError, match="autoryzuj"):
+        am.AppleMusicClient.from_config(cfg, tmp_path / "no_token")
+    tok = tmp_path / "user_token"
+    tok.write_text("usr")
+    c = am.AppleMusicClient.from_config(cfg, tok)
+    assert c.has_user_token and "usr" not in repr(c)
+
+
+def test_post_sends_json_once_and_parses_the_answer():
+    calls = []
+
+    def post(url, body, headers):
+        calls.append((url, body, headers))
+        return 201, {}, b'{"data":[{"id":"p.1"}]}'
+
+    c = am.AppleMusicClient("dev", "usr", post=post)
+    status, body = c.post("/v1/me/library/playlists", {"attributes": {"name": "ż"}})
+    assert status == 201 and body["data"][0]["id"] == "p.1"
+    assert len(calls) == 1
+    url, raw, headers = calls[0]
+    assert url == "https://api.music.apple.com/v1/me/library/playlists"
+    assert json.loads(raw) == {"attributes": {"name": "ż"}}
+    assert headers["Content-Type"] == "application/json"
+    assert headers["Music-User-Token"] == "usr"

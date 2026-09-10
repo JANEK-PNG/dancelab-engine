@@ -46,6 +46,7 @@ window.pywebview = {api: {
   zapis_stan: () => echo({set: (DANE.set?.utwory || []).length,
                           propozycje: true, policzone: false,
                           playlista_policzona: !!window.__PL__,
+                          apple_policzona: !!window.__AP__, apple_token: true,
                           rekordbox_otwarty: !!window.__RB_OTWARTY__}),
   /* Playlista: podgląd zwraca liczby, wysyłka udaje sukces — w przeglądarce
      nic do bazy nie idzie i iść nie może. */
@@ -58,6 +59,17 @@ window.pywebview = {api: {
                  notki: ['POMINIĘTY (brak/niejednoznaczny): przykład.aiff']});
   },
   wyslij_playliste: () => echo({blad: 'podgląd w przeglądarce nie pisze do bazy'}),
+  /* Apple Music: strumienie wchodzą, jeden plik lokalny wypada imiennie. */
+  podglad_playlisty_apple: (nazwa) => {
+    const n = (DANE.set?.utwory || []).length;
+    window.__AP__ = true;
+    return echo({ok: true, token: true, nazwa: nazwa || 'DanceLab okno · 90 min',
+                 zgloszone: n, dopasowane: Math.max(0, n - 1),
+                 pominiete: [{track_id: 'przykład.aiff', powod: 'plik lokalny'}],
+                 notki: ['POMINIĘTY (plik lokalny — brak w Apple Music (most ISRC to '
+                         + 'następny krok)): przykład.aiff']});
+  },
+  wyslij_playliste_apple: () => echo({blad: 'podgląd w przeglądarce nie wysyła do Apple'}),
   /* ODSŁUCH w podglądzie jest NIEMY — i taki ma być: przeglądarka służy do
      oglądania wyglądu, a zasada „dźwięk tylko z gestu w prawdziwym oknie"
      nie ma wyjątku dla wygody. Pozycja tyka udawanym zegarem, żeby dało się

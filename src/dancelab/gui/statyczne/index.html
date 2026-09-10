@@ -275,6 +275,7 @@
         <div class="chip-gest" id="tryb-wysylki">
           <button data-w="playlista" aria-pressed="true" title="kolejność utworów jako playlista w Rekordboksie">playlista</button>
           <button data-w="cue" title="pady (hot cue) do bazy Rekordboxa">cue</button>
+          <button data-w="apple" title="kolejność utworów jako playlista w Apple Music — Rekordbox widzi ją bez zapisu do bazy">Apple Music</button>
         </div>
       </div>
       <div class="zapis" id="zapis-box" hidden>
@@ -305,6 +306,26 @@
         <div class="zapis-akcje">
           <button class="btn" id="btn-pl-policz">Policz, ile wejdzie</button>
           <button class="btn glowny" id="btn-pl-wyslij" hidden>Wyślij playlistę</button>
+        </div>
+      </div>
+
+      <!-- Trzecia droga: playlista w bibliotece Apple Music. Rekordbox pokazuje
+           ją w swojej gałęzi Apple Music, więc master.db zostaje nietknięta
+           i Rekordbox może być otwarty. Strumienie wchodzą, pliki lokalne
+           wypadają imiennie (most ISRC to następny krok). Też dwa stopnie. -->
+      <div class="zapis" id="apple-box" hidden>
+        <div class="zapis-glowa">
+          <h2>Playlista w Apple Music</h2>
+          <span class="drobne" id="apple-warunek"></span>
+        </div>
+        <label class="param rozciag" style="margin-bottom:9px">
+          <span>nazwa</span>
+          <input id="p-nazwa-apple" placeholder="DanceLab okno · 90 min"
+                 spellcheck="false"></label>
+        <div id="apple-liczby" class="zapis-liczby drobne"></div>
+        <div class="zapis-akcje">
+          <button class="btn" id="btn-ap-policz">Policz, ile wejdzie</button>
+          <button class="btn glowny" id="btn-ap-wyslij" hidden>Wyślij do Apple Music</button>
         </div>
       </div>
       </div>

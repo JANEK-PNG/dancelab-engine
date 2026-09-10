@@ -33,6 +33,38 @@ API = "https://api.music.apple.com"
 MAX_TTL_S = 15_777_000  # Apple caps developer tokens at six months
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
+# Where the owner keeps the MusicKit credentials. Outside the repository,
+# outside the Desktop; the user token file is created by the ``autoryzuj``
+# step of ``scripts/apple_music_biblioteka.py`` with mode 0600.
+CONFIG_DIR = Path.home() / ".dancelab" / "musickit"
+CONFIG_FILE = CONFIG_DIR / "konfig.json"
+USER_TOKEN_FILE = CONFIG_DIR / "user_token"
+
+
+class ConfigError(ValueError):
+    """The MusicKit configuration is missing or incomplete."""
+
+
+def load_config(path: Path | None = None) -> dict[str, str]:
+    """Read ``konfig.json`` (``klucz``, ``key_id``, ``team_id``) or say what is missing."""
+    p = Path(path) if path is not None else CONFIG_FILE
+    if not p.exists():
+        raise ConfigError(f"brak {p} — potrzebne pola: klucz (ścieżka .p8), key_id, team_id")
+    cfg = json.loads(p.read_text())
+    missing = [k for k in ("klucz", "key_id", "team_id") if not cfg.get(k)]
+    if missing:
+        raise ConfigError(f"w {p} brakuje: {', '.join(missing)}")
+    return cfg
+
+
+def read_user_token(path: Path | None = None) -> str | None:
+    """The stored Music User Token, or ``None`` when the owner has not authorized yet."""
+    p = Path(path) if path is not None else USER_TOKEN_FILE
+    if not p.exists():
+        return None
+    tok = p.read_text().strip()
+    return tok or None
+
 
 # ------------------------------------------------------------------ key guard
 
@@ -111,6 +143,9 @@ def developer_token(key_path: Path, key_id: str, team_id: str, ttl_s: int = 3600
 Fetch = Callable[[str, dict[str, str], dict[str, str]], tuple[int, dict[str, str], bytes]]
 
 
+Post = Callable[[str, bytes, dict[str, str]], tuple[int, dict[str, str], bytes]]
+
+
 def _fetch_requests(url: str, params: dict[str, str],
                     headers: dict[str, str]) -> tuple[int, dict[str, str], bytes]:
     import requests
@@ -119,22 +154,61 @@ def _fetch_requests(url: str, params: dict[str, str],
     return resp.status_code, {k.lower(): v for k, v in resp.headers.items()}, resp.content
 
 
-class AppleMusicClient:
-    """Thin authenticated GET client with ``next``-driven pagination.
+def _post_requests(url: str, body: bytes,
+                   headers: dict[str, str]) -> tuple[int, dict[str, str], bytes]:
+    import requests
 
-    ``fetch`` is injectable so tests never touch the network. Tokens are held
-    in memory only and are not part of ``repr``.
+    resp = requests.post(url, data=body, headers=headers, timeout=60)
+    return resp.status_code, {k.lower(): v for k, v in resp.headers.items()}, resp.content
+
+
+class AppleMusicClient:
+    """Thin authenticated client: GET with ``next``-driven pagination, JSON POST.
+
+    ``fetch`` and ``post`` are injectable so tests never touch the network.
+    Tokens are held in memory only and are not part of ``repr``.
     """
 
     def __init__(self, dev_token: str, user_token: str | None = None,
                  fetch: Fetch | None = None, sleep: Callable[[float], None] = time.sleep,
-                 max_retries: int = 5, refresh: Callable[[], str] | None = None) -> None:
+                 max_retries: int = 5, refresh: Callable[[], str] | None = None,
+                 post: Post | None = None) -> None:
         self._dev = dev_token
         self._user = user_token
         self._fetch = fetch or _fetch_requests
+        self._post = post or _post_requests
         self._sleep = sleep
         self._max_retries = max_retries
         self._refresh = refresh  # re-mints the developer token on a mid-run 401
+
+    @classmethod
+    def from_config(cls, config_path: Path | None = None, token_path: Path | None = None,
+                    ttl_s: int = 3600, **kw: Any) -> AppleMusicClient:
+        """Client minted from ``konfig.json`` and the stored user token.
+
+        Raises ``ConfigError`` when the configuration or the user token is
+        missing — the caller turns that into "authorize first".
+        """
+        cfg = load_config(config_path)
+        user = read_user_token(token_path)
+        if user is None:
+            raise ConfigError(f"brak tokenu użytkownika ({USER_TOKEN_FILE}) — najpierw: "
+                              "scripts/apple_music_biblioteka.py autoryzuj")
+
+        def mint() -> str:
+            return developer_token(Path(cfg["klucz"]), cfg["key_id"], cfg["team_id"], ttl_s)
+
+        return cls(mint(), user, refresh=mint, **kw)
+
+    @property
+    def sleep(self) -> Callable[[float], None]:
+        """The injectable sleep, so callers that wait for Apple share the test clock."""
+        return self._sleep
+
+    @property
+    def has_user_token(self) -> bool:
+        """Whether library (``/v1/me``) calls can be made at all."""
+        return bool(self._user)
 
     def __repr__(self) -> str:  # never leak tokens
         return f"AppleMusicClient(user_token={'set' if self._user else 'none'})"
@@ -169,6 +243,23 @@ class AppleMusicClient:
                 continue
             raise RuntimeError(f"Apple Music API {status} for {path}: "
                                f"{body[:200].decode('utf-8', errors='replace')}")
+
+    def post(self, path: str, body: dict[str, Any]) -> tuple[int, dict[str, Any]]:
+        """POST a JSON body once; returns ``(status, parsed body or {})``.
+
+        Not retried: a library write that timed out may already have landed,
+        and repeating it would create the resource twice. The caller verifies
+        with a GET instead.
+        """
+        url = path if path.startswith("http") else f"{API}{path}"
+        headers = {**self._headers(), "Content-Type": "application/json"}
+        raw = json.dumps(body, ensure_ascii=False).encode("utf-8")
+        status, _headers, out = self._post(url, raw, headers)
+        try:
+            parsed = json.loads(out.decode("utf-8")) if out.strip() else {}
+        except ValueError:
+            parsed = {"raw": out[:200].decode("utf-8", errors="replace")}
+        return status, parsed
 
     def all_pages(self, path: str, params: dict[str, str] | None = None) -> list[dict[str, Any]]:
         """Follow ``next`` until the API stops returning it."""

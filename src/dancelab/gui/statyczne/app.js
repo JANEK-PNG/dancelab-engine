@@ -1276,13 +1276,23 @@ function liczba(etykieta, ile, klasa) {
 
 async function odswiezZapis() {
   const s = await api().zapis_stan();
-  const box = $('#zapis-box'), boxPl = $('#playlista-box');
-  if (!s || s.blad || !s.set) { box.hidden = true; boxPl.hidden = true; $('#krok-wyslij').hidden = true; return; }
+  const box = $('#zapis-box'), boxPl = $('#playlista-box'), boxAp = $('#apple-box');
+  if (!s || s.blad || !s.set) {
+    box.hidden = true; boxPl.hidden = true; boxAp.hidden = true;
+    $('#krok-wyslij').hidden = true; return;
+  }
   $('#krok-wyslij').hidden = false;
-  // Playlista jest drugą, niezależną drogą na sprzęt — ma własne dwa stopnie.
-  // Widać JEDNĄ z dwóch: tę z przełącznika.
+  // Trzy niezależne drogi na sprzęt, każda z własnymi dwoma stopniami.
+  // Widać JEDNĄ: tę z przełącznika.
   box.hidden = stan.trybWysylki !== 'cue';
-  boxPl.hidden = stan.trybWysylki === 'cue';
+  boxPl.hidden = stan.trybWysylki !== 'playlista';
+  boxAp.hidden = stan.trybWysylki !== 'apple';
+  // Apple Music nie dotyka bazy Rekordboxa — jego stan nic tu nie blokuje.
+  // Blokuje brak autoryzacji: policzyć wolno zawsze, wysłać dopiero z tokenem.
+  $('#btn-ap-wyslij').hidden = !(s.apple_policzona && s.apple_token);
+  $('#apple-warunek').textContent = s.apple_token
+    ? `${s.set} utworów · nie dotyka bazy Rekordboxa, może być otwarty`
+    : 'najpierw autoryzuj Apple Music (scripts/apple_music_biblioteka.py autoryzuj)';
   $('#btn-pl-wyslij').hidden = !s.playlista_policzona;
   $('#btn-pl-policz').disabled = s.rekordbox_otwarty;
   $('#playlista-warunek').textContent = s.rekordbox_otwarty
@@ -1518,6 +1528,60 @@ async function wyslijPlayliste() {
     return;
   }
   pokazLiczbyPlaylisty(w, true);
+}
+
+function pokazLiczbyApple(w, poWysylce) {
+  const czesci = [];
+  if (poWysylce) {
+    czesci.push(liczba('wysłane', w.wyslane));
+    // Apple dokumentuje opóźnienie widoczności — „zweryfikowane" to osobna
+    // liczba i nie wolno jej zaokrąglać do „wysłane".
+    czesci.push(w.zweryfikowane === null || w.zweryfikowane === undefined
+      ? '<span class="ostroznie">Apple jeszcze nie pokazuje playlisty</span>'
+      : liczba('Apple pokazuje', w.zweryfikowane,
+               w.zweryfikowane < w.wyslane ? 'ostroznie' : ''));
+  } else {
+    czesci.push(liczba('utworów wejdzie', w.dopasowane));
+  }
+  const wypadlo = (w.pominiete || []).length;
+  if (wypadlo > 0) czesci.push(liczba('wypadnie', wypadlo, 'ostroznie'));
+  if (w.uwaga) czesci.push(`<span class="ostroznie">${htmlText(w.uwaga)}</span>`);
+  let html = czesci.join('');
+  const notki = (w.notki || []);
+  if (notki.length) {
+    html += '<div style="width:100%;margin-top:6px">' + notki.map(n =>
+      `<div class="ostroznie">${htmlText(n)}</div>`).join('') + '</div>';
+  }
+  $('#apple-liczby').innerHTML = html;
+}
+
+async function policzApple() {
+  $('#btn-ap-policz').disabled = true;
+  $('#apple-liczby').textContent = 'sprawdzam, które utwory mają id katalogu Apple…';
+  const w = await api().podglad_playlisty_apple($('#p-nazwa-apple').value);
+  $('#btn-ap-policz').disabled = false;
+  if (w.blad) {
+    $('#apple-liczby').innerHTML = `<span class="ostroznie">${htmlText(w.blad)}</span>`;
+    $('#btn-ap-wyslij').hidden = true;
+    return;
+  }
+  $('#p-nazwa-apple').value = w.nazwa || '';
+  pokazLiczbyApple(w, false);
+  $('#btn-ap-wyslij').hidden = w.dopasowane === 0 || !w.token;
+}
+
+async function wyslijApple() {
+  $('#btn-ap-wyslij').disabled = true;
+  $('#apple-liczby').textContent = 'zakładam playlistę w Apple Music…';
+  const w = await api().wyslij_playliste_apple($('#p-nazwa-apple').value);
+  $('#btn-ap-wyslij').disabled = false;
+  $('#btn-ap-wyslij').hidden = true;
+  if (w.blad) {
+    $('#apple-liczby').innerHTML =
+      `<span class="ostroznie">WYSYŁKA NIEUDANA: ${htmlText(w.blad)}</span>`;
+    return;
+  }
+  pokazLiczbyApple(w, true);
 }
 
 async function wyslijZapis() {
@@ -1791,6 +1855,8 @@ $('#btn-plany-zamknij').addEventListener('click', () => {
 });
 $('#btn-pl-policz').addEventListener('click', policzPlayliste);
 $('#btn-pl-wyslij').addEventListener('click', wyslijPlayliste);
+$('#btn-ap-policz').addEventListener('click', policzApple);
+$('#btn-ap-wyslij').addEventListener('click', wyslijApple);
 $('#btn-wyslij').addEventListener('click', wyslijZapis);
 
 /* ---------- odsłuch ----------

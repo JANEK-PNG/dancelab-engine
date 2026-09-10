@@ -117,6 +117,10 @@ class Most:
         # policzono liczby. Zmiana któregokolwiek unieważnia je — inaczej DJ
         # potwierdzałby liczby innego setu.
         self._playlista_gotowa: dict[str, Any] | None = None
+        # Playlista Apple Music ma ten sam stopień pierwszy. Nie zeruje się
+        # przy edycji setu jak tamta — ważność sprawdza porównanie kolejności
+        # w `zapis_stan` i w stopniu drugim, żeby nie mnożyć miejsc zerowania.
+        self._apple_gotowa: dict[str, Any] | None = None
         # Stan DJ-a (playlisty, filary, ulubione) — ten sam plik, który czyta
         # terminal. Wczytany raz; każda zmiana od razu leci na dysk, żeby obie
         # skóry widziały to samo bez restartu którejkolwiek.
@@ -1317,7 +1321,20 @@ class Most:
             "propozycje": self._plan_cue is not None,
             "policzone": self._zapis_gotowy is not None,
             "playlista_policzona": self._playlista_gotowa is not None,
+            "apple_policzona": self._apple_aktualna(),
+            "apple_token": self._apple_token_jest(),
         }
+
+    def _apple_aktualna(self) -> bool:
+        """Czy policzona playlista Apple dotyczy DZISIEJSZEJ kolejności setu."""
+        g = self._apple_gotowa
+        return g is not None and g["kolejnosc"] == self._kolejnosc
+
+    @staticmethod
+    def _apple_token_jest() -> bool:
+        """Czy DJ autoryzował Apple Music (token użytkownika leży na dysku)."""
+        from dancelab.ingestion.apple_music_api import USER_TOKEN_FILE
+        return USER_TOKEN_FILE.exists()
 
     # ------------------------------------------------- skan folderu
 
@@ -2186,6 +2203,88 @@ class Most:
         dziennik.dopisz("playlista", skora="gui", nazwa=mianowana,
                         zapisane=wynik.get("zapisane"),
                         zgloszone=wynik.get("zgloszone"),
+                        werdykt=plik, miara=rec["miara"])
+        if plik:
+            wynik["werdykt"] = plik
+        return self._z_dziennikiem(wynik, blad)
+
+    # ------------------------------------------ playlista Apple Music
+
+    def _nazwa_playlisty_apple(self, nazwa: str | None = None) -> str:
+        """Nazwa w Apple Music — ta sama reguła co dla Rekordboxa."""
+        return self._nazwa_playlisty(nazwa)
+
+    def _klient_apple(self):
+        """Klient Apple Music z konfiguracji DJ-a. Testy podmieniają tę metodę."""
+        from dancelab.ingestion.apple_music_api import AppleMusicClient
+        return AppleMusicClient.from_config()
+
+    @_bezpiecznie
+    def podglad_playlisty_apple(self, nazwa: str = "") -> dict[str, Any]:
+        """Stopień pierwszy: które utwory setu mają id katalogu Apple Music.
+
+        Nic nie idzie do sieci. Strumienie (`apple-music:tracks:<id>`) wchodzą,
+        pliki lokalne wypadają imiennie — most ISRC to następny krok. Baza
+        Rekordboxa nie jest tu ani czytana, ani pisana, więc może być otwarty.
+        """
+        from dancelab.ingestion import apple_playlist
+
+        if not self._kolejnosc:
+            return {"blad": "najpierw zbuduj set — nie ma czego wysyłać"}
+        mianowana = self._nazwa_playlisty_apple(nazwa)
+        plan = apple_playlist.plan_apple_playlist(self._kolejnosc, self._analizy, mianowana)
+        wynik = plan.to_dict()
+        wynik["ok"] = True
+        wynik["token"] = self._apple_token_jest()
+        if not wynik["token"]:
+            wynik.setdefault("notki", []).append(
+                "wysyłka wymaga autoryzacji Apple Music: "
+                "scripts/apple_music_biblioteka.py autoryzuj")
+        self._apple_gotowa = {"nazwa": mianowana, "kolejnosc": list(self._kolejnosc),
+                              "dopasowane": len(plan.tracks)}
+        return wynik
+
+    @_bezpiecznie
+    def wyslij_playliste_apple(self, nazwa: str = "") -> dict[str, Any]:
+        """Stopień drugi: playlista ląduje w bibliotece Apple Music DJ-a.
+
+        Rekordbox pokazuje ją w swoim drzewie Apple Music bez zapisu do
+        master.db — dlatego ta droga nie sprawdza, czy jest otwarty.
+        """
+        from dancelab.ingestion import apple_playlist
+        from dancelab.ingestion.apple_music_api import ConfigError
+
+        if self._apple_gotowa is None:
+            return {"blad": "najpierw policz, co wejdzie (podgląd), potem wysyłaj"}
+        mianowana = self._nazwa_playlisty_apple(nazwa)
+        gotowa = self._apple_gotowa
+        if gotowa["kolejnosc"] != self._kolejnosc or gotowa["nazwa"] != mianowana:
+            self._apple_gotowa = None
+            return {"blad": "set albo nazwa zmieniły się po podglądzie — policz jeszcze "
+                            "raz, żeby liczby dotyczyły tego, co naprawdę pójdzie do "
+                            "Apple Music"}
+        try:
+            klient = self._klient_apple()
+        except ConfigError as exc:
+            return {"blad": str(exc)}
+        plan = apple_playlist.plan_apple_playlist(self._kolejnosc, self._analizy, mianowana)
+        wynik = apple_playlist.publish_apple_playlist(klient, plan)
+        self._apple_gotowa = None
+        if not wynik.get("ok"):
+            dziennik.dopisz("playlista_apple_nieudana", skora="gui", nazwa=mianowana,
+                            powod=wynik.get("blad"))
+            return wynik
+        wynik["uwaga"] = ("playlista jest w Twojej bibliotece Apple Music — Rekordbox "
+                          "pokaże ją w gałęzi Apple Music po odświeżeniu")
+        historia = self._utrwal_odcisk("wysłana playlista Apple Music")
+        if historia:
+            wynik.setdefault("notki", []).append(historia)
+        rec = self._werdykt_zapisu(mianowana, dict(wynik))
+        rec["powod"] = "playlista_apple"
+        plik, blad = dziennik.zapisz_werdykt(rec, skora="gui")
+        dziennik.dopisz("playlista_apple", skora="gui", nazwa=mianowana,
+                        id=wynik.get("id"), wyslane=wynik.get("wyslane"),
+                        zweryfikowane=wynik.get("zweryfikowane"),
                         werdykt=plik, miara=rec["miara"])
         if plik:
             wynik["werdykt"] = plik
