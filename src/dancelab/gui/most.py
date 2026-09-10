@@ -1877,6 +1877,8 @@ class Most:
                 self._audio.stop()
                 self._gra_co = None
                 odp["apple_id"] = apple
+                # skoki o uderzenia w oknie liczą się z tego tempa (jak `skocz`)
+                odp["bpm"] = self._bpm(analiza)
             return odp
         sciezka = analiza.track.source_path
         bpm = self._bpm(analiza)

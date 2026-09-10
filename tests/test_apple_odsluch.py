@@ -91,3 +91,11 @@ def test_library_rows_get_the_apple_id_from_the_stream_path():
     assert most_mod._apple_id_sciezki("apple-music:tracks:42") == "42"
     assert most_mod._apple_id_sciezki("/Users/dj/a.aiff") is None
     assert most_mod._apple_id_sciezki(None) is None
+
+
+def test_graj_on_a_stream_carries_the_tempo_for_beat_jumps(most):
+    most._analizy["s2"] = AnalysisResult(engine_version="test", track=Track(
+        track_id="s2", title="s2", source_path="apple-music:tracks:222", bpm_estimate=124.0))
+    most._audio.stop = lambda: False
+    odp = most.graj("s2")
+    assert odp["apple_id"] == "222" and odp["bpm"] == 124.0

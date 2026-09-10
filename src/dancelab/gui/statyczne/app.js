@@ -710,6 +710,14 @@ async function rysujOkladkeGry() {
   const g = stan.gra || {}, img = $('#okladka-gry');
   const tid = g.rodzaj === 'utwor' ? g.track_id : null;
   if (!tid || !stan.okladki) { img.hidden = true; return; }
+  // Strumień Apple: okładka z CDN Apple. Wyjątek od „zero sieci" dla okładek,
+  // świadomy — strumień, który gra, i tak idzie z sieci od Apple.
+  if (window.appleGra && appleGra.aktywny(tid)) {
+    const url = appleGra.okladka(96);
+    img.hidden = !url;
+    if (url && img.getAttribute('src') !== url) img.src = url;
+    return;
+  }
   const dane = await okladkaDla(tid);
   img.hidden = !dane; if (dane) img.src = dane;
 }
@@ -2046,7 +2054,7 @@ async function graj(pad) {
           $('#opis-gry').textContent = 'ładuję z Apple Music…';
         }
         try {
-          const s = await appleGra.grajLubPauza(odp.apple_id, cel.trackId, cel.tytul);
+          const s = await appleGra.grajLubPauza(odp.apple_id, cel.trackId, cel.tytul, odp.bpm);
           stan.gra = s; rysujGrajka(); pilnujGry(!!s.gra);
         } catch (e) {
           stan.gra = {gra: false, pozycja_sec: 0};
@@ -2084,6 +2092,13 @@ function skokZKlawisza(e) {
 }
 
 async function skok(uderzenia) {
+  // Strumień Apple skacze w oknie — ta sama arytmetyka tempa, co w moście.
+  if (window.appleGra && appleGra.aktywny()) {
+    const s = await appleGra.skocz(uderzenia);
+    stan.gra = s; rysujGrajka();
+    if (s.uwaga) { $('#opis-gry').classList.add('zle'); $('#opis-gry').textContent = s.uwaga; }
+    return;
+  }
   const odp = await api().skocz(uderzenia);
   if (czyBlad(odp, 'skok')) return;
   stan.gra = odp;

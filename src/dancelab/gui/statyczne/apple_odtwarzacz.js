@@ -27,7 +27,7 @@
   let m = null;
   let ladowanie = null;
   let ostatniBlad = null;
-  let biezacy = null;          // {trackId, appleId, opis}
+  let biezacy = null;          // {trackId, appleId, opis, bpm}
   let skonczyl = false;
 
   function zaladujSkrypt() {
@@ -103,7 +103,7 @@
     };
   }
 
-  async function grajLubPauza(appleId, trackId, opis) {
+  async function grajLubPauza(appleId, trackId, opis, bpm) {
     await init();
     if (biezacy && biezacy.trackId === trackId) {
       if (m.playbackState === 2) await m.pause();
@@ -112,7 +112,8 @@
     }
     skonczyl = false;
     await m.setQueue({song: String(appleId), startPlaying: false});
-    biezacy = {trackId, appleId: String(appleId), opis: opis || ''};
+    biezacy = {trackId, appleId: String(appleId), opis: opis || '',
+               bpm: Number(bpm) > 0 ? Number(bpm) : null};
     await m.play();
     return stan();
   }
@@ -121,6 +122,27 @@
     if (!m || !biezacy) return stan();
     await m.seekToTime(Math.max(0, Number(sek) || 0));
     return stan();
+  }
+
+  // Skok o N uderzeń wg tempa utworu — ta sama arytmetyka co w moście
+  // (`skocz`: „wg tempa, nie wg sekund"). Bez tempa nie zgadujemy.
+  async function skocz(uderzenia) {
+    if (!m || !biezacy) return stan();
+    if (!biezacy.bpm) return Object.assign(stan(), {uwaga: 'brak tempa strumienia — skok niemożliwy'});
+    const dl = m.currentPlaybackDuration || 0;
+    let cel = (m.currentPlaybackTime || 0) + Number(uderzenia) * 60 / biezacy.bpm;
+    cel = Math.max(0, dl > 0 ? Math.min(cel, dl - 0.5) : cel);
+    await m.seekToTime(cel);
+    return stan();
+  }
+
+  // Okładka tego, co gra — adres z CDN Apple, obok strumienia, który i tak
+  // idzie z sieci. Przed startem odtwarzania `nowPlayingItem` bywa pusty.
+  function okladka(px) {
+    const it = m && biezacy ? m.nowPlayingItem : null;
+    const art = it && (it.artwork || (it.attributes && it.attributes.artwork));
+    if (!art || !art.url) return null;
+    try { return MusicKit.formatArtworkURL(art, px, px); } catch (e) { return null; }
   }
 
   // Zagrał plik z dysku: strumień milknie i oddaje głos mostowi.
@@ -133,7 +155,7 @@
   }
 
   window.appleGra = {
-    init, grajLubPauza, przewin, porzuc, stan,
+    init, grajLubPauza, przewin, skocz, okladka, porzuc, stan,
     aktywny: trackId => !!(m && biezacy && (!trackId || biezacy.trackId === trackId)),
     blad: () => ostatniBlad,
   };
