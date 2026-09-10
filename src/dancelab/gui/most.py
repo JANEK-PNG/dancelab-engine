@@ -60,6 +60,12 @@ def _bezpiecznie(fn):
     return opakowana
 
 
+def _apple_id_sciezki(sciezka: str | None) -> str | None:
+    """Id katalogu Apple Music dla ścieżki strumienia (``apple-music:tracks:<id>``)."""
+    from dancelab.ingestion.apple_playlist import catalog_id_of
+    return catalog_id_of(sciezka)
+
+
 class Most:
     """Obiekt wystawiony do JavaScriptu jako ``window.pywebview.api``."""
 
@@ -121,6 +127,9 @@ class Most:
         # przy edycji setu jak tamta — ważność sprawdza porównanie kolejności
         # w `zapis_stan` i w stopniu drugim, żeby nie mnożyć miejsc zerowania.
         self._apple_gotowa: dict[str, Any] | None = None
+        # Tokeny dla MusicKit JS w oknie (odsłuch strumieni), ważne godzinę.
+        # Tylko w pamięci — nigdy do dziennika ani logów.
+        self._apple_tokeny: dict[str, Any] | None = None
         # Stan DJ-a (playlisty, filary, ulubione) — ten sam plik, który czyta
         # terminal. Wczytany raz; każda zmiana od razu leci na dysk, żeby obie
         # skóry widziały to samo bez restartu którejkolwiek.
@@ -258,6 +267,8 @@ class Most:
                 # Grywalny = ma plik na dysku. 7935 z 8261 to strumienie
                 # Apple Music — biblioteka ma to pokazywać, nie ukrywać.
                 "grywalny": budowa.ma_plik(t.get("source_path")),
+                # strumień Apple Music gra okno przez MusicKit (apple_odtwarzacz.js)
+                "apple": _apple_id_sciezki(t.get("source_path")),
             })
 
         self._spis = spis
@@ -840,7 +851,16 @@ class Most:
             # (pomiar 01.09) — gdyby widok tego nie pokazywał, DJ klikałby
             # w guzik odsłuchu i dostawał odmowę zamiast dźwięku.
             "grywalny": budowa.bez_pliku(t) is None,
+            # Strumień Apple Music gra okno przez MusicKit — wtedy guzik
+            # odsłuchu nie jest wyszarzony mimo braku pliku.
+            "apple": self._apple_id(t),
         }
+
+    @staticmethod
+    def _apple_id(track) -> str | None:
+        """Id katalogu Apple Music utworu ze strumienia; plik z dysku → None."""
+        from dancelab.ingestion.apple_playlist import catalog_id_of
+        return catalog_id_of(getattr(track, "source_path", None))
 
     @_bezpiecznie
     def postep_budowy(self) -> dict[str, Any]:
@@ -1849,7 +1869,15 @@ class Most:
         """
         analiza, powod = self._do_grania(track_id)
         if powod:
-            return {"blad": powod, "bez_pliku": True}
+            odp: dict[str, Any] = {"blad": powod, "bez_pliku": True}
+            apple = self._apple_id(analiza.track) if analiza is not None else None
+            if apple:
+                # Strumień zagra okno przez MusicKit (statyczne/apple_odtwarzacz.js).
+                # Tutejszy odtwarzacz milknie, żeby nie grały dwa utwory naraz.
+                self._audio.stop()
+                self._gra_co = None
+                odp["apple_id"] = apple
+            return odp
         sciezka = analiza.track.source_path
         bpm = self._bpm(analiza)
 
@@ -2092,6 +2120,49 @@ class Most:
     def graj(self, track_id: str, pad: str = "") -> dict[str, Any]:
         with self._zamek_audio:
             return self._graj(track_id, pad)
+
+    @_bezpiecznie
+    def apple_odtwarzacz(self) -> dict[str, Any]:
+        """Tokeny dla MusicKit JS w oknie i kraj sklepu DJ-a.
+
+        Idą do strony przez js_api — bez serwera HTTP i bez CORS (sonda z
+        10.09 wystawiała je na localhost i tak ma nie zostać). Token
+        deweloperski żyje godzinę; oddajemy ten sam, dopóki zostało 5 minut.
+        Nigdy nie trafiają do dziennika.
+        """
+        import time
+
+        from dancelab.ingestion.apple_music_api import (
+            ConfigError, developer_token, load_config, read_user_token,
+        )
+
+        teraz = time.time()
+        pamiec = self._apple_tokeny
+        if pamiec and pamiec["do"] > teraz + 300:
+            return dict(pamiec["odp"])
+        try:
+            cfg = load_config()
+        except ConfigError as exc:
+            return {"blad": str(exc)}
+        user = read_user_token()
+        if not user:
+            return {"blad": "Apple Music nie jest autoryzowane — najpierw: "
+                            "scripts/apple_music_biblioteka.py autoryzuj"}
+        dev = developer_token(pathlib.Path(cfg["klucz"]), cfg["key_id"], cfg["team_id"], 3600)
+        odp = {"ok": True, "dev": dev, "user": user, "team": str(cfg["team_id"]).lower(),
+               "storefront": self._apple_storefront(dev, user)}
+        self._apple_tokeny = {"do": teraz + 3600, "odp": odp}
+        return dict(odp)
+
+    @staticmethod
+    def _apple_storefront(dev: str, user: str) -> str | None:
+        """Kraj sklepu z konta DJ-a; None, gdy Apple nie odpowiedziało (nie zgadujemy)."""
+        from dancelab.ingestion.apple_music_api import AppleMusicClient
+        try:
+            data = AppleMusicClient(dev, user).get("/v1/me/storefront").get("data") or [{}]
+        except Exception:                              # noqa: BLE001
+            return None
+        return data[0].get("id") or None
 
     @_bezpiecznie
     def stop_dzwieku(self) -> dict[str, Any]:

@@ -184,6 +184,10 @@ function zoomDoZaznaczenia() {
 async function przewin(sek, trackId) {
   if (!api()) return;
   const tid = trackId || stan.trackId; if (!tid) return;
+  if (window.appleGra && appleGra.aktywny(tid)) {
+    stan.gra = await appleGra.przewin(sek); rysujGrajka(); pilnujGry(!!stan.gra.gra);
+    return;
+  }
   const odp = await api().przewin(tid, sek);
   if (odp && odp.blad) {
     if (odp.bez_pliku) { $('#opis-gry').classList.add('zle'); $('#opis-gry').textContent = odp.blad; return; }
@@ -1873,12 +1877,12 @@ function utworDoGrania() {
   // szwu — otwarty utwór. Bez tego P na Secie grałoby coś z innego ekranu.
   if (!$('#ekran-set').hidden) {
     const u = stan.set[stan.pozycja];
-    return u ? {trackId: u.track_id, tytul: u.tytul, grywalny: u.grywalny} : null;
+    return u ? {trackId: u.track_id, tytul: u.tytul, grywalny: u.grywalny, apple: u.apple} : null;
   }
   if (!stan.trackId) return null;
   const w = stan.spis.find(u => u.track_id === stan.trackId);
   return {trackId: stan.trackId, tytul: (w && w.tytul) || '',
-          grywalny: w ? w.grywalny !== false : true};
+          grywalny: w ? w.grywalny !== false : true, apple: w ? w.apple : null};
 }
 
 function rysujGrajka() {
@@ -1892,7 +1896,8 @@ function rysujGrajka() {
     : '<svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>';
   // Odmowa PRZED kliknięciem: utwór ze strumienia nie ma czego zagrać i to
   // widać, zamiast czekać, aż DJ kliknie i dostanie komunikat.
-  const blokada = cel && cel.grywalny === false;
+  // Strumień Apple Music zagra MusicKit w oknie (apple_odtwarzacz.js).
+  const blokada = cel && cel.grywalny === false && !(cel.apple && window.appleGra);
   // To, co GRA, zawsze musi dać się zatrzymać. Wyszarzenie dotyczy startu,
   // nie pauzy — inaczej szew puszczony na secie ze strumieniem grałby do
   // końca bez guzika, którym można go uciszyć.
@@ -1953,7 +1958,9 @@ function pilnujGry(wlacz) {
   odpytywanieGry = null;
   if (!wlacz) return;
   odpytywanieGry = setInterval(async () => {
-    const s = await api().stan_odtwarzania();
+    // Strumień Apple gra w oknie, nie w moście — stan bierzemy stąd, gdzie gra.
+    const s = (window.appleGra && appleGra.aktywny())
+      ? appleGra.stan() : await api().stan_odtwarzania();
     if (czyBlad(s, 'odsłuch')) { pilnujGry(false); return; }
     stan.gra = s;
     rysujGrajka();
@@ -2030,6 +2037,24 @@ async function graj(pad) {
     // odmowa „bez pliku" nie jest awarią — mówimy ją w pasku, nie na czerwono
     // w panelu błędów, bo to normalny stan większości biblioteki
     if (odp.bez_pliku) {
+      // Strumień Apple Music: most już uciszył swój odtwarzacz, gra MusicKit.
+      if (odp.apple_id && window.appleGra) {
+        // MusicKit potrzebuje 2–3 s na pierwszy dźwięk (zmierzone 10.09) —
+        // bez tego napisu kliknięcie wyglądałoby na martwe.
+        if (!appleGra.aktywny(cel.trackId)) {
+          $('#opis-gry').classList.remove('zle');
+          $('#opis-gry').textContent = 'ładuję z Apple Music…';
+        }
+        try {
+          const s = await appleGra.grajLubPauza(odp.apple_id, cel.trackId, cel.tytul);
+          stan.gra = s; rysujGrajka(); pilnujGry(!!s.gra);
+        } catch (e) {
+          stan.gra = {gra: false, pozycja_sec: 0};
+          $('#opis-gry').classList.add('zle');
+          $('#opis-gry').textContent = 'Apple Music: ' + String((e && e.message) || e);
+        }
+        return;
+      }
       stan.gra = {gra: false, pozycja_sec: 0};
       $('#opis-gry').classList.add('zle');
       $('#opis-gry').textContent = odp.blad;
@@ -2038,6 +2063,8 @@ async function graj(pad) {
     pokazBlad('odsłuch', odp.blad);
     return;
   }
+  // Zagrał plik z dysku — strumień Apple milknie, głos ma most.
+  if (window.appleGra) await appleGra.porzuc();
   stan.gra = odp;
   rysujGrajka();
   pilnujGry(!!odp.gra);
