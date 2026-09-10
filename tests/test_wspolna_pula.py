@@ -41,7 +41,8 @@ def _atrapa_dokarmiania(monkeypatch):
             return EnrichmentReport(attached=len(analizy), missing=0)
         return f
     for n in ("attach_sound_embeddings", "attach_rekordbox_genres",
-              "attach_rekordbox_keys", "attach_rekordbox_meta", "attach_apple_genres"):
+              "attach_rekordbox_keys", "attach_rekordbox_meta", "attach_apple_identity",
+              "attach_apple_genres"):
         monkeypatch.setattr(AE, n, zrob(n))
     return wywolania
 
@@ -52,7 +53,7 @@ def test_dokarm_wola_cztery_zrodla_i_nazywa_liczby(monkeypatch):
     notki = budowa.dokarm(pula)
     assert [n for n, _ in wyw] == ["attach_sound_embeddings", "attach_rekordbox_genres",
                                    "attach_rekordbox_keys", "attach_rekordbox_meta",
-                                   "attach_apple_genres"]
+                                   "attach_apple_identity", "attach_apple_genres"]
     assert any("wektory 2/2" in n and "tonacje RB 2/2" in n for n in notki)
     assert budowa.dokarmianie_padlo(notki) is None
 
@@ -88,9 +89,9 @@ def test_okno_wczytuje_plan_na_dokarmionej_puli(monkeypatch, tmp_path):
     assert wynik["plan_silnika"] == ["a", "c"] and wynik["edycje"] == []
     assert all(getattr(a, "dokarmione_attach_rekordbox_keys", False) for a in pula)
     # raz, nie przy każdym wczytaniu
-    assert len(wyw) == 5
+    assert len(wyw) == 6
     m._wczytaj_plan_teraz(str(plik))
-    assert len(wyw) == 5
+    assert len(wyw) == 6
 
 
 def test_terminal_wczytuje_plan_ta_sama_droga(monkeypatch, tmp_path):

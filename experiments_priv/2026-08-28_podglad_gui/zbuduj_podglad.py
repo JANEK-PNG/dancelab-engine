@@ -65,9 +65,8 @@ window.pywebview = {api: {
     window.__AP__ = true;
     return echo({ok: true, token: true, nazwa: nazwa || 'DanceLab okno · 90 min',
                  zgloszone: n, dopasowane: Math.max(0, n - 1),
-                 pominiete: [{track_id: 'przykład.aiff', powod: 'plik lokalny'}],
-                 notki: ['POMINIĘTY (plik lokalny — brak w Apple Music (most ISRC to '
-                         + 'następny krok)): przykład.aiff']});
+                 pominiete: [{track_id: 'przykład.wav', powod: 'plik lokalny'}],
+                 notki: ['POMINIĘTY (plik lokalny bez ISRC w katalogu Apple): przykład.wav']});
   },
   wyslij_playliste_apple: () => echo({blad: 'podgląd w przeglądarce nie wysyła do Apple'}),
   /* ODSŁUCH w podglądzie jest NIEMY — i taki ma być: przeglądarka służy do

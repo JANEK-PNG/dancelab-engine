@@ -207,6 +207,9 @@ def attach_apple_genres(
     if genre_map is None:
         genre_map, note = load_apple_genre_map()
         notes.append(note)
+        bridge_genres, bnote = load_bridge_genre_map()
+        genre_map = {**genre_map, **bridge_genres}
+        notes.append(bnote)
     attached = missing = umbrella = 0
     for analysis in analyses:
         track = analysis.track
@@ -214,7 +217,7 @@ def attach_apple_genres(
             if not getattr(track, "style_label_source", None):
                 track.style_label_source = "file_tag"
             continue
-        genre = genre_map.get(str(track.source_path or ""))
+        genre = genre_map.get(_nfc(str(track.source_path or "")))
         if genre is None:
             missing += 1
             continue
@@ -229,6 +232,61 @@ def attach_apple_genres(
         notes.append(f"{umbrella} utworów ma w Apple tylko parasol "
                      "(Electronic/Dance) — zostają bez gatunku, bo parasol "
                      "ocenia się gorzej niż brak")
+    return EnrichmentReport(attached=attached, missing=missing, notes=notes)
+
+
+def load_bridge_genre_map(
+    path: str | pathlib.Path | None = None,
+) -> tuple[dict[str, str], str]:
+    """(NFC local path → first catalog genre) from the ISRC bridge; empty + reason when absent."""
+    from dancelab.ingestion.isrc_bridge import BRIDGE_FILE, load_bridge
+
+    bridge, note = load_bridge(path if path is not None else BRIDGE_FILE)
+    out = {p: str(e["genre_names"][0]) for p, e in bridge.items() if e.get("genre_names")}
+    return out, note
+
+
+def attach_apple_identity(
+    analyses: Iterable[AnalysisResult],
+    bridge: dict[str, dict] | None = None,
+) -> EnrichmentReport:
+    """Apple Music catalog id → ``track.apple_catalog_id``.
+
+    Streams carry it in the path (``apple-music:tracks:<id>``); local files get
+    it from the ISRC bridge. The report also counts *twins*: local files whose
+    catalog id equals a stream already in the same pool — the same recording
+    twice. Counted, not merged: merging the library view is ``tui/duplikaty``.
+    """
+    notes: list[str] = []
+    if bridge is None:
+        from dancelab.ingestion.isrc_bridge import load_bridge
+        bridge, note = load_bridge()
+        notes.append(note)
+    analyses = list(analyses)
+    attached = missing = 0
+    stream_ids: set[str] = set()
+    local_ids: set[str] = set()
+    for analysis in analyses:
+        track = analysis.track
+        sp = str(track.source_path or "")
+        if sp.startswith("apple-music:tracks:"):
+            cid = sp.rsplit(":", 1)[1] or None
+            if cid:
+                stream_ids.add(cid)
+        else:
+            entry = bridge.get(_nfc(sp)) if sp else None
+            cid = str(entry["catalog_id"]) if entry and entry.get("catalog_id") else None
+            if cid:
+                local_ids.add(cid)
+        if cid is None:
+            missing += 1
+            continue
+        track.apple_catalog_id = cid
+        attached += 1
+    twins = len(local_ids & stream_ids)
+    if twins:
+        notes.append(f"{twins} plików lokalnych ma bliźniaka-strumień w tej samej puli "
+                     "(ten sam utwór dwa razy) — policzone, nie scalone")
     return EnrichmentReport(attached=attached, missing=missing, notes=notes)
 
 

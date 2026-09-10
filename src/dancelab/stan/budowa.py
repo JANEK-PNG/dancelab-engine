@@ -292,8 +292,8 @@ def dokarm(analizy: list, *, wektory: bool = True) -> list[str]:
     (brak Rekordboxa nie znaczy martwej listy).
     """
     from dancelab.ingestion.analysis_enrichment import (
-        attach_apple_genres, attach_rekordbox_genres, attach_rekordbox_keys,
-        attach_rekordbox_meta, attach_sound_embeddings)
+        attach_apple_genres, attach_apple_identity, attach_rekordbox_genres,
+        attach_rekordbox_keys, attach_rekordbox_meta, attach_sound_embeddings)
 
     notki: list[str] = []
     n = len(analizy)
@@ -306,11 +306,14 @@ def dokarm(analizy: list, *, wektory: bool = True) -> list[str]:
         gen = attach_rekordbox_genres(analizy)
         ton = attach_rekordbox_keys(analizy)
         attach_rekordbox_meta(analizy)
+        # Tożsamość Apple (strumień z ścieżki, plik lokalny z mostu ISRC) —
+        # przed gatunkami Apple, bo most niesie też gatunek z katalogu.
+        idn = attach_apple_identity(analizy)
         # Apple na końcu: uzupełnia tylko luki po Rekordboksie i tagach plików.
         ap = attach_apple_genres(analizy)
         czesci += [f"gatunki RB {gen.attached}/{n}", f"gatunki Apple {ap.attached}/{n}",
-                   f"tonacje RB {ton.attached}/{n}"]
-        notki += gen.notes + ton.notes + ap.notes
+                   f"tonacje RB {ton.attached}/{n}", f"tożsamość Apple {idn.attached}/{n}"]
+        notki += gen.notes + ton.notes + idn.notes + ap.notes
         notki.append("dokarmianie: " + ", ".join(czesci))
     except Exception as exc:                       # noqa: BLE001
         notki.append(f"dokarmianie nie wyszło: {exc}")

@@ -10,9 +10,9 @@ Two stages, like every other write in the window:
 
 * :func:`plan_apple_playlist` is pure. It maps the set order onto Apple
   catalog ids (rekordbox stores streams as ``apple-music:tracks:<id>``) and
-  names every track it cannot send, with the reason. Local files have no
-  catalog id yet — the ISRC bridge is the next step and plugs in through
-  ``id_map`` without touching the publish path.
+  names every track it cannot send, with the reason. Local files get their
+  catalog id from the ISRC bridge (``track.apple_catalog_id``, set by the
+  enrichment pass); ``id_map`` overrides both for callers that know better.
 * :func:`publish_apple_playlist` does one POST and then reads the playlist
   back, because Apple documents a delay before a new library resource is
   visible. It reports *sent* and *verified* as two numbers and never rounds
@@ -28,7 +28,7 @@ from typing import Any
 from dancelab.ingestion.apple_music_api import AppleMusicClient
 
 STREAM_PREFIX = "apple-music:tracks:"
-REASON_LOCAL = "plik lokalny — brak w Apple Music (most ISRC to następny krok)"
+REASON_LOCAL = "plik lokalny bez ISRC w katalogu Apple"
 REASON_NO_ANALYSIS = "brak analizy — nie wiem, co to za utwór"
 REASON_DUPLICATE = "powtórzony w secie — Apple przyjmuje utwór raz"
 DESCRIPTION = "Set ułożony w DanceLab. Kolejność jak na ekranie."
@@ -83,7 +83,9 @@ def plan_apple_playlist(order: list[str], analyses: Mapping[str, Any], name: str
             if analysis is None:
                 plan.skipped.append((tid, REASON_NO_ANALYSIS))
                 continue
-            cid = catalog_id_of(getattr(getattr(analysis, "track", None), "source_path", None))
+            track = getattr(analysis, "track", None)
+            cid = (catalog_id_of(getattr(track, "source_path", None))
+                   or getattr(track, "apple_catalog_id", None))
         if cid is None:
             plan.skipped.append((tid, REASON_LOCAL))
             continue

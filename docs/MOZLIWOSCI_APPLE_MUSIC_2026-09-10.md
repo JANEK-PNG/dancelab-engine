@@ -33,6 +33,7 @@ dokumentacja jest publiczna.
 
 1. **Set → playlista Apple Music.** Dwa endpointy, token już jest. Zysk: set widoczny w Apple Music i w rekordboxie przez jego integrację, zero ryzyka dla master.db. Test: czy rekordbox pokazuje nową playlistę po odświeżeniu. ~pół dnia.
 2. **Most ISRC.** 68 % plików dostaje tożsamość katalogową → dedup plik/strumień, okładki, próbki, gruby gatunek. Reguła: gatunek z Apple wchodzi jako `apple` tylko poza parasolem (już zaimplementowane w `attach_apple_genres`; brakuje tylko mapowania ISRC → `apple-music:tracks:ID`). ~pół dnia.
+   **Zbudowane 2026-09-10 (`scripts/apple_isrc_most.py`, `ingestion/isrc_bridge.py`), zmierzone:** 211 z 272 plików ma ISRC w tagu (WAV 0 z 25); 161 unikalnych ISRC, 128 rozwiązanych w katalogu `pl` (80 %); **171 z 272 plików ma tożsamość katalogową**, 101 z nich to bliźniaki strumieni już obecnych w puli. **Gatunek zyskało tylko 8 ze 121 plików bez gatunku** — 34 dostają z Apple sam parasol (Electronic/Dance) i reguła parasola je odrzuca. Obietnica „gruby gatunek dla 211 plików" z tej listy była przeszacowana; realny zysk mostu to tożsamość (playlista Apple, dedup), nie gatunek.
 3. **Odsłuch strumieni w oknie.** Najpierw 30-minutowy test: MusicKit JS w WKWebView (pywebview) — gra czy nie. Jeśli gra: odsłuch pełnych utworów dla 82 % kolekcji. Jeśli nie: zostaje 30 s i trzeba to powiedzieć.
 4. **Ostatnio grane + Replay** jako źródło do rejestru — tani odczyt, wartość do zmierzenia przeciw ocenom papierowym.
 5. **ShazamKit na nagraniu setu** — wymaga pomocnika w Swift i decyzji wobec A3.
