@@ -79,3 +79,6 @@ experiments_priv/**
 # Database dumps from scripts/kopia_bazy.sh. These are backups of a machine's
 # own catalog, tens of megabytes each, and rebuildable from the sources.
 data/kopie/
+
+# Apple private keys never belong in the repository
+*.p8
