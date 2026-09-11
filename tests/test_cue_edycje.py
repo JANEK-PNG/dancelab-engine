@@ -156,6 +156,13 @@ def test_p_gra_od_wybranego_pada_bez_dzwieku_w_testach(tmp_path, monkeypatch):
             zagrane.append((path, 0.0))
             return None
 
+        def skonczyl_sie(self):
+            # Zegar TUI (`_tick_player`) pyta o to co ćwierć sekundy i JEGO
+            # odpalenie w `run_test()` jest kwestią sekundy — bez tej metody
+            # test wywracał się losowo, nie zawsze. Atrapa ma odpowiadać na
+            # cały interfejs odtwarzacza, nie na tę część, którą sama woła.
+            return None
+
         def stop(self):
             return False
 

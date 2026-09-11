@@ -76,7 +76,7 @@ def main() -> int:
     print(f"zmierzone {len(seams)} z {total} szwów ({len(seams)/total*100:.0f}%); "
           f"reszta bez zamka lub bez nakładania nad podłogą\n")
 
-    print(f"Długość nakładania")
+    print("Długość nakładania")
     print(f"  mediana {q['median']:5.1f} s  ({np.median(beats):5.0f} uderzeń przy {args.bpm:.0f} BPM)")
     print(f"  zakres  {q['min']:5.1f} – {q['max']:.1f} s   (kwartyle {q['p25']:.0f}–{q['p75']:.0f} s)")
     print(f"  UWAGA: {CORPUS_NOTE}\n")
@@ -85,7 +85,7 @@ def main() -> int:
     hand = [s for s in seams if s.get("b_bass_hold_is_hand")]
     record = [s for s in seams if s.get("b_bass_hold_verdict") == "utwór sam nie ma tam basu"]
     unsure = [s for s in seams if s.get("b_bass_hold_verdict") == "niepewne"]
-    print(f"Bas wchodzącego wstrzymany")
+    print("Bas wchodzącego wstrzymany")
     print(f"  zgłoszonych {n_held} z {len(seams)} szwów — ale to jeszcze nie ruch ręki:")
     print(f"    {len(hand):2d} potwierdzone jako RĘKA (utwór miał tam swój bas)")
     print(f"    {len(record):2d} to właściwość nagrania (utwór sam nie ma tam basu)")
@@ -97,7 +97,7 @@ def main() -> int:
     print(f"  → RĘKA w {len(hand)/len(seams)*100:.0f}% zmierzonych przejść\n")
 
     n_thin = sum(1 for x in thin if x >= 2)
-    print(f"Wychodzący wychudzony przed wyjściem (filtr lub zdjęty bas)")
+    print("Wychodzący wychudzony przed wyjściem (filtr lub zdjęty bas)")
     print(f"  w {n_thin} z {len(seams)} szwów ({n_thin/len(seams)*100:.0f}%)")
     if n_thin:
         tq = quantiles([x for x in thin if x >= 2])

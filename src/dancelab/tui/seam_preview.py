@@ -14,9 +14,12 @@ z ingerencją w trakcie to osobny szczebel (3).
 
 from __future__ import annotations
 
-import pathlib
 
-CACHE_DIR = pathlib.Path("data/cache/seam_preview")
+from dancelab.sciezki import KORZEN
+
+# Na korzeniu repo, nie w `cwd`: okno odpalone z ikony dostaje `cwd` od
+# launchd i renderowałoby szwy do `/data/cache/…`, czyli nigdzie.
+CACHE_DIR = KORZEN / "data/cache/seam_preview"
 DEFAULT_PROFILE = "contour_blend"
 
 
@@ -126,6 +129,32 @@ def zbuduj_szew(analysis_a, analysis_b, weights, *,
             output_path=out, duration_beats=info["beats"],
         )
     return {"output": out, **info}
+
+
+def wybierz_pady_szwu(pady_a: dict, pady_b: dict, wybrany: str | None = None
+                      ) -> tuple[str, dict, str, dict]:
+    """Który pad jest WYJŚCIEM z A, a który WEJŚCIEM do B — jedna reguła.
+
+    Wyjście: pad ZAZNACZONY, jeśli jest; bez zaznaczenia ostatnie „mix_out"
+    na osi, a gdy go nie ma — ostatni pad utworu. Wejście analogicznie od
+    początku B. Wybór wraca imiennie (litera + wpis), żeby skóra mogła
+    wypisać, czego słuchasz.
+
+    Do 02.09 ta reguła była przepisana w obu skórach (terminal `_cue_graj_szew`,
+    okno `_szew_w_tle`) — z różnicą: okno nie honorowało zaznaczonego pada.
+    """
+    def _wybierz(pady: dict, typ: str, ostatni: bool) -> tuple[str, dict]:
+        kand = [(k, v) for k, v in pady.items() if v.get("typ") == typ] \
+            or list(pady.items())
+        kand.sort(key=lambda kv: kv[1]["position_ms"])
+        return kand[-1] if ostatni else kand[0]
+
+    if wybrany and wybrany in pady_a:
+        pad_a, p_a = wybrany, pady_a[wybrany]
+    else:
+        pad_a, p_a = _wybierz(pady_a, "mix_out", ostatni=True)
+    pad_b, p_b = _wybierz(pady_b, "mix_in", ostatni=False)
+    return pad_a, p_a, pad_b, p_b
 
 
 def zbuduj_szew_z_padow(analysis_a, analysis_b, *, cue_a_sec: float,

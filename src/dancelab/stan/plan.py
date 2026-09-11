@@ -21,6 +21,7 @@ import pathlib
 from typing import Any
 
 from dancelab.tui import plan_store
+from dancelab.storage.atomic import write_text_atomic
 
 #: Który plan jest „ten, nad którym pracuję". Leży obok planów, bo to ich
 #: dotyczy, i jest jednym plikiem, żeby obie skóry czytały to samo.
@@ -35,9 +36,21 @@ def zapisz(order: list[str], by_id: dict, *, nazwa: str, parametry: dict,
         order, by_id, name=nazwa, params=parametry,
         engine_order=plan_silnika or [], edits=edycje or [])
     WSKAZNIK.parent.mkdir(parents=True, exist_ok=True)
-    WSKAZNIK.write_text(json.dumps({"plan": str(sciezka)}, ensure_ascii=False),
-                        encoding="utf-8")
+    write_text_atomic(WSKAZNIK, json.dumps({"plan": str(sciezka)}, ensure_ascii=False))
     return sciezka
+
+
+def usun(sciezka: str | pathlib.Path) -> pathlib.Path:
+    """Usuń plan MIĘKKO (do kosza obok planów) — jedna droga dla obu skór.
+
+    Gdy to był plan BIEŻĄCY, wskaźnik znika razem z nim: „bieżący plan"
+    wskazujący na kosz udawałby, że set jest, a go nie ma.
+    """
+    cel = plan_store.delete_plan(sciezka)
+    biezacy = sciezka_biezacego(musi_istniec=False)
+    if biezacy is not None and biezacy.resolve() == pathlib.Path(sciezka).resolve():
+        WSKAZNIK.unlink(missing_ok=True)
+    return cel
 
 
 def sciezka_biezacego(*, musi_istniec: bool = True) -> pathlib.Path | None:
@@ -83,6 +96,10 @@ def wczytaj(by_id: dict, sciezka: str | pathlib.Path | None = None
         "zapisano": rec.get("zapisano"),
         "parametry": rec.get("parametry") or {},
         "zapisanych": len(rec.get("kolejnosc") or []),
+        # terminal potrzebuje ich do werdyktu końcowego („silnik vs DJ")
+        # i do dalszego zapisu planu z historią edycji
+        "plan_silnika": list(rec.get("plan_silnika") or []),
+        "edycje": list(rec.get("edycje") or []),
     }
 
 

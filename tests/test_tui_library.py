@@ -90,9 +90,15 @@ def test_filary_przechodza_do_budowy_z_notka():
 
 
 def test_mniej_niz_trzy_filary_odmawia():
-    """Reguła Janka 05.08: filary to 3-10. Minimum egzekwuje budowa."""
-    with pytest.raises(ValueError, match="minimum 3"):
+    """Reguła Janka 05.08: filary to 3-10. Minimum egzekwuje budowa.
+
+    Od 02.09 `_filary_for_build` JEST `stan.filary.wybierz` — odmowa przy
+    dwóch zaznaczonych i niczym wyciętym nie zwala już winy na okno tempa
+    (poprawka z 28.08, którą terminal dostał dopiero przez scalenie kopii)."""
+    with pytest.raises(ValueError, match="minimum to 3") as exc:
         _filary_for_build(_state("a", "b"), _by_id(), None, None, 10)
+    assert "okno tempa" not in str(exc.value)
+    assert "2 filary" in str(exc.value)          # liczba mnoga, nie „2 filar"
 
 
 def test_filar_poza_oknem_tempa_pominiety_imiennie():

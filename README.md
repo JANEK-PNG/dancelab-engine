@@ -1,6 +1,6 @@
 # DanceLab Pro / Engine 0.1.1
 
-DanceLab is a local, terminal-first DJ-intelligence engine for analyzing a
+DanceLab is a local DJ preparation application and engine for analyzing a
 music library, building a context-aware set sequence, inspecting proposed
 transitions, and exporting results for Rekordbox.
 
@@ -57,7 +57,8 @@ that document says so explicitly and names the script behind each figure.
 
 ## Current Product Workflow
 
-The supported product surface is the `dancelab` command-line application:
+The `dancelab` command exposes the desktop GUI (`gui`), terminal application
+(`tui`) and command-line workflows. The following CLI workflow remains available:
 
 1. Analyze one track, a folder, or a prepared corpus.
 2. Build a constrained smart playlist from the analyzed library.
@@ -66,9 +67,31 @@ The supported product surface is the `dancelab` command-line application:
 5. Export a Rekordbox-compatible XML playlist.
 6. Plan, review, and apply hot cues through the safe Rekordbox writer.
 
-There is no supported graphical application. The former desktop and visual
-node interfaces were removed so engine behavior can be stabilized and tested
-without a second product layer.
+### Desktop GUI on macOS
+
+The current GUI uses pywebview/WKWebView and HTML/CSS/JavaScript. Its Python
+bridge calls the shared application state directly; it does not use FastAPI.
+The older Qt/node interfaces remain retired. See [ADR-007](docs/DECISIONS.md#adr-007--desktop-and-terminal-share-application-operations).
+
+```bash
+uv sync --locked --extra dev --extra audio --extra rekordbox --extra tui --extra gui
+./.venv/bin/dancelab gui
+```
+
+Bring your own local audio. The GUI can scan a music folder and edit/save sets;
+playback depends on the installed audio tools. It has no account login. First
+use and a return to saved work are separate scenarios under active UX review.
+The current default analysed-library location still points into
+`experiments_priv`; moving runtime data out of research folders remains pending.
+
+Plans live in `data/exports/tui_plany/`. Saves create unique, atomically published
+JSON files; the current-plan pointer is also written atomically. Loading and
+trashing accept regular `plan_*.json` files directly in that directory. Trash
+keeps distinct entries, and older timestamp-only plan filenames remain readable.
+
+The [Stage A brief and prototype](docs/workstreams/2026-09-06-stage-a/PRODUCT_BRIEF.md)
+describe the next preparation workflow. The prototype uses marked fictional
+data and is separate from the production GUI.
 
 ## Implemented Capabilities
 

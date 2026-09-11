@@ -32,18 +32,33 @@ INDEX = ROOT / "data/reports/corpus_ordering/analysis_index.json"
 PRIORS = ROOT / "data/reports/corpus_priors/priors_v1.json"
 OUT = ROOT / "data/reports/corpus_priors/validation_v1.json"
 
-from dancelab.decision._common import nearest_bpm_variant
-from dancelab.decision.harmonic import harmonic_compatibility, harmonic_relation
-from dancelab.decision.set_builder import bpm_score
+from dancelab.decision._common import nearest_bpm_variant  # noqa: E402 — source-tree bootstrap above
+from dancelab.decision.harmonic import harmonic_compatibility, harmonic_relation  # noqa: E402 — source-tree bootstrap above
+from dancelab.decision.set_builder import bpm_score  # noqa: E402 — source-tree bootstrap above
+from dancelab.validation.skladniki import Skladniki  # noqa: E402 — source-tree bootstrap above
+from dancelab.validation.wejscie import BrakDanychWejsciowych, wymagaj_plikow  # noqa: E402 — source-tree bootstrap above
 
 
 def load_h_features() -> dict[str, dict]:
+    # Refuse before reading, not after: a partly mounted corpus drive makes
+    # every per-file read below fail quietly, `feats` comes back thin, and the
+    # head-to-head is then computed on a fraction of the observations while
+    # the artifact looks complete. Same gate as corpus_priors.py.
+    wymagaj_plikow(H_DIR, "**/*.json", "walidacja priorów (analizy H)")
+    for wymagany, po_co in ((INDEX, "indeks analiz"), (DATASET, "obserwacje"),
+                            (PRIORS, "priors_v1")):
+        if not wymagany.is_file():
+            raise BrakDanychWejsciowych(
+                f"walidacja priorów: brak pliku ({po_co}) — {wymagany}\n"
+                f"  Nie liczę i NIE nadpisuję wyniku pustką.")
     idx = json.loads(INDEX.read_text())["tracks"]
     feats: dict[str, dict] = {}
+    nieodczytane = 0
     for yid, rel in idx.items():
         try:
             d = json.loads((H_DIR / rel).read_text())
         except (OSError, json.JSONDecodeError):
+            nieodczytane += 1
             continue
         tr = d.get("track", {})
         frames = d.get("features") or []
@@ -53,6 +68,14 @@ def load_h_features() -> dict[str, dict]:
             "camelot": tr.get("key_estimate"),
             "energy": (sum(rms) / len(rms)) if rms else None,
         }
+    if not feats:
+        raise BrakDanychWejsciowych(
+            f"walidacja priorów: indeks wymienia {len(idx)} analiz, "
+            f"odczytałem 0 — {H_DIR}\n  Nie liczę i NIE nadpisuję wyniku pustką.")
+    if nieodczytane:
+        # A partial read is reported, not swallowed; the caller decides.
+        print(f"UWAGA: {nieodczytane} z {len(idx)} analiz H nieodczytanych "
+              f"— wynik liczony na {len(feats)}", flush=True)
     return feats
 
 
@@ -76,12 +99,16 @@ def bpm_bucket(bpm_a: float, bpm_b: float) -> str:
     return "0-2%" if v < 2 else "2-4%" if v < 4 else "4-6%" if v < 6 else "6-10%" if v < 10 else ">10%"
 
 
+SKLADNIKI = Skladniki()
+
+
 def score_hand(a: dict, b: dict) -> float:
     """Engine's real component functions, current hand blend (bpm+harmonic+energy)."""
     s = 0.0
     if a["bpm"] and b["bpm"]:
         s += 0.4 * bpm_score(a["bpm"], b["bpm"])
     if a["camelot"] and b["camelot"]:
+        SKLADNIKI.probuje("hand.harmonic")
         try:
             # harmonic_compatibility returns a HarmonicResult, not a float.
             # Multiplying the object raised TypeError straight into the except
@@ -91,8 +118,8 @@ def score_hand(a: dict, b: dict) -> float:
             s += 0.4 * harmonic_compatibility(
                 a["camelot"], b["camelot"]
             ).harmonic_compatibility_score
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            SKLADNIKI.pominiete("hand.harmonic", exc)
     if a["energy"] is not None and b["energy"] is not None:
         s += 0.2 * (1.0 - min(abs(b["energy"] - a["energy"]) * 10, 1.0))
     return s
@@ -104,10 +131,11 @@ def score_measured(a: dict, b: dict, harm_lift: dict, bpm_lift: dict) -> float:
     if a["bpm"] and b["bpm"]:
         s *= bpm_lift.get(bpm_bucket(a["bpm"], b["bpm"]), 1.0)
     if a["camelot"] and b["camelot"]:
+        SKLADNIKI.probuje("measured.harmonic")
         try:
             s *= harm_lift.get(harmonic_relation(a["camelot"], b["camelot"]), 1.0)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            SKLADNIKI.pominiete("measured.harmonic", exc)
     return s
 
 
@@ -186,6 +214,7 @@ def main() -> int:
     res["p_measured_beats_hand"] = round(p_boot, 4)
 
     OUT.write_text(json.dumps({"schema_version": "priors-validation-v2", **res,
+                               "skladniki": SKLADNIKI.jako_dict(),
                                "harm_lift": harm_lift, "bpm_lift": bpm_lift}, indent=2))
 
     print("\n=== KTO PRZEWIDUJE REALNY WYBÓR DJ-a ===")
@@ -198,9 +227,17 @@ def main() -> int:
               f"{r.get('n_ge5','–'):>6} {str(r.get('top1_pct','–')):>5}% {r.get('mrr','–'):>6}")
     print(f"\nparowany bootstrap (zmierzone vs ręczne): p = {p_boot:.4f} "
           f"({'ISTOTNE' if p_boot < 0.05 else 'nieistotne'} przy α=0.05)")
+
+    print("\n=== CZY WSZYSTKIE SKŁADNIKI WESZŁY DO WYNIKU ===")
+    print(SKLADNIKI.raport())
+
     print(f"\n→ {OUT}")
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except BrakDanychWejsciowych as brak:
+        print(f"\nODMAWIAM: {brak}")
+        raise SystemExit(2) from None

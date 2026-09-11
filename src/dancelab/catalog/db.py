@@ -89,6 +89,7 @@ def scalar(conn: Any, sql: str, params: Sequence[Any] | None = None) -> Any:
 
 def table_counts(conn: Any) -> dict[str, int]:
     """Row count per catalog table, for the verification reports."""
+    sql = _psycopg().sql
     with conn.cursor() as cur:
         cur.execute(
             "SELECT tablename FROM pg_tables "
@@ -97,7 +98,6 @@ def table_counts(conn: Any) -> dict[str, int]:
         names = [r[0] for r in cur.fetchall()]
         counts: dict[str, int] = {}
         for name in names:
-            # Identifier is read back from the catalog, never user input.
-            cur.execute(f'SELECT count(*) FROM "{name}"')  # noqa: S608
+            cur.execute(sql.SQL("SELECT count(*) FROM {}").format(sql.Identifier(name)))
             counts[name] = cur.fetchone()[0]
     return counts

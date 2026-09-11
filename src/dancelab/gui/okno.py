@@ -31,13 +31,21 @@ def uruchom(*, szerokosc: int = 1440, wysokosc: int = 900,
     if not plik.exists():
         raise SystemExit(f"nie znalazłem strony: {plik}")
 
-    webview.create_window(
+    most = Most()
+    okno = webview.create_window(
         TYTUL,
         url=plik.as_uri(),
-        js_api=Most(),
+        js_api=most,
         width=szerokosc,
         height=wysokosc,
         min_size=(1040, 640),      # poniżej tego trzy strefy przestają się mieścić
         background_color="#0e1013",
     )
+    # Odtwarzacz odpala OSOBNY proces (ffplay/afplay). Bez tego haka zamknięcie
+    # okna zostawiałoby grającą muzykę bez niczego, czym dałoby się ją wyłączyć
+    # — proces-sierota przeżywa aplikację, która go uruchomiła.
+    okno.events.closed += most.zamknij
+    # Okienko logowania Apple Music (MusicKit) — pywebview sam go nie otwiera.
+    from dancelab.gui.apple_logowanie import wlacz_okienka
+    wlacz_okienka()
     webview.start(debug=debug)

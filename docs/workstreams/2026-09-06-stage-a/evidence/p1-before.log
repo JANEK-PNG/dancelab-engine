@@ -1,0 +1,397 @@
+FFFFFFFFFFFFFF.F.                                                        [100%]
+=================================== FAILURES ===================================
+____________________ test_same_second_saves_keep_every_plan ____________________
+
+tmp_path = PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_same_second_saves_keep_ev0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10c1bf2f0>
+
+    def test_same_second_saves_keep_every_plan(tmp_path, monkeypatch):
+        monkeypatch.setattr(plan_store, "PLANS_DIR", tmp_path)
+        monkeypatch.setattr(plan_store.time, "strftime", lambda *_: "20260906_120000")
+
+        def save(index):
+            return plan_store.save_plan(
+                [], {}, name=str(index), params={}, engine_order=[], edits=[])
+
+        with ThreadPoolExecutor(max_workers=4) as workers:
+            paths = list(workers.map(save, range(12)))
+>       assert len(set(paths)) == 12
+E       AssertionError: assert 1 == 12
+E        +  where 1 = len({PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_same_second_saves_keep_ev0/plan_20260906_120000.json')})
+E        +    where {PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_same_second_saves_keep_ev0/plan_20260906_120000.json')} = set([PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_same_second_s...jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_same_second_saves_keep_ev0/plan_20260906_120000.json'), ...])
+
+tests/test_audit_p1.py:30: AssertionError
+________________ test_same_second_verdicts_are_not_overwritten _________________
+
+tmp_path = PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_same_second_verdicts_are_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10c212d80>
+
+    def test_same_second_verdicts_are_not_overwritten(tmp_path, monkeypatch):
+        monkeypatch.setattr(dziennik, "KATALOG", tmp_path)
+        monkeypatch.setattr(dziennik.time, "strftime", lambda *_: "20260906_120000")
+        first, error = dziennik.zapisz_werdykt({"result": "first"}, skora="gui")
+        second, other_error = dziennik.zapisz_werdykt({"result": "second"}, skora="gui")
+        assert error is other_error is None
+>       assert first != second
+E       AssertionError: assert '/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_same_second_verdicts_are_0/gui_werdykt_20260906_120000.json' != '/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_same_second_verdicts_are_0/gui_werdykt_20260906_120000.json'
+
+tests/test_audit_p1.py:40: AssertionError
+_ test_plan_operations_reject_paths_outside_the_plan_namespace[outside-read_plan] _
+
+tmp_path = PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_plan_operations_reject_pa0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10c2332c0>
+operation = <function read_plan at 0x10af8d6c0>, kind = 'outside'
+
+    @pytest.mark.parametrize("operation", [plan_store.read_plan, plan_store.delete_plan])
+    @pytest.mark.parametrize("kind", ["outside", "symlink", "nested", "other_json"])
+    def test_plan_operations_reject_paths_outside_the_plan_namespace(
+        tmp_path, monkeypatch, operation, kind,
+    ):
+        root = tmp_path / "plans"
+        root.mkdir()
+        monkeypatch.setattr(plan_store, "PLANS_DIR", root)
+        outside = tmp_path / "plan_private.json"
+        outside.write_text('{"private": true}')
+        if kind == "outside":
+            target = outside
+        elif kind == "symlink":
+            target = root / "plan_link.json"
+            target.symlink_to(outside)
+        elif kind == "nested":
+            target = root / "nested" / "plan_private.json"
+            target.parent.mkdir()
+            target.write_text(outside.read_text())
+        else:
+            target = root / "settings.json"
+            target.write_text(outside.read_text())
+>       with pytest.raises((ValueError, PermissionError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValueError, PermissionError)
+
+tests/test_audit_p1.py:66: Failed
+_ test_plan_operations_reject_paths_outside_the_plan_namespace[outside-delete_plan] _
+
+tmp_path = PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_plan_operations_reject_pa1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10c2308f0>
+operation = <function delete_plan at 0x10af8d620>, kind = 'outside'
+
+    @pytest.mark.parametrize("operation", [plan_store.read_plan, plan_store.delete_plan])
+    @pytest.mark.parametrize("kind", ["outside", "symlink", "nested", "other_json"])
+    def test_plan_operations_reject_paths_outside_the_plan_namespace(
+        tmp_path, monkeypatch, operation, kind,
+    ):
+        root = tmp_path / "plans"
+        root.mkdir()
+        monkeypatch.setattr(plan_store, "PLANS_DIR", root)
+        outside = tmp_path / "plan_private.json"
+        outside.write_text('{"private": true}')
+        if kind == "outside":
+            target = outside
+        elif kind == "symlink":
+            target = root / "plan_link.json"
+            target.symlink_to(outside)
+        elif kind == "nested":
+            target = root / "nested" / "plan_private.json"
+            target.parent.mkdir()
+            target.write_text(outside.read_text())
+        else:
+            target = root / "settings.json"
+            target.write_text(outside.read_text())
+>       with pytest.raises((ValueError, PermissionError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValueError, PermissionError)
+
+tests/test_audit_p1.py:66: Failed
+_ test_plan_operations_reject_paths_outside_the_plan_namespace[symlink-read_plan] _
+
+tmp_path = PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_plan_operations_reject_pa2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10c232e10>
+operation = <function read_plan at 0x10af8d6c0>, kind = 'symlink'
+
+    @pytest.mark.parametrize("operation", [plan_store.read_plan, plan_store.delete_plan])
+    @pytest.mark.parametrize("kind", ["outside", "symlink", "nested", "other_json"])
+    def test_plan_operations_reject_paths_outside_the_plan_namespace(
+        tmp_path, monkeypatch, operation, kind,
+    ):
+        root = tmp_path / "plans"
+        root.mkdir()
+        monkeypatch.setattr(plan_store, "PLANS_DIR", root)
+        outside = tmp_path / "plan_private.json"
+        outside.write_text('{"private": true}')
+        if kind == "outside":
+            target = outside
+        elif kind == "symlink":
+            target = root / "plan_link.json"
+            target.symlink_to(outside)
+        elif kind == "nested":
+            target = root / "nested" / "plan_private.json"
+            target.parent.mkdir()
+            target.write_text(outside.read_text())
+        else:
+            target = root / "settings.json"
+            target.write_text(outside.read_text())
+>       with pytest.raises((ValueError, PermissionError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValueError, PermissionError)
+
+tests/test_audit_p1.py:66: Failed
+_ test_plan_operations_reject_paths_outside_the_plan_namespace[symlink-delete_plan] _
+
+tmp_path = PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_plan_operations_reject_pa3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10c233b00>
+operation = <function delete_plan at 0x10af8d620>, kind = 'symlink'
+
+    @pytest.mark.parametrize("operation", [plan_store.read_plan, plan_store.delete_plan])
+    @pytest.mark.parametrize("kind", ["outside", "symlink", "nested", "other_json"])
+    def test_plan_operations_reject_paths_outside_the_plan_namespace(
+        tmp_path, monkeypatch, operation, kind,
+    ):
+        root = tmp_path / "plans"
+        root.mkdir()
+        monkeypatch.setattr(plan_store, "PLANS_DIR", root)
+        outside = tmp_path / "plan_private.json"
+        outside.write_text('{"private": true}')
+        if kind == "outside":
+            target = outside
+        elif kind == "symlink":
+            target = root / "plan_link.json"
+            target.symlink_to(outside)
+        elif kind == "nested":
+            target = root / "nested" / "plan_private.json"
+            target.parent.mkdir()
+            target.write_text(outside.read_text())
+        else:
+            target = root / "settings.json"
+            target.write_text(outside.read_text())
+>       with pytest.raises((ValueError, PermissionError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValueError, PermissionError)
+
+tests/test_audit_p1.py:66: Failed
+_ test_plan_operations_reject_paths_outside_the_plan_namespace[nested-read_plan] _
+
+tmp_path = PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_plan_operations_reject_pa4')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10c230b30>
+operation = <function read_plan at 0x10af8d6c0>, kind = 'nested'
+
+    @pytest.mark.parametrize("operation", [plan_store.read_plan, plan_store.delete_plan])
+    @pytest.mark.parametrize("kind", ["outside", "symlink", "nested", "other_json"])
+    def test_plan_operations_reject_paths_outside_the_plan_namespace(
+        tmp_path, monkeypatch, operation, kind,
+    ):
+        root = tmp_path / "plans"
+        root.mkdir()
+        monkeypatch.setattr(plan_store, "PLANS_DIR", root)
+        outside = tmp_path / "plan_private.json"
+        outside.write_text('{"private": true}')
+        if kind == "outside":
+            target = outside
+        elif kind == "symlink":
+            target = root / "plan_link.json"
+            target.symlink_to(outside)
+        elif kind == "nested":
+            target = root / "nested" / "plan_private.json"
+            target.parent.mkdir()
+            target.write_text(outside.read_text())
+        else:
+            target = root / "settings.json"
+            target.write_text(outside.read_text())
+>       with pytest.raises((ValueError, PermissionError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValueError, PermissionError)
+
+tests/test_audit_p1.py:66: Failed
+_ test_plan_operations_reject_paths_outside_the_plan_namespace[nested-delete_plan] _
+
+tmp_path = PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_plan_operations_reject_pa5')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10c233020>
+operation = <function delete_plan at 0x10af8d620>, kind = 'nested'
+
+    @pytest.mark.parametrize("operation", [plan_store.read_plan, plan_store.delete_plan])
+    @pytest.mark.parametrize("kind", ["outside", "symlink", "nested", "other_json"])
+    def test_plan_operations_reject_paths_outside_the_plan_namespace(
+        tmp_path, monkeypatch, operation, kind,
+    ):
+        root = tmp_path / "plans"
+        root.mkdir()
+        monkeypatch.setattr(plan_store, "PLANS_DIR", root)
+        outside = tmp_path / "plan_private.json"
+        outside.write_text('{"private": true}')
+        if kind == "outside":
+            target = outside
+        elif kind == "symlink":
+            target = root / "plan_link.json"
+            target.symlink_to(outside)
+        elif kind == "nested":
+            target = root / "nested" / "plan_private.json"
+            target.parent.mkdir()
+            target.write_text(outside.read_text())
+        else:
+            target = root / "settings.json"
+            target.write_text(outside.read_text())
+>       with pytest.raises((ValueError, PermissionError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValueError, PermissionError)
+
+tests/test_audit_p1.py:66: Failed
+_ test_plan_operations_reject_paths_outside_the_plan_namespace[other_json-read_plan] _
+
+tmp_path = PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_plan_operations_reject_pa6')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10c212ed0>
+operation = <function read_plan at 0x10af8d6c0>, kind = 'other_json'
+
+    @pytest.mark.parametrize("operation", [plan_store.read_plan, plan_store.delete_plan])
+    @pytest.mark.parametrize("kind", ["outside", "symlink", "nested", "other_json"])
+    def test_plan_operations_reject_paths_outside_the_plan_namespace(
+        tmp_path, monkeypatch, operation, kind,
+    ):
+        root = tmp_path / "plans"
+        root.mkdir()
+        monkeypatch.setattr(plan_store, "PLANS_DIR", root)
+        outside = tmp_path / "plan_private.json"
+        outside.write_text('{"private": true}')
+        if kind == "outside":
+            target = outside
+        elif kind == "symlink":
+            target = root / "plan_link.json"
+            target.symlink_to(outside)
+        elif kind == "nested":
+            target = root / "nested" / "plan_private.json"
+            target.parent.mkdir()
+            target.write_text(outside.read_text())
+        else:
+            target = root / "settings.json"
+            target.write_text(outside.read_text())
+>       with pytest.raises((ValueError, PermissionError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValueError, PermissionError)
+
+tests/test_audit_p1.py:66: Failed
+_ test_plan_operations_reject_paths_outside_the_plan_namespace[other_json-delete_plan] _
+
+tmp_path = PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_plan_operations_reject_pa7')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10c1bff80>
+operation = <function delete_plan at 0x10af8d620>, kind = 'other_json'
+
+    @pytest.mark.parametrize("operation", [plan_store.read_plan, plan_store.delete_plan])
+    @pytest.mark.parametrize("kind", ["outside", "symlink", "nested", "other_json"])
+    def test_plan_operations_reject_paths_outside_the_plan_namespace(
+        tmp_path, monkeypatch, operation, kind,
+    ):
+        root = tmp_path / "plans"
+        root.mkdir()
+        monkeypatch.setattr(plan_store, "PLANS_DIR", root)
+        outside = tmp_path / "plan_private.json"
+        outside.write_text('{"private": true}')
+        if kind == "outside":
+            target = outside
+        elif kind == "symlink":
+            target = root / "plan_link.json"
+            target.symlink_to(outside)
+        elif kind == "nested":
+            target = root / "nested" / "plan_private.json"
+            target.parent.mkdir()
+            target.write_text(outside.read_text())
+        else:
+            target = root / "settings.json"
+            target.write_text(outside.read_text())
+>       with pytest.raises((ValueError, PermissionError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValueError, PermissionError)
+
+tests/test_audit_p1.py:66: Failed
+_____________________ test_trash_rejects_symlink_directory _____________________
+
+tmp_path = PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_trash_rejects_symlink_dir0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10c232030>
+
+    def test_trash_rejects_symlink_directory(tmp_path, monkeypatch):
+        root = tmp_path / "plans"
+        root.mkdir()
+        monkeypatch.setattr(plan_store, "PLANS_DIR", root)
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (root / "kosz").symlink_to(outside, target_is_directory=True)
+        plan = root / "plan_old.json"
+        plan.write_text("{}")
+>       with pytest.raises((ValueError, PermissionError)):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE any of (ValueError, PermissionError)
+
+tests/test_audit_p1.py:81: Failed
+___________________ test_repeated_trash_keeps_both_versions ____________________
+
+tmp_path = PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_repeated_trash_keeps_both0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10c230b60>
+
+    def test_repeated_trash_keeps_both_versions(tmp_path, monkeypatch):
+        monkeypatch.setattr(plan_store, "PLANS_DIR", tmp_path)
+        plan = tmp_path / "plan_old.json"
+        plan.write_text('{"version": 1}')
+        first = plan_store.delete_plan(plan)
+        plan.write_text('{"version": 2}')
+        second = plan_store.delete_plan(plan)
+>       assert first != second
+E       AssertionError: assert PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_repeated_trash_keeps_both0/kosz/plan_old.json') != PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_repeated_trash_keeps_both0/kosz/plan_old.json')
+
+tests/test_audit_p1.py:94: AssertionError
+__________________ test_failed_flush_does_not_publish_a_plan ___________________
+
+tmp_path = PosixPath('/private/var/folders/3f/rd8dghgn14jcl60tmdv2d3_r0000gn/T/pytest-of-jantrybus/pytest-854/test_failed_flush_does_not_pub0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10c2310a0>
+
+    def test_failed_flush_does_not_publish_a_plan(tmp_path, monkeypatch):
+        monkeypatch.setattr(plan_store, "PLANS_DIR", tmp_path)
+
+        def fail(_fd):
+            raise OSError("simulated disk failure")
+
+        monkeypatch.setattr(os, "fsync", fail)
+>       with pytest.raises(OSError, match="simulated disk failure"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE OSError
+
+tests/test_audit_p1.py:106: Failed
+__________ test_preview_does_not_serve_outside_files[/../private.txt] __________
+
+preview_handler = <class '<run_path>.Serwer'>, path = '/../private.txt'
+
+    @pytest.mark.parametrize("path", ["/../private.txt", "/%2e%2e/private.txt", "/leak.txt"])
+    def test_preview_does_not_serve_outside_files(preview_handler, path):
+        status, body = _request(preview_handler, path)
+>       assert status in (403, 404)
+E       assert 200 in (403, 404)
+
+tests/test_audit_p1.py:144: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+Makieta GUI: http://localhost:8658/
+_____________ test_preview_does_not_serve_outside_files[/leak.txt] _____________
+
+preview_handler = <class '<run_path>.Serwer'>, path = '/leak.txt'
+
+    @pytest.mark.parametrize("path", ["/../private.txt", "/%2e%2e/private.txt", "/leak.txt"])
+    def test_preview_does_not_serve_outside_files(preview_handler, path):
+        status, body = _request(preview_handler, path)
+>       assert status in (403, 404)
+E       assert 200 in (403, 404)
+
+tests/test_audit_p1.py:144: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+Makieta GUI: http://localhost:8658/
+=========================== short test summary info ============================
+FAILED tests/test_audit_p1.py::test_same_second_saves_keep_every_plan - Asser...
+FAILED tests/test_audit_p1.py::test_same_second_verdicts_are_not_overwritten
+FAILED tests/test_audit_p1.py::test_plan_operations_reject_paths_outside_the_plan_namespace[outside-read_plan]
+FAILED tests/test_audit_p1.py::test_plan_operations_reject_paths_outside_the_plan_namespace[outside-delete_plan]
+FAILED tests/test_audit_p1.py::test_plan_operations_reject_paths_outside_the_plan_namespace[symlink-read_plan]
+FAILED tests/test_audit_p1.py::test_plan_operations_reject_paths_outside_the_plan_namespace[symlink-delete_plan]
+FAILED tests/test_audit_p1.py::test_plan_operations_reject_paths_outside_the_plan_namespace[nested-read_plan]
+FAILED tests/test_audit_p1.py::test_plan_operations_reject_paths_outside_the_plan_namespace[nested-delete_plan]
+FAILED tests/test_audit_p1.py::test_plan_operations_reject_paths_outside_the_plan_namespace[other_json-read_plan]
+FAILED tests/test_audit_p1.py::test_plan_operations_reject_paths_outside_the_plan_namespace[other_json-delete_plan]
+FAILED tests/test_audit_p1.py::test_trash_rejects_symlink_directory - Failed:...
+FAILED tests/test_audit_p1.py::test_repeated_trash_keeps_both_versions - Asse...
+FAILED tests/test_audit_p1.py::test_failed_flush_does_not_publish_a_plan - Fa...
+FAILED tests/test_audit_p1.py::test_preview_does_not_serve_outside_files[/../private.txt]
+FAILED tests/test_audit_p1.py::test_preview_does_not_serve_outside_files[/leak.txt]
+15 failed, 2 passed in 0.57s

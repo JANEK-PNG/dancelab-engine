@@ -282,6 +282,11 @@ class Track(BaseModel):
     channels: int | None = Field(default=None, ge=1, le=2)
     source_path: str | None = None
     style_label: str | None = None
+    style_label_source: str | None = None   # file_tag | rekordbox | apple
+    # Apple Music catalog id: from the path for streams, from the ISRC bridge
+    # for local files (ingestion/isrc_bridge.py). One identity for a file and
+    # its stream twin; None means unknown, not "not in Apple Music".
+    apple_catalog_id: str | None = None
     bpm_estimate: float | None = Field(default=None, gt=0)
     # Camelot / harmonic fields (Sprint 5.1 R&D handoff)
     key_estimate: str | None = None            # camelot_key, e.g. "8A" (Rekordbox Tonality)

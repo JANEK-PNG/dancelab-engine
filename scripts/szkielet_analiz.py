@@ -159,7 +159,6 @@ def main() -> int:
             "obserwujacych_ra": r.get("obserwujacych", ""),
         })
         alias.append({"ksywa": nazwa, "artysta_id": aid, "rodzaj": "kanoniczna"})
-    po_kluczu = {a["nazwa_kanoniczna"]: a["artysta_id"] for a in artysci}
     id_po_normie = {_n(a["nazwa_kanoniczna"]): a["artysta_id"] for a in artysci}
 
     (OUT / "encje_artysta.json").write_text(json.dumps(artysci, ensure_ascii=False, indent=1))
@@ -273,8 +272,8 @@ def main() -> int:
           "`bas_wstrzymany` odsyła do reguły wejścia Janka: bas wstrzymany\n"
           "w 86% jego wejść. To jest pole do sprawdzenia tej reguły na cudzych\n"
           "setach.\n", encoding="utf-8")
-    print(f"\nzapisane: encje_artysta · encje_alias · encje_utwor · fakty_szew "
-          f"· SZKIELET_ANALIZ.md")
+    print("\nzapisane: encje_artysta · encje_alias · encje_utwor · fakty_szew "
+          "· SZKIELET_ANALIZ.md")
     return 0
 
 

@@ -28,7 +28,6 @@ import collections
 import json
 import pathlib
 import random
-import re
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor

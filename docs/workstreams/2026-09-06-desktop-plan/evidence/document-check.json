@@ -1,0 +1,18 @@
+{
+  "checked_markdown_files": 6,
+  "broken_local_links": [],
+  "estimates": {
+    "P0_P5_days": [
+      10.5,
+      17
+    ],
+    "P0_P7_days": [
+      14.5,
+      25
+    ],
+    "P0_P9_days": [
+      19.5,
+      33
+    ]
+  }
+}

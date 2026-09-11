@@ -23,11 +23,15 @@ import pathlib
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
+from dancelab.sciezki import KORZEN
+
 #: Nazwy plików, które są stemami, nie utworami. Kopia z `tui/app.py` — ta sama
 #: lista, bo to ta sama higiena; gdyby kiedyś się rozjechały, to jest błąd.
 STEM_NAMES = {"drums", "bass", "other", "vocals", "no_vocals", "accompaniment"}
 MAX_TRACK_SEC = 15 * 60
-HISTORIA_SETOW = pathlib.Path("data/cache/tui_historia_setow.jsonl")
+# Historia świeżości — JEDNA dla obu skór, na korzeniu repo (była podwójna
+# i względna do `cwd`; nazwa pliku zostaje, bo to dane tylko do przodu).
+HISTORIA_SETOW = KORZEN / "data/cache/tui_historia_setow.jsonl"
 PROCESSED_DOMYSLNY = "experiments_priv/2026-07-30_rebuild/processed"
 
 Postep = Callable[[str], None]
@@ -52,7 +56,8 @@ class Parametry:
     planer: str = "smart"
     nowosc: str = "deterministic"
     ziarno: int | None = None
-    zrodlo_puli: str = "library"        # library | library-dysk | library-apple
+    zrodlo_puli: str = "library"        # library | library-dysk | library-apple | folder
+    folder: str = ""                    # dla zrodlo_puli == "folder"
     tryb_filarow: str = "rozstaw"       # rozstaw | rama | podpory
 
     @classmethod
@@ -99,6 +104,7 @@ class Parametry:
             planer=str(dane.get("planer") or "smart"),
             nowosc=nowosc, ziarno=ziarno,
             zrodlo_puli=str(dane.get("zrodlo_puli") or "library"),
+            folder=str(dane.get("folder") or "").strip(),
             tryb_filarow=str(dane.get("tryb_filarow") or "rozstaw"),
         )
 
@@ -198,55 +204,175 @@ def _zawez_zrodlo(analizy: list, zrodlo_puli: str) -> tuple[list, list[str]]:
     return wybrane, [f"pula {Z.NAZWA[chce].lower()}: {len(wybrane)} z {przed} utworów"]
 
 
-def _kotwica(nazwa: str | None) -> tuple[Any, list[str]]:
+def _kotwica(nazwa: str | None, analizy: list | None = None,
+             stan_uzytkownika: dict | None = None) -> tuple[Any, list[str]]:
     """Rozwiąż „brzmi jak…". Niepowodzenie jest notką, nie wyjątkiem —
-    set bez kotwicy jest prawomocny."""
+    set bez kotwicy jest prawomocny.
+
+    „★ moje ulubione" to kotwica policzona z ♥ DJ-a, nie z księgi. Terminal
+    umiał to od 12.08; okno pokazywało tę kartę na ścianie DJ-ów, a budowa
+    odpowiadała „kotwica niedostępna" — ślepa uliczka zamknięta 02.09.
+    """
     if not nazwa:
         return None, []
-    from dancelab.decision.anchors import AnchorError, resolve_anchor
+    from dancelab.decision.anchors import (MOJE_ULUBIONE, AnchorError,
+                                           kotwica_z_utworow, resolve_anchor)
 
+    if nazwa == MOJE_ULUBIONE:
+        from dancelab.tui.user_store import resolve_tracks
+        by_id = {a.track.track_id: a for a in (analizy or [])}
+        ulubione, _brak = resolve_tracks(
+            (stan_uzytkownika or {}).get("ulubione_utwory", []), by_id)
+        try:
+            kot = kotwica_z_utworow([a for a in (analizy or [])
+                                     if a.track.track_id in ulubione])
+        except AnchorError as exc:
+            return None, [f"kotwica z ulubionych niemożliwa: {exc}"]
+        return kot, [f"kotwica z Twoich ulubionych: {kot.n_tracks} utworów "
+                     f"(kontur skoków niedostępny — to cecha sposobu grania, "
+                     f"nie zbioru)"]
     try:
         return resolve_anchor(nazwa), []
     except AnchorError as exc:
         return None, [f"kotwica {nazwa!r} niedostępna: {exc}"]
 
 
+def przeanalizuj_folder(folder: str, processed_dir: str, *,
+                        mow: Postep | None = None,
+                        przerwij: Callable[[], bool] | None = None
+                        ) -> tuple[list, list[str]]:
+    """Folder → pliki → bramkarz → analiza z postępem. Jedna droga dla:
+    trybu Folder w budowie (obie skóry) i skanowania folderu (onboarding,
+    do 02.09 tylko w terminalu i przepisane tam osobno). Odmawia Z POWODEM,
+    gdy nie ma czego analizować — pusty wynik to nie jest wynik.
+    """
+    from dancelab.core.config import load_config
+    from dancelab.ingestion.bramkarz import przesiej
+    from dancelab.workflows.smart_playlist import analyze_files, discover_audio_files
+
+    mow = mow or (lambda _s: None)
+    folder = (folder or "").strip()
+    if not folder:
+        raise OdmowaBudowy("podaj ścieżkę folderu do analizy")
+    znalezione = discover_audio_files(folder)
+    if not znalezione:
+        raise OdmowaBudowy(f"brak plików audio w: {folder}")
+    notki: list[str] = []
+    pliki, odrzucone = przesiej(znalezione)
+    for sciezka, powod in odrzucone[:5]:
+        notki.append(f"BRAMKARZ odrzucił: {pathlib.Path(sciezka).name[:40]} — {powod}")
+    if len(odrzucone) > 5:
+        notki.append(f"…i {len(odrzucone) - 5} kolejnych odrzutów")
+    if not pliki:
+        raise OdmowaBudowy("bramkarz odrzucił wszystko — nie ma co analizować")
+    mow(f"Analiza {len(pliki)} plików…")
+    analizy, porazki = analyze_files(
+        pliki, load_config("configs/default.yaml"), processed_dir=processed_dir,
+        stage_progress=lambda path, etap: mow(f"{etap}: {pathlib.Path(path).name[:40]}"),
+        should_stop=(przerwij or (lambda: False)))
+    for f in porazki[:5]:
+        notki.append(f"nie przeanalizowano {pathlib.Path(f.source_path).name}: {f.error}")
+    notki.append(f"przeanalizowane: {len(analizy)} z {len(pliki)} plików")
+    return list(analizy), notki
+
+
+def dokarm(analizy: list, *, wektory: bool = True) -> list[str]:
+    """Dokarm analizy z Rekordboxa (gatunki, tonacje, wykonawca/tytuł) i —
+    gdy ``wektory`` — wektorami brzmienia. Zwraca notki; awarię ZWRACA jako
+    notkę zaczynającą się od „dokarmianie nie wyszło", nie rzuca.
+
+    Jedno miejsce dla obu skór. Do 02.09 terminal dokarmiał w trzech
+    (Biblioteka bez wektorów i tolerancyjnie, budowa i plan z wektorami),
+    a okno tylko przy budowie — plan wczytany w oknie przed pierwszą budową
+    szedł na SUROWEJ puli: bez tonacji z Rekordboxa, bez wektorów. Stan puli
+    zależał od kolejności kliknięć.
+
+    Wołający decyduje, czy awaria jest odmową: budowa — tak (set na gorszych
+    danych bez słowa to to, czego ADR-005 zabrania); Biblioteka — nie
+    (brak Rekordboxa nie znaczy martwej listy).
+    """
+    from dancelab.ingestion.analysis_enrichment import (
+        attach_apple_genres, attach_apple_identity, attach_rekordbox_genres,
+        attach_rekordbox_keys, attach_rekordbox_meta, attach_sound_embeddings)
+
+    notki: list[str] = []
+    n = len(analizy)
+    try:
+        czesci = []
+        if wektory:
+            emb = attach_sound_embeddings(analizy)
+            czesci.append(f"wektory {emb.attached}/{n}")
+            notki += emb.notes
+        gen = attach_rekordbox_genres(analizy)
+        ton = attach_rekordbox_keys(analizy)
+        attach_rekordbox_meta(analizy)
+        # Tożsamość Apple (strumień z ścieżki, plik lokalny z mostu ISRC) —
+        # przed gatunkami Apple, bo most niesie też gatunek z katalogu.
+        idn = attach_apple_identity(analizy)
+        # Apple na końcu: uzupełnia tylko luki po Rekordboksie i tagach plików.
+        ap = attach_apple_genres(analizy)
+        czesci += [f"gatunki RB {gen.attached}/{n}", f"gatunki Apple {ap.attached}/{n}",
+                   f"tonacje RB {ton.attached}/{n}", f"tożsamość Apple {idn.attached}/{n}"]
+        notki += gen.notes + ton.notes + idn.notes + ap.notes
+        notki.append("dokarmianie: " + ", ".join(czesci))
+    except Exception as exc:                       # noqa: BLE001
+        notki.append(f"dokarmianie nie wyszło: {exc}")
+    return notki
+
+
+def dokarmianie_padlo(notki: list[str]) -> str | None:
+    """Powód awarii dokarmiania z listy notek albo None."""
+    return next((n for n in notki if n.startswith("dokarmianie nie wyszło")), None)
+
+
 def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
            postep: Postep | None = None, analizy: list | None = None,
-           stan_uzytkownika: dict | None = None) -> dict[str, Any]:
+           stan_uzytkownika: dict | None = None,
+           dokarmione: bool = False,
+           przerwij: Callable[[], bool] | None = None) -> dict[str, Any]:
     """Zbuduj set. Zwraca plan, pulę po id i notki — wszystko, co widok pokaże.
 
     ``postep`` dostaje krótkie komunikaty o etapie; ``None`` znaczy, że nikt
     nie słucha. ``analizy`` pozwala podać gotową pulę (test albo okno, które
-    już ją ma) zamiast czytać z dysku po raz drugi.
+    już ją ma) zamiast czytać z dysku po raz drugi; ``dokarmione`` mówi, że
+    ta pula już przeszła `dokarm` — drugie dokarmianie to sekundy czytania
+    master.db bez zysku. ``przerwij`` to pytanie „czy użytkownik anulował?"
+    — odpowiedź „tak" kończy budowę odmową „anulowane".
     """
     from dancelab.core.config import load_config, load_weights
     from dancelab.decision.set_builder import build_set
-    from dancelab.ingestion.analysis_enrichment import (
-        attach_rekordbox_genres, attach_rekordbox_keys, attach_rekordbox_meta,
-        attach_sound_embeddings)
     from dancelab.workflows.smart_playlist import estimate_track_count_for_duration
 
     mow = postep or (lambda _s: None)
     notki: list[str] = []
 
-    if analizy is None:
-        mow("Wczytuję analizy z biblioteki…")
-        analizy, notki_puli = pula(processed_dir)
-        notki += notki_puli
-
-    analizy, notki_zrodla = _zawez_zrodlo(analizy, par.zrodlo_puli)
-    notki += notki_zrodla
+    if par.zrodlo_puli == "folder":
+        analizy, notki_folderu = przeanalizuj_folder(
+            par.folder, processed_dir, mow=mow, przerwij=przerwij)
+        notki += notki_folderu
+    else:
+        if analizy is None:
+            mow("Wczytuję analizy z biblioteki…")
+            analizy, notki_puli = pula(processed_dir)
+            notki += notki_puli
+        analizy, notki_zrodla = _zawez_zrodlo(analizy, par.zrodlo_puli)
+        notki += notki_zrodla
+    if przerwij is not None and przerwij():
+        raise OdmowaBudowy("anulowane")
     if not analizy:
         raise OdmowaBudowy("pusta pula — nie ma z czego budować")
 
-    mow("Dokarmianie (wektory, gatunki, tonacje)…")
-    attach_sound_embeddings(analizy)
-    attach_rekordbox_genres(analizy)
-    attach_rekordbox_keys(analizy)
-    attach_rekordbox_meta(analizy)
+    if not dokarmione:
+        mow("Dokarmianie (wektory, gatunki, tonacje)…")
+        notki_d = dokarm(analizy)
+        padlo = dokarmianie_padlo(notki_d)
+        if padlo:
+            # jak dotąd: budowa na niedokarmionej puli to odmowa, nie set
+            # z gorszych danych po cichu — tylko teraz z powodem po polsku
+            raise OdmowaBudowy(padlo)
+        notki += notki_d
 
-    kotwica, notki_kotwicy = _kotwica(par.dj)
+    kotwica, notki_kotwicy = _kotwica(par.dj, analizy, stan_uzytkownika)
     notki += notki_kotwicy
 
     ile = estimate_track_count_for_duration(analizy, par.minuty)
@@ -303,7 +429,9 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
             rozstawienie, notki_rol = F.role_krancowe(rozstawienie, role, ile)
             notki += notki_rol
             if rozstawienie:
-                notki.append(f"filary rozstawione ({tryb}): pozycje "
+                from dancelab.tui.user_store import TRYBY_FILAROW
+                etykieta = dict(TRYBY_FILAROW).get(tryb, tryb)
+                notki.append(f"filary rozstawione ({etykieta}): pozycje "
                              + ", ".join(f"#{p}" for p in sorted(rozstawienie)))
         mow(f"Buduję set: {ile} utworów z {len(analizy)}…")
         # `locked_positions` to 1-indeksowane miejsca w gotowej playliście —
@@ -316,10 +444,25 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
 
     notki += [_skroc_notke(n) for n in (getattr(plan, "warnings", None) or [])]
     if par.ziarno is not None and par.nowosc != "deterministic":
-        notki.append(f"ziarno {par.ziarno} — zapisz je, żeby powtórzyć ten set")
+        notki.append(f"świeżość: {par.nowosc} · ziarno {par.ziarno} — ten sam "
+                     f"ziarno powtarza ten set; historię świeżości karmi dopiero "
+                     f"UŻYCIE setu (zapis, wysyłka), nie każda budowa")
+
+    # Odcisk czeka w wyniku — do historii trafia dopiero, gdy set zostanie
+    # UŻYTY. Powód (zmierzony 06.08): dopisywanie przy każdej budowie zmieniało
+    # historię między budowami i to samo ziarno dawało inny set. Do 02.09
+    # liczył go tylko terminal; okno nie karmiło historii świeżości wcale.
+    from dancelab.decision.history import context_hash, fingerprint_plan
+    odcisk = fingerprint_plan(
+        list(plan.track_order),
+        ctx_hash=context_hash(bpm_min=par.bpm_min, bpm_max=par.bpm_max,
+                              styles=tuple(par.style), dj=par.dj, arc=par.luk,
+                              tempo=par.tempo, planner=par.planer),
+        seed=par.ziarno, novelty_mode=par.nowosc, pinned_ids=filary_ids)
 
     return {
         "plan": plan,
+        "odcisk": odcisk,
         "kolejnosc": list(plan.track_order),
         "by_id": by_id,
         # Wagi wracają, bo tymi samymi liczy się potem propozycje padów.
@@ -327,6 +470,9 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
         "wagi": wagi,
         "notki": notki,
         "kotwica": kotwica.name if kotwica else None,
+        # Centroid wraca w całości, bo panel podmian ocenia kandydatów tą samą
+        # kotwicą, którą set powstał — sugestie nie mogą mieć innego gustu.
+        "kotwica_centroid": (list(kotwica.centroid) if kotwica else None),
         "filary": filary_ids,
         "tryb_filarow": tryb if filary_ids else None,
         # Trzy różne stany, nie dwa. „Nie zaznaczyłeś filarów" i „zaznaczyłeś,
@@ -382,3 +528,44 @@ def _zbuduj_z_podporami(analizy, by_id, wagi, filary_ids, role, ile, par,
     # zgodność CAŁOŚCI nie jest tą samą liczbą co z budowy — nie udajemy
     return plan.model_copy(update={"track_order": wynik,
                                    "mean_transition_score": None}), notki
+
+
+def bez_pliku(track) -> str | None:
+    """Powód odmowy, gdy czynność wymaga PLIKU, a utwór go nie ma.
+
+    Utwory zaimportowane z analiz Rekordboxa (strumienie Apple Music) mają
+    tempo, siatkę, energię i sekcje, ale nie mają audio na dysku — więc
+    odsłuch i render szwu są niemożliwe. Mówimy to wprost, zamiast pokazywać
+    błąd odtwarzacza.
+
+    Zmierzone 01.09 na prawdziwej puli: 247 z 8261 analiz ma plik, 7935 to
+    strumienie. W SETACH proporcja jest inna (9 i 13 z 17) — dlatego odmowa
+    musi być zdaniem o TYM utworze, nie wyłączeniem całej funkcji.
+
+    Kryterium: ścieżka NIE JEST ścieżką w systemie plików (strumień zapisany
+    jako `apple-music:tracks:123`). Plik, który zniknął, to inny przypadek —
+    tam odtwarzacz ma prawo powiedzieć swoje.
+    """
+    sciezka = str(getattr(track, "source_path", "") or "")
+    if ma_plik(sciezka):
+        return None
+    nazwa = (getattr(track, "title", None) or sciezka or "ten utwór")[:38]
+    if not sciezka:
+        # Analiza bez ścieżki to trzeci przypadek, nie brak przypadku. Przed
+        # 02.09 wypadał tu `None`, czyli „graj" — i okno rysowało ♪ przy
+        # utworze, którego odtwarzacz dostawał jako napis "None".
+        return f"{nazwa}: analiza nie zna ścieżki pliku — nie mam czego zagrać"
+    return (f"{nazwa}: nie ma pliku na dysku "
+            f"(utwór ze strumienia) — zagrasz go w Rekordboksie, "
+            f"tutaj policzymy tylko dobór")
+
+
+def ma_plik(sciezka: object) -> bool:
+    """Czy ta ścieżka wskazuje plik na dysku. Jedno kryterium dla obu skór.
+
+    Biblioteka okna czyta same NAGŁÓWKI analiz i ma słownik, nie obiekt
+    `track`, więc potrzebuje predykatu bez `track` — ale kryterium musi być
+    to samo, co w `bez_pliku`. Dwa oddzielne testy tej samej rzeczy rozjechały
+    się dokładnie na pustej ścieżce: lista mówiła STR, tabela setu ♪.
+    """
+    return str(sciezka or "").startswith("/")

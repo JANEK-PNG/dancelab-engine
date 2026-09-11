@@ -28,7 +28,10 @@ import time
 import urllib.parse
 import urllib.request
 
-RAPORT = pathlib.Path("data/exports/artwork_raport.json")
+from dancelab.sciezki import KORZEN
+
+# Na korzeniu repo, nie w `cwd` — jak dziennik, plany i cache szwów.
+RAPORT = KORZEN / "data/exports/artwork_raport.json"
 _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15")
 
@@ -143,7 +146,7 @@ def synchronizuj(analyses, *, progress=None, should_stop=None,
                  http=_http, osadz=osadz_okladke,
                  przerwa_sek: float = 0.4) -> dict:
     """Uzupełnij brakujące okładki w plikach. Zwraca i zapisuje raport."""
-    from dancelab.tui.app import _wykonawca_tytul
+    from dancelab.stan.biblioteka import wykonawca_tytul as _wykonawca_tytul
     from dancelab.tui.okladki import _bajty_okladki
 
     braki = [a for a in analyses

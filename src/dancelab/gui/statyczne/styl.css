@@ -1,15 +1,23 @@
-/* Język wizualny wzięty z siedmiu paneli projektu — bursztyn i błękit
-   pochodzą z diod prawdziwego DDJ-FLX4, nie z palety wymyślonej od zera. */
+/* Kierunek „Redakcja" (wybór Janka 03.09, po ocenie kumpla: „podróbka
+   Windows Playera z 2000"). Zasada jest jedna: hierarchię robi WIELKOŚĆ pisma
+   i odstęp, nie ramki. Pudełek nie ma; zostały dwie linie poziome (pod paskiem
+   stanu i nad odtwarzaczem) oraz cienkie kreski między wierszami. Kolor ma
+   jedno zadanie: bursztyn mówi „to jest wybrane / tu jest głowica", błękit
+   mówi „to jest pad", alarm mówi „to jest problem". Bursztyn i błękit dalej
+   pochodzą z diod DDJ-FLX4. Pismo systemowe, bo okno działa bez sieci. */
 :root{
-  --tlo:#0e1013; --karta:#161a1f; --karta2:#1b2027; --kreska:#242a32;
-  --tekst:#e8ecf1; --cichy:#8a94a2; --cichszy:#5e6773;
-  --bursztyn:#e0a458; --blekit:#5aa9e6; --volt:#9ede73; --alarm:#e06c75;
-  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
-  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
-  --r:10px; --wys-wiersza:26px; --font-tab:12.5px; --luz:10px;
+  --tlo:#1a1917; --karta:#1f1e1b; --karta2:#26241f; --kreska:#2b2a26;
+  --kreska2:rgba(255,255,255,.14);
+  --tekst:#f1efe9; --cichy:#8c8a83; --cichszy:#5f5d57;
+  --bursztyn:#e3a04a; --blekit:#7f9fc7; --volt:#c9d68a; --alarm:#e06c75;
+  /* kroje z makiety, z plików w fonty/ (bez sieci); systemowe jako zapas */
+  --font:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;
+  --tytul:"Bricolage Grotesque","IBM Plex Sans",-apple-system,sans-serif;
+  --r:6px; --wys-wiersza:28px; --font-tab:13px; --luz:12px;
 }
-:root[data-gestosc="luzno"]{ --wys-wiersza:34px; --font-tab:14px; --luz:16px; }
-:root[data-gestosc="ciasno"]{ --wys-wiersza:21px; --font-tab:11.5px; --luz:6px; }
+:root[data-gestosc="luzno"]{ --wys-wiersza:36px; --font-tab:14px; --luz:18px; }
+:root[data-gestosc="ciasno"]{ --wys-wiersza:22px; --font-tab:12px; --luz:7px; }
 
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -18,172 +26,259 @@ body{margin:0;background:var(--tlo);color:var(--tekst);font-family:var(--font);
      display:grid;grid-template-rows:auto 1fr auto;overflow:hidden;
      user-select:none;-webkit-user-select:none}
 
-.stan{display:flex;align-items:center;gap:18px;padding:7px 14px;
-      border-bottom:1px solid var(--kreska);font-size:12.5px;color:var(--cichy)}
-.stan .marka{color:var(--tekst);font-weight:600;letter-spacing:-.01em}
-.stan .prawa{margin-left:auto;display:flex;gap:14px;align-items:center}
+/* ---------- pasek stanu: marka, ekrany, stan Rekordboxa, gęstość ---------- */
+.stan{display:flex;align-items:center;gap:22px;padding:10px 24px;
+      border-bottom:1px solid var(--kreska);font-size:13px;color:var(--cichy)}
+.stan .marka{color:var(--tekst);font-weight:700;letter-spacing:-.02em;font-size:15px}
+.stan .prawa{margin-left:auto;display:flex;gap:12px;align-items:center;font-size:12px}
 .kropka{display:inline-block;width:7px;height:7px;border-radius:50%;
-        margin-right:5px;vertical-align:middle}
+        margin-right:6px;vertical-align:middle}
 .kropka.ok{background:var(--volt)} .kropka.zle{background:var(--alarm)}
 .kropka.czekam{background:var(--cichszy)}
-.chip-gest{display:flex;gap:2px;background:var(--karta);
-  border:1px solid var(--kreska);border-radius:7px;padding:2px}
+/* Ekrany jako słowa, nie ikonki: „Szew · Set · DJ". Podkreślenie = jesteś tu. */
+nav{display:flex;gap:18px;align-items:center}
+nav button{background:none;border:0;padding:4px 0;color:var(--cichy);font:inherit;
+  font-size:13px;cursor:pointer;position:relative;letter-spacing:.01em}
+nav button[aria-pressed="true"]{color:var(--tekst)}
+nav button[aria-pressed="true"]::after{content:"";position:absolute;left:0;right:0;
+  bottom:-11px;height:2px;background:var(--bursztyn)}
+nav button svg{display:none}
+nav .skrot{display:none}
+/* Grupy przełączników: tekst, aktywny podkreślony. Bez pudełka wokół. */
+.chip-gest{display:flex;gap:2px;flex-wrap:wrap}
 .chip-gest button{background:none;border:0;color:var(--cichy);font:inherit;
-  font-size:11.5px;padding:2px 8px;border-radius:5px;cursor:pointer}
-.chip-gest button[aria-pressed="true"]{background:#252c35;color:var(--tekst)}
+  font-size:12px;padding:3px 7px;border-radius:4px;cursor:pointer}
+.chip-gest button:hover{color:var(--tekst)}
+.chip-gest button[aria-pressed="true"]{color:var(--tekst);
+  box-shadow:inset 0 -1.5px 0 var(--bursztyn)}
 
-/* Atrybut `hidden` musi wygrywać z KAŻDĄ regułą `display`, bo inaczej element
-   „schowany" dalej się rysuje. Ta sama pułapka złapała nas dwa razy na
-   zrzutach: raz oba ekrany rysowały się jeden na drugim, raz pasek postępu
-   zostawał na ekranie po zbudowaniu setu. Punktowe łatki na pojedyncze
-   selektory tego nie domykają — stąd reguła globalna. */
+/* Atrybut `hidden` musi wygrywać z KAŻDĄ regułą `display` — złapane dwa razy
+   na zrzutach (ekrany jeden na drugim, pasek postępu po zbudowaniu setu). */
 [hidden]{display:none !important}
 
-.korpus{display:grid;grid-template-columns:56px 264px 1fr 320px;min-height:0}
-/* Ekran Set nie wybiera utworu z listy, więc lista znika — a razem z nią JEJ
-   KOLUMNA. Bez tego główny obszar wskakuje w miejsce listy (264 px) i tabela
-   setu jest ucięta. */
-:root[data-ekran="set"] .korpus{grid-template-columns:56px 1fr 320px}
-:root[data-ekran="set"] .lista-utworow{display:none}
-.lista-utworow{border-right:1px solid var(--kreska);display:flex;
-  flex-direction:column;min-height:0}
-.szukajka{padding:9px 10px;border-bottom:1px solid var(--kreska)}
-.szukajka input{width:100%;background:var(--karta);border:1px solid var(--kreska);
-  border-radius:7px;color:var(--tekst);font:inherit;font-size:12.5px;
-  padding:6px 10px;outline:none}
-.szukajka input:focus{border-color:var(--blekit)}
-.spis{flex:1;overflow:auto;min-height:0}
-.utwor{padding:6px 11px;cursor:pointer;border-bottom:1px solid rgba(36,42,50,.45)}
-.utwor:hover{background:var(--karta)}
-.utwor[aria-selected="true"]{background:#1f2630;box-shadow:inset 2px 0 0 var(--bursztyn)}
-.utwor .t{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.utwor .d{font-size:10.5px;color:var(--cichszy);font-family:var(--mono);margin-top:1px}
-.licznik{padding:6px 11px;font-size:11px;color:var(--cichszy);
-  border-top:1px solid var(--kreska)}
-nav{border-right:1px solid var(--kreska);display:flex;flex-direction:column;
-    align-items:center;padding-top:8px;gap:4px}
-nav button{width:44px;height:44px;background:none;border:0;border-radius:9px;
-  color:var(--cichszy);cursor:pointer;display:grid;place-items:center;position:relative}
-nav button[aria-pressed="true"]{background:var(--karta2);color:var(--tekst)}
-nav button[aria-pressed="true"]::before{content:"";position:absolute;left:-8px;
-  top:11px;bottom:11px;width:2px;border-radius:2px;background:var(--bursztyn)}
-nav button svg{width:19px;height:19px;stroke:currentColor;fill:none;
-  stroke-width:1.6;stroke-linecap:round}
-nav .skrot{position:absolute;bottom:2px;right:5px;font-family:var(--mono);
-  font-size:8.5px;color:var(--cichszy)}
+/* ---------- korpus: główny | prawa kolumna (biblioteka nad kontekstem) ---------- */
+.korpus{display:grid;grid-template-columns:1fr 340px;min-height:0}
+.prawa-kolumna{display:flex;flex-direction:column;min-height:0;
+  padding:var(--luz) 24px var(--luz) 8px}
+:root[data-ekran="set"] .lista-utworow,
+:root[data-ekran="dj"] .lista-utworow{display:none}
+.lista-utworow{display:flex;flex-direction:column;min-height:0;flex:1}
+.szukajka{padding:0 var(--luz) 8px 0}
+.szukajka input{width:100%;background:none;border:0;border-bottom:1px solid var(--kreska2);
+  color:var(--tekst);font:inherit;font-size:14px;padding:6px 0;outline:none;border-radius:0}
+.szukajka input::placeholder{color:var(--cichszy)}
+.szukajka input:focus{border-bottom-color:var(--bursztyn)}
+.spis{flex:1;overflow:auto;min-height:0;margin-top:4px}
+.utwor{padding:8px 0;cursor:pointer;border-bottom:1px solid var(--kreska)}
+.utwor:hover .t{color:var(--tekst)}
+.utwor[aria-selected="true"] .t,.utwor[aria-selected="true"] .d{color:var(--bursztyn)}
+.utwor .t{font-size:14px;color:#d8d6cf;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.utwor .d{font-size:12px;color:var(--cichszy);font-family:var(--mono);flex:none;
+  font-variant-numeric:tabular-nums}
+.licznik{font:inherit}
 
-main{min-width:0;min-height:0;overflow:hidden;padding:var(--luz) 14px;
+main{min-width:0;min-height:0;overflow:hidden;padding:var(--luz) 28px;
      display:flex;flex-direction:column}
 main > section{display:flex;flex-direction:column;min-height:0;flex:1}
-aside{border-left:1px solid var(--kreska);overflow:auto;padding:var(--luz) 13px}
+aside{overflow:auto;flex:0 0 auto;max-height:30%;padding-top:12px;margin-top:8px;
+  border-top:1px solid var(--kreska)}
+aside:empty{display:none}
+:root[data-ekran="set"] aside,
+:root[data-ekran="dj"] aside{flex:1;max-height:none;margin-top:0;padding-top:0;border-top:0}
 
-.narzedzia{display:flex;gap:10px;align-items:baseline;margin-bottom:var(--luz)}
-.tytul-utworu{font-weight:600;font-size:15px}
-.drobne{color:var(--cichy);font-size:12px}
-.btn{background:var(--karta);border:1px solid var(--kreska);border-radius:8px;
+/* Nagłówek ekranu: tytuł utworu jest największą rzeczą w oknie, trzy
+   liczby utworu stoją obok niego (makieta „Redakcja", 03.09). */
+.naglowek{align-items:flex-start}
+.tytul-blok{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+/* Trzy liczby utworu: na górze prawej kolumny, nad biblioteką (makieta). */
+.liczby{display:flex;justify-content:flex-end;gap:34px;text-align:right;
+  padding:4px 0 18px}
+.liczby small{display:block;font:500 11px var(--mono);letter-spacing:.16em;
+  text-transform:uppercase;color:var(--cichszy);margin-bottom:2px}
+.liczby b{font:500 30px/1.1 var(--mono);font-variant-numeric:tabular-nums}
+/* Biblioteka: nagłówek słowem, filtry słowami, reszta pod „więcej". */
+.biblioteka-glowa{display:flex;justify-content:space-between;align-items:baseline;
+  font:500 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--cichszy);margin-bottom:6px}
+.biblioteka-glowa button{background:none;border:0;color:var(--cichszy);font:inherit;
+  cursor:pointer;padding:0;letter-spacing:inherit;text-transform:inherit}
+.biblioteka-glowa button:hover{color:var(--tekst)}
+#lib-wiecej{border-bottom:1px solid var(--kreska);margin-bottom:6px;padding-bottom:2px}
+#sekcje{gap:0}
+#sekcje button{padding:3px 6px;font-size:11.5px}
+.narzedzia{display:flex;gap:12px;align-items:baseline;margin-bottom:var(--luz);
+  flex-wrap:wrap}
+.tytul-utworu{font:700 40px/1.05 var(--tytul);letter-spacing:-.02em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.tytul-blok .drobne{font-size:15px;margin-top:6px}
+.tytul-blok .drobne b{color:var(--tekst);font-weight:500}
+.tytul-blok .drobne .rb-ok{color:var(--bursztyn)}
+.tytul-blok .drobne .rb-zle{color:var(--alarm)}
+.drobne{color:var(--cichy);font-size:12.5px}
+.btn{background:none;border:1px solid var(--kreska2);border-radius:var(--r);
   color:var(--tekst);font:inherit;font-size:12.5px;height:30px;padding:0 12px;
   cursor:pointer;display:inline-flex;align-items:center;gap:7px}
-.btn:hover:not(:disabled){background:var(--karta2)}
+.btn:hover:not(:disabled){border-color:var(--cichy)}
 .btn:disabled{opacity:.42;cursor:not-allowed}
-.btn.glowny{background:var(--volt);color:#0e1013;border-color:transparent;font-weight:600}
-.btn kbd{font-family:var(--mono);font-size:10.5px;opacity:.65}
+.btn.glowny{background:var(--bursztyn);color:#1a1917;border-color:transparent;font-weight:600}
+.btn.glowny:hover:not(:disabled){background:#efb15e}
+.btn kbd{font-family:var(--mono);font-size:10.5px;opacity:.6}
 
-/* --- płótno przebiegu --- */
-.plotno{background:var(--karta);border:1px solid var(--kreska);
-  border-radius:var(--r);padding:9px 11px 5px}
-.pas-sekcji{display:flex;height:15px;gap:2px;margin-bottom:6px}
-.pas-sekcji .sek{border-radius:3px;font-size:9px;color:#0e1013;font-weight:600;
-  display:flex;align-items:center;padding:0 5px;overflow:hidden;white-space:nowrap;
-  letter-spacing:.03em}
-.fala-obszar{position:relative;height:132px;cursor:crosshair}
-.fala-obszar canvas{display:block;width:100%;height:132px}
+/* ---------- przebieg: fala bez pudełka, oś pod nią, sekcje pod osią ---------- */
+.plotno{padding:0}
+.fala-obszar{position:relative;height:190px;cursor:crosshair}
+.fala-obszar canvas{display:block;width:100%;height:190px}
 .warstwa-padow{position:absolute;inset:0;pointer-events:none}
-.pad{position:absolute;top:0;bottom:0;width:2px;background:var(--bursztyn);
-  pointer-events:auto;cursor:ew-resize}
+.pad{position:absolute;top:0;bottom:0;width:2px;background:var(--blekit);
+  pointer-events:auto;cursor:grab;z-index:3}
+.pad:active{cursor:grabbing}
 .pad::before{content:attr(data-pad);position:absolute;top:0;left:-8px;width:18px;
-  height:14px;background:var(--bursztyn);color:#0e1013;border-radius:3px;
-  font:600 9px var(--mono);display:grid;place-items:center}
-.pad.wybrany{background:var(--volt);box-shadow:0 0 0 1px rgba(158,222,115,.35)}
-.pad.wybrany::before{background:var(--volt)}
-.kursor{position:absolute;top:0;bottom:0;width:1px;background:rgba(232,236,241,.3);
+  height:15px;background:var(--blekit);color:#1a1917;border-radius:3px;
+  font:600 10px var(--mono);display:grid;place-items:center}
+.pad.wybrany{background:var(--bursztyn);box-shadow:0 0 0 1px rgba(227,160,74,.35)}
+.pad.wybrany::before{background:var(--bursztyn)}
+.kursor{position:absolute;top:0;bottom:0;width:1px;background:rgba(241,239,233,.3);
   pointer-events:none}
 .os-czasu{display:flex;justify-content:space-between;font-family:var(--mono);
-  font-size:10px;color:var(--cichszy);padding-top:4px}
-.nota{color:var(--cichy);font-size:12px;margin:9px 0 var(--luz)}
+  font-size:11px;color:var(--cichszy);padding-top:6px;border-top:1px solid var(--kreska)}
+/* Sekcje: kreska w kolorze sekcji i nazwa pod nią. Nazwa znika, gdy się nie
+   mieści — ucięte „BREA GROO" było jednym z powodów oceny „podróbka". Kolor
+   przychodzi z JS jako --kolor, nie jako tło. */
+.pas-sekcji{display:flex;gap:3px;margin-top:10px}
+.pas-sekcji .sek{border-top:2px solid var(--kolor,#3a434e);color:var(--kolor,#5f5d57);
+  font:500 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;
+  padding:5px 0 0;overflow:hidden;white-space:nowrap;min-width:0}
+.pas-sekcji .sek.bez-nazwy{color:transparent}
+.nota{color:var(--cichy);font-size:12.5px;margin:9px 0 var(--luz)}
 
-.tabela{background:var(--karta);border:1px solid var(--kreska);
-  border-radius:var(--r);flex:1;min-height:0;overflow:auto}
+/* Pusty start — jedyna treść na ekranie, gdy nie ma czego pokazać. */
+.pusty-start{max-width:56ch;padding:6px 0 0}
+.pusty-start h3{margin:0 0 8px;font:700 26px/1.15 var(--tytul);letter-spacing:-.015em}
+.pusty-start p{margin:0 0 14px;color:var(--cichy);font-size:14.5px}
+.pusty-start p b{color:var(--tekst);font-weight:500}
+.pusty-start ol{margin:0;padding-left:20px;color:var(--cichy);font-size:14px;
+  display:flex;flex-direction:column;gap:7px}
+.pusty-start ol b{color:var(--tekst);font-weight:500}
+#stan-audio{color:var(--bursztyn)}
+
+/* ---------- tabele: kreski, nie pudełka ---------- */
+.tabela{flex:1;min-height:0;overflow:auto;margin-top:var(--luz)}
 table{width:100%;border-collapse:collapse;font-size:var(--font-tab)}
-th{position:sticky;top:0;background:#12161b;text-align:left;font-weight:600;
-   color:var(--cichy);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;
-   padding:7px 10px;border-bottom:1px solid var(--kreska)}
-td{padding:0 10px;height:var(--wys-wiersza);border-bottom:1px solid rgba(36,42,50,.5)}
+th{position:sticky;top:0;background:var(--tlo);text-align:left;font-weight:500;
+   color:var(--cichszy);font:500 10.5px var(--mono);text-transform:uppercase;
+   letter-spacing:.1em;padding:0 10px 6px 0;border-bottom:1px solid var(--kreska2)}
+td{padding:0 10px 0 0;height:var(--wys-wiersza);border-bottom:1px solid var(--kreska)}
 tbody tr{cursor:pointer}
-tbody tr:hover{background:#1a1f26}
-tbody tr[aria-selected="true"]{background:#1f2630;box-shadow:inset 2px 0 0 var(--bursztyn)}
+tbody tr:hover td{color:var(--tekst)}
+tbody tr[aria-selected="true"] td{color:var(--bursztyn)}
+tbody tr[aria-selected="true"] td[style]{color:var(--bursztyn) !important}
 td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+/* Osiem kafli padów: siatka z kreską między, pusty kafel to zaproszenie. */
+.kafle{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:1px;
+  background:var(--kreska);margin-top:var(--luz)}
+.kafel{background:var(--tlo);padding:10px 12px 8px;cursor:pointer;min-height:66px;
+  display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--cichy)}
+.kafel b{font:500 18px var(--mono);color:var(--tekst);font-variant-numeric:tabular-nums}
+.kafel.pusty b{color:var(--cichszy)}
+.kafel small{font-size:10.5px;color:var(--cichszy);min-height:12px}
+.kafel:hover{background:#221f1b}
+.kafel.on{background:#26231d}
+.kafel.on span{color:var(--bursztyn)}
+/* Fragment (przeciągnięcie) i pętla (L) nad falą */
+.zaznaczenie{position:absolute;top:0;bottom:0;background:rgba(241,239,233,.12);
+  border-left:1px solid rgba(241,239,233,.35);border-right:1px solid rgba(241,239,233,.35);
+  pointer-events:none;z-index:2}
+.petla{position:absolute;top:0;bottom:0;background:rgba(227,160,74,.12);
+  border-left:1px solid var(--bursztyn);border-right:1px solid var(--bursztyn);
+  pointer-events:none;z-index:2}
+.petla::before{content:"L";position:absolute;top:3px;left:5px;
+  font:600 10px var(--mono);color:var(--bursztyn)}
+.glowica.stoi{opacity:.55;box-shadow:none}
+/* Suwak przewijania: kreska i kropka, bez pudełka */
+#suwak{flex:1;min-width:120px;max-width:520px;-webkit-appearance:none;appearance:none;
+  height:2px;background:var(--kreska2);border-radius:2px;outline:none;margin:0 4px}
+#suwak::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;
+  border-radius:50%;background:var(--tekst);cursor:pointer}
+#suwak:disabled{opacity:.3}
+#suwak:disabled::-webkit-slider-thumb{cursor:not-allowed}
+#tabela-set{min-height:132px}
 
-.pole{margin-bottom:13px}
-.pole .et{font-size:11px;color:var(--cichy);margin-bottom:3px}
-.pole .wa{font-size:13px}
-.pole .wa.duza{font-family:var(--mono);font-size:19px;font-variant-numeric:tabular-nums}
-h2{font-size:12px;font-weight:600;color:var(--cichy);text-transform:uppercase;
-   letter-spacing:.06em;margin:0 0 10px}
-.rozdziel{height:1px;background:var(--kreska);margin:13px 0}
-.powod{border-left:2px solid var(--bursztyn);background:rgba(224,164,88,.07);
-  padding:8px 10px;border-radius:0 6px 6px 0;font-size:12px;color:var(--cichy)}
-.powod.zle{border-left-color:var(--alarm);background:rgba(224,108,117,.08)}
+/* ---------- kontekst (prawa kolumna): podpis mały, liczba duża ---------- */
+.pole{margin-bottom:14px}
+.pole .et{font:500 10.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;
+  color:var(--cichszy);margin-bottom:3px}
+.pole .wa{font-size:13.5px}
+.pole .wa.duza{font-family:var(--mono);font-size:26px;font-variant-numeric:tabular-nums;
+  letter-spacing:-.01em;line-height:1.15}
+h2{font:500 10.5px var(--mono);color:var(--cichszy);text-transform:uppercase;
+   letter-spacing:.12em;margin:0 0 10px}
+.rozdziel{height:1px;background:var(--kreska);margin:14px 0}
+.powod{border-left:2px solid var(--bursztyn);padding:2px 0 2px 12px;
+  font-size:12.5px;color:var(--cichy)}
+.powod.zle{border-left-color:var(--alarm)}
 .powod b{color:var(--tekst)}
 
+/* ---------- odtwarzacz i legenda ---------- */
 .dol{border-top:1px solid var(--kreska)}
-.grajek{display:flex;align-items:center;gap:11px;padding:8px 14px}
-.grajek .graj{width:30px;height:30px;border-radius:7px;background:var(--volt);
-  border:0;color:#0e1013;cursor:pointer;display:grid;place-items:center}
-.grajek .graj svg{width:13px;height:13px;fill:currentColor}
-.czas{font-family:var(--mono);font-size:11.5px;color:var(--cichy)}
-.skroty{display:flex;gap:14px;padding:5px 14px 7px;font-size:11.5px;
-  color:var(--cichszy);border-top:1px solid rgba(36,42,50,.6)}
-.skroty b{color:var(--bursztyn);font-family:var(--mono);font-weight:500}
+.grajek{display:flex;align-items:center;gap:14px;padding:12px 24px}
+.grajek .graj{width:44px;height:44px;border-radius:50%;background:none;
+  border:1.5px solid var(--tekst);color:var(--tekst);cursor:pointer;
+  display:grid;place-items:center}
+.grajek .graj svg{width:13px;height:13px;fill:currentColor;margin-left:2px}
+.grajek .graj[aria-pressed="true"]{background:var(--bursztyn);border-color:var(--bursztyn);
+  color:#1a1917}
+.grajek .graj:disabled,.grajek .btn:disabled{opacity:.34;cursor:not-allowed}
+.czas{font-family:var(--mono);font-size:13px;color:var(--cichy);
+  font-variant-numeric:tabular-nums}
+#czas-gry{min-width:74px;color:var(--tekst);font-size:24px}
+.grajek .btn.maly{border:0;color:var(--cichy);padding:0 6px}
+.grajek .btn.maly:hover:not(:disabled){color:var(--tekst)}
+.grajek .btn.maly kbd{opacity:.5}
+#opis-gry.zle{color:var(--alarm)}
+.glowica{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;
+  background:var(--bursztyn);box-shadow:0 0 7px rgba(227,160,74,.7);
+  pointer-events:none;z-index:3}
+.nagra{color:var(--cichszy);font-size:11px;letter-spacing:.5px}
+/* Legenda klawiszy siedzi pod „?" — czternaście skrótów w rzędzie to była
+   stopka z terminala, nie część okna. Podpowiedź, że istnieje, stoi obok czasu. */
+.legenda-hint{margin-left:14px;font-size:12px;color:var(--cichszy)}
+.legenda-hint b{color:var(--cichy);font-family:var(--mono);font-weight:500}
+.skroty{display:flex;flex-wrap:wrap;gap:6px 18px;padding:2px 24px 12px;font-size:12px;
+  color:var(--cichy)}
+.skroty b{color:var(--bursztyn);font-family:var(--mono);font-weight:500;margin-right:2px}
 .pusto{color:var(--cichszy);font-size:13px;padding:26px 0;text-align:center}
 :focus-visible{outline:2px solid var(--blekit);outline-offset:2px;border-radius:4px}
 
-/* --- ekran Set --- */
-.param{display:flex;flex-direction:column;gap:1px;background:var(--karta);
-  border:1px solid var(--kreska);border-radius:8px;padding:3px 11px;min-width:96px}
+/* ---------- ekran Set ---------- */
+.param{display:flex;flex-direction:column;gap:2px;padding:0;min-width:96px;
+  border-bottom:1px solid var(--kreska2)}
 .param.rozciag{flex:1}
-.param span{font-size:9.5px;color:var(--cichszy);text-transform:uppercase;
-  letter-spacing:.05em}
+.param span{font:500 9.5px var(--mono);color:var(--cichszy);text-transform:uppercase;
+  letter-spacing:.1em}
 .param input{background:none;border:0;color:var(--tekst);font:inherit;
-  font-size:13px;outline:none;width:100%;padding:0;font-family:var(--mono)}
-.param:focus-within{border-color:var(--blekit)}
-.krzywa{background:var(--karta);border:1px solid var(--kreska);
-  border-radius:var(--r);padding:10px 12px;margin-bottom:var(--luz)}
+  font-size:13.5px;outline:none;width:100%;padding:2px 0 4px;font-family:var(--mono)}
+.param:focus-within{border-bottom-color:var(--bursztyn)}
+.krzywa{padding:0;margin-bottom:var(--luz)}
 .krzywa-glowa{display:flex;justify-content:space-between;align-items:baseline;
   margin-bottom:6px;gap:12px}
 .krzywa-glowa h2{margin:0}
 .krzywa svg{display:block;width:100%;height:70px}
-.postep-box{display:flex;align-items:center;gap:11px;background:var(--karta);
-  border:1px solid var(--kreska);border-radius:var(--r);padding:10px 13px;
-  margin-bottom:var(--luz)}
-.pasek-nieokreslony{flex:0 0 130px;height:3px;background:#232a33;
+.postep-box{display:flex;align-items:center;gap:11px;padding:6px 0;margin-bottom:var(--luz)}
+.pasek-nieokreslony{flex:0 0 130px;height:2px;background:var(--kreska2);
   border-radius:2px;overflow:hidden}
-.pasek-nieokreslony i{display:block;width:38%;height:100%;background:var(--volt);
+.pasek-nieokreslony i{display:block;width:38%;height:100%;background:var(--bursztyn);
   border-radius:2px;animation:suwak 1.15s ease-in-out infinite}
 @keyframes suwak{0%{transform:translateX(-105%)}100%{transform:translateX(285%)}}
 @media (prefers-reduced-motion:reduce){
   .pasek-nieokreslony i{animation:none;width:100%;opacity:.55}}
 /* Ostrzeżenia silnika są STALE widoczne, nigdy zwinięte — ADR-005 */
-.notki{background:rgba(224,164,88,.06);border:1px solid rgba(224,164,88,.22);
-  border-radius:var(--r);padding:9px 12px;margin-bottom:var(--luz);
-  font-size:12px;color:var(--cichy);max-height:120px;overflow:auto}
+.notki{border-left:2px solid var(--bursztyn);padding:2px 0 2px 12px;margin-bottom:var(--luz);
+  font-size:12.5px;color:var(--cichy);max-height:120px;overflow:auto}
 .notki div{padding:1.5px 0}
 .notki .zle{color:var(--alarm)}
 .notki .glowa{color:var(--bursztyn);font-weight:600;margin-bottom:3px}
 
-/* Zapis do Rekordboksa. Panel siedzi POD tabelą setu, bo najpierw patrzy się
-   na to, co się zbudowało, a dopiero potem wysyła. */
-.zapis{background:var(--karta);border:1px solid var(--kreska);
-  border-radius:var(--r);padding:11px 13px;margin-top:var(--luz)}
+.zapis{border-top:1px solid var(--kreska2);padding:12px 0 0;margin-top:var(--luz)}
 .zapis-glowa{display:flex;justify-content:space-between;align-items:baseline;
   gap:12px;margin-bottom:7px}
 .zapis-glowa h2{margin:0}
@@ -191,3 +286,117 @@ h2{font-size:12px;font-weight:600;color:var(--cichy);text-transform:uppercase;
 .zapis-liczby b{color:var(--tekst);font-family:var(--mono);font-weight:600}
 .zapis-liczby .ostroznie{color:var(--bursztyn)}
 .zapis-akcje{display:flex;gap:9px;align-items:center}
+
+/* Panele decyzji (kandydaci, plany, gatunki): lewa kreska, żadnego tła. */
+.kandydaci{border-left:2px solid var(--bursztyn);padding:2px 0 2px 14px;margin-top:var(--luz);
+  display:flex;flex-direction:column;min-height:0;max-height:38vh}
+.kandydaci-glowa{display:flex;justify-content:space-between;align-items:center;
+  gap:12px;margin-bottom:4px}
+.kandydaci-glowa h2{margin:0;color:var(--tekst);font:600 14px var(--font);
+  text-transform:none;letter-spacing:0}
+.kandydaci .tabela{flex:1;min-height:80px;margin-top:4px}
+#plany-box .tabela{min-height:104px}
+.kandydaci .why{color:var(--cichszy);font-size:11px;font-family:var(--mono)}
+td.ranga{font-family:var(--mono);color:var(--cichszy);text-align:right}
+td.wynik{font-family:var(--mono);font-variant-numeric:tabular-nums;
+  color:var(--volt);text-align:right}
+.uwaga-edycji{color:var(--bursztyn);font-size:12px;margin-top:6px}
+
+/* Filtry biblioteki: rzędy bez ramek, rozdzielone odstępem. */
+.filtry-lib{display:flex;gap:8px;align-items:center;padding:0 var(--luz) 8px 0}
+.filtry-lib input{flex:1;min-width:0;background:none;border:0;
+  border-bottom:1px solid var(--kreska);border-radius:0;color:var(--tekst);
+  font:12.5px var(--mono);padding:4px 0}
+.filtry-lib input::placeholder{color:var(--cichszy);font-family:var(--font)}
+.filtry-lib input:focus{outline:none;border-bottom-color:var(--bursztyn)}
+.btn.maly{padding:0 9px;height:26px;font-size:12px}
+.btn.maly[aria-pressed="true"]{border-color:var(--bursztyn);color:var(--bursztyn)}
+.lib-skroty{font-size:11.5px;padding:8px 0;color:var(--cichszy)}
+.spis .znaki{font-size:11px;letter-spacing:2px;margin-left:6px}
+.spis .znak-ulub{color:var(--alarm)}
+.spis .znak-filar{color:var(--bursztyn)}
+
+/* Filary stoją NAD krzywą, bo są wejściem do budowy, nie jej wynikiem. */
+.filary-box{border-left:2px solid var(--bursztyn);padding:2px 0 2px 14px;margin-bottom:var(--luz)}
+.filary-box h2{color:var(--tekst);font:600 14px var(--font);text-transform:none;letter-spacing:0}
+.filary-playlisty{display:flex;gap:10px;align-items:center;margin:7px 0}
+.filary-playlisty select,.filary-playlisty input{background:none;
+  border:0;border-bottom:1px solid var(--kreska2);border-radius:0;color:var(--tekst);
+  font:12.5px var(--font);padding:4px 0}
+.filary-playlisty select{min-width:150px}
+.filary-playlisty input{flex:1;min-width:0}
+.filar-wiersz{display:flex;gap:8px;align-items:center;padding:3px 0;font-size:12.5px}
+.filar-wiersz .nazwa{flex:1;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.filar-wiersz select{background:none;border:0;border-bottom:1px solid var(--kreska2);
+  border-radius:0;color:var(--tekst);font:11.5px var(--font);padding:2px 0}
+.filar-wiersz .zdejmij{background:none;border:none;color:var(--cichszy);
+  cursor:pointer;font-size:14px;padding:0 4px}
+.filar-wiersz .zdejmij:hover{color:var(--alarm)}
+.narzedzia.druga-linia{border-top:none;padding-top:0}
+.narzedzia select{background:none;border:0;border-bottom:1px solid var(--kreska2);
+  border-radius:0;color:var(--tekst);font:12.5px var(--font);padding:4px 0}
+.param.przelacznik{flex-direction:row;align-items:center;gap:6px;border-bottom:0}
+.param.przelacznik input{width:15px;height:15px;accent-color:var(--bursztyn)}
+/* Karta INFO i pasek szwu: fakty, monospace, żeby liczby stały w kolumnach. */
+.karta-info{border-left:2px solid var(--blekit);padding:2px 0 2px 14px;margin-top:var(--luz)}
+.karta-info h2{color:var(--tekst);font:600 14px var(--font);text-transform:none;letter-spacing:0}
+.karta-info pre{margin:6px 0 0;font:12px/1.55 var(--mono);color:var(--tekst);
+  white-space:pre-wrap;word-break:break-word;max-height:34vh;overflow:auto}
+#szew-info{line-height:1.7}
+/* Ściana DJ-ów */
+.dj-grupa{margin-bottom:18px}
+.dj-glowa{font:500 10.5px var(--mono);letter-spacing:.12em;color:var(--cichszy);
+  text-transform:uppercase;padding:6px 0;position:sticky;top:0;
+  background:var(--tlo);border-bottom:1px solid var(--kreska2);z-index:1}
+.dj-karta{display:flex;align-items:center;gap:9px;padding:7px 0;
+  border-bottom:1px solid var(--kreska);cursor:pointer}
+.dj-karta:hover b{color:var(--bursztyn)}
+.dj-karta b{font-weight:600;font-size:13.5px}
+.dj-karta .drobne{color:var(--cichszy)}
+.dj-karta button.kolekcja{margin-left:auto;background:none;
+  border:1px solid var(--kreska2);border-radius:999px;width:22px;height:22px;
+  color:var(--cichy);cursor:pointer;font-size:12px;line-height:1}
+.dj-karta button.kolekcja:hover{border-color:var(--bursztyn);color:var(--bursztyn)}
+
+/* Okładki: z tagów plików, brak = pusta kratka (nie zmyślony obrazek). */
+.okl{width:24px;height:24px;border-radius:3px;object-fit:cover;background:var(--karta2);
+  flex:none;vertical-align:middle}
+.spis .utwor{display:flex;gap:10px;align-items:center}
+.spis .utwor .tresc{flex:1;min-width:0;display:flex;gap:12px;align-items:baseline}
+.spis .utwor .tresc .t{flex:1;min-width:0}
+.okl-gry{width:36px;height:36px;border-radius:6px}
+
+/* ✕ na kaflu pada: widoczny przy najechaniu i na zaznaczonym — bez
+   znajomości ⌫ da się zdjąć pad (Janek 03.09). */
+.kafel span{display:flex;justify-content:space-between;align-items:center}
+.zdejmij-pad{background:none;border:0;color:var(--cichszy);font:inherit;font-size:12px;
+  cursor:pointer;padding:0 2px;opacity:0;transition:opacity .12s}
+.kafel:hover .zdejmij-pad,.kafel.on .zdejmij-pad{opacity:1}
+.zdejmij-pad:hover{color:var(--alarm)}
+
+/* ---------- jedna ścieżka: utwory → zbuduj → set → wyślij (03.09) ----------
+   Scenariusz „ziomek przy cudzym laptopie": każdy krok ma numer, słowo
+   i guzik, którego nie trzeba znać z klawiatury. */
+.licznik-koszyka{display:inline-block;min-width:16px;padding:0 5px;margin-left:4px;
+  border-radius:999px;background:var(--bursztyn);color:#1a1917;
+  font:600 10.5px var(--mono);line-height:16px;text-align:center;vertical-align:1px}
+.licznik-koszyka:empty{display:none}
+#btn-do-setu.w-secie{background:none;border:1px solid var(--bursztyn);color:var(--bursztyn)}
+.krok{margin-bottom:var(--luz)}
+.krok-glowa{display:flex;align-items:center;gap:14px;margin-bottom:8px;flex-wrap:wrap}
+.krok-glowa h2{margin:0;color:var(--tekst);font:600 14px var(--font);
+  text-transform:none;letter-spacing:0}
+.krok-glowa .btn.glowny{margin-left:auto}
+#ustawienia-pola{padding-top:6px}
+.filary-box h2{color:var(--tekst);font:600 14px var(--font);text-transform:none;letter-spacing:0}
+/* guziki przy wierszu setu: widać po najechaniu i na zaznaczonym */
+td.akcje-wiersza{text-align:right;white-space:nowrap}
+.akcje-wiersza button{background:none;border:0;color:var(--cichy);font:inherit;
+  font-size:11.5px;padding:0 6px;cursor:pointer;opacity:0;transition:opacity .12s}
+tr:hover .akcje-wiersza button,tr[aria-selected="true"] .akcje-wiersza button{opacity:1}
+.akcje-wiersza button:hover{color:var(--bursztyn)}
+
+/* liczby utworu należą do ekranu Utwór — na Set i DJ mówiłyby o czymś, czego nie widać */
+:root[data-ekran="set"] .liczby,
+:root[data-ekran="dj"] .liczby{display:none}

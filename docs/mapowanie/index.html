@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>FLX4 ↔ klub — mapowanie 1:1</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{--tlo:#0e1013;--karta:#151920;--kreska:#242a32;--tekst:#e6e8ec;--cichy:#9aa2b1;--cichszy:#5e6773;
+    --jest:#6bbf6b;--inaczej:#e0a458;--brak:#e06c75;--pulapka:#5aa9e6}
+  body{margin:0;background:var(--tlo);color:var(--tekst);font:13.5px/1.5 -apple-system,"Inter",system-ui,sans-serif}
+  header{padding:12px 18px;border-bottom:1px solid var(--kreska);display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+  h1{font-size:15px;margin:0}
+  .lead{color:var(--cichy);max-width:70ch}
+  main{display:grid;grid-template-columns:1fr 330px;gap:0;min-height:calc(100vh - 62px)}
+  .ramki{display:flex;flex-direction:column;gap:0;min-width:0}
+  iframe{border:0;width:100%;display:block;background:var(--tlo)}
+  #flx4{height:46vh}  #klub{height:54vh}
+  aside{border-left:1px solid var(--kreska);padding:14px 16px;overflow:auto}
+  h2{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--cichy);margin:0 0 8px}
+  .liczby{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px}
+  .kafel{background:var(--karta);border:1px solid var(--kreska);border-radius:7px;padding:7px 9px}
+  .kafel .n{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+  .kafel .n b{font-size:12px;font-weight:500;color:var(--cichy)}
+  .kafel .co{font-size:11px;color:var(--cichy)}
+  .kafel.jest .n{color:var(--jest)} .kafel.inaczej .n{color:var(--inaczej)}
+  .kafel.brak .n{color:var(--brak)} .kafel.pulapka .n{color:var(--pulapka)}
+  .zgoda{font-size:11.5px;margin:-6px 0 14px;color:var(--cichy)}
+  .zgoda.zle{color:var(--brak)}
+  .wybor{background:var(--karta);border:1px solid var(--kreska);border-left:3px solid var(--kreska);border-radius:7px;padding:10px 12px}
+  .wybor .tytul{font-weight:600;margin-bottom:6px}
+  .para{padding:7px 0;border-top:1px solid var(--kreska)}
+  .para:first-of-type{border-top:0}
+  .znak{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:999px;margin-right:6px;color:#0e1013;font-weight:600}
+  .znak.jest{background:var(--jest)} .znak.inaczej{background:var(--inaczej)} .znak.brak{background:var(--brak)} .znak.pulapka{background:var(--pulapka)}
+  .midi{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--cichszy)}
+  .uwaga{font-size:12px;color:var(--cichy);margin-top:3px}
+  .pusto{color:var(--cichszy)}
+  .szczerze{margin-top:8px;padding:8px 10px;border-radius:6px;background:#1d1a17;border:1px solid #3a2f24;color:var(--inaczej);font-size:12.5px}
+  button{background:none;border:1px solid var(--kreska);color:var(--cichy);border-radius:6px;padding:3px 9px;cursor:pointer;font:12px inherit}
+  .lista{font-size:12px;color:var(--cichy);margin-top:14px}
+  .lista li{margin:2px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>FLX4 ↔ klub — mapowanie 1:1</h1>
+  <div class="lead">Kliknij kontrolkę na FLX4 albo na zestawie klubowym: świecą <b>tylko</b> jej odpowiedniki,
+    reszta gaśnie. Kontrolka bez odpowiednika mówi to wprost. <kbd>Esc</kbd> czyści.</div>
+</header>
+<main>
+  <div class="ramki">
+    <!-- src ustawiane skryptem z parametrem czasu: przeglądarka trzymała
+         stary panel w cache i hak mapowania „nie działał" — złapane 03.09 -->
+    <iframe id="flx4" title="DDJ-FLX4"></iframe>
+    <iframe id="klub" title="CDJ-3000 ×2 + DJM-900NXS2"></iframe>
+  </div>
+  <aside>
+    <h2>Cztery liczby z panelu klubu vs mapowanie</h2>
+    <div class="liczby" id="liczby"></div>
+    <div class="zgoda" id="zgoda"></div>
+    <h2>Zaznaczone</h2>
+    <div class="wybor" id="wybor"><span class="pusto">nic — kliknij kontrolkę w którejś ramce</span></div>
+    <div class="lista" id="reszta"></div>
+  </aside>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+$('#flx4').src = '../flx4-konsola/?v=' + Date.now();
+$('#klub').src = '../sprzet-klubowy/?v=' + Date.now();
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const OPIS = {jest: 'masz to', inaczej: 'masz, ale inne', brak: 'nie masz wcale', pulapka: 'pułapka'};
+const URZ = {cdj_l: 'lewy CDJ-3000', cdj_p: 'prawy CDJ-3000', djm: 'DJM-900NXS2', flx4: 'tylko FLX4'};
+let MAPA = null, KONTR = null, stanKlucza = {}, nazwyFlx4 = {};
+
+const ramka = id => document.getElementById(id).contentWindow;
+const poslij = (id, m) => ramka(id).postMessage(m, '*');
+
+function nazwaFlx4(id) {
+  // etykiety kontrolek z ramki FLX4 (stała KONTROLKI jest tam globalna)
+  try { const k = ramka('flx4').__KONTROLKI[id]; if (k) return k.label || id; } catch (e) {}
+  return id;
+}
+
+function liczby() {
+  const c = {jest: 0, inaczej: 0, brak: 0, pulapka: 0};
+  KONTR.urzadzenia.forEach(u => u.sekcje.forEach(s => s.kontrolki.forEach(k => { c[k.stan]++; stanKlucza[k.nazwa] = k; })));
+  const sparowane = new Set(MAPA.pary.map(p => p.klub));
+  const wyjatki = new Set(MAPA.klub_bez_kontrolki_flx4.map(x => x.klub));
+  const m = {jest: 0, inaczej: 0, brak: 0, pulapka: 0};
+  Object.entries(stanKlucza).forEach(([k, w]) => { if (sparowane.has(k)) m[w.stan]++; });
+  $('#liczby').innerHTML = ['jest', 'inaczej', 'pulapka', 'brak'].map(s => `
+    <div class="kafel ${s}"><div class="n">${c[s]} <b>· w mapowaniu ${m[s]}</b></div><div class="co">${OPIS[s]}</div></div>`).join('');
+  // sprawdzian liczbowy, nie deklaracja: jest/inaczej/pułapka muszą mieć pary
+  // (poza jawnymi wyjątkami), brak nie może mieć żadnej
+  const bledy = [];
+  Object.entries(stanKlucza).forEach(([k, w]) => {
+    const ma = sparowane.has(k);
+    if (w.stan === 'brak' && ma) bledy.push(`„${k}” ma stan brak, a jest sparowane`);
+    if (w.stan !== 'brak' && !ma && !wyjatki.has(k)) bledy.push(`„${k}” (${w.stan}) nie ma pary`);
+  });
+  const el = $('#zgoda');
+  el.classList.toggle('zle', bledy.length > 0);
+  el.textContent = bledy.length ? 'NIE zgadza się: ' + bledy.join('; ')
+    : `zgadza się: ${MAPA.pary.length} par, ${MAPA.flx4_bez_odpowiednika.length} kontrolek FLX4 bez odpowiednika, `
+      + `${c.brak} klubowych bez odpowiednika + ${wyjatki.size} wyjątek`;
+}
+
+function pokazFlx4(id) {
+  const pary = MAPA.pary.filter(p => p.flx4 === id);
+  poslij('flx4', {typ: 'podswietl', ids: [id]});
+  poslij('klub', {typ: 'podswietl', klucze: pary.map(p => ({k: p.klub, urz: p.urzadzenie}))});
+  const bez = MAPA.flx4_bez_odpowiednika.find(x => x.id === id);
+  $('#wybor').innerHTML = `<div class="tytul">FLX4 · ${esc(nazwaFlx4(id))} <span class="midi">${esc(id)}</span></div>` +
+    (pary.length ? pary.map(p => `<div class="para"><span class="znak ${p.relacja}">${OPIS[p.relacja]}</span>
+        <b>${esc(p.klub)}</b> <span class="midi">${esc(URZ[p.urzadzenie] || p.urzadzenie)} · ${esc(p.midi)}</span>
+        ${p.uwaga ? `<div class="uwaga">${esc(p.uwaga)}</div>` : ''}</div>`).join('')
+      : `<div class="szczerze">Tego w klubie nie ma.${bez ? ' ' + esc(bez.powod) : ''}</div>`);
+}
+
+function pokazKlub(k, urz) {
+  const w = stanKlucza[k] || {};
+  let pary = MAPA.pary.filter(p => p.klub === k && p.urzadzenie === urz);
+  if (!pary.length) pary = MAPA.pary.filter(p => p.klub === k);
+  poslij('klub', {typ: 'podswietl', klucze: [{k, urz}]});
+  poslij('flx4', {typ: 'podswietl', ids: pary.map(p => p.flx4)});
+  const wyjatek = MAPA.klub_bez_kontrolki_flx4.find(x => x.klub === k);
+  $('#wybor').innerHTML = `<div class="tytul">${esc(URZ[urz] || urz)} · ${esc(k)}
+      <span class="znak ${w.stan}">${OPIS[w.stan] || ''}</span></div>` +
+    (w.co_robi ? `<div class="uwaga">${esc(w.co_robi)}</div>` : '') +
+    (pary.length ? pary.map(p => `<div class="para"><span class="znak ${p.relacja}">${OPIS[p.relacja]}</span>
+        <b>na FLX4: ${esc(nazwaFlx4(p.flx4))}</b> <span class="midi">${esc(p.flx4)} · ${esc(p.midi)}</span>
+        ${p.uwaga ? `<div class="uwaga">${esc(p.uwaga)}</div>` : ''}</div>`).join('')
+      : `<div class="szczerze">Tego nie przećwiczysz w domu.${wyjatek ? ' ' + esc(wyjatek.powod) : ''}
+         ${w.dlaczego_wazne ? '<br>' + esc(w.dlaczego_wazne) : ''}</div>`);
+}
+
+function wyczysc() {
+  poslij('flx4', {typ: 'wyczysc'}); poslij('klub', {typ: 'wyczysc'});
+  $('#wybor').innerHTML = '<span class="pusto">nic — kliknij kontrolkę w którejś ramce</span>';
+}
+
+window.addEventListener('message', ev => {
+  const m = ev.data || {};
+  if (m.typ !== 'klik' || !MAPA) return;
+  if (m.z === 'flx4') pokazFlx4(m.id); else if (m.z === 'klub') pokazKlub(m.k, m.urz);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') wyczysc(); });
+
+Promise.all([
+  fetch('../sprzet-klubowy/mapowanie.json', {cache: 'no-store'}).then(r => r.json()),
+  fetch('../sprzet-klubowy/kontrolki.json', {cache: 'no-store'}).then(r => r.json()),
+]).then(([m, k]) => {
+  MAPA = m; KONTR = k; liczby();
+  $('#reszta').innerHTML = '<h2>FLX4 bez odpowiednika w klubie</h2><ul>' +
+    m.flx4_bez_odpowiednika.map(x => `<li><b>${esc(x.id)}</b> — ${esc(x.powod)}</li>`).join('') + '</ul>';
+}).catch(e => { $('#zgoda').textContent = 'nie wczytałem mapowania: ' + e; $('#zgoda').classList.add('zle'); });
+</script>
+</body>
+</html>

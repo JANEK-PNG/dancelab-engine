@@ -84,14 +84,12 @@ def run(conn: Any) -> dict[str, int]:
         artysci = {norm(n): a for a, n in cur.fetchall() if norm(n)}
 
         rows: list[tuple[Any, ...]] = []
-        for tabela, system in (
-            ("artysta_profil", "profil"),
-            ("miks", "miks_ksywa"),
-            ("wystep", "wystep_ksywa"),
+        for query, system in (
+            ("SELECT DISTINCT ksywa FROM artysta_profil WHERE ksywa IS NOT NULL", "profil"),
+            ("SELECT DISTINCT ksywa FROM miks WHERE ksywa IS NOT NULL", "miks_ksywa"),
+            ("SELECT DISTINCT ksywa FROM wystep WHERE ksywa IS NOT NULL", "wystep_ksywa"),
         ):
-            cur.execute(
-                f"SELECT DISTINCT ksywa FROM {tabela} WHERE ksywa IS NOT NULL"  # noqa: S608
-            )
+            cur.execute(query)
             nazwy = [r[0] for r in cur.fetchall()]
             trafione = 0
             for ksywa in nazwy:

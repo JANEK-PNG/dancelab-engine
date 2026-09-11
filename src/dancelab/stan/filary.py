@@ -91,10 +91,19 @@ def wybierz(stan_uzytkownika: dict, by_id: dict, bpm_min: float | None,
         # poszerzać okno tempa, które nie miało z tym nic wspólnego — a set
         # nie budował się w ogóle.
         if not wyciete:
+            # Liczba mnoga po polsku, bo zdanie napisane pod JEDEN filar
+            # („zdejmij ten jeden") odpalało się też przy dwóch — wyszło
+            # 02.09, gdy terminal dostał ten kod przez scalenie kopii i jego
+            # test zobaczył „masz zaznaczony 2 filar".
+            ile = len(zostawione)
+            ile_slownie = ("zaznaczony 1 filar" if ile == 1
+                           else f"zaznaczone {ile} filary" if ile < 5
+                           else f"zaznaczonych {ile} filarów")
+            zdejmij = "zdejmij ten jeden" if ile == 1 else "zdejmij je"
             raise OdmowaBudowy(
-                f"masz zaznaczony {len(zostawione)} filar, a minimum to "
-                f"{MIN_FILARY} — zaznacz kolejne albo zdejmij ten jeden "
-                f"(bez filarów set zbuduje się normalnie)")
+                f"masz {ile_slownie}, a minimum to {MIN_FILARY} — zaznacz "
+                f"kolejne albo {zdejmij} (bez filarów set zbuduje się "
+                f"normalnie)")
         kogo = "; ".join(wyciete[:3])
         if len(wyciete) > 3:
             kogo += f" i {len(wyciete) - 3} dalszych"

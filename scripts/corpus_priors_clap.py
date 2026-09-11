@@ -29,8 +29,12 @@ H_DIR = ROOT / "data/reports/corpus_ordering/h_analysis"
 INDEX = ROOT / "data/reports/corpus_ordering/analysis_index.json"
 OUT = ROOT / "data/reports/corpus_priors/priors_clap_v1.json"
 
-from dancelab.decision._common import nearest_bpm_variant
-from dancelab.decision.harmonic import harmonic_relation
+from dancelab.decision._common import nearest_bpm_variant  # noqa: E402 — source-tree bootstrap above
+from dancelab.decision.harmonic import harmonic_relation  # noqa: E402 — source-tree bootstrap above
+from dancelab.validation.skladniki import Skladniki  # noqa: E402 — source-tree bootstrap above
+from dancelab.validation.wejscie import BrakDanychWejsciowych, wymagaj_plikow  # noqa: E402 — source-tree bootstrap above
+
+SKLADNIKI = Skladniki()
 
 BUCKETS = [(-1.0, 0.6, "<0.60"), (0.6, 0.7, "0.60-0.70"), (0.7, 0.8, "0.70-0.80"),
            (0.8, 0.85, "0.80-0.85"), (0.85, 0.9, "0.85-0.90"), (0.9, 2.0, ">=0.90")]
@@ -64,7 +68,7 @@ def load_h_features() -> dict[str, dict]:
 def real_and_chance_pairs(vec: dict[str, np.ndarray]):
     real: list[float] = []
     pools: list[list[str]] = []
-    for path in sorted(ALIGN_DIR.glob("mix*.json")):
+    for path in wymagaj_plikow(ALIGN_DIR, "mix*.json", "priory CLAP"):
         try:
             d = json.loads(path.read_text())
         except (OSError, json.JSONDecodeError):
@@ -133,10 +137,11 @@ def main() -> int:
         if a.get("bpm") and b.get("bpm"):
             s *= bpm_lift.get(bpm_bucket(a["bpm"], b["bpm"]), 1.0)
         if a.get("camelot") and b.get("camelot"):
+            SKLADNIKI.probuje("clap.harmonic")
             try:
                 s *= harm_lift.get(harmonic_relation(a["camelot"], b["camelot"]), 1.0)
-            except Exception:
-                pass
+            except Exception as exc:  # noqa: BLE001
+                SKLADNIKI.pominiete("clap.harmonic", exc)
         if use_clap and a_id in vec and b_id in vec:
             s *= clap_lift.get(bucket(float(vec[a_id] @ vec[b_id])), 1.0)
         return s
@@ -168,10 +173,17 @@ def main() -> int:
         "clap_cosine_pct": {"real_djs": dr, "chance_baseline": df},
         "clap_lift": clap_lift,
         "validation": {"measured_bpm_harm": base, "measured_plus_clap": withclap},
+        "skladniki": SKLADNIKI.jako_dict(),
     }, indent=2))
+    print("\n=== CZY WSZYSTKIE SKŁADNIKI WESZŁY DO WYNIKU ===")
+    print(SKLADNIKI.raport())
     print(f"\n→ {OUT}")
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except BrakDanychWejsciowych as brak:
+        print(f"\nODMAWIAM: {brak}")
+        raise SystemExit(2) from None

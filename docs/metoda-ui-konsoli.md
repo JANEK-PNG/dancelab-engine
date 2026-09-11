@@ -153,3 +153,17 @@ Model jest gotowy, gdy:
 
 Punkt 4 jest jedynym prawdziwym testem. Trzy pierwsze mają sprawić, żeby na
 czwartym nie tracić rund na centrowanie.
+
+
+## Etap dodatkowy (03.09): mapowanie 1:1 między dwoma panelami
+
+Dwa gotowe panele (`flx4-konsola/`, `sprzet-klubowy/`) łączy trzecia strona
+(`mapowanie/`) przez dwie ramki i `postMessage` — bez kopiowania rysunków.
+Dane relacji żyją w jednym pliku (`sprzet-klubowy/mapowanie.json`), a relacja
+pary bierze się ze stanu kontrolki w `kontrolki.json`; nadpisanie stanu musi
+być jawne i mieć powód. Reguła: cztery liczby na górze panelu klubu i pary
+w mapowaniu muszą się zgadzać **testem** (`tests/test_mapowanie_flx4_klub.py`),
+nie zapewnieniem. Kontrolka bez odpowiednika mówi to na karcie po obu
+stronach. Pułapka techniczna do zapamiętania: stała leksykalna strony nie jest
+`window.X` dla ramki-rodzica, a przeglądarka trzyma panele w cache — ramki
+dostają parametr czasu w `src`.

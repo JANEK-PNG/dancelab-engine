@@ -44,21 +44,25 @@ The first version of this evaluation reported top-1 accuracy over 333 observatio
 
 ---
 
-## Result 1 — Corpus-measured weights beat hand-set weights
+## Result 1 — Measured and hand-set weights cannot be told apart on this data
 
 `scripts/priors_validation.py` → `data/reports/corpus_priors/validation_v1.json`
 
 | Scorer | Rank percentile, all 1,604 (lower = better) | Top-1, n≥5 subset (n = 333) |
 |---|---|---|
-| **Measured** (likelihood ratios from the corpus) | **0.427** | **24.3%** |
-| Hand (the engine's original weights) | 0.442 | 20.7% |
+| Hand (the engine's original weights) | **0.423** | **25.2%** |
+| Measured (likelihood ratios from the corpus) | 0.427 | 24.3% |
 | Random | 0.490 | 14.4% |
 
 The two columns are measured on different samples and must not be quoted as one: the rank percentile covers all 1,604 observations, while top-1 is only meaningful where there are enough candidates to rank, so it is reported on the 333 observations with five or more. An earlier version of this table gave the random top-1 as 18%; the source artifact says 14.4%, and the figure is corrected here.
 
-Both beat random decisively. Measured beats hand consistently in direction across every metric, and the paired bootstrap gives **p = 0.12** — *not* significant at α = 0.05. It is reported that way here and everywhere else in the project.
+Both beat random decisively. Neither beats the other: the paired bootstrap gives **p = 0.67**. Hand is ahead in direction, but the honest statement is that **on this data the two weightings are indistinguishable** — not that hand wins.
 
-The secondary finding is the more useful one: hand-set weights sat barely above random.
+**This result previously said the opposite, and the reversal is the point.** Until 2026-08-28 the table read "measured 24.3% beats hand 20.7%" with p = 0.12. It was not comparing weightings at all. `priors_validation.py` multiplied a `HarmonicResult` object by a float; the `TypeError` landed in a bare `except Exception: pass`, so the harmonic component was absent from **every hand score the script ever reported**. The comparison was a model with harmony against the same model without it. See D6 in [`../OBALONE.md`](../OBALONE.md).
+
+Two things changed because of it. The component is now computed correctly, and the script counts how many times each component was skipped and prints it next to the result — a component that silently drops out of a scorer can no longer be quoted as a comparison. A run where a component is absent from every pair now says so in words.
+
+Consequence for the roadmap: "stabilise the engine on measured weights" was a goal defined by this result. There is currently no measured evidence that corpus-derived weights improve on the hand-set ones, so that goal needs restating before work hangs on it.
 
 ---
 
@@ -80,6 +84,8 @@ The engine was over-weighting harmony relative to observed practice. Caveat kept
 DJs do prefer similar-sounding tracks: **1.52× lift** at CLAP cosine ≥ 0.90, tracks below 0.60 avoided at 2×, median 0.833 vs 0.815 chance.
 
 Adding that lift to pair scoring **reduced top-1 from 24.3% to 20.1%**.
+
+> Baseline caveat (2026-09-01): the 24.3% here is the measured-weights baseline from Result 1, produced by the same script during the period when the harmonic component was being dropped from hand scores. The CLAP arm and its baseline were computed the same way, so the *direction* of this negative result is unaffected, but the absolute figures have not been re-run since the fix. Re-run `corpus_priors_clap.py` before quoting them as current.
 
 Diagnosis: the candidates in an observation come from a crate the DJ already curated for sound, so the signal is nearly constant *inside* the choice set. Sound similarity governs **pool construction**, not **next-item ranking**. The feature was moved, not shipped — a measured negative result blocking a plausible weight.
 

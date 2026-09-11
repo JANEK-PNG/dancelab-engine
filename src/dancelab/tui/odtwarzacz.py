@@ -120,6 +120,14 @@ class Odtwarzacz:
         self._offset = max(float(sekunda), 0.0)
         return self._uruchom(self._offset)
 
+    def ustaw_pozycje(self, path: str, bpm: float | None,
+                      sekunda: float) -> None:
+        """Przewinięcie W CISZY: zapamiętaj miejsce, nie graj. Spacja wznowi
+        stąd. Zatrzymuje to, co grało — miejsce należy do jednego utworu."""
+        self.stop()
+        self._path, self._bpm = path, bpm
+        self._offset = max(float(sekunda), 0.0)
+
     def skocz(self, uderzenia: int) -> tuple[float, str | None]:
         """±N uderzeń wg tempa utworu (siatka silnika). Tylko gdy gra."""
         if not self.gra():
@@ -137,6 +145,11 @@ class Odtwarzacz:
             self._offset = 0.0
             return self._path
         return None
+
+    def zapomnij_pozycje(self) -> None:
+        """Zeruj zapamiętane miejsce. Dla rzeczy, których się NIE wznawia —
+        szew jest renderem pary, nie utworem, i „wznów szew" nie znaczy nic."""
+        self._offset = 0.0
 
     def stop(self) -> bool:
         """Pauza z zapamiętaniem pozycji. True, jeśli coś grało."""

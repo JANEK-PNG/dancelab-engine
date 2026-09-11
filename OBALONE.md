@@ -70,6 +70,40 @@ a licencja **CC-BY-NC** to ślepa uliczka komercyjna.
 
 **Werdykt: CLAP zostaje.** Następca — priorytet niski.
 
+### A5a. larger_clap_music zamiast clap-htsat-unfused
+**2026-09-10, pomiar wg progów zapisanych przed uruchomieniem**
+
+Następca z tej samej rodziny i z tą samą licencją (Apache-2.0), uczony na muzyce —
+kandydat z przeglądu HF z tego dnia. Zmierzony na bibliotece plików Janka: 242
+utwory ≥ 60 s, po dedupie 211 (31 duplikatów — caveat z recenzji A5 domknięty),
+gatunek dla 124 z nich (Rekordbox + tagi plików, normalizacja tylko mechaniczna).
+Oba modele liczone tym samym potokiem co produkcyjny CLAP (5 okien × 10 s, 48 kHz,
+średnia, L2); kontrola: mój htsat vs lipcowy htsat na 240 wspólnych — kosinus 1,000.
+
+Progi (`experiments_priv/2026-09-10_larger_clap/PROGI.md`): (a) hubness nie gorszy,
+(b) czystość gatunkowa top-10 ≥ htsat + 3 pkt proc., (c) ślepy odsłuch 6 kotwic
+≥ 60 %. Niespełnienie (a) lub (b) kończy pomiar bez odsłuchu.
+
+| | htsat | larger | próg |
+|---|---|---|---|
+| N_k max (k = 10) | 54 | 40 | ≤ 64,8 |
+| skośność N_k | 1,68 | 0,95 | ≤ 2,18 |
+| czystość gatunkowa top-10 | **0,114** | **0,061** | ≥ 0,144 |
+| czystość losowa (Σp², ten sam materiał) | 0,054 | 0,054 | — |
+| Jaccard list top-10 między modelami | 0,069 | | opisowa |
+
+**Werdykt: htsat zostaje.** (a) spełnione — larger ma *mniejszy* hubness. (b) padło
+z zapasem: sąsiedzi wg larger są gatunkowo na poziomie losowania (0,061 vs 0,054),
+htsat trzyma 2× losowość. Listy sąsiadów obu modeli pokrywają się w 7 % — to nie
+jest „trochę inny" model, to inne pojęcie podobieństwa, i na tej bibliotece gorsze
+dla naszego pytania. Odsłuch (c) nie odbył się — progi tego zabraniają; pary zostały
+w `PARY_DO_ODSLUCHU.md`, gdyby Janek chciał posłuchać z ciekawości, ale wynik
+odsłuchu nie zmienia werdyktu.
+
+Czego pomiar NIE mówi: nic o strumieniach Apple (82 % kolekcji, wektory z 30 s
+próbek) i nic o `larger_clap_general` / `larger_clap_music_and_speech` — nie mierzone.
+Skrypt: `experiments_priv/2026-09-10_larger_clap/pomiar.py`, wynik `wynik.json`.
+
 ### A6. Kopiowanie tempa z Rekordboxa zamiast liczenia
 **CRITICAL**
 
@@ -80,6 +114,31 @@ odbiera nam możliwość wykrycia własnego błędu i wiąże produkt z cudzym p
 **Zamiast:** liczymy sami, Rekordbox służy do konfrontacji.
 
 ---
+
+### A7. Szew na żywo ze strumieni Apple Music (dwa odtwarzacze MusicKit)
+**2026-09-11, dwa pomiary wg progów zapisanych przed uruchomieniem**
+
+Szew z plików renderuje ffmpeg; strumień Apple Music (FairPlay) nie daje dźwięku do
+miksowania. Pomysł: dwa odtwarzacze MusicKit JS naraz (`enableMultipleInstances`) —
+A gra do punktu wyjścia, B startuje w punkcie wejścia z `rate_b`, przejście głośnością.
+Plan szwu da się policzyć bez dźwięku (`zaplanuj_szew`: 20 z 20 losowych par strumieni).
+
+Progi (`experiments_priv/2026-09-10_musickit_okno/PROGI_szew.md`), oba ciche (głośność 0):
+- **Próba 1** — (a) dwa odtwarzacze naraz: **zdane** (A grał przez cały start B, bez
+  DEVICE_LIMIT); (b) rozrzut startu B w 5 próbach ≤ 469 ms (jedno uderzenie przy 128 BPM):
+  **nie** — 4123, 982, 988, 986, 957 ms, rozrzut 3166 ms (pierwszy start „na zimno").
+- **Próba 2** — nowa hipoteza zapisana przed pomiarem: po cichej rozgrzewce B, na dwóch
+  parach, rozrzut ≤ 469 ms i żaden start > 3000 ms: **nie** — w pierwszej parze `play()`
+  rozgrzewki nie odpowiedziało w 10 s, w drugiej A nie ruszył w 15 s.
+
+Wniosek: start odtwarzacza MusicKit bywa ~1 s, bywa 4 s, bywa wcale — szwu nie da się
+postawić na uderzeniu, a podgląd, który raz gra, a raz milczy, kłamałby o parze. Okno
+mówi uczciwie „Apple nie daje dźwięku do miksowania (DRM)" i podaje plan silnika
+(wyjście z A, wejście w B, liczba uderzeń) do zagrania w Rekordboksie.
+
+Nie próbować ponownie bez nowego mechanizmu (np. dostęp do surowego dźwięku strumienia,
+którego Apple nie daje) — kolejne powtórki tej samej sondy to łowienie wyniku.
+Skrypty: `szew_sonda.py`, `szew_sonda2.py`; wyniki: `wynik_szew.json`, `wynik_szew2.json`.
 
 ## B. Hipotezy modelowe, które padły przy pomiarze
 

@@ -437,7 +437,6 @@ def main() -> int:
                [12, 34, 46, 28, 11, 14, 22, 34] + [10] * len(ANAL_U))
         # Puste kolumny analiz na bladym błękicie — żeby było widać na pierwszy
         # rzut oka, co jest zebrane, a co dopiero czeka na policzenie.
-        czeka = PatternFill("solid", fgColor="EDF3F8")
         for kol in range(9, 9 + len(ANAL_U)):
             wsu.cell(row=1, column=kol).fill = PatternFill("solid", fgColor="4472C4")
 

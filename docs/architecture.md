@@ -1,17 +1,15 @@
 # Current Architecture
 
-DanceLab separates the production engine from its terminal/API gateways and
-from offline validation. The CLI and localhost API call the same workflow and
-engine functions. Validation consumes exported outputs but does not mutate
-production weights or cached analyses.
+DanceLab separates the engine from its desktop, terminal and API delivery
+layers and from offline validation. The desktop GUI calls `stan/` through an
+in-process pywebview bridge; the TUI shares these operations. The CLI and local
+HTTP API expose engine/workflow functions. Validation consumes exported outputs
+but does not automatically change production weights or cached analyses.
 
 ```text
- CLI / localhost API
-          |
-          v
-     workflows/
-          |
-          v
+ GUI / TUI -> stan/ --------+
+ CLI / API -> workflows/ --+
+                           v
  ingestion -> preprocessing -> features/descriptors -> context -> decision
           |                                                        |
           +--------------------> storage/export <-------------------+
@@ -33,7 +31,10 @@ production weights or cached analyses.
 | `context/` | Explicit context profiles and context-fit scoring | active candidate layer |
 | `decision/` | Transition windows, mixability, rules, strategies, next-track and sequence planning | active candidate layer |
 | `workflows/` | User-level smart-playlist orchestration | active |
-| `storage/` | JSON repositories, cache manager, library manifest, artifact store | active; no SQL database |
+| `storage/` | JSON repositories, cache manager, library manifest, atomic artifact publication | active |
+| `catalog/` | Optional PostgreSQL/pgvector identity catalog | active; separate from JSON artifact storage |
+| `stan/` | Shared application operations, current set and decision journal | active; still wraps some TUI persistence |
+| `gui/`, `tui/` | pywebview desktop and Textual interfaces | active; GUI bridge calls `stan/` directly |
 | `export/` | Rekordbox XML plus guarded cue planning/writing | active |
 | `preview/` | Optional headless A/B transition audio rendering | active optional layer |
 | `api/`, `cli/` | Local integration gateways over production functions | active product surfaces |
@@ -60,9 +61,10 @@ The supported product entry point is `dancelab`. The FastAPI application is a
 localhost-only integration surface. Neither layer owns scoring formulas; both
 delegate to workflows and engine modules.
 
-The former desktop, HTML review, and node-graph surfaces are removed. New
-diagnostics must consume explicit manifests or versioned artifacts rather than
-reaching into undocumented runtime state.
+The earlier Qt and node-graph interfaces are retired. The current desktop GUI
+is under `gui/`; local HTML preview tools under `docs/` are separate diagnostics.
+New diagnostics must consume explicit manifests or versioned artifacts rather
+than reaching into undocumented runtime state. See [ADR-007](DECISIONS.md#adr-007--desktop-and-terminal-share-application-operations).
 
 See [architecture/diagnostic-boundary.md](architecture/diagnostic-boundary.md)
 for the stricter sensor/diagnostic contract.
@@ -101,5 +103,5 @@ for the stricter sensor/diagnostic contract.
   pending stronger real-library validation.
 - The cue writer still requires a final real-library E2E on a copied Rekordbox
   database bundle before live use can be recommended.
-- There is deliberately no GUI while engine, packaging, and safety contracts
-  are being stabilized.
+- Packaging, runtime data locations and first-run recovery still need a clean-profile
+  validation outside the author's prepared library.

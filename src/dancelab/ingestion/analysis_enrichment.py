@@ -30,12 +30,19 @@ from dataclasses import dataclass, field
 from typing import Iterable
 
 from dancelab.core.models import AnalysisResult
+from dancelab.core.style_labels import UMBRELLA_STYLE_LABELS
 
 LIBRARY_EMBEDDINGS = pathlib.Path("data/reports/library_embeddings.json")
 # Wektory z 30-sekundowych PRÓBEK iTunes — jedyne źródło brzmienia dla
 # utworów bez pliku (strumienie Apple Music to 82% kolekcji Janka).
 APPLE_PREVIEW_EMBEDDINGS = pathlib.Path(
     "data/reports/apple_preview_embeddings.json")
+# Biblioteka Apple Music Janka (scripts/apple_music_biblioteka.py) — jedyne
+# źródło gatunku dla strumieni, których Rekordbox nie otagował.
+APPLE_LIBRARY = pathlib.Path("data/reports/apple_library.json")
+# Etykiety-parasole (Electronic/Dance) — jedna lista dla ingestu i oceny,
+# patrz core/style_labels.py. Tu: nie wpisujemy ich jako gatunku.
+APPLE_UMBRELLA_GENRES = UMBRELLA_STYLE_LABELS
 
 
 def _nfc(s: str) -> str:
@@ -158,6 +165,130 @@ def attach_rekordbox_genres(
         if track.style_label != genre:
             track.style_label = genre
             attached += 1
+        track.style_label_source = "rekordbox"
+    return EnrichmentReport(attached=attached, missing=missing, notes=notes)
+
+
+def load_apple_genre_map(
+    path: str | pathlib.Path = APPLE_LIBRARY,
+) -> tuple[dict[str, str], str]:
+    """(``apple-music:tracks:<catalogId>`` → first Apple genre, note). Empty + reason when absent."""
+    p = pathlib.Path(path)
+    if not p.exists():
+        return {}, (f"brak biblioteki Apple: {p} "
+                    "(uruchom scripts/apple_music_biblioteka.py biblioteka)")
+    try:
+        data = json.loads(p.read_text())
+    except (OSError, ValueError) as exc:
+        return {}, f"biblioteka Apple nieczytelna ({type(exc).__name__}) — gatunki Apple pominięte"
+    out: dict[str, str] = {}
+    for song in data.get("songs", []):
+        attrs = song.get("attributes") or {}
+        cid = (attrs.get("playParams") or {}).get("catalogId")
+        names = attrs.get("genreNames") or []
+        if cid and names:
+            out[f"apple-music:tracks:{cid}"] = str(names[0])
+    return out, f"gatunki z biblioteki Apple: {len(out)} utworów"
+
+
+def attach_apple_genres(
+    analyses: Iterable[AnalysisResult],
+    genre_map: dict[str, str] | None = None,
+) -> EnrichmentReport:
+    """Apple genre → ``track.style_label`` ONLY where nothing else set one.
+
+    Order of trust is Rekordbox (owner's taxonomy) > file tag > Apple, so this
+    runs last and never overwrites. Umbrella labels (``APPLE_UMBRELLA_GENRES``)
+    are left as a gap on purpose — see the constant for the measurement. A
+    label already present without a source is stamped ``file_tag``: the only
+    other writer of ``style_label`` is the file-tag ingestion.
+    """
+    notes: list[str] = []
+    if genre_map is None:
+        genre_map, note = load_apple_genre_map()
+        notes.append(note)
+        bridge_genres, bnote = load_bridge_genre_map()
+        genre_map = {**genre_map, **bridge_genres}
+        notes.append(bnote)
+    attached = missing = umbrella = 0
+    for analysis in analyses:
+        track = analysis.track
+        if track.style_label:
+            if not getattr(track, "style_label_source", None):
+                track.style_label_source = "file_tag"
+            continue
+        genre = genre_map.get(_nfc(str(track.source_path or "")))
+        if genre is None:
+            missing += 1
+            continue
+        if genre.strip().lower() in APPLE_UMBRELLA_GENRES:
+            umbrella += 1
+            missing += 1
+            continue
+        track.style_label = genre
+        track.style_label_source = "apple"
+        attached += 1
+    if umbrella:
+        notes.append(f"{umbrella} utworów ma w Apple tylko parasol "
+                     "(Electronic/Dance) — zostają bez gatunku, bo parasol "
+                     "ocenia się gorzej niż brak")
+    return EnrichmentReport(attached=attached, missing=missing, notes=notes)
+
+
+def load_bridge_genre_map(
+    path: str | pathlib.Path | None = None,
+) -> tuple[dict[str, str], str]:
+    """(NFC local path → first catalog genre) from the ISRC bridge; empty + reason when absent."""
+    from dancelab.ingestion.isrc_bridge import BRIDGE_FILE, load_bridge
+
+    bridge, note = load_bridge(path if path is not None else BRIDGE_FILE)
+    out = {p: str(e["genre_names"][0]) for p, e in bridge.items() if e.get("genre_names")}
+    if not bridge:
+        return out, note  # the reason the bridge is missing or unreadable
+    return out, f"gatunki z mostu ISRC: {len(out)} plików"
+
+
+def attach_apple_identity(
+    analyses: Iterable[AnalysisResult],
+    bridge: dict[str, dict] | None = None,
+) -> EnrichmentReport:
+    """Apple Music catalog id → ``track.apple_catalog_id``.
+
+    Streams carry it in the path (``apple-music:tracks:<id>``); local files get
+    it from the ISRC bridge. The report also counts *twins*: local files whose
+    catalog id equals a stream already in the same pool — the same recording
+    twice. Counted, not merged: merging the library view is ``tui/duplikaty``.
+    """
+    notes: list[str] = []
+    if bridge is None:
+        from dancelab.ingestion.isrc_bridge import load_bridge
+        bridge, note = load_bridge()
+        notes.append(note)
+    analyses = list(analyses)
+    attached = missing = 0
+    stream_ids: set[str] = set()
+    local_ids: set[str] = set()
+    for analysis in analyses:
+        track = analysis.track
+        sp = str(track.source_path or "")
+        if sp.startswith("apple-music:tracks:"):
+            cid = sp.rsplit(":", 1)[1] or None
+            if cid:
+                stream_ids.add(cid)
+        else:
+            entry = bridge.get(_nfc(sp)) if sp else None
+            cid = str(entry["catalog_id"]) if entry and entry.get("catalog_id") else None
+            if cid:
+                local_ids.add(cid)
+        if cid is None:
+            missing += 1
+            continue
+        track.apple_catalog_id = cid
+        attached += 1
+    twins = len(local_ids & stream_ids)
+    if twins:
+        notes.append(f"{twins} plików lokalnych ma bliźniaka-strumień w tej samej puli "
+                     "(ten sam utwór dwa razy) — policzone, nie scalone")
     return EnrichmentReport(attached=attached, missing=missing, notes=notes)
 
 

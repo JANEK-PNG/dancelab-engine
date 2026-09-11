@@ -12,13 +12,16 @@ Przeniesienie plików byłoby ryzykiem bez zysku: TUI ma zielone testy, a import
 z nowej ścieżki nie zmienia zachowania ani jednej funkcji.
 """
 
-from dancelab.stan import budowa, filary, plan, przebieg
+from dancelab.stan import (biblioteka, budowa, dziennik, filary, plan,
+                           playlista, przebieg, sciezki, zapis_cue)
 from dancelab.tui import cue_edycje as edycje
 from dancelab.tui import cue_podglad as cue
 from dancelab.tui import cue_zapis as zapis
+from dancelab.tui import odtwarzacz
 from dancelab.tui import plan_store as plany
 from dancelab.tui import seam_preview as szew
 from dancelab.tui import user_store as uzytkownik
 
-__all__ = ["budowa", "cue", "edycje", "filary", "plan", "plany", "przebieg", "szew",
-           "uzytkownik", "zapis"]
+__all__ = ["biblioteka", "budowa", "cue", "dziennik", "edycje", "filary", "odtwarzacz", "plan",
+           "plany", "playlista", "przebieg", "sciezki", "szew", "uzytkownik",
+           "zapis", "zapis_cue"]

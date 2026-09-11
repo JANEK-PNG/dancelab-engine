@@ -1,0 +1,362 @@
+[
+  {
+    "name": "biblioteka",
+    "line": 185,
+    "signature": "self, limit: int=400"
+  },
+  {
+    "name": "szukaj",
+    "line": 264,
+    "signature": "self, fraza: str='', tonacja: str='', bpm: str='', tylko_ulubione: bool=False, sortuj: str='', limit: int=400, sekcja: str=''"
+  },
+  {
+    "name": "wczytaj_utwor",
+    "line": 336,
+    "signature": "self, track_id: str"
+  },
+  {
+    "name": "stan_rekordboxa",
+    "line": 353,
+    "signature": "self"
+  },
+  {
+    "name": "stan_dzwieku",
+    "line": 366,
+    "signature": "self"
+  },
+  {
+    "name": "wersja",
+    "line": 389,
+    "signature": "self"
+  },
+  {
+    "name": "przebieg_utworu",
+    "line": 397,
+    "signature": "self, track_id: str, punktow: int=900"
+  },
+  {
+    "name": "pady",
+    "line": 407,
+    "signature": "self, track_id: str"
+  },
+  {
+    "name": "postaw_pad",
+    "line": 505,
+    "signature": "self, track_id: str, pad: str, position_ms: int"
+  },
+  {
+    "name": "przesun_pad",
+    "line": 515,
+    "signature": "self, track_id: str, pad: str, uderzenia: int, bpm: float"
+  },
+  {
+    "name": "zdejmij_pad",
+    "line": 532,
+    "signature": "self, track_id: str, pad: str"
+  },
+  {
+    "name": "cofnij",
+    "line": 542,
+    "signature": "self, track_id: str=''"
+  },
+  {
+    "name": "zapisz_edycje",
+    "line": 628,
+    "signature": "self"
+  },
+  {
+    "name": "wczytaj_edycje",
+    "line": 648,
+    "signature": "self"
+  },
+  {
+    "name": "buduj_set",
+    "line": 690,
+    "signature": "self, formularz: dict[str, Any]"
+  },
+  {
+    "name": "postep_budowy",
+    "line": 842,
+    "signature": "self"
+  },
+  {
+    "name": "biezacy_plan",
+    "line": 849,
+    "signature": "self"
+  },
+  {
+    "name": "lista_planow",
+    "line": 856,
+    "signature": "self"
+  },
+  {
+    "name": "zapisz_plan",
+    "line": 860,
+    "signature": "self, nazwa: str=''"
+  },
+  {
+    "name": "usun_plan",
+    "line": 884,
+    "signature": "self, sciezka: str"
+  },
+  {
+    "name": "wczytaj_plan",
+    "line": 890,
+    "signature": "self, sciezka: str"
+  },
+  {
+    "name": "postep_planu",
+    "line": 906,
+    "signature": "self"
+  },
+  {
+    "name": "kolizje",
+    "line": 955,
+    "signature": "self, track_id: str"
+  },
+  {
+    "name": "propozycje",
+    "line": 1004,
+    "signature": "self, track_id: str, silnik_ms: int | None=None"
+  },
+  {
+    "name": "przeciagnij_pad",
+    "line": 1050,
+    "signature": "self, track_id: str, pad: str, sekundy: float"
+  },
+  {
+    "name": "ustaw_czas_pada",
+    "line": 1058,
+    "signature": "self, track_id: str, pad: str, tekst: str"
+  },
+  {
+    "name": "przenies_pad_na_glowice",
+    "line": 1069,
+    "signature": "self, track_id: str, pad: str"
+  },
+  {
+    "name": "zamknij_kandydatow",
+    "line": 1104,
+    "signature": "self"
+  },
+  {
+    "name": "kandydaci",
+    "line": 1133,
+    "signature": "self, pozycja: int, tryb: str='smart', cel: str='podmiana'"
+  },
+  {
+    "name": "postep_kandydatow",
+    "line": 1153,
+    "signature": "self"
+  },
+  {
+    "name": "podmien",
+    "line": 1235,
+    "signature": "self, pozycja: int, track_id: str"
+  },
+  {
+    "name": "dopisz_utwor",
+    "line": 1254,
+    "signature": "self, po_pozycji: int, track_id: str"
+  },
+  {
+    "name": "wytnij",
+    "line": 1272,
+    "signature": "self, pozycja: int"
+  },
+  {
+    "name": "przesun_utwor",
+    "line": 1289,
+    "signature": "self, pozycja: int, kierunek: int"
+  },
+  {
+    "name": "zapis_stan",
+    "line": 1311,
+    "signature": "self"
+  },
+  {
+    "name": "skanuj_folder",
+    "line": 1325,
+    "signature": "self, folder: str"
+  },
+  {
+    "name": "postep_skanu",
+    "line": 1339,
+    "signature": "self"
+  },
+  {
+    "name": "okladka",
+    "line": 1370,
+    "signature": "self, track_id: str"
+  },
+  {
+    "name": "okladki_stan",
+    "line": 1377,
+    "signature": "self"
+  },
+  {
+    "name": "przelacz_okladki",
+    "line": 1382,
+    "signature": "self"
+  },
+  {
+    "name": "dociagnij_okladki",
+    "line": 1390,
+    "signature": "self"
+  },
+  {
+    "name": "postep_okladek",
+    "line": 1401,
+    "signature": "self"
+  },
+  {
+    "name": "przerwij_okladki",
+    "line": 1405,
+    "signature": "self"
+  },
+  {
+    "name": "gatunki",
+    "line": 1437,
+    "signature": "self, wybrane: str=''"
+  },
+  {
+    "name": "postep_gatunkow",
+    "line": 1451,
+    "signature": "self"
+  },
+  {
+    "name": "przelacz_gatunek",
+    "line": 1476,
+    "signature": "self, wybrane: str, gatunek: str"
+  },
+  {
+    "name": "szkic_z_filarow",
+    "line": 1485,
+    "signature": "self, formularz: dict[str, Any]"
+  },
+  {
+    "name": "djs",
+    "line": 1535,
+    "signature": "self"
+  },
+  {
+    "name": "przelacz_kolekcje_dj",
+    "line": 1573,
+    "signature": "self, dj: str"
+  },
+  {
+    "name": "info_utworu",
+    "line": 1583,
+    "signature": "self, track_id: str"
+  },
+  {
+    "name": "porownaj_pare",
+    "line": 1612,
+    "signature": "self, pozycja: int"
+  },
+  {
+    "name": "playlisty",
+    "line": 1683,
+    "signature": "self"
+  },
+  {
+    "name": "nowa_playlista",
+    "line": 1700,
+    "signature": "self, nazwa: str"
+  },
+  {
+    "name": "wybierz_playliste",
+    "line": 1709,
+    "signature": "self, indeks: int"
+  },
+  {
+    "name": "filary",
+    "line": 1719,
+    "signature": "self"
+  },
+  {
+    "name": "ustaw_filar",
+    "line": 1740,
+    "signature": "self, track_id: str, rola: str=''"
+  },
+  {
+    "name": "zdejmij_filar",
+    "line": 1760,
+    "signature": "self, track_id: str"
+  },
+  {
+    "name": "ustaw_tryb_filarow",
+    "line": 1773,
+    "signature": "self, tryb: str"
+  },
+  {
+    "name": "przelacz_ulubiony",
+    "line": 1783,
+    "signature": "self, track_id: str"
+  },
+  {
+    "name": "ulubione",
+    "line": 1793,
+    "signature": "self"
+  },
+  {
+    "name": "zamknij",
+    "line": 1951,
+    "signature": "self"
+  },
+  {
+    "name": "graj_szew",
+    "line": 1959,
+    "signature": "self, track_id: str, nastepny_id: str='', z_padow: bool=False, pad: str=''"
+  },
+  {
+    "name": "graj",
+    "line": 2075,
+    "signature": "self, track_id: str, pad: str=''"
+  },
+  {
+    "name": "stop_dzwieku",
+    "line": 2080,
+    "signature": "self"
+  },
+  {
+    "name": "skocz",
+    "line": 2085,
+    "signature": "self, uderzenia: int"
+  },
+  {
+    "name": "przewin",
+    "line": 2090,
+    "signature": "self, track_id: str, sekundy: float"
+  },
+  {
+    "name": "stan_odtwarzania",
+    "line": 2095,
+    "signature": "self"
+  },
+  {
+    "name": "postep_szwu",
+    "line": 2100,
+    "signature": "self"
+  },
+  {
+    "name": "podglad_playlisty",
+    "line": 2129,
+    "signature": "self, nazwa: str=''"
+  },
+  {
+    "name": "wyslij_playliste",
+    "line": 2153,
+    "signature": "self, nazwa: str=''"
+  },
+  {
+    "name": "przygotuj_zapis_cue",
+    "line": 2195,
+    "signature": "self"
+  },
+  {
+    "name": "zapisz_cue",
+    "line": 2235,
+    "signature": "self, nazwa: str='okno DanceLab'"
+  }
+]

@@ -34,8 +34,12 @@ H_DIR = ROOT / "data/reports/corpus_ordering/h_analysis"
 INDEX = ROOT / "data/reports/corpus_ordering/analysis_index.json"
 OUT_DIR = ROOT / "data/reports/corpus_priors"
 
-from dancelab.decision._common import nearest_bpm_variant  # octave-fold
-from dancelab.decision.harmonic import harmonic_relation, parse_camelot
+from dancelab.decision._common import nearest_bpm_variant  # octave-fold  # noqa: E402 — source-tree bootstrap above
+from dancelab.decision.harmonic import harmonic_relation, parse_camelot  # noqa: E402 — source-tree bootstrap above
+from dancelab.validation.skladniki import Skladniki  # noqa: E402 — source-tree bootstrap above
+from dancelab.validation.wejscie import BrakDanychWejsciowych, wymagaj_plikow  # noqa: E402 — source-tree bootstrap above
+
+SKLADNIKI = Skladniki()
 
 
 def load_h_features() -> dict[str, dict]:
@@ -64,11 +68,12 @@ def pair_stats(a: dict, b: dict) -> dict | None:
     out: dict = {}
     ca, cb = a.get("camelot"), b.get("camelot")
     if ca and cb:
+        SKLADNIKI.probuje("priors.relation")
         try:
             parse_camelot(ca), parse_camelot(cb)
             out["relation"] = harmonic_relation(ca, cb)
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            SKLADNIKI.pominiete("priors.relation", exc)
     ba, bb = a.get("bpm"), b.get("bpm")
     if ba and bb:
         folded = nearest_bpm_variant(ba, bb)
@@ -88,7 +93,7 @@ def main() -> int:
     pools: list[list[str]] = []  # per-mix youtube pools for the chance baseline
     n_trans = n_valid = n_joined = 0
 
-    for path in sorted(ALIGN_DIR.glob("mix*.json")):
+    for path in wymagaj_plikow(ALIGN_DIR, "mix*.json", "priory z korpusu"):
         try:
             d = json.loads(path.read_text())
         except (OSError, json.JSONDecodeError):
@@ -193,6 +198,11 @@ def main() -> int:
                                  "chance": med([r.get("energy_delta") for r in fake if "energy_delta" in r])},
         "energy_delta_quintiles": energy,
         "transition_length_beats_median": med(lengths),
+        # Skip accounting travels WITH the artifact, not only to stdout: this
+        # file is what priors_validation.py builds every lift from, and a
+        # reader of the JSON alone must be able to tell a run where the
+        # harmonic relation dropped out from a clean one (D6 in OBALONE.md).
+        "skladniki": SKLADNIKI.jako_dict(),
     }
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / "priors_v1.json").write_text(json.dumps(report, indent=2))
@@ -215,9 +225,15 @@ def main() -> int:
     print(f"\nmediana ΔBPM: DJ-e {report['bpm_delta_median']['real_djs']}% vs losowo {report['bpm_delta_median']['chance']}%")
     print(f"mediana Δenergii: DJ-e {report['energy_delta_median']['real_djs']} vs losowo {report['energy_delta_median']['chance']}")
     print(f"mediana długości przejścia: {report['transition_length_beats_median']} beatów")
+    print("\n=== CZY WSZYSTKIE SKŁADNIKI WESZŁY DO WYNIKU ===")
+    print(SKLADNIKI.raport())
     print(f"\n→ {OUT_DIR/'priors_v1.json'}")
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except BrakDanychWejsciowych as brak:
+        print(f"\nODMAWIAM: {brak}")
+        raise SystemExit(2) from None

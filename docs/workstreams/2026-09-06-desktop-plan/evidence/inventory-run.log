@@ -1,0 +1,65 @@
+{
+  "observed_at": "2026-09-06T22:12:04.512321+02:00",
+  "git_head": "d5333c21cc8e39b2ac5f73cc3076d93a827107cc",
+  "python": "3.12.13",
+  "platform": "macOS-26.5-arm64-arm-64bit",
+  "scope": "Read-only headers/state; no audio scan, model inference or Rekordbox write.",
+  "library": {
+    "configured_path": "experiments_priv/2026-07-30_rebuild/processed",
+    "analysis_json_files": 8261,
+    "analysis_json_bytes": 1327971332,
+    "gui_header_rows": 8260,
+    "gui_reported_total": 8260,
+    "duplicate_track_ids": 0,
+    "missing_bpm_headers": 0,
+    "missing_key_headers": 0,
+    "source_categories": {
+      "dysk": 272,
+      "brak": 78,
+      "apple": 7910
+    },
+    "gui_playable_flags": 325,
+    "existing_regular_files": 272,
+    "source_vs_playable_flag": {
+      "dysk/flag=True": 247,
+      "dysk/flag=False": 25,
+      "brak/flag=True": 78,
+      "apple/flag=False": 7910
+    },
+    "file_delta_explanation": "library_manifest.json is a manifest with top-level tracks, not a track analysis; inspected directly.",
+    "note": "Raw headers. Source categories use zrodlo(); GUI playable flag uses ma_plik(), which checks an absolute-path prefix, not file existence."
+  },
+  "personal_state": {
+    "scoped_file": "data/exports/tui_stan__1897843d513f.json",
+    "file_exists": true,
+    "playlists": 8,
+    "favorite_tracks": 7,
+    "active_playlist_index": 7,
+    "active_pillars": 6
+  },
+  "saved_plans": {
+    "files": 9,
+    "marked_damaged": 0,
+    "pointer_exists": true,
+    "pointer_target_exists": false,
+    "note": "List/read only; no full-pool matching or restore performed."
+  },
+  "empty_manual_insert": {
+    "blad": "pozycja 1 poza setem"
+  },
+  "files": {
+    "src/dancelab/gui/most.py": {
+      "lines": 2370
+    },
+    "src/dancelab/gui/statyczne/app.js": {
+      "lines": 2149
+    },
+    "src/dancelab/tui/app.py": {
+      "lines": 3763
+    },
+    "src/dancelab/gui/okno.py": {
+      "lines": 48
+    }
+  }
+}
+Public bridge methods: 72

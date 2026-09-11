@@ -1,0 +1,701 @@
+{
+ "schema_version": "mapowanie-flx4-klub-v1",
+ "zrodlo": "experiments_priv/2026-08-28_cdj3000/MAPOWANIE.md (MIDI zmierzone na sprzęcie 23.08.2026) + docs/sprzet-klubowy/kontrolki.json (stany)",
+ "uwaga": "Relacja pary = stan z kontrolki.json (jest / inaczej / brak / pulapka), jedno źródło prawdy. Deck 1 → lewy CDJ, deck 2 → prawy. Kanały miksera: model DJM rysuje rząd na kanał bez rozróżnienia, więc para wskazuje cały rząd. Para może nadpisać stan tylko jawnie (`nadpisuje_stan: true` + `uwaga`) — test tego pilnuje.",
+ "flx4_kontrolki": [
+  "d1_in",
+  "d1_out",
+  "d1_beat4",
+  "d1_callL",
+  "d1_callR",
+  "d1_sync",
+  "d1_jog",
+  "d1_shift",
+  "d1_cue",
+  "d1_play",
+  "d1_hotcue",
+  "d1_padfx1",
+  "d1_beatjump",
+  "d1_sampler",
+  "d1_pad1",
+  "d1_pad2",
+  "d1_pad3",
+  "d1_pad4",
+  "d1_pad5",
+  "d1_pad6",
+  "d1_pad7",
+  "d1_pad8",
+  "d1_tryb",
+  "d1_tempo",
+  "d2_in",
+  "d2_out",
+  "d2_beat4",
+  "d2_callL",
+  "d2_callR",
+  "d2_sync",
+  "d2_jog",
+  "d2_shift",
+  "d2_cue",
+  "d2_play",
+  "d2_hotcue",
+  "d2_padfx1",
+  "d2_beatjump",
+  "d2_sampler",
+  "d2_pad1",
+  "d2_pad2",
+  "d2_pad3",
+  "d2_pad4",
+  "d2_pad5",
+  "d2_pad6",
+  "d2_pad7",
+  "d2_pad8",
+  "d2_tryb",
+  "d2_tempo",
+  "load1",
+  "browse",
+  "load2",
+  "mic_level",
+  "smart_cfx",
+  "hp_mix",
+  "hp_level",
+  "smart_fader",
+  "d1_trim",
+  "d1_hi",
+  "d1_mid",
+  "d1_low",
+  "d1_cfx",
+  "d1_chcue",
+  "d1_chfader",
+  "d2_trim",
+  "d2_hi",
+  "d2_mid",
+  "d2_low",
+  "d2_cfx",
+  "d2_chcue",
+  "d2_chfader",
+  "crossfader",
+  "mono_stereo",
+  "master_level",
+  "master_cue",
+  "fx_chsel",
+  "fx_select",
+  "fx_beatL",
+  "fx_beatR",
+  "fx_level",
+  "fx_onoff"
+ ],
+ "pary": [
+  {
+   "flx4": "d1_play",
+   "klub": "PLAY / PAUSE",
+   "urzadzenie": "cdj_l",
+   "relacja": "jest",
+   "midi": "nuta 11"
+  },
+  {
+   "flx4": "d1_cue",
+   "klub": "CUE",
+   "urzadzenie": "cdj_l",
+   "relacja": "jest",
+   "midi": "nuta 12"
+  },
+  {
+   "flx4": "d1_jog",
+   "klub": "Jog ⌀202 mm z regulacją oporu",
+   "urzadzenie": "cdj_l",
+   "relacja": "inaczej",
+   "midi": "CC 34/35 talerz, CC 33 bok, nuta 54 dotyk",
+   "uwaga": "mały talerz bez regulacji oporu — ruch ten sam, czucie inne"
+  },
+  {
+   "flx4": "d1_jog",
+   "klub": "Tryb VINYL / CDJ",
+   "urzadzenie": "cdj_l",
+   "relacja": "jest",
+   "midi": "CC 34 (vinyl ON) / CC 35 (vinyl OFF)"
+  },
+  {
+   "flx4": "d1_tempo",
+   "klub": "Suwak TEMPO (100 mm)",
+   "urzadzenie": "cdj_l",
+   "relacja": "inaczej",
+   "midi": "CC 0/32, 14-bit",
+   "uwaga": "FLX4: jeden stały zakres ±6%; CDJ: suwak 100 mm z TEMPO RANGE"
+  },
+  {
+   "flx4": "d1_sync",
+   "klub": "BEAT SYNC",
+   "urzadzenie": "cdj_l",
+   "relacja": "jest",
+   "midi": "nuta 88 (przy puszczeniu)"
+  },
+  {
+   "flx4": "d1_pad1",
+   "klub": "HOT CUE A–H (osiem)",
+   "urzadzenie": "cdj_l",
+   "relacja": "inaczej",
+   "midi": "nuta 27 (kanał 8/10)",
+   "uwaga": "pad w trybie HOT CUE; na CDJ osiem osobnych, podświetlanych przycisków A–H"
+  },
+  {
+   "flx4": "d1_pad2",
+   "klub": "HOT CUE A–H (osiem)",
+   "urzadzenie": "cdj_l",
+   "relacja": "inaczej",
+   "midi": "nuta 28 (kanał 8/10)",
+   "uwaga": "pad w trybie HOT CUE; na CDJ osiem osobnych, podświetlanych przycisków A–H"
+  },
+  {
+   "flx4": "d1_pad3",
+   "klub": "HOT CUE A–H (osiem)",
+   "urzadzenie": "cdj_l",
+   "relacja": "inaczej",
+   "midi": "nuta 29 (kanał 8/10)",
+   "uwaga": "pad w trybie HOT CUE; na CDJ osiem osobnych, podświetlanych przycisków A–H"
+  },
+  {
+   "flx4": "d1_pad4",
+   "klub": "HOT CUE A–H (osiem)",
+   "urzadzenie": "cdj_l",
+   "relacja": "inaczej",
+   "midi": "nuta 30 (kanał 8/10)",
+   "uwaga": "pad w trybie HOT CUE; na CDJ osiem osobnych, podświetlanych przycisków A–H"
+  },
+  {
+   "flx4": "d1_pad5",
+   "klub": "HOT CUE A–H (osiem)",
+   "urzadzenie": "cdj_l",
+   "relacja": "inaczej",
+   "midi": "nuta 31 (kanał 8/10)",
+   "uwaga": "pad w trybie HOT CUE; na CDJ osiem osobnych, podświetlanych przycisków A–H"
+  },
+  {
+   "flx4": "d1_pad6",
+   "klub": "HOT CUE A–H (osiem)",
+   "urzadzenie": "cdj_l",
+   "relacja": "inaczej",
+   "midi": "nuta 32 (kanał 8/10)",
+   "uwaga": "pad w trybie HOT CUE; na CDJ osiem osobnych, podświetlanych przycisków A–H"
+  },
+  {
+   "flx4": "d1_pad7",
+   "klub": "HOT CUE A–H (osiem)",
+   "urzadzenie": "cdj_l",
+   "relacja": "inaczej",
+   "midi": "nuta 33 (kanał 8/10)",
+   "uwaga": "pad w trybie HOT CUE; na CDJ osiem osobnych, podświetlanych przycisków A–H"
+  },
+  {
+   "flx4": "d1_pad8",
+   "klub": "HOT CUE A–H (osiem)",
+   "urzadzenie": "cdj_l",
+   "relacja": "inaczej",
+   "midi": "nuta 34 (kanał 8/10)",
+   "uwaga": "pad w trybie HOT CUE; na CDJ osiem osobnych, podświetlanych przycisków A–H"
+  },
+  {
+   "flx4": "d1_in",
+   "klub": "LOOP IN / OUT",
+   "urzadzenie": "cdj_l",
+   "relacja": "jest",
+   "midi": "nuta 16"
+  },
+  {
+   "flx4": "d1_out",
+   "klub": "LOOP IN / OUT",
+   "urzadzenie": "cdj_l",
+   "relacja": "jest",
+   "midi": "nuta 17"
+  },
+  {
+   "flx4": "d1_beat4",
+   "klub": "AUTO BEAT LOOP",
+   "urzadzenie": "cdj_l",
+   "relacja": "jest",
+   "midi": "nuta 77"
+  },
+  {
+   "flx4": "d1_callL",
+   "klub": "CALL ◁ ▷",
+   "urzadzenie": "cdj_l",
+   "relacja": "jest",
+   "midi": "nuta 81"
+  },
+  {
+   "flx4": "d1_callR",
+   "klub": "CALL ◁ ▷",
+   "urzadzenie": "cdj_l",
+   "relacja": "jest",
+   "midi": "nuta 83"
+  },
+  {
+   "flx4": "d1_trim",
+   "klub": "TRIM",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "CC 4/36"
+  },
+  {
+   "flx4": "d1_hi",
+   "klub": "EQ HI / MID / LOW",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "CC 7/39"
+  },
+  {
+   "flx4": "d1_mid",
+   "klub": "EQ HI / MID / LOW",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "CC 11/43"
+  },
+  {
+   "flx4": "d1_low",
+   "klub": "EQ HI / MID / LOW",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "CC 15/47"
+  },
+  {
+   "flx4": "d1_cfx",
+   "klub": "Filtr kanałowy (osobne pokrętło)",
+   "urzadzenie": "djm",
+   "relacja": "inaczej",
+   "midi": "CC 23/55 (deck 1), CC 24/56 (deck 2)",
+   "uwaga": "CFX to jedno pokrętło z wyborem efektu; na DJM filtr kanałowy to osobne pokrętło na każdym kanale"
+  },
+  {
+   "flx4": "d1_cfx",
+   "klub": "SOUND COLOR FX",
+   "urzadzenie": "djm",
+   "relacja": "inaczej",
+   "midi": "CC 23/55, 24/56",
+   "uwaga": "przybliżenie — ta sama rodzina efektów"
+  },
+  {
+   "flx4": "d1_chfader",
+   "klub": "Fader kanału",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "CC 19/51"
+  },
+  {
+   "flx4": "d1_chfader",
+   "klub": "Fader start / crossfader start",
+   "urzadzenie": "flx4",
+   "relacja": "pulapka",
+   "midi": "nuta 102 (FADER START → PLAY)",
+   "uwaga": "domyślne zachowanie FLX4; na DJM tego nie ma — fader nie uruchamia odtwarzacza"
+  },
+  {
+   "flx4": "d1_chcue",
+   "klub": "CUE kanału",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "nuta 84"
+  },
+  {
+   "flx4": "d2_play",
+   "klub": "PLAY / PAUSE",
+   "urzadzenie": "cdj_p",
+   "relacja": "jest",
+   "midi": "nuta 11"
+  },
+  {
+   "flx4": "d2_cue",
+   "klub": "CUE",
+   "urzadzenie": "cdj_p",
+   "relacja": "jest",
+   "midi": "nuta 12"
+  },
+  {
+   "flx4": "d2_jog",
+   "klub": "Jog ⌀202 mm z regulacją oporu",
+   "urzadzenie": "cdj_p",
+   "relacja": "inaczej",
+   "midi": "CC 34/35 talerz, CC 33 bok, nuta 54 dotyk",
+   "uwaga": "mały talerz bez regulacji oporu — ruch ten sam, czucie inne"
+  },
+  {
+   "flx4": "d2_jog",
+   "klub": "Tryb VINYL / CDJ",
+   "urzadzenie": "cdj_p",
+   "relacja": "jest",
+   "midi": "CC 34 (vinyl ON) / CC 35 (vinyl OFF)"
+  },
+  {
+   "flx4": "d2_tempo",
+   "klub": "Suwak TEMPO (100 mm)",
+   "urzadzenie": "cdj_p",
+   "relacja": "inaczej",
+   "midi": "CC 0/32, 14-bit",
+   "uwaga": "FLX4: jeden stały zakres ±6%; CDJ: suwak 100 mm z TEMPO RANGE"
+  },
+  {
+   "flx4": "d2_sync",
+   "klub": "BEAT SYNC",
+   "urzadzenie": "cdj_p",
+   "relacja": "jest",
+   "midi": "nuta 88 (przy puszczeniu)"
+  },
+  {
+   "flx4": "d2_pad1",
+   "klub": "HOT CUE A–H (osiem)",
+   "urzadzenie": "cdj_p",
+   "relacja": "inaczej",
+   "midi": "nuta 27 (kanał 8/10)",
+   "uwaga": "pad w trybie HOT CUE; na CDJ osiem osobnych, podświetlanych przycisków A–H"
+  },
+  {
+   "flx4": "d2_pad2",
+   "klub": "HOT CUE A–H (osiem)",
+   "urzadzenie": "cdj_p",
+   "relacja": "inaczej",
+   "midi": "nuta 28 (kanał 8/10)",
+   "uwaga": "pad w trybie HOT CUE; na CDJ osiem osobnych, podświetlanych przycisków A–H"
+  },
+  {
+   "flx4": "d2_pad3",
+   "klub": "HOT CUE A–H (osiem)",
+   "urzadzenie": "cdj_p",
+   "relacja": "inaczej",
+   "midi": "nuta 29 (kanał 8/10)",
+   "uwaga": "pad w trybie HOT CUE; na CDJ osiem osobnych, podświetlanych przycisków A–H"
+  },
+  {
+   "flx4": "d2_pad4",
+   "klub": "HOT CUE A–H (osiem)",
+   "urzadzenie": "cdj_p",
+   "relacja": "inaczej",
+   "midi": "nuta 30 (kanał 8/10)",
+   "uwaga": "pad w trybie HOT CUE; na CDJ osiem osobnych, podświetlanych przycisków A–H"
+  },
+  {
+   "flx4": "d2_pad5",
+   "klub": "HOT CUE A–H (osiem)",
+   "urzadzenie": "cdj_p",
+   "relacja": "inaczej",
+   "midi": "nuta 31 (kanał 8/10)",
+   "uwaga": "pad w trybie HOT CUE; na CDJ osiem osobnych, podświetlanych przycisków A–H"
+  },
+  {
+   "flx4": "d2_pad6",
+   "klub": "HOT CUE A–H (osiem)",
+   "urzadzenie": "cdj_p",
+   "relacja": "inaczej",
+   "midi": "nuta 32 (kanał 8/10)",
+   "uwaga": "pad w trybie HOT CUE; na CDJ osiem osobnych, podświetlanych przycisków A–H"
+  },
+  {
+   "flx4": "d2_pad7",
+   "klub": "HOT CUE A–H (osiem)",
+   "urzadzenie": "cdj_p",
+   "relacja": "inaczej",
+   "midi": "nuta 33 (kanał 8/10)",
+   "uwaga": "pad w trybie HOT CUE; na CDJ osiem osobnych, podświetlanych przycisków A–H"
+  },
+  {
+   "flx4": "d2_pad8",
+   "klub": "HOT CUE A–H (osiem)",
+   "urzadzenie": "cdj_p",
+   "relacja": "inaczej",
+   "midi": "nuta 34 (kanał 8/10)",
+   "uwaga": "pad w trybie HOT CUE; na CDJ osiem osobnych, podświetlanych przycisków A–H"
+  },
+  {
+   "flx4": "d2_in",
+   "klub": "LOOP IN / OUT",
+   "urzadzenie": "cdj_p",
+   "relacja": "jest",
+   "midi": "nuta 16"
+  },
+  {
+   "flx4": "d2_out",
+   "klub": "LOOP IN / OUT",
+   "urzadzenie": "cdj_p",
+   "relacja": "jest",
+   "midi": "nuta 17"
+  },
+  {
+   "flx4": "d2_beat4",
+   "klub": "AUTO BEAT LOOP",
+   "urzadzenie": "cdj_p",
+   "relacja": "jest",
+   "midi": "nuta 77"
+  },
+  {
+   "flx4": "d2_callL",
+   "klub": "CALL ◁ ▷",
+   "urzadzenie": "cdj_p",
+   "relacja": "jest",
+   "midi": "nuta 81"
+  },
+  {
+   "flx4": "d2_callR",
+   "klub": "CALL ◁ ▷",
+   "urzadzenie": "cdj_p",
+   "relacja": "jest",
+   "midi": "nuta 83"
+  },
+  {
+   "flx4": "d2_trim",
+   "klub": "TRIM",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "CC 4/36"
+  },
+  {
+   "flx4": "d2_hi",
+   "klub": "EQ HI / MID / LOW",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "CC 7/39"
+  },
+  {
+   "flx4": "d2_mid",
+   "klub": "EQ HI / MID / LOW",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "CC 11/43"
+  },
+  {
+   "flx4": "d2_low",
+   "klub": "EQ HI / MID / LOW",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "CC 15/47"
+  },
+  {
+   "flx4": "d2_cfx",
+   "klub": "Filtr kanałowy (osobne pokrętło)",
+   "urzadzenie": "djm",
+   "relacja": "inaczej",
+   "midi": "CC 23/55 (deck 1), CC 24/56 (deck 2)",
+   "uwaga": "CFX to jedno pokrętło z wyborem efektu; na DJM filtr kanałowy to osobne pokrętło na każdym kanale"
+  },
+  {
+   "flx4": "d2_cfx",
+   "klub": "SOUND COLOR FX",
+   "urzadzenie": "djm",
+   "relacja": "inaczej",
+   "midi": "CC 23/55, 24/56",
+   "uwaga": "przybliżenie — ta sama rodzina efektów"
+  },
+  {
+   "flx4": "d2_chfader",
+   "klub": "Fader kanału",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "CC 19/51"
+  },
+  {
+   "flx4": "d2_chfader",
+   "klub": "Fader start / crossfader start",
+   "urzadzenie": "flx4",
+   "relacja": "pulapka",
+   "midi": "nuta 102 (FADER START → PLAY)",
+   "uwaga": "domyślne zachowanie FLX4; na DJM tego nie ma — fader nie uruchamia odtwarzacza"
+  },
+  {
+   "flx4": "d2_chcue",
+   "klub": "CUE kanału",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "nuta 84"
+  },
+  {
+   "flx4": "browse",
+   "klub": "Pokrętło ROTARY SELECTOR",
+   "urzadzenie": "cdj_l",
+   "relacja": "jest",
+   "midi": "CC 64 obrót, nuta 65 naciśnięcie"
+  },
+  {
+   "flx4": "browse",
+   "klub": "Pokrętło ROTARY SELECTOR",
+   "urzadzenie": "cdj_p",
+   "relacja": "jest",
+   "midi": "CC 64 obrót, nuta 65 naciśnięcie"
+  },
+  {
+   "flx4": "load1",
+   "klub": "Pokrętło ROTARY SELECTOR",
+   "urzadzenie": "cdj_l",
+   "relacja": "inaczej",
+   "midi": "nuta 70 (kanał 7)",
+   "uwaga": "CDJ-3000 nie ma osobnego LOAD — ładujesz naciśnięciem pokrętła albo ekranem",
+   "nadpisuje_stan": true
+  },
+  {
+   "flx4": "load2",
+   "klub": "Pokrętło ROTARY SELECTOR",
+   "urzadzenie": "cdj_p",
+   "relacja": "inaczej",
+   "midi": "nuta 71 (kanał 7)",
+   "uwaga": "CDJ-3000 nie ma osobnego LOAD — ładujesz naciśnięciem pokrętła albo ekranem",
+   "nadpisuje_stan": true
+  },
+  {
+   "flx4": "crossfader",
+   "klub": "Crossfader",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "CC 31/63 (kanał 7)"
+  },
+  {
+   "flx4": "crossfader",
+   "klub": "Fader start / crossfader start",
+   "urzadzenie": "flx4",
+   "relacja": "pulapka",
+   "midi": "nuta 82 (FADER START → CUE)",
+   "uwaga": "domyślne zachowanie FLX4; na DJM tego nie ma"
+  },
+  {
+   "flx4": "master_level",
+   "klub": "MASTER LEVEL",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "CC 8/40 (kanał 7)"
+  },
+  {
+   "flx4": "hp_mix",
+   "klub": "Słuchawki: MIXING / LEVEL",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "CC 12/44"
+  },
+  {
+   "flx4": "hp_level",
+   "klub": "Słuchawki: MIXING / LEVEL",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "CC 13/45"
+  },
+  {
+   "flx4": "fx_select",
+   "klub": "BEAT FX",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "nuta 99 (kanał 5/6)"
+  },
+  {
+   "flx4": "fx_beatL",
+   "klub": "BEAT FX",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "nuta 74"
+  },
+  {
+   "flx4": "fx_beatR",
+   "klub": "BEAT FX",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "nuta 75"
+  },
+  {
+   "flx4": "fx_onoff",
+   "klub": "BEAT FX",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "nuta 71"
+  },
+  {
+   "flx4": "fx_level",
+   "klub": "BEAT FX",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "LEVEL/DEPTH"
+  },
+  {
+   "flx4": "fx_chsel",
+   "klub": "BEAT FX",
+   "urzadzenie": "djm",
+   "relacja": "jest",
+   "midi": "nuty 16/17 (kanał 4/5)"
+  },
+  {
+   "flx4": "smart_cfx",
+   "klub": "SMART CFX",
+   "urzadzenie": "flx4",
+   "relacja": "pulapka",
+   "midi": "nuta 0 (kanał 7)",
+   "uwaga": "automatyka Pioneera dla początkujących — w klubie jej nie ma"
+  },
+  {
+   "flx4": "smart_fader",
+   "klub": "SMART FADER",
+   "urzadzenie": "flx4",
+   "relacja": "pulapka",
+   "midi": "nuta 1 (kanał 7)",
+   "uwaga": "jeśli nauczysz się na nim polegać, za pulpitem zostaniesz bez niego"
+  }
+ ],
+ "flx4_bez_odpowiednika": [
+  {
+   "id": "d1_shift",
+   "powod": "CDJ-3000 nie ma SHIFT — drugie funkcje są osobnymi przyciskami"
+  },
+  {
+   "id": "d2_shift",
+   "powod": "CDJ-3000 nie ma SHIFT — drugie funkcje są osobnymi przyciskami"
+  },
+  {
+   "id": "d1_hotcue",
+   "powod": "tryb padów — na CDJ hot cue to osiem dedykowanych przycisków, bez przełączania trybu"
+  },
+  {
+   "id": "d2_hotcue",
+   "powod": "tryb padów — na CDJ hot cue to osiem dedykowanych przycisków, bez przełączania trybu"
+  },
+  {
+   "id": "d1_padfx1",
+   "powod": "PAD FX to funkcja Rekordboxa; w modelu klubu nie ma odpowiednika"
+  },
+  {
+   "id": "d2_padfx1",
+   "powod": "PAD FX to funkcja Rekordboxa; w modelu klubu nie ma odpowiednika"
+  },
+  {
+   "id": "d1_beatjump",
+   "powod": "na CDJ-3000 beat jump jest na ekranie dotykowym — model nie rysuje elementów ekranu"
+  },
+  {
+   "id": "d2_beatjump",
+   "powod": "na CDJ-3000 beat jump jest na ekranie dotykowym — model nie rysuje elementów ekranu"
+  },
+  {
+   "id": "d1_sampler",
+   "powod": "sampler to funkcja Rekordboxa; CDJ-3000 nie ma samplera"
+  },
+  {
+   "id": "d2_sampler",
+   "powod": "sampler to funkcja Rekordboxa; CDJ-3000 nie ma samplera"
+  },
+  {
+   "id": "d1_tryb",
+   "powod": "napis trybu padów, nie kontrolka"
+  },
+  {
+   "id": "d2_tryb",
+   "powod": "napis trybu padów, nie kontrolka"
+  },
+  {
+   "id": "mic_level",
+   "powod": "DJM-900NXS2 ma pełną sekcję mikrofonową z EQ, ale model klubu jej nie rysuje (brak pozycji z instrukcji)"
+  },
+  {
+   "id": "mono_stereo",
+   "powod": "przełącznik wyjścia FLX4; na DJM nie ma odpowiednika"
+  },
+  {
+   "id": "master_cue",
+   "powod": "DJM ma MASTER CUE, ale model klubu go nie rysuje (brak pozycji z instrukcji) — luka modelu, nie sprzętu"
+  }
+ ],
+ "klub_bez_kontrolki_flx4": [
+  {
+   "klub": "Sterowanie z laptopa jednym kablem",
+   "powod": "to sposób pracy, nie kontrolka — nie ma czego podświetlić na FLX4"
+  }
+ ]
+}

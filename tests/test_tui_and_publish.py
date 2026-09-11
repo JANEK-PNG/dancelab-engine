@@ -165,11 +165,14 @@ def test_tui_ciecie_i_przesuniecie_loguja_werdykty(tmp_path, monkeypatch):
             assert "bold" in str(bpm_cell.style)  # bold, nie tło — oba motywy
     asyncio.run(go())
 
-    log = (tmp_path / "tui_edycje.jsonl").read_text().splitlines()
+    # od 02.09 pisze wspólny `stan.dziennik` (conftest kieruje go do tmp)
+    from dancelab.stan import dziennik
+    log = (dziennik.KATALOG / dziennik.PLIK_ZDARZEN).read_text().splitlines()
     assert len(log) == 2 and '"ciecie"' in log[0] and '"przesuniecie"' in log[1]
+    assert all('"skora": "tui"' in w for w in log)
     # zrzut „silnik vs DJ" powstaje wyłącznie automatycznie przy W —
     # test wysyłkowy: test_werdykt_koncowy_zapisuje_sie_sam_przy_wysylce
-    assert list(tmp_path.glob("tui_werdykt_*.json")) == []
+    assert list(dziennik.KATALOG.glob("tui_werdykt_*.json")) == []
 
 
 def test_tui_budowa_bez_kotwicy_nie_pada_na_noselection():
@@ -216,9 +219,16 @@ def test_p_kontekstowe_pauza_skoki_i_szew(tmp_path, monkeypatch):
     ±8 uderzeń wg tempa TYLKO gdy gra; przy otwartym pasku szwu P gra
     przejście. Dźwięk = atrapy — weryfikacja NIGDY nie gra audio."""
     import subprocess
+    import types
     import dancelab.tui.odtwarzacz as odt
     monkeypatch.setattr(odt, "FFPLAY", "/fake/ffplay")
     monkeypatch.setattr(odt, "AFPLAY", None)   # wymuś ścieżkę z seekiem
+    # Zegar odtwarzacza ZAMROŻONY: pozycja to offset + czas ścienny od startu
+    # procesu, a `pilot.pause()` potrafi trwać 0,6–0,9 s — skok o 8 uderzeń
+    # wychodził wtedy 4,3–4,6 s zamiast 3,7 i test padał losowo (02.09, także
+    # na czystym HEAD). Podmieniamy `time` W MODULE odtwarzacza, nie globalnie,
+    # żeby nie ruszać pętli zdarzeń Textuala.
+    monkeypatch.setattr(odt, "time", types.SimpleNamespace(monotonic=lambda: 1000.0))
 
     class _FakeProc:
         def __init__(self, cmd):
@@ -530,9 +540,70 @@ def test_werdykt_koncowy_zapisuje_sie_sam_przy_wysylce(tmp_path, monkeypatch):
     app._note = lambda *a, **k: None
 
     app._zapisz_werdykt_koncowy()
-    pliki = list(tmp_path.glob("tui_werdykt_*.json"))
+    from dancelab.stan import dziennik
+    pliki = list(dziennik.KATALOG.glob("tui_werdykt_*.json"))
     assert len(pliki) == 1
     rec = json.loads(pliki[0].read_text())
     assert rec["powod"] == "wysylka_do_rekordboxa"
+    assert rec["skora"] == "tui"
     assert rec["miara"] == {"utworow_finalnie": 3, "utworow_z_planu": 3,
                             "na_tej_samej_pozycji": 1, "liczba_edycji": 1}
+
+
+def test_podmiana_loguje_skad_wziety_utwor(tmp_path, monkeypatch):
+    """Werdykt podmiany mówi, czyj to był wybór: z listy silnika czy z ręki.
+
+    Bez tego pola metryka „ile podmian kończy się wyborem z NASZYCH kandydatów"
+    jest niemierzalna — log wiedział tylko, CO weszło, nigdy SKĄD. Ranga mówi
+    dodatkowo, czy ranking silnika cokolwiek wnosi, czy DJ i tak schodzi niżej.
+    """
+    import json
+
+    import dancelab.tui.app as app_mod
+    monkeypatch.setattr(app_mod, "WERDYKTY_DIR", tmp_path)
+
+    async def go():
+        app = DanceLabTUI(processed_dir="/nieistniejacy/katalog")
+        async with app.run_test() as pilot:
+            from textual.widgets import TabbedContent
+            app.query_one("#tabs", TabbedContent).active = "tab-set"
+            await pilot.pause()
+            by_id = _fake_pool("A", "B", "C")
+            app._ctx = dict(by_id=by_id, weights=None, arc="build",
+                            planner="smart", bpm_min=None, bpm_max=None,
+                            anchor=None, params={})
+            app._order = ["A", "B", "C"]
+            app._engine_order = ["A", "B", "C"]
+            app._render_order(by_id)
+            await pilot.pause()
+
+            # panel silnika pokazał trzech kandydatów; DJ bierze DRUGIEGO
+            app._open_suggest_panel(
+                1, "tytuł", [("a", "A"), ("c", "C")], "suggest",
+                {"C": {"zrodlo": "panel_silnika", "ranga": 2, "score": 0.71,
+                       "tryb": "smart", "kandydatow": 3}})
+            app._apply_swap(1, "C")
+            await pilot.pause()
+
+            rec = app._edits[-1]
+            assert rec["typ"] == "podmiana"
+            assert rec["zrodlo"] == "panel_silnika"
+            assert rec["ranga"] == 2          # nie pierwszy z listy
+            assert rec["score"] == 0.71
+            assert rec["tryb"] == "smart"
+            assert rec["kandydatow"] == 3
+
+            # panel zamknięty przy podmianie → następny ruch nie dziedziczy
+            # rangi poprzedniego wyboru, tylko uczciwie mówi „ręka DJ-a"
+            assert app._suggest_meta == {}
+            app._apply_swap(0, "B")
+            await pilot.pause()
+            assert app._edits[-1]["zrodlo"] == "reka_dj"
+            assert "ranga" not in app._edits[-1]
+
+            from dancelab.stan import dziennik
+            zapisane = [json.loads(w) for w in (dziennik.KATALOG / dziennik.PLIK_ZDARZEN)
+                        .read_text().splitlines()]
+            assert [w["zrodlo"] for w in zapisane] == ["panel_silnika", "reka_dj"]
+
+    asyncio.run(go())
