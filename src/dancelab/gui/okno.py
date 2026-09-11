@@ -45,4 +45,7 @@ def uruchom(*, szerokosc: int = 1440, wysokosc: int = 900,
     # okna zostawiałoby grającą muzykę bez niczego, czym dałoby się ją wyłączyć
     # — proces-sierota przeżywa aplikację, która go uruchomiła.
     okno.events.closed += most.zamknij
+    # Okienko logowania Apple Music (MusicKit) — pywebview sam go nie otwiera.
+    from dancelab.gui.apple_logowanie import wlacz_okienka
+    wlacz_okienka()
     webview.start(debug=debug)

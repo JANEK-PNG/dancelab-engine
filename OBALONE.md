@@ -115,6 +115,31 @@ odbiera nam możliwość wykrycia własnego błędu i wiąże produkt z cudzym p
 
 ---
 
+### A7. Szew na żywo ze strumieni Apple Music (dwa odtwarzacze MusicKit)
+**2026-09-11, dwa pomiary wg progów zapisanych przed uruchomieniem**
+
+Szew z plików renderuje ffmpeg; strumień Apple Music (FairPlay) nie daje dźwięku do
+miksowania. Pomysł: dwa odtwarzacze MusicKit JS naraz (`enableMultipleInstances`) —
+A gra do punktu wyjścia, B startuje w punkcie wejścia z `rate_b`, przejście głośnością.
+Plan szwu da się policzyć bez dźwięku (`zaplanuj_szew`: 20 z 20 losowych par strumieni).
+
+Progi (`experiments_priv/2026-09-10_musickit_okno/PROGI_szew.md`), oba ciche (głośność 0):
+- **Próba 1** — (a) dwa odtwarzacze naraz: **zdane** (A grał przez cały start B, bez
+  DEVICE_LIMIT); (b) rozrzut startu B w 5 próbach ≤ 469 ms (jedno uderzenie przy 128 BPM):
+  **nie** — 4123, 982, 988, 986, 957 ms, rozrzut 3166 ms (pierwszy start „na zimno").
+- **Próba 2** — nowa hipoteza zapisana przed pomiarem: po cichej rozgrzewce B, na dwóch
+  parach, rozrzut ≤ 469 ms i żaden start > 3000 ms: **nie** — w pierwszej parze `play()`
+  rozgrzewki nie odpowiedziało w 10 s, w drugiej A nie ruszył w 15 s.
+
+Wniosek: start odtwarzacza MusicKit bywa ~1 s, bywa 4 s, bywa wcale — szwu nie da się
+postawić na uderzeniu, a podgląd, który raz gra, a raz milczy, kłamałby o parze. Okno
+mówi uczciwie „Apple nie daje dźwięku do miksowania (DRM)" i podaje plan silnika
+(wyjście z A, wejście w B, liczba uderzeń) do zagrania w Rekordboksie.
+
+Nie próbować ponownie bez nowego mechanizmu (np. dostęp do surowego dźwięku strumienia,
+którego Apple nie daje) — kolejne powtórki tej samej sondy to łowienie wyniku.
+Skrypty: `szew_sonda.py`, `szew_sonda2.py`; wyniki: `wynik_szew.json`, `wynik_szew2.json`.
+
 ## B. Hipotezy modelowe, które padły przy pomiarze
 
 ### B1. Triplet jest lepszy od pary (hide-B na mapie)

@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import subprocess
 import time
 from collections.abc import Callable, Iterable
@@ -64,6 +65,19 @@ def read_user_token(path: Path | None = None) -> str | None:
         return None
     tok = p.read_text().strip()
     return tok or None
+
+
+def write_user_token(token: str, path: Path | None = None) -> Path:
+    """Store a Music User Token with mode 0600; refuses an empty or malformed value."""
+    tok = (token or "").strip()
+    if not tok or len(tok) > 4096 or any(c.isspace() for c in tok):
+        raise ValueError("token użytkownika pusty albo niepoprawny — nie zapisuję")
+    p = Path(path) if path is not None else USER_TOKEN_FILE
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.touch(mode=0o600, exist_ok=True)
+    os.chmod(p, 0o600)
+    p.write_text(tok)
+    return p
 
 
 # ------------------------------------------------------------------ key guard

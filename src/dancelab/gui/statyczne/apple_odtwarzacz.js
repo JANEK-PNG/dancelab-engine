@@ -4,11 +4,12 @@
  * ffplay w moście) ich nie zagra. MusicKit zagra — zmierzone 10.09 w oknie
  * pywebview na file://: FairPlay jest, pełny utwór (434 s, nie próbka 30 s).
  *
- * Logowanie: wyskakujące okno Apple w pywebview się NIE otwiera (window.open
- * zwraca null). Dlatego okno używa tokenu, który DJ dał raz w Safari
- * (scripts/apple_music_biblioteka.py autoryzuj): most oddaje go przez js_api,
+ * Logowanie: gdy jest zapisany token użytkownika, most oddaje go przez js_api,
  * a MusicKit czyta go z adresu strony (#base64-JSON — jego własny kanał
- * powrotu z logowania, `_processLocationHash`). Adres jest czyszczony od razu.
+ * powrotu z logowania, `_processLocationHash`); adres jest czyszczony od razu.
+ * Gdy tokenu nie ma, `authorize()` otwiera okienko Apple — pywebview sam go
+ * nie otwiera, robi to gui/apple_logowanie.py — a token wraca do mostu
+ * (`apple_zapisz_token`), bo tryb prywatny okna gubi zapis MusicKit.
  *
  * Kraj sklepu: MusicKit trzyma go w localStorage pod `music.<team>.itua`;
  * bez wpisu bierze `us`, a sztywne storefrontId przy innym wpisie kończy się
@@ -49,7 +50,8 @@
     if (ladowanie) return ladowanie;
     ladowanie = (async () => {
       const t = await window.pywebview.api.apple_odtwarzacz();
-      if (!t || t.blad) throw new Error((t && t.blad) || 'most nie oddał tokenów');
+      if (!t || (t.blad && !t.brak_tokenu)) throw new Error((t && t.blad) || 'most nie oddał tokenów');
+      if (t.brak_tokenu) return await zaloguj(t);
       if (t.storefront && t.team) localStorage.setItem(`music.${t.team}.itua`, t.storefront);
       const bezHasha = location.href.split('#')[0];
       const paczka = btoa(JSON.stringify({itre: '0', musicUserToken: t.user, cid: ''}));
@@ -81,6 +83,23 @@
     }
   }
 
+  // Pierwsze logowanie w oknie: okienko Apple, potem token do mostu.
+  async function zaloguj(t) {
+    await zaladujSkrypt();
+    const cfg = {developerToken: t.dev, app: {name: 'DanceLab', build: '1'}};
+    if (t.storefront) cfg.storefrontId = t.storefront;
+    const inst = await MusicKit.configure(cfg);
+    const tok = await inst.authorize();
+    if (!tok || !inst.isAuthorized) throw new Error('logowanie do Apple Music przerwane');
+    const zap = await window.pywebview.api.apple_zapisz_token(tok);
+    if (zap && zap.blad) throw new Error(zap.blad);
+    inst.addEventListener('playbackStateDidChange', e => {
+      if (e && KONIEC.has(e.state)) skonczyl = true;
+    });
+    m = inst;
+    return m;
+  }
+
   function stan() {
     if (!m || !biezacy) return {gra: false, pozycja_sec: 0};
     if (skonczyl) {
@@ -106,7 +125,9 @@
   async function grajLubPauza(appleId, trackId, opis, bpm) {
     await init();
     if (biezacy && biezacy.trackId === trackId) {
-      if (m.playbackState === 2) await m.pause();
+      // Po skoku/przewinięciu MusicKit bywa w stanie „szuka"/„czeka", nie „gra" —
+      // drugie P ma wtedy PAUZOWAĆ (próba pełnej aplikacji 11.09: grało dalej).
+      if (GRA.has(m.playbackState)) await m.pause();
       else await m.play();
       return stan();
     }

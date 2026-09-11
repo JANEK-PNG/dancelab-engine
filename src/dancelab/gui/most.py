@@ -2019,6 +2019,8 @@ class Most:
         for tid in (track_id, drugi):
             analiza, powod = self._do_grania(tid)
             if powod:
+                if analiza is not None and self._apple_id(analiza.track):
+                    return self._szew_ze_strumieniem(track_id, drugi, bool(z_padow))
                 return {"blad": f"szew: {powod}", "bez_pliku": True}
         if z_padow:
             brak = [t for t in (track_id, drugi)
@@ -2033,6 +2035,33 @@ class Most:
                          args=(track_id, drugi, bool(z_padow), pad or None),
                          daemon=True).start()
         return {"ruszylo": True}
+
+    def _szew_ze_strumieniem(self, tid_a: str, tid_b: str, z_padow: bool) -> dict[str, Any]:
+        """Szew, w którym gra strumień Apple Music: odmowa z powodem i planem.
+
+        Render szwu miesza dźwięk z plików; strumień z DRM (FairPlay) go nie
+        daje. Szew na żywo z dwóch odtwarzaczy MusicKit zmierzony 11.09 i
+        odrzucony wg progów zapisanych przed pomiarem (OBALONE A7): drugi
+        odtwarzacz startuje w 1–4 s albo wcale. Plan silnika da się jednak
+        policzyć bez dźwięku — dostajesz liczby do zagrania w Rekordboksie.
+        """
+        powod = ("szew ze strumieniem Apple Music: Apple nie daje dźwięku do miksowania "
+                 "(DRM), a dwa odtwarzacze naraz nie startują przewidywalnie")
+        odp: dict[str, Any] = {"blad": f"{powod} — zagrasz go w Rekordboksie",
+                               "bez_pliku": True}
+        if z_padow:
+            return odp
+        try:
+            a, b = self._do_grania(tid_a)[0], self._do_grania(tid_b)[0]
+            plan = szew.zaplanuj_szew(a, b, self._wagi_szwu())
+        except Exception:                              # noqa: BLE001
+            return odp
+        ma, sa = divmod(int(plan["cue_a_sec"]), 60)
+        mb, sb = divmod(int(plan["cue_b_sec"]), 60)
+        odp["blad"] = (f"{powod}. Plan silnika: wyjście z A {ma}:{sa:02d}, wejście w B "
+                       f"{mb}:{sb:02d}, {plan['beats']} uderzeń — zagrasz to w Rekordboksie")
+        odp["plan"] = {k: plan.get(k) for k in ("cue_a_sec", "cue_b_sec", "beats", "bpm", "rate_b")}
+        return odp
 
     def _nastepny_w_secie(self, track_id: str) -> str | None:
         """Następny utwór SETU. Poza setem szew nie ma z czego powstać —
@@ -2147,14 +2176,44 @@ class Most:
         except ConfigError as exc:
             return {"blad": str(exc)}
         user = read_user_token()
-        if not user:
-            return {"blad": "Apple Music nie jest autoryzowane — najpierw: "
-                            "scripts/apple_music_biblioteka.py autoryzuj"}
         dev = developer_token(pathlib.Path(cfg["klucz"]), cfg["key_id"], cfg["team_id"], 3600)
+        if not user:
+            # Bez tokenu użytkownika okno loguje się samo: MusicKit otwiera okienko
+            # Apple (gui/apple_logowanie.py), token wraca przez apple_zapisz_token.
+            # Tej odpowiedzi nie pamiętamy — po zalogowaniu ma przyjść pełna.
+            return {"blad": "Apple Music nie jest zalogowane — zaloguj się w okienku Apple",
+                    "brak_tokenu": True, "dev": dev, "team": str(cfg["team_id"]).lower(),
+                    "storefront": self._apple_storefront_z_biblioteki()}
         odp = {"ok": True, "dev": dev, "user": user, "team": str(cfg["team_id"]).lower(),
                "storefront": self._apple_storefront(dev, user)}
         self._apple_tokeny = {"do": teraz + 3600, "odp": odp}
         return dict(odp)
+
+    @_bezpiecznie
+    def apple_zapisz_token(self, token: str) -> dict[str, Any]:
+        """Token użytkownika z logowania w oknie → ~/.dancelab/musickit/user_token (0600).
+
+        Okno działa w trybie prywatnym pywebview, więc MusicKit gubi swój
+        zapis przy zamknięciu; bez tego pliku następne uruchomienie znów
+        prosiłoby o logowanie. Token nie trafia do dziennika ani do odpowiedzi.
+        """
+        from dancelab.ingestion.apple_music_api import write_user_token
+        try:
+            write_user_token(str(token or ""))
+        except ValueError as exc:
+            return {"blad": str(exc)}
+        self._apple_tokeny = None
+        return {"ok": True}
+
+    @staticmethod
+    def _apple_storefront_z_biblioteki() -> str | None:
+        """Kraj sklepu z ostatniego odczytu biblioteki Apple — przed logowaniem nie ma innego."""
+        from dancelab.ingestion.apple_music_api import REPO_ROOT
+        try:
+            lib = json.loads((REPO_ROOT / "data/reports/apple_library.json").read_text())
+        except (OSError, ValueError):
+            return None
+        return str(lib.get("storefront") or "") or None
 
     @staticmethod
     def _apple_storefront(dev: str, user: str) -> str | None:
