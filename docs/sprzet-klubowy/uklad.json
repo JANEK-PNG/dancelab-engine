@@ -298,90 +298,99 @@
     {
      "k": "SEND / RETURN",
      "ksztalt": "prostokat",
-     "x": 66,
-     "y": 6,
-     "w": 160,
-     "h": 16,
+     "x": 267.4,
+     "y": 30.3,
+     "w": 57.8,
+     "h": 64.3,
      "etykieta": "send/ret",
-     "zmierzone": false,
-     "typ": "sekcja"
+     "zmierzone": true,
+     "typ": "sekcja",
+     "zrodlo": "instrukcja DJM-900NXS2 s.7, ścieżki wektorowe (experiments_priv/2026-08-28_cdj3000/djm_suwaki.py, djm900_sciezki.json) — sekcja w prawym górnym rogu: pasek napisu SEND/RETURN 57,8 mm (y=32,7), pokrętło LEVEL ⌀16,4 i ON/OFF ⌀24,6 poniżej (poz. 33–36)"
     },
     {
      "k": "SOUND COLOR FX",
      "ksztalt": "prostokat",
-     "x": 66,
-     "y": 26,
-     "w": 160,
-     "h": 16,
+     "x": 4.9,
+     "y": 190.2,
+     "w": 52.0,
+     "h": 67.4,
      "etykieta": "COLOR FX",
-     "zmierzone": false,
-     "typ": "sekcja"
+     "zmierzone": true,
+     "typ": "sekcja",
+     "zrodlo": "instrukcja DJM-900NXS2 s.7, ścieżki wektorowe (experiments_priv/2026-08-28_cdj3000/djm_suwaki.py, djm900_sciezki.json) — pudełko 52,0 × 67,4 mm w lewej kolumnie z napisem SOUND COLOR FX (y=208) i gałką PARAMETER ⌀13,3 (31,1; 243,7) (poz. 6–7)"
     },
     {
      "k": "TRIM",
      "ksztalt": "rzad_kol",
-     "y": 98.4,
-     "r": 12.4,
+     "y": 80.1,
+     "r": 7.2,
      "etykieta": "trim",
-     "zmierzone": false,
-     "typ": "galka"
+     "zmierzone": true,
+     "typ": "galka",
+     "zrodlo": "instrukcja DJM-900NXS2 s.7, ścieżki wektorowe (experiments_priv/2026-08-28_cdj3000/djm_suwaki.py, djm900_sciezki.json) — gałka ⌀14,4 mm, środki y=80,1 we wszystkich czterech kanałach (poz. 18)"
     },
     {
      "k": "EQ HI / MID / LOW",
      "ksztalt": "rzad_kol",
-     "y": 137.7,
-     "r": 12.4,
+     "y": 109.9,
+     "r": 8.2,
      "etykieta": "hi",
-     "zmierzone": false,
-     "typ": "galka"
+     "zmierzone": true,
+     "typ": "galka",
+     "zrodlo": "instrukcja DJM-900NXS2 s.7, ścieżki wektorowe (experiments_priv/2026-08-28_cdj3000/djm_suwaki.py, djm900_sciezki.json) — gałka HI ⌀16,4 mm, środek y=109.9 w każdym kanale"
     },
     {
      "k": "EQ HI / MID / LOW",
      "ksztalt": "rzad_kol",
-     "y": 172.2,
-     "r": 12.4,
+     "y": 139.9,
+     "r": 8.2,
      "etykieta": "mid",
-     "zmierzone": false,
-     "typ": "galka"
+     "zmierzone": true,
+     "typ": "galka",
+     "zrodlo": "instrukcja DJM-900NXS2 s.7, ścieżki wektorowe (experiments_priv/2026-08-28_cdj3000/djm_suwaki.py, djm900_sciezki.json) — gałka MID ⌀16,4 mm, środek y=139.9 w każdym kanale"
     },
     {
      "k": "EQ HI / MID / LOW",
      "ksztalt": "rzad_kol",
-     "y": 206.6,
-     "r": 12.4,
+     "y": 170.5,
+     "r": 8.2,
      "etykieta": "low",
-     "zmierzone": false,
-     "typ": "galka"
+     "zmierzone": true,
+     "typ": "galka",
+     "zrodlo": "instrukcja DJM-900NXS2 s.7, ścieżki wektorowe (experiments_priv/2026-08-28_cdj3000/djm_suwaki.py, djm900_sciezki.json) — gałka LOW ⌀16,4 mm, środek y=170.5 w każdym kanale"
     },
     {
      "k": "Filtr kanałowy (osobne pokrętło)",
      "ksztalt": "rzad_kol",
-     "y": 241.0,
-     "r": 12.4,
+     "y": 208.5,
+     "r": 8.8,
      "etykieta": "color",
-     "zmierzone": false,
-     "typ": "galka"
+     "zmierzone": true,
+     "typ": "galka",
+     "zrodlo": "instrukcja DJM-900NXS2 s.7, ścieżki wektorowe (experiments_priv/2026-08-28_cdj3000/djm_suwaki.py, djm900_sciezki.json) — gałka COLOR ⌀17,5 mm, środek y=208,5 w każdym kanale (poz. 21; domyślnie filtr)"
     },
     {
      "k": "Fader kanału",
      "ksztalt": "rzad_sw",
-     "y": 267.6,
-     "w": 16.6,
-     "h": 88.5,
+     "y": 276.0,
+     "w": 14.1,
+     "h": 50.9,
      "etykieta": "",
-     "zmierzone": false,
-     "typ": "suwak"
+     "zmierzone": true,
+     "typ": "suwak",
+     "zrodlo": "instrukcja DJM-900NXS2 s.7, ścieżki wektorowe (experiments_priv/2026-08-28_cdj3000/djm_suwaki.py, djm900_sciezki.json) — szczelina 3,0 × 50,9 mm od y=276,0; czapka 21,1 × 9,0 mm (szerokość studni = czapka / 1,5, jak liczy rysunek) (poz. 22)"
     },
     {
      "k": "CUE kanału",
      "ksztalt": "rzad_prost",
-     "y": 362.0,
-     "w": 24.0,
-     "h": 14.8,
+     "y": 231.2,
+     "w": 19.3,
+     "h": 7.2,
      "etykieta": "cue",
-     "zmierzone": false,
+     "zmierzone": true,
      "typ": "guzik",
-     "led": "#e0a24a"
+     "led": "#e0a24a",
+     "zrodlo": "instrukcja DJM-900NXS2 s.7, ścieżki wektorowe (experiments_priv/2026-08-28_cdj3000/djm_suwaki.py, djm900_sciezki.json) — prostokąt 19,3 × 7,2 mm, środek y=234,8 w każdym kanale; napis CUE nad nim (poz. 5). Do 11.09 stał na y=362, czyli na przełącznikach A THRU B"
     },
     {
      "k": "Cztery kanały zamiast dwóch",
@@ -397,56 +406,60 @@
     {
      "k": "Crossfader",
      "ksztalt": "prostokat",
-     "x": 62,
-     "y": 380,
-     "w": 200,
-     "h": 18,
+     "x": 119.7,
+     "y": 383.8,
+     "w": 52.9,
+     "h": 13.7,
      "etykieta": "",
-     "zmierzone": false,
-     "typ": "suwak"
+     "zmierzone": true,
+     "typ": "suwak",
+     "zrodlo": "instrukcja DJM-900NXS2 s.7, ścieżki wektorowe (experiments_priv/2026-08-28_cdj3000/djm_suwaki.py, djm900_sciezki.json) — szczelina 52,9 × 3,0 mm od (119,7; 389,1), czapka 8,8 × 20,5 mm; środek pod kanałami 2–3 (poz. 24)"
     },
     {
      "k": "Przełącznik krzywej crossfadera i faderów",
      "ksztalt": "prostokat",
-     "x": 270,
-     "y": 380,
-     "w": 56,
-     "h": 18,
+     "x": 243.5,
+     "y": 303.0,
+     "w": 12.0,
+     "h": 33.0,
      "etykieta": "krzywa",
-     "zmierzone": false,
-     "typ": "przelacznik"
+     "zmierzone": true,
+     "typ": "przelacznik",
+     "zrodlo": "instrukcja DJM-900NXS2 s.7, ścieżki wektorowe (experiments_priv/2026-08-28_cdj3000/djm_suwaki.py, djm900_sciezki.json) — dwa przełączniki w kolumnie master: kreski dźwigienek (249,5; 307,8) i (249,5; 330,6), napisy CH FADER i CROSS FADER obok (poz. 30–31). Obwiednia PRAWDOPODOBNA, ±2 mm"
     },
     {
      "k": "MASTER LEVEL",
      "ksztalt": "kolo",
-     "x": 296.6,
-     "y": 30.0,
-     "r": 13.0,
+     "x": 249.6,
+     "y": 50.9,
+     "r": 8.2,
      "etykieta": "mst",
-     "zmierzone": false,
-     "typ": "galka"
+     "zmierzone": true,
+     "typ": "galka",
+     "zrodlo": "instrukcja DJM-900NXS2 s.7, ścieżki wektorowe (experiments_priv/2026-08-28_cdj3000/djm_suwaki.py, djm900_sciezki.json) — gałka ⌀16,5 mm pod napisem MASTER LEVEL w kolumnie master (poz. 25). Do 11.09 stała w prawej sekcji, x=296,6"
     },
     {
      "k": "BOOTH z własnym poziomem",
      "ksztalt": "kolo",
-     "x": 296.6,
-     "y": 62.0,
-     "r": 13.0,
+     "x": 249.5,
+     "y": 276.0,
+     "r": 8.0,
      "etykieta": "bth",
-     "zmierzone": false,
-     "typ": "galka"
+     "zmierzone": true,
+     "typ": "galka",
+     "zrodlo": "instrukcja DJM-900NXS2 s.7, ścieżki wektorowe (experiments_priv/2026-08-28_cdj3000/djm_suwaki.py, djm900_sciezki.json) — gałka ⌀16,0 mm pod napisem BOOTH MONITOR w kolumnie master (poz. 28)"
     },
     {
      "k": "Słuchawki: MIXING / LEVEL",
      "ksztalt": "prostokat",
-     "x": 4.899999999999999,
-     "y": 190.2,
-     "r": 13,
+     "x": 22.9,
+     "y": 307.9,
      "etykieta": "hp",
-     "w": 52.0,
-     "h": 67.4,
+     "w": 16.4,
+     "h": 44.8,
      "zmierzone": true,
-     "typ": "galka"
+     "typ": "sekcja",
+     "zrodlo": "instrukcja DJM-900NXS2 s.7, ścieżki wektorowe (experiments_priv/2026-08-28_cdj3000/djm_suwaki.py, djm900_sciezki.json) — dwie gałki ⌀16,4 mm w lewej kolumnie: MIXING (31,1; 316,1) i LEVEL (31,1; 344,5) (poz. 2–3). Do 11.09 błędnie na pudełku SOUND COLOR FX Rysowane jako sekcja (para gałek), nie jako jedna gałka pośrodku."
     }
    ],
    "kanaly_x": [
