@@ -420,3 +420,26 @@ tr:hover .akcje-wiersza button,tr[aria-selected="true"] .akcje-wiersza button{op
 /* Bliźniaki scalone w widoku biblioteki: „×3" przy tytule (app.js). */
 .znak-kopie{margin-left:5px;font-family:var(--mono);font-size:.82em;color:var(--cichy);
   font-variant-numeric:tabular-nums;cursor:help}
+/* Zgłoś błąd (zgloszenie.js): przycisk w pasku, okienko, komunikat. */
+.btn-zglos{background:none;border:1px solid var(--kreska2);border-radius:var(--r);color:var(--cichy);
+  font:inherit;font-size:12px;padding:3px 10px;cursor:pointer}
+.btn-zglos:hover{color:var(--tekst);border-color:var(--alarm)}
+.btn-zglos:focus-visible{outline:2px solid var(--blekit);outline-offset:2px}
+.zgl-tlo{position:fixed;inset:0;z-index:1000;background:rgba(10,10,9,.62);display:flex;
+  align-items:center;justify-content:center;padding:24px}
+.zgl-okno{width:min(520px,100%);background:var(--karta);border:1px solid var(--kreska2);
+  border-radius:10px;padding:18px 20px;display:flex;flex-direction:column;gap:12px;
+  box-shadow:0 18px 50px rgba(0,0,0,.45)}
+.zgl-okno h3{margin:0;font-family:var(--tytul);font-size:19px;color:var(--tekst)}
+.zgl-info{margin:0;color:var(--cichy);font-size:13px;line-height:1.5}
+.zgl-okno label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--cichy);
+  letter-spacing:.03em}
+.zgl-okno textarea,.zgl-okno select{font:inherit;font-size:14px;letter-spacing:0;color:var(--tekst);
+  background:var(--tlo);border:1px solid var(--kreska2);border-radius:var(--r);padding:8px 10px}
+.zgl-okno textarea{resize:vertical;min-height:84px;user-select:text;-webkit-user-select:text}
+.zgl-blad{margin:0;color:var(--alarm);font-size:13px}
+.zgl-akcje{display:flex;gap:8px;justify-content:flex-end}
+.zgl-toast{position:fixed;right:18px;bottom:88px;z-index:1001;max-width:min(560px,90vw);
+  background:var(--karta2);border:1px solid var(--kreska2);border-left:3px solid var(--volt);
+  border-radius:8px;padding:10px 14px;font-size:13px;color:var(--tekst);
+  box-shadow:0 10px 30px rgba(0,0,0,.35);user-select:text;-webkit-user-select:text}
