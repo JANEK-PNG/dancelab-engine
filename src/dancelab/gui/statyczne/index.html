@@ -139,7 +139,7 @@
       <div class="narzedzia">
         <!-- Źródło puli rozstrzyga, czy set DA SIĘ ZAGRAĆ: utwory z Apple
              Music Rekordbox pokazuje, ale nie ładuje na deck (Janek 13.08). -->
-        <label class="param"><span>pula</span>
+        <label class="param"><span class="slowo" title="pula: z czego silnik wybiera utwory">pula</span>
           <select id="p-pula">
             <option value="library">MIX — wszystko</option>
             <option value="library-dysk">▣ tylko z dysku (grywalne)</option>
@@ -154,7 +154,7 @@
           <input id="p-tempo" value="" placeholder="124-134"></label>
         <label class="param rozciag"><span>brzmi jak</span>
           <input id="p-dj" placeholder="nazwa DJ-a albo puste" spellcheck="false"></label>
-        <label class="param"><span>ziarno</span>
+        <label class="param"><span class="slowo" title="ziarno: powtarzalność losowania — ta sama liczba daje ten sam set">ziarno</span>
           <input id="p-ziarno" placeholder="losowe"></label>
         <button class="btn" id="btn-plany" title="wczytaj zapisany plan (O)">Plany <kbd>O</kbd></button>
         <label class="param"><span>nazwa planu</span>
@@ -165,7 +165,7 @@
         <label class="param rozciag"><span>gatunki</span>
           <input id="p-gatunki" placeholder="Tech House, UK Garage — po przecinku"
                  spellcheck="false"></label>
-        <label class="param"><span>łuk</span>
+        <label class="param"><span class="slowo" title="łuk: jak ma rosnąć energia w secie">łuk</span>
           <select id="p-luk">
             <option value="off">bez łuku (zmierzone)</option>
             <option value="build">build</option>
@@ -178,13 +178,13 @@
             <option value="linear">linear</option>
             <option value="off">off</option>
           </select></label>
-        <label class="param"><span>ocena</span>
+        <label class="param"><span class="slowo" title="ocena: według czego silnik ustawia listę (smart, tonacja albo BPM)">ocena</span>
           <select id="p-planer">
             <option value="smart">smart</option>
             <option value="harmonic">tonacja</option>
             <option value="bpm">BPM</option>
           </select></label>
-        <label class="param"><span>świeżość</span>
+        <label class="param"><span class="slowo" title="świeżość: ile nowych utworów wpuścić do setu">świeżość</span>
           <select id="p-nowosc">
             <option value="deterministic">zawsze ten sam</option>
             <option value="conservative">zachowawczy</option>
@@ -238,7 +238,7 @@
       <!-- Porównanie pary: fakty o szwie z planu silnika, bez odsłuchu. -->
       <div class="karta-info" id="szew-box" hidden>
         <div class="krzywa-glowa">
-          <h2 id="szew-tytul">Szew</h2>
+          <h2 id="szew-tytul" class="slowo" title="szew: przejście z jednego utworu w następny">Szew</h2>
           <button class="btn maly" id="btn-szew-zamknij">Zamknij <kbd>C</kbd></button>
         </div>
         <div class="drobne" id="szew-info"></div>
@@ -257,7 +257,7 @@
            nie zmienia setu. -->
       <div class="kandydaci" id="kandydaci-box" hidden>
         <div class="kandydaci-glowa">
-          <h2 id="kandydaci-tytul">Kandydaci</h2>
+          <h2 id="kandydaci-tytul" class="slowo" title="kandydaci: czym podmienić utwór">Kandydaci</h2>
           <div class="chip-gest" id="tryb-oceny">
             <button data-t="smart" aria-pressed="true" title="ocena, którą powstał set">smart</button>
             <button data-t="bpm" title="tempo najpierw">BPM</button>

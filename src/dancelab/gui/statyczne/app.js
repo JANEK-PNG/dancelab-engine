@@ -1044,7 +1044,7 @@ function rysujNotki(notki, stanFilarow, zgloszone) {
   if (!wpisy.length) { box.hidden = true; return; }
   box.hidden = false;
   box.innerHTML = '<div class="glowa">co silnik zgłosił</div>' +
-    wpisy.map(n => `<div class="${/UWAGA|ODMOWA|poza oknem/i.test(n) ? 'zle' : ''}">${
+    wpisy.map(n => `<div class="${/UWAGA|ODMOWA|poza oknem|BEZ GATUNKÓW|mało gatunków/i.test(n) ? 'zle' : ''}">${
       htmlText(n)}</div>`).join('');
 }
 
@@ -1087,7 +1087,7 @@ function rysujTabeleSetu(utwory, filary) {
   el.innerHTML = `<table><thead><tr>
       <th style="width:34px">#</th><th style="width:54px">BPM</th>
       <th style="width:60px">ton</th><th style="width:56px">Σ min</th>
-      <th>wykonawca</th><th>tytuł</th><th style="width:44px" title="czy da się posłuchać w oknie">gra</th><th style="width:70px">filar</th><th style="width:190px"></th>
+      <th>wykonawca</th><th>tytuł</th><th style="width:44px" title="czy da się posłuchać w oknie">gra</th><th style="width:70px"><span class="slowo" title="filar: utwór, który musi zagrać">filar</span></th><th style="width:190px"></th>
     </tr></thead><tbody>${utwory.map((u, i) => {
       suma += (u.dlugosc_sec || 0) / 60;
       // źródło tonacji jest częścią prawdy o niej — „RB" to niezależny sędzia
@@ -1281,9 +1281,9 @@ function kontekstSet(s) {
         <div class="wa duza">${min.toFixed(0)}</div></div>
     </div>
     <div class="rozdziel"></div>
-    <div class="pole"><div class="et">kotwica</div>
+    <div class="pole"><div class="et slowo" title="kotwica: brzmienie, pod które dobieramy">kotwica</div>
       <div class="wa">${htmlText(s.kotwica || '— bez kotwicy —')}</div></div>
-    <div class="pole"><div class="et">filary</div>
+    <div class="pole"><div class="et slowo" title="filary: utwory, które muszą zagrać">filary</div>
       <div class="wa">${s.filary_stan === 'uzyte'
         ? `${s.filary.length} (tryb: ${htmlText(s.tryb_filarow)})`
         : s.filary_stan === 'wypadly' ? `${s.filary_zgloszone} wypadło` : 'brak'}</div></div>

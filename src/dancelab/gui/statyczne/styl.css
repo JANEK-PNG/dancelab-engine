@@ -412,3 +412,8 @@ tr:hover .akcje-wiersza button,tr[aria-selected="true"] .akcje-wiersza button{op
 /* Pasek przeglądu nad falą — tylko po przybliżeniu (app.js: rysujPrzeglad). */
 .przeglad{display:block;width:100%;height:26px;margin:0 0 6px;cursor:pointer}
 .przeglad[hidden]{display:none}
+/* Słowo z żargonu okna z podpowiedzią po polsku (mapa UX, sekcja 04 —
+   decyzja Janka 11.09: słowa zostają, dochodzi dymek). Kropkowane
+   podkreślenie mówi „najedź, wyjaśnię". */
+.slowo{text-decoration:underline dotted;text-decoration-color:var(--cichszy);
+  text-underline-offset:3px;cursor:help}
