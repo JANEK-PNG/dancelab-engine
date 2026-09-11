@@ -98,57 +98,61 @@
     {
      "k": "LOOP IN / OUT",
      "ksztalt": "prostokat",
-     "x": 6,
-     "y": 172,
-     "w": 50,
-     "h": 15,
      "etykieta": "in/out",
-     "zmierzone": false,
-     "typ": "guzik"
+     "zmierzone": true,
+     "typ": "guzik",
+     "x": 10.6,
+     "y": 173.0,
+     "w": 39.0,
+     "h": 13.3,
+     "zrodlo": "model 3D, części 40–41 — dwa okrągłe bursztynowe przyciski, napis na renderze modelu 3D z góry: IN/CUE, OUT; instrukcja s.14–15 poz. 9–10 (obwiednia pary)"
     },
     {
      "k": "AUTO BEAT LOOP",
      "ksztalt": "prostokat",
-     "x": 6,
-     "y": 191,
-     "w": 50,
-     "h": 15,
      "etykieta": "loop",
-     "zmierzone": false,
-     "typ": "guzik"
+     "zmierzone": true,
+     "typ": "guzik",
+     "x": 11.3,
+     "y": 200.3,
+     "w": 37.5,
+     "h": 11.9,
+     "zrodlo": "model 3D, części 50–51 — przyciski 4 i 8, napis na renderze modelu 3D z góry: BEAT LOOP; instrukcja s.15 poz. 7–8 (obwiednia pary)"
     },
     {
      "k": "CALL ◁ ▷",
      "ksztalt": "prostokat",
-     "x": 6,
-     "y": 210,
-     "w": 50,
-     "h": 15,
      "etykieta": "call",
-     "zmierzone": false,
-     "typ": "guzik"
+     "zmierzone": true,
+     "typ": "guzik",
+     "x": 206.0,
+     "y": 174.9,
+     "w": 27.6,
+     "h": 9.6,
+     "zrodlo": "model 3D, części 45–46 — napis na renderze modelu 3D z góry: CUE/LOOP CALL ◄ ►; instrukcja s.16 poz. 35 (obwiednia pary)"
     },
     {
      "k": "REVERSE",
      "ksztalt": "prostokat",
-     "x": 6,
-     "y": 229,
-     "w": 50,
-     "h": 15,
      "etykieta": "rev",
-     "zmierzone": false,
-     "typ": "guzik"
+     "zmierzone": true,
+     "typ": "guzik",
+     "x": 7.6,
+     "y": 252.2,
+     "w": 39.4,
+     "h": 23.6,
+     "zrodlo": "model 3D, część 56 — dźwignia, napis na renderze modelu 3D z góry: DIRECTION, SLIP REV / FWD; instrukcja s.14 poz. 5 (DIRECTION FWD, REV, SLIP REV)"
     },
     {
      "k": "VINYL SPEED ADJUST (TOUCH / RELEASE)",
-     "ksztalt": "prostokat",
-     "x": 6,
-     "y": 248,
-     "w": 50,
-     "h": 15,
+     "ksztalt": "kolo",
      "etykieta": "v.adj",
-     "zmierzone": false,
-     "typ": "guzik"
+     "zmierzone": true,
+     "typ": "galka",
+     "x": 302.0,
+     "y": 154.4,
+     "r": 6.0,
+     "zrodlo": "model 3D, część 29 — gałka ⌀11,9 mm, napis na renderze modelu 3D z góry: VINYL SPEED ADJ. TOUCH/BRAKE (część 39 to jej wskaźnik); instrukcja s.16 poz. 34"
     },
     {
      "k": "Jog ⌀202 mm z regulacją oporu",
@@ -174,13 +178,14 @@
     {
      "k": "Tryb VINYL / CDJ",
      "ksztalt": "prostokat",
-     "x": 6,
-     "y": 267,
-     "w": 50,
-     "h": 15,
      "etykieta": "vinyl",
-     "zmierzone": false,
-     "typ": "guzik"
+     "zmierzone": true,
+     "typ": "guzik",
+     "x": 283.3,
+     "y": 173.3,
+     "w": 35.8,
+     "h": 13.1,
+     "zrodlo": "model 3D, część 42 — listwa 35,8 × 13,1 mm, napis na renderze modelu 3D z góry: wskaźnik VINYL/CDJ + przycisk JOG MODE; instrukcja s.16 poz. 38–39"
     },
     {
      "k": "PLAY / PAUSE",
@@ -247,26 +252,26 @@
     {
      "k": "KEY SYNC / KEY RESET",
      "ksztalt": "prostokat",
-     "x": 283.3,
-     "y": 173.3,
-     "w": 35.8,
-     "h": 13.1,
      "etykieta": "key",
      "zmierzone": true,
      "typ": "guzik",
-     "zrodlo": "model 3D, część 42 — listwa 35,8 × 13,1 mm nad blokiem BEAT SYNC"
+     "zrodlo": "model 3D, dolny pasek bloku 49 — napis na renderze modelu 3D z góry: KEY SYNC pod BEAT SYNC i MASTER; instrukcja s.16 poz. 41–43. Do 11.09 błędnie na części 42 (tam jest JOG MODE). Podział bloku PRAWDOPODOBNY, ±2 mm",
+     "x": 283.3,
+     "y": 222.0,
+     "w": 35.8,
+     "h": 11.0
     },
     {
      "k": "BEAT SYNC",
      "ksztalt": "prostokat",
-     "x": 283.3,
-     "y": 199.6,
-     "w": 35.8,
-     "h": 33.4,
      "etykieta": "sync",
      "zmierzone": true,
      "typ": "guzik",
-     "zrodlo": "model 3D, część 49 — blok 35,8 × 33,4 mm przy prawej krawędzi, na wysokości jogu"
+     "zrodlo": "model 3D, górna część bloku 49 (35,8 × 33,4 mm) — napis na renderze modelu 3D z góry: BEAT SYNC i MASTER nad KEY SYNC; instrukcja s.16 poz. 41, 43. Podział bloku PRAWDOPODOBNY, ±2 mm",
+     "x": 283.3,
+     "y": 199.6,
+     "w": 35.8,
+     "h": 21.0
     }
    ]
   },
