@@ -9,6 +9,21 @@ const api = () => window.pywebview && window.pywebview.api;
 // Silnik zwraca też `groove` i `unknown` — bez nich oba rysowały się szarym
 // zapasem, więc GROOVE (najczęstsza sekcja) nie miał koloru. Złoto dla groove
 // z makiety „Redakcja" (03.09); „?" ciemny, bo to brak wiedzy, nie sekcja.
+/* Tonacja jako chip Camelot (audyt konkurencji 05.09: 4 z 6 aplikacji). Barwa to
+   miejsce na kole Camelota: sąsiednie tonacje (±1, zgodne harmonicznie) mają
+   sąsiednie barwy, A (moll) ciemniej, B (dur) jaśniej. Tekst zostaje — kolor
+   nigdy nie jest jedynym nośnikiem informacji. Nie-Camelot idzie zwykłym tekstem. */
+function chipTonacji(ton) {
+  const m = /^(\d{1,2})([AB])$/i.exec(String(ton || '').trim());
+  if (!m || +m[1] < 1 || +m[1] > 12) {
+    return ton ? `<span class="ton">${htmlText(String(ton))}</span>` : '<span class="pusto">—</span>';
+  }
+  const n = +m[1], strona = m[2].toUpperCase();
+  const h = ((n - 1) * 30 + 170) % 360;
+  return `<span class="ton-chip${strona === 'B' ? ' dur' : ''}" style="--h:${h}"`
+    + ` title="Camelot ${n}${strona}">${n}${strona}</span>`;
+}
+
 const KOLORY_SEKCJI = {
   intro: '#5aa9e6', build: '#e0a458', drop: '#9ede73', groove: '#d6c27a',
   breakdown: '#8a94a2', outro: '#5e6773', unknown: '#4a4843',
@@ -106,9 +121,10 @@ function rysujFale() {
   let k = 0;
   for (let i = i0; i < i1; i += krok) {
     const t = i / n * p.dlugosc_sec, x = xOd(t) * w;
-    let szczyt = 0, jest = false;
+    let szczyt = 0, jest = false, bas = 0, ileBas = 0;
     for (let j = i; j < Math.min(i1, i + krok); j++) {
       if (p.ma_dane[j]) { jest = true; szczyt = Math.max(szczyt, p.obwiednia[j]); }
+      if (p.niskie && p.niskie[j] != null) { bas += p.niskie[j]; ileBas++; }
     }
     while (k < sek.length - 1 && t >= sek[k].do) k++;
     const s = sek[k] && t >= sek[k].od && t < sek[k].do ? sek[k] : null;
@@ -117,8 +133,49 @@ function rysujFale() {
     // brak pomiaru rysowany INACZEJ niż cisza — ADR-005
     g.fillStyle = jest ? kolor + 'cc' : 'rgba(94,103,115,.30)';
     if (!jest) { g.fillRect(x, srodek - 1, sz, 2); continue; }
-    g.fillRect(x, srodek - a, sz, a * 2);
+    if (!ileBas) { g.fillRect(x, srodek - a, sz, a * 2); continue; }
+    // Dwa pasma (audyt 05.09): cały słupek cicho, rdzeń od środka pełnym
+    // kolorem = udział basu. Bez pomiaru basu (strumienie) — słupek jak dawniej.
+    const b = a * (bas / ileBas);
+    g.fillStyle = kolor + '50'; g.fillRect(x, srodek - a, sz, a * 2);
+    g.fillStyle = kolor + 'f0'; g.fillRect(x, srodek - b, sz, b * 2);
   }
+  rysujPrzeglad();
+}
+
+/* Pasek przeglądu (audyt 05.09: 4 z 6 aplikacji) — cały utwór nad falą, z ramką
+   tego, co widać. Tylko po przybliżeniu; klik przenosi widok, zoom zostaje. */
+function rysujPrzeglad() {
+  const c = $('#przeglad'), p = stan.przebieg;
+  if (!c) return;
+  const zoom = p && (stan.widok.do - stan.widok.od) < 0.999;
+  c.hidden = !zoom;
+  if (!zoom) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = c.clientWidth, h = c.clientHeight;
+  c.width = w * dpr; c.height = h * dpr;
+  const g = c.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  const n = p.obwiednia.length, krok = Math.max(1, Math.ceil(n / (w / 2)));
+  g.fillStyle = 'rgba(241,239,233,.28)';
+  for (let i = 0; i < n; i += krok) {
+    let s = 0;
+    for (let j = i; j < Math.min(n, i + krok); j++) if (p.ma_dane[j]) s = Math.max(s, p.obwiednia[j]);
+    const a = Math.max(1, s * (h / 2 - 2));
+    g.fillRect(i / n * w, h / 2 - a, Math.max(1, krok / n * w - 0.5), a * 2);
+  }
+  const x0 = stan.widok.od * w, x1 = stan.widok.do * w;
+  g.fillStyle = 'rgba(227,160,74,.12)'; g.fillRect(x0, 0, x1 - x0, h);
+  g.strokeStyle = '#e3a04a'; g.lineWidth = 1.5;
+  g.strokeRect(x0 + .75, .75, Math.max(2, x1 - x0 - 1.5), h - 1.5);
+}
+function klikPrzeglad(e) {
+  const r = $('#przeglad').getBoundingClientRect();
+  const u = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+  const dl = stan.widok.do - stan.widok.od;
+  const a = Math.min(1 - dl, Math.max(0, u - dl / 2));
+  ustawWidok(a, a + dl);
 }
 
 /* ---------- widok fali: zoom, zaznaczenie, pętla, przewijanie ----------
@@ -659,7 +716,7 @@ function rysujSpis() {
       ${stan.okladki ? `<img class="okl" data-okl="${u.track_id}" alt="">` : ''}
       <div class="tresc">
       <div class="t">${(u.tytul || u.track_id).replace(/</g, '&lt;')}<span class="znaki">${znaki}</span></div>
-      <div class="d">${u.bpm ? Math.round(u.bpm) : '—'} · ${u.tonacja || '—'}${
+      <div class="d">${u.bpm ? Math.round(u.bpm) : '—'} · ${chipTonacji(u.tonacja)}${
         u.tonacja_zrodlo === 'rekordbox' ? ' RB' : ''}</div>
       </div>
     </div>`;
@@ -870,7 +927,7 @@ async function wybierzUtwor(trackId, opcje) {
   pokazPustyStart();
   $('#tytul').textContent = p.tytul || trackId;
   $('#l-tempo').textContent = p.bpm ? p.bpm.toFixed(1) : '—';
-  $('#l-ton').textContent = p.tonacja || '—';
+  $('#l-ton').innerHTML = chipTonacji(p.tonacja);
   $('#l-dl').textContent = mmss(p.dlugosc_sec * 1000);
   $('#podtytul').textContent = p.wykonawca || '';
   rysujPodtytulRb();
@@ -987,7 +1044,7 @@ function rysujNotki(notki, stanFilarow, zgloszone) {
   if (!wpisy.length) { box.hidden = true; return; }
   box.hidden = false;
   box.innerHTML = '<div class="glowa">co silnik zgłosił</div>' +
-    wpisy.map(n => `<div class="${/UWAGA|ODMOWA|poza oknem/i.test(n) ? 'zle' : ''}">${
+    wpisy.map(n => `<div class="${/UWAGA|ODMOWA|poza oknem|BEZ GATUNKÓW|mało gatunków/i.test(n) ? 'zle' : ''}">${
       htmlText(n)}</div>`).join('');
 }
 
@@ -1030,12 +1087,12 @@ function rysujTabeleSetu(utwory, filary) {
   el.innerHTML = `<table><thead><tr>
       <th style="width:34px">#</th><th style="width:54px">BPM</th>
       <th style="width:60px">ton</th><th style="width:56px">Σ min</th>
-      <th>wykonawca</th><th>tytuł</th><th style="width:44px" title="czy da się posłuchać w oknie">gra</th><th style="width:70px">filar</th><th style="width:190px"></th>
+      <th>wykonawca</th><th>tytuł</th><th style="width:44px" title="czy da się posłuchać w oknie">gra</th><th style="width:70px"><span class="slowo" title="filar: utwór, który musi zagrać">filar</span></th><th style="width:190px"></th>
     </tr></thead><tbody>${utwory.map((u, i) => {
       suma += (u.dlugosc_sec || 0) / 60;
       // źródło tonacji jest częścią prawdy o niej — „RB" to niezależny sędzia
       const ton = u.tonacja
-        ? `<span class="ton">${u.tonacja}</span>` +
+        ? chipTonacji(u.tonacja) +
           (u.tonacja_zrodlo === 'rekordbox' ? ' <span class="drobne">RB</span>' : '')
         : '<span class="pusto">—</span>';
       return `<tr data-poz="${i}" ${stan.pozycja === i ? 'aria-selected="true"' : ''}>
@@ -1138,7 +1195,7 @@ function rysujKandydatow(uwaga) {
       <tr data-kand="${i}" ${stan.kandWybor === i ? 'aria-selected="true"' : ''}>
         <td class="ranga">${k.ranga}</td>
         <td class="num">${k.bpm ? k.bpm.toFixed(1) : '—'}</td>
-        <td>${htmlText(k.tonacja || '—')}</td>
+        <td>${chipTonacji(k.tonacja)}</td>
         <td class="wynik">${k.score.toFixed(2)}</td>
         <td>${(k.wykonawca ? k.wykonawca + ' — ' : '').replace(/</g, '&lt;')}${
           (k.tytul || '').replace(/</g, '&lt;')}
@@ -1224,9 +1281,9 @@ function kontekstSet(s) {
         <div class="wa duza">${min.toFixed(0)}</div></div>
     </div>
     <div class="rozdziel"></div>
-    <div class="pole"><div class="et">kotwica</div>
+    <div class="pole"><div class="et slowo" title="kotwica: brzmienie, pod które dobieramy">kotwica</div>
       <div class="wa">${htmlText(s.kotwica || '— bez kotwicy —')}</div></div>
-    <div class="pole"><div class="et">filary</div>
+    <div class="pole"><div class="et slowo" title="filary: utwory, które muszą zagrać">filary</div>
       <div class="wa">${s.filary_stan === 'uzyte'
         ? `${s.filary.length} (tryb: ${htmlText(s.tryb_filarow)})`
         : s.filary_stan === 'wypadly' ? `${s.filary_zgloszone} wypadło` : 'brak'}</div></div>
@@ -2243,6 +2300,7 @@ $('#btn-graj').addEventListener('click', () => graj(''));
 $('#btn-szew-graj').addEventListener('click', () =>
   graj_szew($('#ekran-set').hidden));       // na ekranie szwu — z Twoich padów
 $('#btn-tyl').addEventListener('click', () => skok(-8));
+$('#przeglad').addEventListener('click', klikPrzeglad);
 $('#btn-przod').addEventListener('click', () => skok(8));
 $('#btn-kand-zamknij').addEventListener('click', zamknijKandydatow);
 document.querySelectorAll('#tryb-oceny button').forEach(b =>

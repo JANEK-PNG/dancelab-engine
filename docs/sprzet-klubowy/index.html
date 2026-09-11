@@ -410,11 +410,25 @@ function ksztaltSVG(e, ox, oy, kolor, klasy, tytul, urz = '') {
             <title>${esc(tytul)}</title>${cialo}${obwodka}</g>`;
 }
 
-// dwie równoległe kreski = wyfrezowany szew między modułami obudowy
+// dwie równoległe kreski = wyfrezowany szew między modułami obudowy.
+// Jasna kreska idzie PROSTOPADLE do szwu — w pionie w bok, w poziomie w dół;
+// do 11.09 przesunięcie było zawsze w dół, więc pionowy szew rysował się jako
+// jedna gruba kreska.
 function rowek(x1, y1, x2, y2) {
+  const pion = Math.abs(x2 - x1) < Math.abs(y2 - y1);
+  const dx = pion ? .75 : 0, dy = pion ? 0 : .75;
   return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#0a0c10" stroke-width=".7"/>
-          <line x1="${x1}" y1="${y1 + .75}" x2="${x2}" y2="${y2 + .75}" stroke="#3c4350"
+          <line x1="${x1 + dx}" y1="${y1 + dy}" x2="${x2 + dx}" y2="${y2 + dy}" stroke="#3c4350"
            stroke-width=".4" opacity=".55"/>`;
+}
+
+// Nadruki sekcji na obudowie (USB, HOT CUE, CROSS FADER ASSIGN…): pozycje
+// z pomiaru, nie z oka — uklad.json → urządzenie.nadruki. Rysowane PRZED
+// kontrolkami; napis, który wejdzie na kontrolkę, zdejmie usunKolidujaceNapisy.
+function nadruk(ox, n) {
+  return `<text class="nadruk" x="${ox + n.x}" y="${n.y + .8}" text-anchor="middle"
+           font-size="${n.rozm ?? 2.3}" fill="#6d7482"
+           style="letter-spacing:.09em">${esc(n.t)}</text>`;
 }
 
 // Napis, który wchodzi na sąsiednią kontrolkę, jest gorszy niż brak napisu:
@@ -462,6 +476,10 @@ function rysujSchemat() {
     tresc += `<rect class="obudowa" x="${u.x}" y="0" width="${u.w}" height="${u.h}"
                     rx="6" fill="url(#korpusG)" stroke="#060709" stroke-width=".8"/>`;
     tresc += rowek(u.x + 3, 20, u.x + u.w - 3, 20);
+    // szwy i nadruki z pomiaru (drugi CDJ bierze je z pierwszego, jak kontrolki)
+    const zUrz = u.elementy ? u : (uklad.urzadzenia.find(x => x.id === u.kopia_z) || u);
+    (zUrz.rowki || []).forEach(([a, b, c, d]) => { tresc += rowek(u.x + a, b, u.x + c, d); });
+    (zUrz.nadruki || []).forEach(n => { tresc += nadruk(u.x, n); });
     tresc += `<text class="podpis-urz" x="${u.x + 4}" y="-1">${esc(u.nazwa)}
               — ${esc(u.podpis)} · ${u.w} × ${u.h} mm</text>`;
 

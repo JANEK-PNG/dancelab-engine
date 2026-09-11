@@ -272,8 +272,68 @@ def przeanalizuj_folder(folder: str, processed_dir: str, *,
         should_stop=(przerwij or (lambda: False)))
     for f in porazki[:5]:
         notki.append(f"nie przeanalizowano {pathlib.Path(f.source_path).name}: {f.error}")
+    notka = zapisz_odrzuty(processed_dir, odrzucone,
+                           [(str(f.source_path), str(f.error)) for f in porazki])
+    if notka:
+        notki.append(notka)
     notki.append(f"przeanalizowane: {len(analizy)} z {len(pliki)} plików")
     return list(analizy), notki
+
+
+ODRZUTY_PLIK = "odrzuty_bramkarza.jsonl"
+
+
+def zapisz_odrzuty(processed_dir: str, odrzucone: list, porazki: list) -> str | None:
+    """Pełna lista plików, które NIE weszły do biblioteki — obok analiz.
+
+    Notki pokazują pięć pierwszych; do 11.09 reszta znikała („…i N kolejnych")
+    i nie dało się sprawdzić, które pliki odpadły. Plik ma rozszerzenie
+    `.jsonl`, nie `.json`, żeby czytniki katalogu analiz (`*.json`) go nie
+    brały. Nadpisywany przy każdym skanie: to stan OSTATNIEGO skanu. Nie
+    tworzy katalogu — gdy go nie ma, mówi o tym zamiast zmyślać zapis.
+    """
+    import json
+    import time
+
+    wpisy = ([("bramkarz", p, r) for p, r in odrzucone]
+             + [("analiza", p, r) for p, r in porazki])
+    if not wpisy:
+        return None
+    cel = pathlib.Path(processed_dir) / ODRZUTY_PLIK
+    ts = time.strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        if not cel.parent.is_dir():
+            raise OSError(f"nie ma katalogu {cel.parent}")
+        cel.write_text("".join(
+            json.dumps({"ts": ts, "etap": e, "sciezka": str(p), "powod": str(r)},
+                       ensure_ascii=False) + "\n" for e, p, r in wpisy), encoding="utf-8")
+    except OSError as exc:
+        return f"pełnej listy odrzutów ({len(wpisy)}) nie zapisałem: {exc}"
+    return f"pełna lista {len(wpisy)} plików, które nie weszły: {cel}"
+
+
+def gatunki_w_secie(kolejnosc: list, by_id: dict) -> tuple[int, int]:
+    """(ile utworów setu ma gatunek, ile jest w secie)."""
+    z = sum(1 for tid in kolejnosc
+            if getattr(getattr(by_id.get(tid), "track", None), "style_label", None))
+    return z, len(kolejnosc)
+
+
+def notka_gatunkow(z: int, n: int) -> str | None:
+    """Znacznik przy secie: set bez gatunków nie może wyglądać jak set z gatunkami.
+
+    Budowa odmawia, gdy dokarmianie pada; ale Rekordbox potrafi oddać zero
+    gatunków BEZ błędu (np. brak pyrekordbox) — wtedy set powstaje, a styl
+    nie brał udziału w doborze. Schemat linii produkcyjnej 03.09, stacja 3·04.
+    """
+    if n == 0 or z == n:
+        return None
+    if z == 0:
+        return (f"BEZ GATUNKÓW: żaden z {n} utworów setu nie ma gatunku — "
+                "styl nie brał udziału w doborze")
+    if z * 2 < n:
+        return f"mało gatunków: tylko {z} z {n} utworów setu ma gatunek"
+    return None
 
 
 def dokarm(analizy: list, *, wektory: bool = True) -> list[str]:
@@ -460,9 +520,16 @@ def zbuduj(par: Parametry, *, processed_dir: str = PROCESSED_DOMYSLNY,
                               tempo=par.tempo, planner=par.planer),
         seed=par.ziarno, novelty_mode=par.nowosc, pinned_ids=filary_ids)
 
+    z_gat, n_gat = gatunki_w_secie(list(plan.track_order), by_id)
+    notka_g = notka_gatunkow(z_gat, n_gat)
+    if notka_g:
+        notki.append(notka_g)
+
     return {
         "plan": plan,
         "odcisk": odcisk,
+        # znacznik „zbudowany bez gatunków": widok pokazuje go przy secie
+        "gatunki_w_secie": {"z": z_gat, "z_ilu": n_gat},
         "kolejnosc": list(plan.track_order),
         "by_id": by_id,
         # Wagi wracają, bo tymi samymi liczy się potem propozycje padów.

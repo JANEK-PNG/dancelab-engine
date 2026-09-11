@@ -51,3 +51,44 @@ def test_liczba_kopii_jest_raportowana(tmp_path):
 def test_nawiasy_wersji_nie_robia_z_jednego_utworu_dwoch():
     assert klucz(_a("x", "/a.wav", "433Mhz (Original Mix)").track) == \
            klucz(_a("y", "/b.wav", "433Mhz").track)
+
+
+# --- tożsamość Apple (11.09): bliźniak plik ↔ strumień o innym zapisie tytułu ---
+
+def _an(tid, path, title, artist=None, cid=None):
+    from dancelab.core.models import AnalysisResult, Track
+    return AnalysisResult(engine_version="test", track=Track(
+        track_id=tid, title=title, artist=artist, source_path=path, apple_catalog_id=cid))
+
+
+def test_plik_i_strumien_o_tym_samym_id_apple_to_jedna_pozycja():
+    from dancelab.tui import duplikaty as D
+    plik = _an("f", "/nie/ma/a.aiff", "Sex Life (feat. Riko Dan)", "Riko Dan, Tracey", cid="42")
+    strumien = _an("s", "apple-music:tracks:42", "Sex Life", "Tracey")
+    assert D.klucz(plik.track) != D.klucz(strumien.track), "tytuł sam by ich nie scalił"
+    widok, scalono = D.scal([plik, strumien])
+    assert scalono == 1 and len(widok) == 1
+
+
+def test_kopia_bez_isrc_zostaje_w_grupie_przez_tytul():
+    from dancelab.tui import duplikaty as D
+    z_isrc = _an("f1", "/nie/ma/a.aiff", "Life In A Mind", "Ross From Friends", cid="7")
+    wav = _an("f2", "/nie/ma/a.wav", "Life In A Mind", "Ross From Friends")
+    strumien = _an("s", "apple-music:tracks:7", "Life in a Mind", "Ross from Friends, X")
+    widok, scalono = D.scal([z_isrc, wav, strumien])
+    assert (len(widok), scalono) == (1, 2)
+    assert D.ile_kopii([z_isrc, wav, strumien]) == {widok[0].track.track_id: 3}
+
+
+def test_rozne_id_apple_i_rozne_tytuly_nie_sa_scalane():
+    from dancelab.tui import duplikaty as D
+    a = _an("s1", "apple-music:tracks:1", "Alpha", "X")
+    b = _an("s2", "apple-music:tracks:2", "Beta", "Y")
+    assert D.scal([a, b]) == ([a, b], 0)
+
+
+def test_id_apple_ze_sciezki_strumienia_i_z_mostu():
+    from dancelab.tui import duplikaty as D
+    assert D.apple_id(_an("s", "apple-music:tracks:99", "t").track) == "99"
+    assert D.apple_id(_an("f", "/x.aiff", "t", cid="5").track) == "5"
+    assert D.apple_id(_an("f", "/x.aiff", "t").track) is None
