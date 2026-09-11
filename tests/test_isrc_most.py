@@ -54,6 +54,7 @@ def test_normalize_isrc_accepts_only_the_twelve_character_form():
 
 
 def test_read_isrc_from_tsrc_and_txxx_and_nothing(tmp_path):
+    pytest.importorskip("mutagen")  # optional audio extra; headless CI has none
     assert ib.read_isrc(_wav(tmp_path / "a.wav", "GB-ABC-26-00001")) == "GBABC2600001"
     assert ib.read_isrc(_wav(tmp_path / "b.wav", "USRC17607839", txxx=True)) == "USRC17607839"
     assert ib.read_isrc(_wav(tmp_path / "c.wav")) is None
@@ -61,6 +62,7 @@ def test_read_isrc_from_tsrc_and_txxx_and_nothing(tmp_path):
 
 
 def test_collect_isrcs_counts_per_extension_and_keys_by_nfc(tmp_path):
+    pytest.importorskip("mutagen")  # optional audio extra; headless CI has none
     nfd = unicodedata.normalize("NFD", "Zażółć.wav")
     _wav(tmp_path / nfd, "GBABC2600001")
     _wav(tmp_path / "bez.wav")
