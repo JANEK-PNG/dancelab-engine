@@ -417,3 +417,6 @@ tr:hover .akcje-wiersza button,tr[aria-selected="true"] .akcje-wiersza button{op
    podkreślenie mówi „najedź, wyjaśnię". */
 .slowo{text-decoration:underline dotted;text-decoration-color:var(--cichszy);
   text-underline-offset:3px;cursor:help}
+/* Bliźniaki scalone w widoku biblioteki: „×3" przy tytule (app.js). */
+.znak-kopie{margin-left:5px;font-family:var(--mono);font-size:.82em;color:var(--cichy);
+  font-variant-numeric:tabular-nums;cursor:help}
