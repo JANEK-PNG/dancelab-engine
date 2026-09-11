@@ -16,6 +16,15 @@ przedstawiciel grupy, wybrany tak, żeby niczego nie stracić:
   2. z nich ten z NAJWIĘKSZĄ liczbą policzonych cech — analiza z pełnego
      pliku wie więcej niż wpis z Rekordboxa,
   3. dopiero potem Apple Music, a na końcu ścieżka bez pliku.
+
+Tożsamość Apple (11.09). Wykonawca+tytuł łapał tylko część bliźniaków
+plik ↔ strumień: zmierzone na 8260 analizach — 135 par o tym samym id
+katalogu Apple, z czego po tytule scalało się 46, a 89 było widocznych dwa
+razy („feat." w tytule, inna kolejność wykonawców, „entranas" zamiast
+„entrañas" w tagu pliku). Dlatego grupa to spójna składowa: łączą się wpisy
+o tym samym kluczu tytułu ALBO tym samym id Apple (most ISRC dla plików,
+ścieżka dla strumieni). Składowa, nie dwa słowniki — inaczej kopia WAV bez
+ISRC odkleiłaby się od swojego pliku z ISRC, z którym łączy ją tytuł.
 """
 
 from __future__ import annotations
@@ -38,6 +47,49 @@ def klucz(track) -> str:
     s = re.sub(r"[\(\[].*?[\)\]]", " ", s)          # (Original Mix) itp.
     s = re.sub(r"[^0-9a-zà-ɏ]+", " ", s)
     return " ".join(s.split())
+
+
+def apple_id(track) -> str | None:
+    """Id katalogu Apple Music: z mostu ISRC (`apple_catalog_id`) albo ze ścieżki strumienia."""
+    cid = getattr(track, "apple_catalog_id", None)
+    if cid:
+        return str(cid)
+    sp = str(getattr(track, "source_path", "") or "")
+    if sp.startswith("apple-music:tracks:"):
+        return sp.rsplit(":", 1)[1] or None
+    return None
+
+
+def _grupy(analizy: list) -> list[list]:
+    """Spójne składowe po kluczu tytułu i po id Apple, w kolejności pierwszego wystąpienia."""
+    rodzic = list(range(len(analizy)))
+
+    def korzen(i: int) -> int:
+        while rodzic[i] != i:
+            rodzic[i] = rodzic[rodzic[i]]
+            i = rodzic[i]
+        return i
+
+    pierwszy: dict[str, int] = {}
+    for i, a in enumerate(analizy):
+        klucze = []
+        k = klucz(a.track)
+        if k:
+            klucze.append("t:" + k)
+        cid = apple_id(a.track)
+        if cid:
+            klucze.append("a:" + cid)
+        for kl in klucze:
+            if kl not in pierwszy:
+                pierwszy[kl] = i
+                continue
+            x, y = korzen(pierwszy[kl]), korzen(i)
+            if x != y:                       # korzeń = najmniejszy indeks składowej
+                rodzic[max(x, y)] = min(x, y)
+    grupy: dict[int, list] = {}
+    for i, a in enumerate(analizy):
+        grupy.setdefault(korzen(i), []).append(a)
+    return [grupy[r] for r in sorted(grupy)]
 
 
 def _bogactwo(a) -> int:
@@ -63,33 +115,16 @@ def _ranga(a) -> tuple:
 
 
 def scal(analizy: list) -> tuple[list, int]:
-    """(widok bez duplikatów, ile wpisów scalono). Kolejność zachowana."""
-    najlepszy: dict[str, object] = {}
-    ile_w_grupie: dict[str, int] = {}
-    kolejnosc: list[str] = []
-    for a in analizy:
-        k = klucz(a.track)
-        if not k:
-            k = f"__bez_nazwy__{id(a)}"
-        if k not in najlepszy:
-            najlepszy[k] = a
-            ile_w_grupie[k] = 1
-            kolejnosc.append(k)
-            continue
-        ile_w_grupie[k] += 1
-        if _ranga(a) > _ranga(najlepszy[k]):
-            najlepszy[k] = a
-    widok = [najlepszy[k] for k in kolejnosc]
+    """(widok bez duplikatów, ile wpisów scalono). Kolejność zachowana;
+    przy remisie rangi zostaje pierwszy wpis grupy."""
+    widok = [max(g, key=_ranga) for g in _grupy(analizy)]
     return widok, len(analizy) - len(widok)
 
 
 def ile_kopii(analizy: list) -> dict[str, int]:
     """track_id przedstawiciela → ile kopii ma w bibliotece."""
-    grupy: dict[str, list] = {}
-    for a in analizy:
-        grupy.setdefault(klucz(a.track), []).append(a)
     out: dict[str, int] = {}
-    for lista in grupy.values():
+    for lista in _grupy(analizy):
         rep = max(lista, key=_ranga)
         out[rep.track.track_id] = len(lista)
     return out

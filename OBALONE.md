@@ -140,6 +140,24 @@ Nie próbować ponownie bez nowego mechanizmu (np. dostęp do surowego dźwięku
 którego Apple nie daje) — kolejne powtórki tej samej sondy to łowienie wyniku.
 Skrypty: `szew_sonda.py`, `szew_sonda2.py`; wyniki: `wynik_szew.json`, `wynik_szew2.json`.
 
+### A8. Tożsamość Apple przez wyszukiwanie (wykonawca + tytuł) dla plików bez ISRC
+**2026-09-11, pomiar wg progu zapisanego przed uruchomieniem**
+
+Most ISRC zostawił 101 z 272 plików bez tożsamości Apple (61 bez ISRC w tagu, w tym
+wszystkie 25 WAV; 40 z ISRC nieznanym katalogowi `pl`). Droga zastępcza: wyszukiwanie
+w katalogu z regułą ustaloną z góry (dokładny znormalizowany tytuł, wspólny wykonawca,
+długość ± 3 s, dokładnie jeden kandydat), sprawdzona na plikach, których id znamy z ISRC.
+
+Próg (`experiments_priv/2026-09-10_isrc_most/PROGI_szukanie.md`): precyzja po id ≥ 98 %.
+Wynik: 171 plików ze znanym id → 87 dopasowań (pokrycie 51 %), 85 trafnych, 2 inne —
+**precyzja 97,7 %, próg nie zdany**. Oba „inne" mają ten sam ISRC co prawda: to samo
+nagranie na innym albumie, więc pomyłek co do nagrania było 0 z 87 — ale kryterium było
+po id i nie zmieniamy go po zobaczeniu wyniku.
+
+Nie wraca bez NOWEGO zbioru prawdy: kryterium „to samo nagranie (ISRC)" zamiast „to samo
+id" można przyjąć tylko z góry i sprawdzić na plikach, których ta reguła jeszcze nie
+widziała. Skrypt: `szukanie.py`; wynik: `wynik_szukanie.json` (lokalnie).
+
 ## B. Hipotezy modelowe, które padły przy pomiarze
 
 ### B1. Triplet jest lepszy od pary (hide-B na mapie)
