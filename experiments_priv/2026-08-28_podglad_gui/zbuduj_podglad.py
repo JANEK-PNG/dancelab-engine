@@ -71,6 +71,10 @@ window.pywebview = {api: {
   wyslij_playliste_apple: () => echo({blad: 'podgląd w przeglądarce nie wysyła do Apple'}),
   /* Odsłuch Apple Music: podgląd w przeglądarce nie gra — ani z pliku, ani ze strumienia. */
   apple_odtwarzacz: () => echo({blad: 'podgląd w przeglądarce nie gra z Apple Music'}),
+  /* Zgłoszenia: podgląd nie robi zrzutu i nie zapisuje na dysk. */
+  zrzut_do_zgloszenia: () => echo({ok: false, blad_zrzutu: 'podgląd w przeglądarce nie robi zrzutu okna', rozmiar: 0}),
+  zapisz_zgloszenie: (opis, waga) => echo(String(opis || '').trim() ? {id: 'DL-podglad', sciezka: '(podgląd nie zapisuje na dysk)', zrzut: false} : {blad: 'napisz jednym zdaniem, co się stało — bez tego zgłoszenie nic nie mówi'}),
+  porzuc_zgloszenie: () => echo({ok: true}),
   /* ODSŁUCH w podglądzie jest NIEMY — i taki ma być: przeglądarka służy do
      oglądania wyglądu, a zasada „dźwięk tylko z gestu w prawdziwym oknie"
      nie ma wyjątku dla wygody. Pozycja tyka udawanym zegarem, żeby dało się
@@ -309,7 +313,7 @@ window.pywebview = {api: {
 def main() -> int:
     dane = json.loads((TU / "dane.json").read_text(encoding="utf-8"))
     CEL.mkdir(parents=True, exist_ok=True)
-    for nazwa in ("styl.css", "fonty.css", "app.js", "apple_odtwarzacz.js"):
+    for nazwa in ("styl.css", "fonty.css", "app.js", "apple_odtwarzacz.js", "zgloszenie.js"):
         shutil.copy2(ZRODLO / nazwa, CEL / nazwa)
     # kroje z plików (03.09) — bez nich podgląd pokazywałby pismo systemowe
     shutil.copytree(ZRODLO / "fonty", CEL / "fonty", dirs_exist_ok=True)

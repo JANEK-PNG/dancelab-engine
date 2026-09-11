@@ -2276,6 +2276,40 @@ class Most:
         self._apple_tokeny = None
         return {"ok": True}
 
+    # ------------------------------------------------- zgłoszenia błędów
+
+    @_bezpiecznie
+    def zrzut_do_zgloszenia(self) -> dict[str, Any]:
+        """Zrzut okna TERAZ — przed okienkiem zgłoszenia, żeby pokazywał problem.
+
+        Trzymany w pamięci do `zapisz_zgloszenie` albo `porzuc_zgloszenie`.
+        """
+        from dancelab.gui.zrzut_okna import zrzut_png
+        png, blad = zrzut_png(getattr(self, "_window", None))
+        self._zrzut_zgloszenia = (png, blad)
+        return {"ok": bool(png), "blad_zrzutu": blad, "rozmiar": len(png) if png else 0}
+
+    @_bezpiecznie
+    def zapisz_zgloszenie(self, opis: str, waga: str = "powazny",
+                          stan_okna: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Zapisz zgłoszenie z okna do ~/.dancelab/zgloszenia/ (gui/zgloszenia.py)."""
+        from dancelab.gui import zgloszenia as Z
+        png, blad = getattr(self, "_zrzut_zgloszenia", None) or (None, "zrzutu nie zrobiono")
+        srodowisko = {"dancelab": self.wersja().get("dancelab"),
+                      "katalog_analiz": str(self._katalog),
+                      "wpisow_w_spisie": len(self._spis),
+                      "zrzut": blad or "ok"}
+        wynik = Z.zapisz(opis, waga, stan_okna or {}, png, srodowisko)
+        if "blad" not in wynik:
+            self._zrzut_zgloszenia = None
+        return wynik
+
+    @_bezpiecznie
+    def porzuc_zgloszenie(self) -> dict[str, Any]:
+        """Tester anulował okienko — zrzut z pamięci znika."""
+        self._zrzut_zgloszenia = None
+        return {"ok": True}
+
     @staticmethod
     def _apple_storefront_z_biblioteki() -> str | None:
         """Kraj sklepu z ostatniego odczytu biblioteki Apple — przed logowaniem nie ma innego."""
