@@ -273,7 +273,124 @@
      "w": 35.8,
      "h": 21.0
     }
-   ]
+   ],
+   "nadruki": [
+    {
+     "t": "HOT CUE",
+     "x": 160.5,
+     "y": 145.9,
+     "rozm": 2.1
+    },
+    {
+     "t": "IN/CUE",
+     "x": 20.1,
+     "y": 167.9,
+     "rozm": 2.1
+    },
+    {
+     "t": "RELOOP/EXIT",
+     "x": 74.5,
+     "y": 167.6,
+     "rozm": 2.1
+    },
+    {
+     "t": "LOOP",
+     "x": 98.9,
+     "y": 179.5,
+     "rozm": 2.1
+    },
+    {
+     "t": "BEAT LOOP",
+     "x": 72.9,
+     "y": 205.5,
+     "rozm": 2.1
+    },
+    {
+     "t": "CUE/LOOP CALL",
+     "x": 217.2,
+     "y": 167.9,
+     "rozm": 2.1
+    },
+    {
+     "t": "DELETE",
+     "x": 247.6,
+     "y": 167.9,
+     "rozm": 2.1
+    },
+    {
+     "t": "JOG ADJUST",
+     "x": 252.8,
+     "y": 196.2,
+     "rozm": 2.1
+    },
+    {
+     "t": "INST. DOUBLES",
+     "x": 297.7,
+     "y": 195.6,
+     "rozm": 2.1
+    },
+    {
+     "t": "VINYL SPEED ADJ.",
+     "x": 298.0,
+     "y": 140.3,
+     "rozm": 2.1
+    },
+    {
+     "t": "TEMPO",
+     "x": 298.7,
+     "y": 246.3,
+     "rozm": 2.1
+    },
+    {
+     "t": "MASTER TEMPO",
+     "x": 298.3,
+     "y": 268.3,
+     "rozm": 2.1
+    },
+    {
+     "t": "DIRECTION",
+     "x": 29.7,
+     "y": 246.6,
+     "rozm": 2.1
+    },
+    {
+     "t": "TRACK SEARCH",
+     "x": 29.7,
+     "y": 286.1,
+     "rozm": 2.1
+    },
+    {
+     "t": "SEARCH",
+     "x": 30.3,
+     "y": 311.8,
+     "rozm": 2.1
+    },
+    {
+     "t": "PLAY/PAUSE",
+     "x": 29.3,
+     "y": 385.5,
+     "rozm": 2.1
+    },
+    {
+     "t": "TEMPO",
+     "x": 300.0,
+     "y": 412.5,
+     "rozm": 2.1
+    },
+    {
+     "t": "Pioneer DJ",
+     "x": 164.5,
+     "y": 411.5,
+     "rozm": 5.0
+    },
+    {
+     "t": "MULTI PLAYER CDJ-3000",
+     "x": 288.4,
+     "y": 422.4,
+     "rozm": 2.1
+    }
+   ],
+   "nadruki_zrodlo": "OCR (macOS Vision) na renderze modelu 3D z góry, experiments_priv/2026-08-29_model_3d/render/cdj_z_gory_orto.png; piksel → mm: x/12,0, y/12,03 − 13,8 (to samo wyrównanie co części modelu). Krój jest stylizowany i OCR przekręca słowa — NAZWY są z listy części instrukcji, POZYCJE z OCR. ±2 mm."
   },
   {
    "id": "djm",
@@ -468,7 +585,102 @@
     167.4,
     210.2
    ],
-   "kanaly_zmierzone": true
+   "kanaly_zmierzone": true,
+   "nadruki": [
+    {
+     "t": "USB",
+     "x": 30.3,
+     "y": 33.6,
+     "rozm": 2.1
+    },
+    {
+     "t": "MIC",
+     "x": 31.3,
+     "y": 87.8,
+     "rozm": 2.1
+    },
+    {
+     "t": "SOUND COLOR FX",
+     "x": 34.0,
+     "y": 208.5,
+     "rozm": 2.1
+    },
+    {
+     "t": "LINK",
+     "x": 30.3,
+     "y": 261.9,
+     "rozm": 2.1
+    },
+    {
+     "t": "HEADPHONES",
+     "x": 31.1,
+     "y": 280.5,
+     "rozm": 2.1
+    },
+    {
+     "t": "MASTER",
+     "x": 249.4,
+     "y": 33.4,
+     "rozm": 2.1
+    },
+    {
+     "t": "SEND/RETURN",
+     "x": 296.4,
+     "y": 32.7,
+     "rozm": 2.1
+    },
+    {
+     "t": "BEAT FX",
+     "x": 298.8,
+     "y": 97.3,
+     "rozm": 2.1
+    },
+    {
+     "t": "FX FREQUENCY",
+     "x": 292.2,
+     "y": 226.8,
+     "rozm": 2.1
+    },
+    {
+     "t": "BOOTH MONITOR",
+     "x": 248.3,
+     "y": 262.8,
+     "rozm": 2.1
+    },
+    {
+     "t": "CROSS FADER ASSIGN",
+     "x": 146.9,
+     "y": 367.0,
+     "rozm": 2.1
+    }
+   ],
+   "rowki": [
+    [
+     58.1,
+     31.1,
+     58.1,
+     388.2
+    ],
+    [
+     232.9,
+     30.9,
+     232.9,
+     387.8
+    ],
+    [
+     264.5,
+     30.9,
+     264.5,
+     387.8
+    ],
+    [
+     60.9,
+     259.4,
+     231.2,
+     259.4
+    ]
+   ],
+   "nadruki_zrodlo": "instrukcja DJM-900NXS2 s.7, napisy i ścieżki wektorowe (djm900_wektory.json, djm_suwaki.py): nadruki = środki słów, numery kanałów z rozmiaru czcionki ≥ 12 pt; rowki = trzy pionowe szwy (lewa kolumna | kanały | master | prawa sekcja) i górna krawędź płyty faderów (ramka 170,3 × 147,6 mm)."
   },
   {
    "id": "cdj_p",
