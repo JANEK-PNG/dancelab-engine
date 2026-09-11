@@ -682,6 +682,7 @@ function odswiezSpis() {
     stan.widoczne = odp.utwory || [];
     stan.znalezione = odp.znalezione;
     stan.wszystkich = odp.wszystkich;
+    stan.wpisow = odp.wpisow;
     rysujSpis();
   }, 160);
 }
@@ -692,6 +693,10 @@ function rysujSpis() {
   const filtrowane = stan.znalezione !== stan.wszystkich || !!stan.sekcja;
   $('#licznik').textContent = filtrowane
     ? `${stan.znalezione} z ${stan.wszystkich}` : `${stan.wszystkich}`;
+  // licznik mówi o utworach, nie o plikach — ile wpisów to kopie, jest w dymku
+  $('#licznik').title = stan.wpisow > stan.wszystkich
+    ? `${stan.wszystkich} utworów · ${stan.wpisow} wpisów w katalogu, ${stan.wpisow - stan.wszystkich} to kopie (scalone w widoku)`
+    : '';
 
   stan.pustaBiblioteka = !stan.wszystkich;
   pokazSkan();
@@ -705,6 +710,7 @@ function rysujSpis() {
   el.innerHTML = widoczne.map(u => {
     const znaki = (u.ulubiony ? '<span class="znak-ulub">♥</span>' : '')
                 + (u.filar ? '<span class="znak-filar">⚑</span>' : '')
+
                 // 7935 z 8261 utworów to strumienie bez pliku — DJ ma to
                 // wiedzieć z listy, a nie dopiero po naciśnięciu P
                 + (u.grywalny === false
@@ -717,7 +723,11 @@ function rysujSpis() {
       <div class="tresc">
       <div class="t">${(u.tytul || u.track_id).replace(/</g, '&lt;')}<span class="znaki">${znaki}</span></div>
       <div class="d">${u.bpm ? Math.round(u.bpm) : '—'} · ${chipTonacji(u.tonacja)}${
-        u.tonacja_zrodlo === 'rekordbox' ? ' RB' : ''}</div>
+        u.tonacja_zrodlo === 'rekordbox' ? ' RB' : ''}${
+        // bliźniaki scalone w widoku — w prawej kolumnie, bo tytuł bywa ucięty
+        u.kopii > 1
+          ? ` <span class="znak-kopie" title="${u.kopii} kopie tego utworu w bibliotece — plik i strumień Apple albo kilka folderów; pokazana jedna">×${u.kopii}</span>`
+          : ''}</div>
       </div>
     </div>`;
   }).join('') +

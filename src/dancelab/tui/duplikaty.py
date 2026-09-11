@@ -25,6 +25,14 @@ razy („feat." w tytule, inna kolejność wykonawców, „entranas" zamiast
 o tym samym kluczu tytułu ALBO tym samym id Apple (most ISRC dla plików,
 ścieżka dla strumieni). Składowa, nie dwa słowniki — inaczej kopia WAV bez
 ISRC odkleiłaby się od swojego pliku z ISRC, z którym łączy ją tytuł.
+
+Długość (11.09, przy scalaniu w oknie). Sam tytuł sklejał różne nagrania:
+stemy z eksportu („vocals.wav", „drums.wav") trzech różnych utworów, wersje
+Extended i Radio. Zmierzone na 8260 wpisach: pewne bliźniaki (plik i strumień
+o tym samym id Apple, 135 par) różnią się długością najwyżej o 2,3 s, a pary
+łączone po tytule mają ogon do 377 s (87 z 366 różni się o ponad 8 s). Po
+tytule łączymy więc tylko przy długości zgodnej do `TOLERANCJA_DLUGOSCI_S`
+albo nieznanej; po id Apple — zawsze.
 """
 
 from __future__ import annotations
@@ -60,8 +68,20 @@ def apple_id(track) -> str | None:
     return None
 
 
+TOLERANCJA_DLUGOSCI_S = 4.0     # pewne bliźniaki: max 2,3 s różnicy (135 par, 11.09)
+
+
+def _dlugosc(track) -> float | None:
+    d = getattr(track, "duration_sec", None)
+    try:
+        return float(d) if d else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _grupy(analizy: list) -> list[list]:
-    """Spójne składowe po kluczu tytułu i po id Apple, w kolejności pierwszego wystąpienia."""
+    """Spójne składowe po kluczu tytułu (przy zgodnej długości) i po id Apple,
+    w kolejności pierwszego wystąpienia."""
     rodzic = list(range(len(analizy)))
 
     def korzen(i: int) -> int:
@@ -70,22 +90,28 @@ def _grupy(analizy: list) -> list[list]:
             i = rodzic[i]
         return i
 
-    pierwszy: dict[str, int] = {}
+    def polacz(i: int, j: int) -> None:
+        x, y = korzen(i), korzen(j)
+        if x != y:                           # korzeń = najmniejszy indeks składowej
+            rodzic[max(x, y)] = min(x, y)
+
+    po_tytule: dict[str, list[int]] = {}
+    po_apple: dict[str, int] = {}
+    dlugosci = [_dlugosc(a.track) for a in analizy]
     for i, a in enumerate(analizy):
-        klucze = []
         k = klucz(a.track)
         if k:
-            klucze.append("t:" + k)
+            for j in po_tytule.setdefault(k, []):
+                dj, di = dlugosci[j], dlugosci[i]
+                if di is None or dj is None or abs(di - dj) <= TOLERANCJA_DLUGOSCI_S:
+                    polacz(j, i)
+            po_tytule[k].append(i)
         cid = apple_id(a.track)
         if cid:
-            klucze.append("a:" + cid)
-        for kl in klucze:
-            if kl not in pierwszy:
-                pierwszy[kl] = i
-                continue
-            x, y = korzen(pierwszy[kl]), korzen(i)
-            if x != y:                       # korzeń = najmniejszy indeks składowej
-                rodzic[max(x, y)] = min(x, y)
+            if cid in po_apple:
+                polacz(po_apple[cid], i)
+            else:
+                po_apple[cid] = i
     grupy: dict[int, list] = {}
     for i, a in enumerate(analizy):
         grupy.setdefault(korzen(i), []).append(a)

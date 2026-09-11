@@ -55,10 +55,11 @@ def test_nawiasy_wersji_nie_robia_z_jednego_utworu_dwoch():
 
 # --- tożsamość Apple (11.09): bliźniak plik ↔ strumień o innym zapisie tytułu ---
 
-def _an(tid, path, title, artist=None, cid=None):
+def _an(tid, path, title, artist=None, cid=None, dur=None):
     from dancelab.core.models import AnalysisResult, Track
     return AnalysisResult(engine_version="test", track=Track(
-        track_id=tid, title=title, artist=artist, source_path=path, apple_catalog_id=cid))
+        track_id=tid, title=title, artist=artist, source_path=path, apple_catalog_id=cid,
+        duration_sec=dur))
 
 
 def test_plik_i_strumien_o_tym_samym_id_apple_to_jedna_pozycja():
@@ -92,3 +93,30 @@ def test_id_apple_ze_sciezki_strumienia_i_z_mostu():
     assert D.apple_id(_an("s", "apple-music:tracks:99", "t").track) == "99"
     assert D.apple_id(_an("f", "/x.aiff", "t", cid="5").track) == "5"
     assert D.apple_id(_an("f", "/x.aiff", "t").track) is None
+
+
+
+# --- długość (11.09): sam tytuł nie skleja różnych nagrań ---
+
+def test_stemy_roznych_utworow_o_tym_samym_tytule_nie_sa_scalane():
+    from dancelab.tui import duplikaty as D
+    stemy = [_an(f"v{i}", f"/stems/{n}/vocals.wav", "vocals", dur=d)
+             for i, (n, d) in enumerate((("bodhi", 289.0), ("airod", 314.0), ("bicep", 329.0)))]
+    kopia = _an("v3", "/stems_smoke/airod/vocals.wav", "vocals", dur=314.2)
+    widok, scalono = D.scal(stemy + [kopia])
+    assert (len(widok), scalono) == (3, 1), "only the two AIROD vocals are the same recording"
+
+
+def test_zgodna_albo_nieznana_dlugosc_dalej_laczy():
+    from dancelab.tui import duplikaty as D
+    a = _an("a", "/m/a.aiff", "01 The Edge", dur=196.0)
+    b = _an("b", "/m/b.aiff", "01 The Edge", dur=197.9)
+    c = _an("c", "/m/c.aiff", "01 The Edge")                  # bez długości — jak dawniej
+    assert D.scal([a, b, c])[1] == 2
+
+
+def test_id_apple_laczy_mimo_innej_dlugosci():
+    from dancelab.tui import duplikaty as D
+    f = _an("f", "/m/a.aiff", "A", cid="7", dur=200.0)
+    s = _an("s", "apple-music:tracks:7", "B", dur=260.0)
+    assert D.scal([f, s])[1] == 1

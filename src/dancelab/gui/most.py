@@ -16,6 +16,7 @@ import functools
 import json
 import pathlib
 import threading
+import unicodedata
 import traceback
 from typing import Any
 
@@ -58,6 +59,34 @@ def _bezpiecznie(fn):
                     "slad": traceback.format_exc(limit=3)}
 
     return opakowana
+
+
+def _scal_blizniaki(wiersze: list[dict], grupa: dict[str, int]) -> tuple[list[dict], int]:
+    """(jeden wiersz na grupę bliźniaków z polem `kopii`, ile wierszy scalono).
+
+    Przedstawiciel: najpierw kopia z filarem albo ulubiona — inaczej ♥ i ⚑
+    znikałyby z listy, gdy DJ oznaczył akurat schowaną kopię — potem plik,
+    który da się zagrać, potem nie-strumień. Remis: pierwszy wiersz grupy.
+    """
+    grupy: dict[int, list[dict]] = {}
+    kolejnosc: list[int] = []
+    for i, w in enumerate(wiersze):
+        g = grupa.get(w["track_id"], -1 - i)          # spoza spisu: własna grupa
+        if g not in grupy:
+            grupy[g] = []
+            kolejnosc.append(g)
+        grupy[g].append(w)
+
+    def ranga(w: dict) -> tuple:
+        return (bool(w.get("filar")), bool(w.get("ulubiony")), w.get("grywalny") is not False,
+                not str(w.get("sciezka") or "").startswith("apple-music:"))
+
+    widok = []
+    for g in kolejnosc:
+        lista = grupy[g]
+        najlepszy = max(lista, key=ranga)             # max bierze pierwszy przy remisie
+        widok.append({**najlepszy, "kopii": len(lista)})
+    return widok, len(wiersze) - len(widok)
 
 
 def _apple_id_sciezki(sciezka: str | None) -> str | None:
@@ -336,6 +365,12 @@ class Most:
                           "ulubiony": u["track_id"] in ulubione,
                           "filar": u["track_id"] in filary})
 
+        # Bliźniaki — ten sam utwór w kilku folderach albo plik i jego strumień
+        # Apple — scalamy W WIDOKU, po filtrach, jak terminal (tui/duplikaty).
+        # Spis, wyszukiwanie po track_id, ulubione i filary zostają nietknięte.
+        grupa = self._grupy_spisu()
+        wynik, scalono = _scal_blizniaki(wynik, grupa)
+
         # „-bpm" = malejąco; ten sam klucz, którym sortuje tabela terminala
         malejaco = sortuj.startswith("-")
         wynik = B.sortuj(wynik, sortuj.lstrip("-"), malejaco=malejaco,
@@ -345,7 +380,43 @@ class Most:
                              tonacja=u.get("tonacja"), dlugosc=u.get("dlugosc_sec"),
                              gatunek=u.get("gatunek")))
         return {"utwory": wynik[:limit], "znalezione": len(wynik),
-                "wszystkich": len(spis), "sekcja": sekcja}
+                "wszystkich": len(set(grupa.values())), "wpisow": len(spis),
+                "scalono": scalono, "sekcja": sekcja}
+
+    def _grupy_spisu(self) -> dict[str, int]:
+        """track_id → numer grupy bliźniaków w całym spisie (liczone raz).
+
+        Te same reguły co w terminalu (`tui/duplikaty._grupy`): łączy klucz
+        wykonawca+tytuł przy zgodnej długości ALBO id katalogu Apple — ze
+        ścieżki strumienia, a dla pliku z mostu ISRC. Pamiętane jak `_po_id`: kluczem przebudowy jest
+        tożsamość listy i jej długość, więc podmiana spisu liczy grupy od nowa.
+        """
+        znacznik = (id(self._spis), len(self._spis))
+        if getattr(self, "_grupy_dla", None) == znacznik:
+            return self._grupy
+        from types import SimpleNamespace
+
+        from dancelab.tui import duplikaty as D
+        most_isrc = self._most_isrc()
+        pozycje = []
+        for u in self._spis:
+            sp = str(u.get("sciezka") or "")
+            wpis = most_isrc.get(unicodedata.normalize("NFC", sp)) if sp else None
+            pozycje.append(SimpleNamespace(tid=u["track_id"], features=None, track=SimpleNamespace(
+                title=u.get("tytul"), artist=u.get("wykonawca"), source_path=sp,
+                duration_sec=u.get("dlugosc_sec"),
+                apple_catalog_id=(wpis or {}).get("catalog_id"))))
+        self._grupy = {a.tid: i for i, g in enumerate(D._grupy(pozycje)) for a in g}
+        self._grupy_dla = znacznik
+        return self._grupy
+
+    def _most_isrc(self) -> dict[str, Any]:
+        """Mapa plik → id katalogu Apple z mostu ISRC; pusta, gdy mostu nie ma."""
+        if getattr(self, "_most_isrc_mapa", None) is None:
+            from dancelab.ingestion.apple_music_api import REPO_ROOT
+            from dancelab.ingestion.isrc_bridge import BRIDGE_FILE, load_bridge
+            self._most_isrc_mapa, _ = load_bridge(REPO_ROOT / BRIDGE_FILE)
+        return self._most_isrc_mapa
 
     @_bezpiecznie
     def wczytaj_utwor(self, track_id: str) -> dict[str, Any]:
