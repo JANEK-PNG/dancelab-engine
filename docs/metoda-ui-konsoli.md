@@ -167,3 +167,56 @@ nie zapewnieniem. Kontrolka bez odpowiednika mówi to na karcie po obu
 stronach. Pułapka techniczna do zapamiętania: stała leksykalna strony nie jest
 `window.X` dla ramki-rodzica, a przeglądarka trzyma panele w cache — ramki
 dostają parametr czasu w `src`.
+
+## Etap dodatkowy (29.08–11.09): model 3D i rzut wektorowy jako źródła
+
+Panel klubowy (CDJ-3000 + DJM-900NXS2) nie miał osoby ze sprzętem na biurku,
+więc etapy 2, 4 i 5 szły z trzech innych źródeł. Każde dało co innego i każde
+miało swoją pułapkę.
+
+**Model 3D — materiał tak, geometria nie wprost.** Kryterium zapisane przed
+otwarciem pliku (co najmniej 30 osobnych obiektów) padło: model to cztery
+zlepione bryły. Dał za to dwie rzeczy. Rendery z góry, z przodu, z boku — to jest
+etap 4 („materiał ze zdjęć") dla sprzętu, którego nikt nie sfotografował; PLAY
+zielony i CUE bursztynowy są z renderu, nie z pamięci. I pozycje: siatkę da się
+rozciąć na wyspy części (`experiments_priv/2026-08-29_model_3d/`), a wyspy
+wyrównać do instrukcji dwoma punktami odniesienia (listwa hot cue, środek
+talerza). Skalę sprawdza się niezależnie: głębokość panelu z renderu 454,0 mm
+wobec 453,0 ze specyfikacji.
+
+**Rzut wektorowy — czytać ŚCIEŻKI, nie tylko prostokąty.** Strona instrukcji
+DJM to grafika wektorowa: każda kreska i każdy napis ma współrzędne. Pierwszy
+wyciąg (29.08) brał tylko prostokąty i przez dwa tygodnie nikt nie zauważył, że
+tym samym sitem wypadło wszystko, co jest rysowane krzywymi — każda gałka,
+fadery, crossfader. `get_drawings()` z pymupdf oddaje także ścieżki; koło to
+ścieżka z krzywymi o obwiedni prawie kwadratowej. Skalę sprawdzać czymś, czego
+się z rysunku nie brało: proporcja obrysu 0,803 wobec katalogowych 0,801 i trzy
+równe odstępy kanałów (42,6 / 42,8 / 42,8 mm).
+
+**Napisy z renderu — OCR daje pozycję, instrukcja daje nazwę.** Nadruk na
+panelu jest stylizowany i OCR (macOS Vision) czyta „RELOOP/EXIT" jako
+„NLCOPDOT", a „SEARCH" jako „MARCH". Położenie ma jednak dobre. Nazwa idzie więc
+z listy części instrukcji, pozycja z OCR, przeliczona **tym samym wyrównaniem co
+części modelu** — inaczej napisy i kontrolki leżałyby w dwóch różnych układach.
+
+**Reguła: trzy źródła na jedną kontrolkę, zapisane przy niej.** Pole `zrodlo`
+w `uklad.json` mówi dla każdego elementu: która część modelu (albo ścieżka
+wektorowa), jaki napis stoi przy niej na renderze, jaki numer ma na liście
+części instrukcji. Przypisanie z jednego źródła wyglądało dobrze i było złe
+trzy razy: KEY SYNC siedział na listwie JOG MODE, „słuchawki" na pudełku SOUND
+COLOR FX, rząd CUE na przełącznikach A THRU B. Każdy z tych błędów miał flagę
+`zmierzone: true` — **zmierzone nie znaczy przypisane dobrze.** Wyłapał je
+dopiero napis na renderze albo w rzucie, czyli drugie źródło.
+
+**Audyt przed i po, na tej samej maszynie.** Liczba ostrzeżeń sama nic nie
+mówi. Przed zmianą: podmienić plik na wersję z gita, przeładować, zapisać
+`window.__audyt`; po zmianie to samo; porównać napis po napisie. Nowe
+ostrzeżenie trzeba sklasyfikować **geometrycznie** — czy napis leży na własnej
+kontrolce (znana klasa, jak pady A–H), czy na sąsiedniej (błąd) — zanim się je
+przyjmie.
+
+**Pułapka: serializer zmienia cały plik.** `json.dumps` bez wcięcia z oryginału
+spłaszczył `uklad.json` do jednej linii i diff pokazał 474 usunięte wiersze przy
+ośmiu zmienionych elementach. Zapisywać tym samym formatem, który plik już ma
+(tu: wcięcie 1, `ensure_ascii=False`), i sprawdzić to, odtwarzając wersję
+z gita bajt w bajt.
