@@ -166,3 +166,25 @@ def test_zgodnosc_na_PRAWDZIWEJ_analizie():
     # dane, na których stoi ekran, muszą naprawdę być
     assert p.dlugosc_sec > 0
     assert any(p.ma_dane), "żaden punkt nie ma pomiaru"
+
+
+@dataclass
+class KlatkaZBasem:
+    timestamp_sec: float
+    rms: float | None
+    low_freq_energy_ratio: float | None
+
+
+def test_udzial_basu_to_srednia_w_koszu_a_brak_to_none():
+    """Fala dwupasmowa (audyt 05.09): bas tylko tam, gdzie go zmierzono."""
+    klatki = [KlatkaZBasem(t, 0.5, 0.8 if t < 60 else None) for t in range(0, 120)]
+    a = Analiza(features=klatki, track=Slad(duration_sec=120.0))
+    p = P.zbuduj(a, punktow=4)
+    assert p.niskie[0] == pytest.approx(0.8) and p.niskie[1] == pytest.approx(0.8)
+    assert p.niskie[2] is None and p.niskie[3] is None, "brak pomiaru to nie zero basu"
+    assert P.zbuduj(a, punktow=4).do_slownika()["niskie"][3] is None
+
+
+def test_klatki_bez_pola_basu_nie_wybuchaja():
+    p = P.zbuduj(zrob_analize(), punktow=10)
+    assert p.niskie == [None] * 10

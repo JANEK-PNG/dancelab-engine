@@ -400,3 +400,15 @@ tr:hover .akcje-wiersza button,tr[aria-selected="true"] .akcje-wiersza button{op
 /* liczby utworu należą do ekranu Utwór — na Set i DJ mówiłyby o czymś, czego nie widać */
 :root[data-ekran="set"] .liczby,
 :root[data-ekran="dj"] .liczby{display:none}
+
+/* Tonacja jako chip Camelot — barwa z koła Camelota (app.js: chipTonacji).
+   A (moll) ciemniejsze tło, B (dur) jaśniejsze; napis zawsze czytelny. */
+.ton-chip{display:inline-block;min-width:2.6em;padding:0 .45em;border-radius:4px;
+  font-family:var(--mono);font-size:.92em;line-height:1.5;text-align:center;
+  font-variant-numeric:tabular-nums;
+  background:hsl(var(--h) 42% 22%);color:hsl(var(--h) 72% 82%);
+  box-shadow:inset 0 0 0 1px hsl(var(--h) 45% 34%)}
+.ton-chip.dur{background:hsl(var(--h) 38% 33%);color:hsl(var(--h) 80% 92%)}
+/* Pasek przeglądu nad falą — tylko po przybliżeniu (app.js: rysujPrzeglad). */
+.przeglad{display:block;width:100%;height:26px;margin:0 0 6px;cursor:pointer}
+.przeglad[hidden]{display:none}

@@ -44,6 +44,10 @@ class Przebieg:
     dlugosc_sec: float
     obwiednia: list[float] = field(default_factory=list)   # 0..1, None → 0
     ma_dane: list[bool] = field(default_factory=list)      # gdzie NAPRAWDĘ mierzono
+    # Udział niskich częstotliwości w koszu (0..1, średnia `low_freq_energy_ratio`),
+    # None tam, gdzie go nie mierzono — fala rysuje wtedy słupek jednolity.
+    # Audyt konkurencji 05.09: fala dwupasmowa u 5 z 6 aplikacji do prepu.
+    niskie: list[float | None] = field(default_factory=list)
     sekcje: list[Sekcja] = field(default_factory=list)
     takty_sec: list[float] = field(default_factory=list)
     bpm: float | None = None
@@ -54,6 +58,7 @@ class Przebieg:
             "dlugosc_sec": round(self.dlugosc_sec, 3),
             "obwiednia": [round(v, 4) for v in self.obwiednia],
             "ma_dane": self.ma_dane,
+            "niskie": [None if v is None else round(v, 3) for v in self.niskie],
             "sekcje": [
                 {"od": round(s.od_sec, 3), "do": round(s.do_sec, 3),
                  "typ": s.typ, "nazwa": s.nazwa}
@@ -95,11 +100,17 @@ def zbuduj(analysis: Any, punktow: int = PUNKTOW,
 
     sumy = [0.0] * punktow
     ile = [0] * punktow
+    bas = [0.0] * punktow
+    ile_bas = [0] * punktow
     for f in klatki:
         i = min(int(f.timestamp_sec / dlugosc * punktow), punktow - 1)
         if i >= 0:
             sumy[i] += f.rms
             ile[i] += 1
+            nb = getattr(f, "low_freq_energy_ratio", None)
+            if nb is not None:
+                bas[i] += min(1.0, max(0.0, float(nb)))
+                ile_bas[i] += 1
 
     srednie = [s / n if n else None for s, n in zip(sumy, ile, strict=False)]
     znane = [s for s in srednie if s is not None]
@@ -110,6 +121,7 @@ def zbuduj(analysis: Any, punktow: int = PUNKTOW,
     else:
         p.obwiednia = [0.0] * punktow
     p.ma_dane = [s is not None for s in srednie]
+    p.niskie = [b / n if n else None for b, n in zip(bas, ile_bas, strict=False)]
 
     for seg in sorted(getattr(analysis, "segments", None) or [],
                       key=lambda s: s.start_sec):
